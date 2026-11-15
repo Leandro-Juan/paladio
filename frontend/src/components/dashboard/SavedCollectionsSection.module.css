@@ -269,3 +269,301 @@
 .emptyAction:hover {
   opacity: 0.9;
 }
+
+.primaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 9999px;
+  background-color: var(--color-accent-primary, #0F4C5C);
+  color: #FFFFFF;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 9999px;
+  background-color: var(--color-surface-sunken, #EDE6DC);
+  color: var(--color-text-secondary, #5C554E);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.createForm {
+  padding: 16px;
+  border-radius: 16px;
+  background-color: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-accent-primary, #0F4C5C);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
+}
+
+.createFormTitle {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-accent-primary, #0F4C5C);
+}
+
+.createFormFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.textInput {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.12));
+  background-color: var(--color-bg-secondary, #FAF8F5);
+  font-size: 13px;
+  color: var(--color-text-primary, #1A1A1A);
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.createFormFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.colorRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.colorLabel {
+  font-size: 11px;
+  color: var(--color-text-muted, #8C827A);
+}
+
+.colorSwatches {
+  display: flex;
+  gap: 6px;
+}
+
+.createFormActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cardTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted, #8C827A);
+  padding: 5px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.iconBtn:hover {
+  background-color: var(--color-bg-secondary, #EDE6DC);
+  color: var(--color-text-primary, #1A1A1A);
+}
+
+.iconBtnDanger:hover {
+  background-color: rgba(225, 29, 72, 0.1);
+  color: #E11D48;
+}
+
+.editRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.editInput {
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--color-accent-primary, #0F4C5C);
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+  outline: none;
+}
+
+.editSaveBtn {
+  padding: 5px 10px;
+  border-radius: 8px;
+  background-color: var(--color-accent-primary, #0F4C5C);
+  color: #FFFFFF;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.editCancelBtn {
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary, #666666);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.12));
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.addPoiToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.addPoiBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.12));
+  background-color: var(--color-bg-secondary, #FAF8F5);
+  color: var(--color-accent-primary, #0F4C5C);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.addPoiBtn:hover {
+  background-color: rgba(15, 76, 92, 0.08);
+  border-color: rgba(15, 76, 92, 0.3);
+}
+
+.emptyItemsHint {
+  padding: 16px 10px;
+  text-align: center;
+  color: var(--color-text-muted, #8C827A);
+  font-size: 12px;
+  font-style: italic;
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.06));
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.06));
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.poiRow {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  background-color: var(--color-surface, #FFFFFF);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.poiRowInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.poiRowName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary, #1A1A1A);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.poiRowLocation {
+  font-size: 10.5px;
+  color: var(--color-text-secondary, #475569);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.poiRowMeta {
+  font-size: 10px;
+  color: var(--color-text-muted, #8C827A);
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.poiRowActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.removePoiBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted, #8C827A);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.removePoiBtn:hover {
+  color: #E11D48;
+  background-color: rgba(225, 29, 72, 0.08);
+}

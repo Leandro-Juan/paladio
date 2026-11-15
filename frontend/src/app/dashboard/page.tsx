@@ -162,7 +162,7 @@ export default function DashboardPage() {
       <UpcomingTripsSection upcomingTrips={upcomingTrips} loading={loading} onDeleteTrip={deleteTrip} />
 
       {/* Curated Saved Collections Section */}
-      <SavedCollectionsSection />
+      <SavedCollectionsSection trips={trips} />
     </div>
   );
 }

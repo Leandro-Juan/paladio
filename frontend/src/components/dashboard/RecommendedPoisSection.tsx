@@ -69,6 +69,7 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
     return new Set();
   });
   const [dynamicCityPois, setDynamicCityPois] = useState<ExtractedPoi[]>([]);
+  const [fetchedCityKey, setFetchedCityKey] = useState<string | null>(null);
 
   const handleDismissPoi = useCallback((idOrName: string, poiName?: string) => {
     setDismissedPoiKeys((prev) => {
@@ -132,10 +133,12 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
   const targetTrip = upcomingTrips[0] || trips[0];
   const targetCity = targetTrip?.destination;
   const targetTripId = targetTrip?.id;
+  const currentCityKey = targetCity ? `${targetCity}:${targetTripId || ''}` : null;
+  const isFetchingPois = Boolean(currentCityKey && fetchedCityKey !== currentCityKey);
 
   // Dynamically fetch unvisited destination POI recommendations from backend
   useEffect(() => {
-    if (!targetCity) return;
+    if (!targetCity || !currentCityKey) return;
     let isMounted = true;
 
     async function fetchDestinationPois() {
@@ -176,6 +179,10 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
         }
       } catch {
         // Ignore network errors in recommendation fetch
+      } finally {
+        if (isMounted) {
+          setFetchedCityKey(currentCityKey);
+        }
       }
     }
 
@@ -183,7 +190,7 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
     return () => {
       isMounted = false;
     };
-  }, [targetCity, targetTripId]);
+  }, [targetCity, targetTripId, currentCityKey]);
 
   // Aggregate candidate POIs, STRICTLY EXCLUDING any POI already in any itinerary or visited
   const candidatePois = useMemo(() => {
@@ -381,7 +388,7 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
     };
   }, [poisWithPhotos]);
 
-  if (loading) {
+  if (loading || (isFetchingPois && poisWithPhotos.length === 0)) {
     return (
       <div className={styles.container}>
         <div className={styles.loadingContainer}>

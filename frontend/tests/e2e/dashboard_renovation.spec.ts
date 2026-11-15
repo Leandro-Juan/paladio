@@ -343,17 +343,13 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
 
     // 6. Verify Cockpit Fits on Screen: bottom cards do not overflow the 900px viewport
     const actionBtnBox = await heartButtons.last().boundingBox();
-    const kpiBox = await page.getByText('TOTAL MISSIONS').boundingBox();
     expect(actionBtnBox).toBeTruthy();
     if (actionBtnBox) {
       expect(actionBtnBox.y + actionBtnBox.height).toBeLessThanOrEqual(900);
     }
 
-    // 7. Verify Statistics Strip (TOTAL MISSIONS, ACTIVE / QUEUED, etc.) is strictly NOT on screen
-    expect(kpiBox).toBeTruthy();
-    if (kpiBox) {
-      expect(kpiBox.y).toBeGreaterThanOrEqual(900);
-    }
+    // 7. Verify removed Statistics Strip (TOTAL MISSIONS, ACTIVE / QUEUED, etc.) is not rendered
+    await expect(page.getByText('TOTAL MISSIONS')).not.toBeVisible();
 
     // 8. Verify Dismiss Interaction: Clicking Cross dismisses the card and finds the next best match
     await expect(page.getByText('Matterhorn Viewpoint')).toBeVisible();
@@ -623,12 +619,10 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     await expect(card.getByText('Matterhorn Viewpoint')).toBeVisible();
     await expect(card.getByText('Gornergrat Observatory')).toBeVisible();
     await expect(card.getByText('2 places')).toBeVisible();
-    await expect(card.getByText('OPEN VAULT')).toBeVisible();
-
-    // 5. Verify Click navigates to trip workspace with ?tab=saved
-    await card.click();
-    await page.waitForURL(/\/trips\/trip-swiss-alps\?tab=saved/);
-    expect(page.url()).toContain('/trips/trip-swiss-alps?tab=saved');
+    await expect(card.getByText('OPEN VAULT')).not.toBeVisible();
+    await expect(card.getByRole('button', { name: '+ From Trips' })).toBeVisible();
+    await expect(card.getByRole('button', { name: '+ Add Manually' })).toBeVisible();
+    await expect(card.getByTestId('collection-item-status-poi-matterhorn')).toHaveText('Want to go');
   });
 
   test('renders empty state for saved collections when user has no collections yet', async ({ page }) => {
@@ -682,6 +676,6 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     await expect(emptyState).toBeVisible();
     await expect(page.getByRole('heading', { level: 3, name: 'No Saved Collections' })).toBeVisible();
     await expect(page.locator('[data-testid="saved-collections-count"]')).toHaveText('0 CURATED');
-    await expect(emptyState.getByRole('link', { name: /\+ (Plan New Expedition|Initialize Protocol)/i })).toBeVisible();
+    await expect(emptyState.getByRole('button', { name: '+ Create First Collection' })).toBeVisible();
   });
 });

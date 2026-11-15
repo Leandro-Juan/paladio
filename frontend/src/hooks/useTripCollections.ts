@@ -34,7 +34,7 @@ export interface CollectionItem {
 
 export interface TripCollection {
   id: string;
-  trip_id: string;
+  trip_id: string | null;
   trip_destination?: string | null;
   trip_title?: string | null;
   name: string;
@@ -392,11 +392,153 @@ export function useSavedCollections() {
     };
   }, []);
 
+  const createCollection = useCallback(
+    async (name: string, description?: string, color: string = '#0F4C5C'): Promise<TripCollection | null> => {
+      const created = await apiFetch<TripCollection>('/trips/saved-collections', {
+        method: 'POST',
+        body: JSON.stringify({ name, description, color }),
+      });
+      const current = sharedCollectionsCache || [];
+      sharedCollectionsCache = [created, ...current];
+      notifyAllListeners();
+      return created;
+    },
+    []
+  );
+
+  const updateCollection = useCallback(
+    async (
+      collectionId: string,
+      updates: { name?: string; description?: string; color?: string }
+    ): Promise<TripCollection | null> => {
+      const updated = await apiFetch<TripCollection>(`/trips/saved-collections/${collectionId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      const current = sharedCollectionsCache || [];
+      sharedCollectionsCache = current.map((c) => (c.id === collectionId ? updated : c));
+      notifyAllListeners();
+      return updated;
+    },
+    []
+  );
+
+  const deleteCollection = useCallback(async (collectionId: string): Promise<boolean> => {
+    await apiFetch(`/trips/saved-collections/${collectionId}`, {
+      method: 'DELETE',
+    });
+    const current = sharedCollectionsCache || [];
+    sharedCollectionsCache = current.filter((c) => c.id !== collectionId);
+    notifyAllListeners();
+    return true;
+  }, []);
+
+  const addItemToCollection = useCallback(
+    async (
+      collectionId: string,
+      poiId: string,
+      poiDetails?: CollectionPoiSummary
+    ): Promise<CollectionItem | null> => {
+      const createdItem = await apiFetch<CollectionItem>(
+        `/trips/saved-collections/${collectionId}/items`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ poi_id: poiId }),
+        }
+      );
+      const hydratedItem: CollectionItem = {
+        ...createdItem,
+        poi: createdItem.poi || poiDetails || null,
+      };
+      const current = sharedCollectionsCache || [];
+      sharedCollectionsCache = current.map((col) => {
+        if (col.id !== collectionId) return col;
+        const exists = col.items.some((it) => it.poi_id === poiId);
+        if (exists) {
+          return {
+            ...col,
+            items: col.items.map((it) => (it.poi_id === poiId ? hydratedItem : it)),
+          };
+        }
+        return {
+          ...col,
+          items_count: col.items_count + 1,
+          items: [...col.items, hydratedItem],
+        };
+      });
+      notifyAllListeners();
+      return hydratedItem;
+    },
+    []
+  );
+
+  const updateItemVisitStatus = useCallback(
+    async (
+      collectionId: string,
+      poiId: string,
+      visitStatus: CollectionItemVisitStatus
+    ): Promise<boolean> => {
+      const previous = sharedCollectionsCache;
+      sharedCollectionsCache = (previous || []).map((col) => {
+        if (col.id !== collectionId) return col;
+        return {
+          ...col,
+          items: col.items.map((it) =>
+            it.poi_id === poiId ? { ...it, visit_status: visitStatus } : it
+          ),
+        };
+      });
+      notifyAllListeners();
+
+      try {
+        await apiFetch<CollectionItem>(
+          `/trips/saved-collections/${collectionId}/items/${poiId}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({ visit_status: visitStatus }),
+          }
+        );
+        return true;
+      } catch (err: unknown) {
+        sharedCollectionsCache = previous;
+        notifyAllListeners();
+        throw err;
+      }
+    },
+    []
+  );
+
+  const removeItemFromCollection = useCallback(
+    async (collectionId: string, poiId: string): Promise<boolean> => {
+      await apiFetch(`/trips/saved-collections/${collectionId}/items/${poiId}`, {
+        method: 'DELETE',
+      });
+      const current = sharedCollectionsCache || [];
+      sharedCollectionsCache = current.map((col) => {
+        if (col.id !== collectionId) return col;
+        return {
+          ...col,
+          items_count: Math.max(0, col.items_count - 1),
+          items: col.items.filter((it) => it.poi_id !== poiId),
+        };
+      });
+      notifyAllListeners();
+      return true;
+    },
+    []
+  );
+
   return {
     collections,
     loading,
     error,
     refresh,
+    createCollection,
+    updateCollection,
+    deleteCollection,
+    addItemToCollection,
+    updateItemVisitStatus,
+    removeItemFromCollection,
   };
 }
 
