@@ -52,8 +52,8 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h3 className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
-          {'// TRANSIT PASS SAVINGS ADVISORY'}
+        <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
+          {'TRANSIT PASS SAVINGS ADVISORY'}
         </h3>
         <span className="font-mono text-muted" style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
           SOLVER FARE ANALYSIS

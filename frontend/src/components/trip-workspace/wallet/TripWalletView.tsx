@@ -202,8 +202,8 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
     >
       {/* Header Banner */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <p className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
-          {'// BOARDING PASSES, HOTEL PINS, ENTRY TICKETS & TRANSIT PASSES'}
+        <p className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
+          {'BOARDING PASSES, HOTEL PINS, ENTRY TICKETS & TRANSIT PASSES'}
         </p>
       </div>
 
@@ -263,8 +263,8 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
       {(category === 'all' || category === 'flight') && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
-              {'// FLIGHT BOARDING PASSES'}
+            <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
+              {'FLIGHT BOARDING PASSES'}
             </h3>
             <button
               type="button"
@@ -325,8 +325,8 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
       {(category === 'all' || category === 'hotel') && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
-              {'// LODGING & ACCESS CODES'}
+            <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
+              {'LODGING & ACCESS CODES'}
             </h3>
             <button
               type="button"
@@ -387,8 +387,8 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
       {(category === 'all' || category === 'attraction') && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
-              {'// MUSEUMS & ATTRACTION PASSES'}
+            <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
+              {'MUSEUMS & ATTRACTION PASSES'}
             </h3>
             <button
               type="button"
@@ -449,8 +449,8 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
       {(category === 'all' || category === 'transit') && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
-              {'// PUBLIC TRANSIT & RAIL TICKETS'}
+            <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
+              {'PUBLIC TRANSIT & RAIL TICKETS'}
             </h3>
             <button
               type="button"
@@ -482,7 +482,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              No rail or transit passes. Renfe, metro passes and regional rail tickets appear here.
+              No rail or transit passes. Train tickets, metro passes and regional rail tickets appear here.
             </div>
           ) : (
             <div
@@ -511,8 +511,8 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
       {(category === 'all' || category === 'other') && otherTickets.length > 0 && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 className="font-mono text-muted text-xs" style={{ margin: 0, color: 'var(--color-text-muted, #64748B)' }}>
-              {'// GENERAL VOUCHERS & CREDENTIALS'}
+            <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
+              {'GENERAL VOUCHERS & CREDENTIALS'}
             </h3>
             <button
               type="button"

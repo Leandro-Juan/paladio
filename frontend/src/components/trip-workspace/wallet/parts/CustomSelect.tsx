@@ -16,6 +16,8 @@ interface CustomSelectProps<T extends string = string> {
   placeholder?: string;
   disabled?: boolean;
   style?: React.CSSProperties;
+  buttonStyle?: React.CSSProperties;
+  menuStyle?: React.CSSProperties;
 }
 
 export function CustomSelect<T extends string = string>({
@@ -26,6 +28,8 @@ export function CustomSelect<T extends string = string>({
   placeholder = 'Select...',
   disabled = false,
   style,
+  buttonStyle,
+  menuStyle,
 }: CustomSelectProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -75,6 +79,7 @@ export function CustomSelect<T extends string = string>({
           boxShadow: isOpen ? '0 0 0 2px var(--color-focus-ring)' : 'none',
           transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
           opacity: disabled ? 0.6 : 1,
+          ...buttonStyle,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
@@ -110,17 +115,20 @@ export function CustomSelect<T extends string = string>({
             position: 'absolute',
             top: 'calc(100% + 4px)',
             left: 0,
-            right: 0,
+            minWidth: '100%',
+            width: 'max-content',
+            maxWidth: '280px',
             zIndex: 50,
             background: 'var(--color-surface-card)',
             border: '1px solid var(--color-border-subtle)',
-            borderRadius: '6px',
+            borderRadius: '10px',
             boxShadow: 'var(--shadow-dropdown, 0 8px 24px rgba(0, 0, 0, 0.15))',
             maxHeight: '220px',
             overflowY: 'auto',
             padding: '4px',
             margin: 0,
             listStyle: 'none',
+            ...menuStyle,
           }}
         >
           {options.map((opt) => {

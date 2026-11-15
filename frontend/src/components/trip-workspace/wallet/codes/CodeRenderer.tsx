@@ -18,31 +18,44 @@ export function CodeRenderer({ value, format = 'qr', size = 110, style }: CodeRe
     if (!value || !canvasRef.current) return;
 
     let isMounted = true;
+    setError(false);
 
-    // Dynamically load QRCode so bundle size is not bloated
-    import('qrcode')
-      .then((QRCode) => {
+    const fmt = (format || 'qr').toLowerCase();
+    const bcidMap: Record<string, string> = {
+      qr: 'qrcode',
+      aztec: 'azteccode',
+      pdf417: 'pdf417',
+      datamatrix: 'datamatrix',
+      code128: 'code128',
+    };
+    const bcid = bcidMap[fmt] || 'qrcode';
+
+    import('bwip-js/browser')
+      .then((bwipMod) => {
         if (!isMounted || !canvasRef.current) return;
-        QRCode.toCanvas(canvasRef.current, value, {
-          width: size,
-          margin: 1,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF',
-          },
-        }).catch((err) => {
-          console.warn('QR Code generation failed, falling back to text:', err);
-          if (isMounted) setError(true);
+        const bwipjs = bwipMod.default ?? bwipMod;
+        const isWide = bcid === 'pdf417' || bcid === 'code128';
+        bwipjs.toCanvas(canvasRef.current, {
+          bcid,
+          text: value,
+          scale: isWide ? 2 : Math.max(2, Math.round(size / 45)),
+          ...(bcid === 'code128' ? { height: 12, includetext: false } : {}),
+          ...(bcid === 'pdf417' ? { columns: 4 } : {}),
+          paddingwidth: 4,
+          paddingheight: 4,
+          backgroundcolor: 'FFFFFF',
+          barcolor: '000000',
         });
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn(`Barcode generation (${bcid}) failed, falling back to text:`, err);
         if (isMounted) setError(true);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [value, size]);
+  }, [value, format, size]);
 
   if (!value) return null;
 

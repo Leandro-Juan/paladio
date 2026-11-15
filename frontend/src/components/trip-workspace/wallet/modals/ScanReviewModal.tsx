@@ -195,7 +195,7 @@ function ScanReviewDialog({
               REVIEW SCANNED CREDENTIALS ({editedDrafts.length})
             </h3>
             <p className="font-mono text-muted text-xs" style={{ margin: '3px 0 0 0', color: 'var(--color-text-muted)' }}>
-              {'// VERIFY EXTRACTED FIELDS BEFORE PERSISTING TO WALLET'}
+              {'VERIFY EXTRACTED FIELDS BEFORE PERSISTING TO WALLET'}
             </p>
           </div>
           <button

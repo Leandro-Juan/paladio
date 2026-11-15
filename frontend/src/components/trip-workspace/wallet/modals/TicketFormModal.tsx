@@ -6,7 +6,9 @@ import { useIsMounted } from '@/hooks/useIsMounted';
 import { TripTicket, TicketType, TicketStatus } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG, STATUS_BADGE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { CustomSelect } from '../parts/CustomSelect';
-import { AlertTriangleIcon, CloseIcon } from '@/components/icons';
+import { AlertTriangleIcon, CalendarIcon, ClockIcon, CloseIcon } from '@/components/icons';
+import { PaladioSingleDatePicker } from '@/components/trip-creation/PaladioSingleDatePicker';
+import { CustomHourPickerModal } from '@/components/trip-creation/CustomHourPickerModal';
 
 interface TicketFormModalProps {
   isOpen: boolean;
@@ -97,6 +99,28 @@ function TicketFormDialog({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [activeDateField, setActiveDateField] = useState<'start' | 'end' | null>(null);
+  const [activeTimeField, setActiveTimeField] = useState<'start' | 'end' | null>(null);
+
+  const getDatePart = (dt: string) => (dt && dt.includes('T') ? dt.split('T')[0] : dt ? dt.slice(0, 10) : '');
+  const getTimePart = (dt: string) => (dt && dt.includes('T') ? dt.split('T')[1].slice(0, 5) : '');
+  const formatShortDate = (dateStr: string) => {
+    if (!dateStr) return 'Select date';
+    const [y, m, d] = dateStr.split('-').map((n) => parseInt(n, 10));
+    if (!y || !m || !d) return dateStr;
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+  const getTodayLocalDate = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,7 +267,7 @@ function TicketFormDialog({
               {isEditing ? 'EDIT TICKET CREDENTIAL' : 'ADD TICKET TO WALLET'}
             </h3>
             <p className="font-mono text-muted text-xs" style={{ margin: '3px 0 0 0', color: 'var(--color-text-muted)' }}>
-              {'// VERIFIED WALLET PASS SPECIFICATION'}
+              {'VERIFIED WALLET PASS SPECIFICATION'}
             </p>
           </div>
           <button
@@ -375,7 +399,7 @@ function TicketFormDialog({
                 type="text"
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
-                placeholder="e.g. Iberia, Renfe"
+                placeholder="e.g. Airline, Rail, or Transit Operator"
                 style={inputStyle}
               />
             </div>
@@ -541,39 +565,100 @@ function TicketFormDialog({
 
           {/* Times & Timezones */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-            <div>
-              <label style={labelStyle}>START / DEPARTURE / CHECK-IN</label>
-              <input
-                type="datetime-local"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                style={inputStyle}
-              />
-              <input
-                type="text"
-                value={departureTz}
-                onChange={(e) => setDepartureTz(e.target.value)}
-                placeholder="Timezone (e.g. Europe/Madrid)"
-                style={{ ...inputStyle, marginTop: '4px', padding: '4px 8px', fontSize: '10px' }}
-              />
-            </div>
-
-            <div>
-              <label style={labelStyle}>END / ARRIVAL / CHECK-OUT</label>
-              <input
-                type="datetime-local"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                style={inputStyle}
-              />
-              <input
-                type="text"
-                value={arrivalTz}
-                onChange={(e) => setArrivalTz(e.target.value)}
-                placeholder="Timezone (e.g. Europe/Madrid)"
-                style={{ ...inputStyle, marginTop: '4px', padding: '4px 8px', fontSize: '10px' }}
-              />
-            </div>
+            {(
+              [
+                {
+                  key: 'start' as const,
+                  label: 'START / DEPARTURE / CHECK-IN',
+                  value: startTime,
+                  setter: setStartTime,
+                  tz: departureTz,
+                  setTz: setDepartureTz,
+                },
+                {
+                  key: 'end' as const,
+                  label: 'END / ARRIVAL / CHECK-OUT',
+                  value: endTime,
+                  setter: setEndTime,
+                  tz: arrivalTz,
+                  setTz: setArrivalTz,
+                },
+              ]
+            ).map((field) => {
+              const datePart = getDatePart(field.value);
+              const timePart = getTimePart(field.value);
+              return (
+                <div key={field.key}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <label style={{ ...labelStyle, marginBottom: 0 }}>{field.label}</label>
+                    {field.value && (
+                      <button
+                        type="button"
+                        onClick={() => field.setter('')}
+                        aria-label={`Clear ${field.key} date and time`}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--color-text-muted)',
+                          fontSize: '10px',
+                          cursor: 'pointer',
+                          padding: '0 2px',
+                        }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveDateField(field.key)}
+                      aria-label={`Select ${field.key} date`}
+                      style={{
+                        ...inputStyle,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        color: datePart ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                      }}
+                    >
+                      <CalendarIcon size={13} color="var(--color-accent-primary, #0F4C5C)" />
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {formatShortDate(datePart)}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTimeField(field.key)}
+                      aria-label={`Select ${field.key} time`}
+                      style={{
+                        ...inputStyle,
+                        width: 'auto',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        cursor: 'pointer',
+                        color: timePart ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                      }}
+                    >
+                      <ClockIcon size={13} color="var(--color-accent-primary, #0F4C5C)" />
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
+                        {timePart || '--:--'}
+                      </span>
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={field.tz}
+                    onChange={(e) => field.setTz(e.target.value)}
+                    placeholder="Timezone (e.g. Europe/Madrid)"
+                    style={{ ...inputStyle, marginTop: '4px', padding: '4px 8px', fontSize: '10px' }}
+                  />
+                </div>
+              );
+            })}
           </div>
 
           {/* Seat/Room & Venue */}
@@ -722,6 +807,61 @@ function TicketFormDialog({
           </div>
         </form>
       </div>
+
+      {activeDateField && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setActiveDateField(null);
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10050,
+            background: 'rgba(0, 0, 0, 0.25)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <PaladioSingleDatePicker
+            title={activeDateField === 'start' ? 'START / DEPARTURE DATE' : 'END / ARRIVAL DATE'}
+            selectedDate={getDatePart(activeDateField === 'start' ? startTime : endTime)}
+            onChange={(d) => {
+              const current = activeDateField === 'start' ? startTime : endTime;
+              const setter = activeDateField === 'start' ? setStartTime : setEndTime;
+              if (!d) {
+                setter('');
+              } else {
+                const existingTime = getTimePart(current) || '09:00';
+                setter(`${d}T${existingTime}`);
+              }
+              setActiveDateField(null);
+            }}
+            onClose={() => setActiveDateField(null)}
+          />
+        </div>
+      )}
+
+      <CustomHourPickerModal
+        isOpen={activeTimeField !== null}
+        onClose={() => setActiveTimeField(null)}
+        value={
+          activeTimeField
+            ? getTimePart(activeTimeField === 'start' ? startTime : endTime) || '09:00'
+            : '09:00'
+        }
+        onChange={(newHHmm) => {
+          if (!activeTimeField) return;
+          const current = activeTimeField === 'start' ? startTime : endTime;
+          const setter = activeTimeField === 'start' ? setStartTime : setEndTime;
+          const existingDate = getDatePart(current) || getTodayLocalDate();
+          setter(`${existingDate}T${newHHmm}`);
+        }}
+        anchorLabel={activeTimeField === 'start' ? 'Start Time' : 'End Time'}
+        zIndex={10050}
+      />
     </div>
   );
 }
