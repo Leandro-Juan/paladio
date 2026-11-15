@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.application.taste.taste_service import TasteService
 from app.core.access import TripAccessLevel, assert_trip_access
 from app.db.models import (
     TripCollectionItemModel,
@@ -109,11 +110,11 @@ class CollectionService:
                 await session.refresh(existing)
             return existing
 
-        # Get highest position
+        # Get highest order_index
         pos_stmt = (
-            select(TripCollectionItemModel.position)
+            select(TripCollectionItemModel.order_index)
             .where(TripCollectionItemModel.collection_id == collection_id)
-            .order_by(TripCollectionItemModel.position.desc())
+            .order_by(TripCollectionItemModel.order_index.desc())
             .limit(1)
         )
         pos_res = await session.execute(pos_stmt)
@@ -123,12 +124,20 @@ class CollectionService:
             id=str(uuid.uuid4()),
             collection_id=collection_id,
             poi_id=poi_id,
-            position=max_pos + 1,
+            order_index=max_pos + 1,
             notes=notes.strip() if notes else None,
         )
         session.add(item)
         await session.commit()
         await session.refresh(item)
+        if user:
+            await TasteService.on_collection_change(
+                session=session,
+                user_id=user.id,
+                poi_id=poi_id,
+                action="added",
+                trip_id=trip_id,
+            )
         return item
 
     @classmethod
@@ -153,5 +162,14 @@ class CollectionService:
                 detail=f"Item '{item_id}' not found in collection.",
             )
 
+        removed_poi_id = item.poi_id
         await session.delete(item)
         await session.commit()
+        if user:
+            await TasteService.on_collection_change(
+                session=session,
+                user_id=user.id,
+                poi_id=removed_poi_id,
+                action="removed",
+                trip_id=trip_id,
+            )

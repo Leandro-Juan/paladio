@@ -30,14 +30,14 @@ class CollectionItemResponse(BaseModel):
     collection_id: str
     poi_id: str
     notes: str | None = None
-    visit_status: Literal["want_to_go", "visited"] = "want_to_go"
+    visit_status: Literal["want_to_go", "visited", "skipped"] = "want_to_go"
     order_index: int = 0
     created_at: str
     poi: PoiSummary | None = None
 
 
 class UpdateCollectionItemRequest(BaseModel):
-    visit_status: Literal["want_to_go", "visited"] | None = None
+    visit_status: Literal["want_to_go", "visited", "skipped"] | None = None
     notes: str | None = None
 
 
@@ -57,7 +57,7 @@ class CollectionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    trip_id: str
+    trip_id: str | None = None
     name: str
     description: str | None = None
     color: str | None = "#0F4C5C"

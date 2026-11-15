@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_optional_user
+from app.application.taste.taste_service import TasteService
 from app.core.access import TripAccessLevel, assert_trip_access
 from app.db.models import (
     AttractionModel,
@@ -44,6 +45,34 @@ async def _get_trip_or_404(
     return await assert_trip_access(user, trip_id, level, session)
 
 
+async def _record_collection_taste(
+    session: AsyncSession,
+    current_user: UserModel | None,
+    col: TripCollectionModel | None,
+    poi_id: str,
+    action: str,
+    trip_id: str | None = None,
+) -> None:
+    uid = (
+        current_user.id
+        if current_user
+        else (getattr(col, "user_id", None) if col else None)
+    )
+    tid = trip_id or (getattr(col, "trip_id", None) if col else None)
+    if not uid and tid:
+        uid = (
+            await session.execute(select(TripModel.user_id).where(TripModel.id == tid))
+        ).scalar_one_or_none()
+    if uid:
+        await TasteService.on_collection_change(
+            session=session,
+            user_id=uid,
+            poi_id=poi_id,
+            action=action,
+            trip_id=tid,
+        )
+
+
 async def _hydrate_poi_summaries(
     poi_ids: set[str], session: AsyncSession
 ) -> dict[str, PoiSummary]:
@@ -66,16 +95,24 @@ async def _hydrate_poi_summaries(
         meta = attr.metadata_field or {}
         scoring = attr.scoring or {}
 
-        photo = (
-            meta.get("photo_url")
-            or meta.get("image_url")
-            or (
-                meta.get("photos", [None])[0]
-                if isinstance(meta.get("photos"), list) and meta.get("photos")
-                else None
-            )
+        first_photo = (
+            meta.get("photos", [None])[0]
+            if isinstance(meta.get("photos"), list) and meta.get("photos")
+            else None
         )
-        thumb = meta.get("thumbnail_url") or photo
+        first_photo_url = (
+            first_photo.get("url")
+            if isinstance(first_photo, dict)
+            else first_photo
+            if isinstance(first_photo, str)
+            else None
+        )
+        first_thumb_url = (
+            first_photo.get("thumbnail_url") if isinstance(first_photo, dict) else None
+        )
+
+        photo = meta.get("photo_url") or meta.get("image_url") or first_photo_url
+        thumb = meta.get("thumbnail_url") or first_thumb_url or photo
 
         city_name = (
             (attr.city_rel.name if attr.city_rel else None)
@@ -224,6 +261,317 @@ async def list_all_saved_collections(
         )
         for c in collections
     ]
+
+
+async def _update_collection_record(
+    collection_id: str,
+    payload: CollectionUpdate,
+    session: AsyncSession,
+) -> CollectionResponse:
+    stmt = (
+        select(TripCollectionModel)
+        .where(TripCollectionModel.id == collection_id)
+        .options(
+            selectinload(TripCollectionModel.items),
+            selectinload(TripCollectionModel.trip),
+        )
+    )
+    res = await session.execute(stmt)
+    col = res.scalar_one_or_none()
+    if not col:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Collection not found",
+        )
+
+    if payload.name is not None:
+        col.name = payload.name.strip()
+    if payload.description is not None:
+        col.description = payload.description.strip() if payload.description else None
+    if payload.color is not None:
+        col.color = payload.color
+
+    await session.commit()
+    await session.refresh(col)
+
+    all_poi_ids = {it.poi_id for it in col.items}
+    poi_map = await _hydrate_poi_summaries(all_poi_ids, session)
+
+    dest = col.trip.destination if getattr(col, "trip", None) else None
+    return _collection_to_response(col, poi_map, trip_destination=dest, trip_title=dest)
+
+
+async def _delete_collection_record(
+    collection_id: str,
+    session: AsyncSession,
+) -> None:
+    stmt = select(TripCollectionModel).where(
+        TripCollectionModel.id == collection_id,
+    )
+    res = await session.execute(stmt)
+    col = res.scalar_one_or_none()
+    if not col:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Collection not found",
+        )
+
+    await session.delete(col)
+    await session.commit()
+
+
+async def _add_item_record(
+    collection_id: str,
+    payload: AddItemRequest,
+    session: AsyncSession,
+    current_user: UserModel | None = None,
+) -> CollectionItemResponse:
+    col_stmt = select(TripCollectionModel).where(
+        TripCollectionModel.id == collection_id,
+    )
+    col = (await session.execute(col_stmt)).scalar_one_or_none()
+    if not col:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Collection not found",
+        )
+
+    existing_stmt = select(TripCollectionItemModel).where(
+        TripCollectionItemModel.collection_id == collection_id,
+        TripCollectionItemModel.poi_id == payload.poi_id,
+    )
+    existing_item = (await session.execute(existing_stmt)).scalar_one_or_none()
+    if existing_item:
+        if payload.notes is not None:
+            existing_item.notes = payload.notes
+            await session.commit()
+            await session.refresh(existing_item)
+
+        poi_map = await _hydrate_poi_summaries({existing_item.poi_id}, session)
+        return CollectionItemResponse(
+            id=existing_item.id,
+            collection_id=existing_item.collection_id,
+            poi_id=existing_item.poi_id,
+            notes=existing_item.notes,
+            visit_status=getattr(existing_item, "visit_status", None) or "want_to_go",
+            order_index=existing_item.order_index,
+            created_at=(
+                existing_item.created_at.isoformat()
+                if existing_item.created_at
+                else datetime.now(timezone.utc).isoformat()
+            ),
+            poi=poi_map.get(existing_item.poi_id),
+        )
+
+    count_stmt = select(TripCollectionItemModel).where(
+        TripCollectionItemModel.collection_id == collection_id
+    )
+    existing_count = len((await session.execute(count_stmt)).scalars().all())
+
+    item = TripCollectionItemModel(
+        id=str(uuid.uuid4()),
+        collection_id=collection_id,
+        poi_id=payload.poi_id,
+        notes=payload.notes,
+        order_index=payload.order_index
+        if payload.order_index is not None
+        else existing_count,
+    )
+    session.add(item)
+    await session.commit()
+    await session.refresh(item)
+
+    await _record_collection_taste(session, current_user, col, item.poi_id, "saved")
+
+    poi_map = await _hydrate_poi_summaries({item.poi_id}, session)
+    return CollectionItemResponse(
+        id=item.id,
+        collection_id=item.collection_id,
+        poi_id=item.poi_id,
+        notes=item.notes,
+        visit_status=getattr(item, "visit_status", None) or "want_to_go",
+        order_index=item.order_index,
+        created_at=(
+            item.created_at.isoformat()
+            if item.created_at
+            else datetime.now(timezone.utc).isoformat()
+        ),
+        poi=poi_map.get(item.poi_id),
+    )
+
+
+async def _update_item_record(
+    collection_id: str,
+    poi_id: str,
+    payload: UpdateCollectionItemRequest,
+    session: AsyncSession,
+    current_user: UserModel | None = None,
+) -> CollectionItemResponse:
+    col = (
+        await session.execute(
+            select(TripCollectionModel).where(TripCollectionModel.id == collection_id)
+        )
+    ).scalar_one_or_none()
+    item_stmt = select(TripCollectionItemModel).where(
+        TripCollectionItemModel.collection_id == collection_id,
+        TripCollectionItemModel.poi_id == poi_id,
+    )
+    item = (await session.execute(item_stmt)).scalar_one_or_none()
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found in collection",
+        )
+
+    prev_status = item.visit_status
+    if payload.visit_status is not None:
+        item.visit_status = payload.visit_status
+    if payload.notes is not None:
+        item.notes = payload.notes
+
+    await session.commit()
+    await session.refresh(item)
+
+    if payload.visit_status is not None and payload.visit_status != prev_status:
+        await _record_collection_taste(
+            session, current_user, col, item.poi_id, payload.visit_status
+        )
+
+    poi_map = await _hydrate_poi_summaries({item.poi_id}, session)
+    return CollectionItemResponse(
+        id=item.id,
+        collection_id=item.collection_id,
+        poi_id=item.poi_id,
+        notes=item.notes,
+        visit_status=getattr(item, "visit_status", None) or "want_to_go",
+        order_index=item.order_index,
+        created_at=(
+            item.created_at.isoformat()
+            if item.created_at
+            else datetime.now(timezone.utc).isoformat()
+        ),
+        poi=poi_map.get(item.poi_id),
+    )
+
+
+async def _remove_item_record(
+    collection_id: str,
+    poi_id: str,
+    session: AsyncSession,
+    current_user: UserModel | None = None,
+) -> None:
+    col_stmt = select(TripCollectionModel).where(
+        TripCollectionModel.id == collection_id,
+    )
+    col = (await session.execute(col_stmt)).scalar_one_or_none()
+    if not col:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Collection not found",
+        )
+
+    del_stmt = delete(TripCollectionItemModel).where(
+        TripCollectionItemModel.collection_id == collection_id,
+        TripCollectionItemModel.poi_id == poi_id,
+    )
+    await session.execute(del_stmt)
+    await session.commit()
+    await _record_collection_taste(session, current_user, col, poi_id, "removed")
+
+
+@router.post(
+    "/saved-collections",
+    response_model=CollectionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_saved_collection(
+    payload: CollectionCreate,
+    session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    col = TripCollectionModel(
+        id=str(uuid.uuid4()),
+        trip_id=None,
+        name=payload.name.strip(),
+        description=payload.description.strip() if payload.description else None,
+        color=payload.color or "#0F4C5C",
+    )
+    session.add(col)
+    await session.commit()
+    await session.refresh(col)
+    return _collection_to_response(col, {})
+
+
+@router.put(
+    "/saved-collections/{collection_id}",
+    response_model=CollectionResponse,
+)
+async def update_saved_collection(
+    collection_id: str,
+    payload: CollectionUpdate,
+    session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    return await _update_collection_record(collection_id, payload, session)
+
+
+@router.delete(
+    "/saved-collections/{collection_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_saved_collection(
+    collection_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    await _delete_collection_record(collection_id, session)
+    return None
+
+
+@router.post(
+    "/saved-collections/{collection_id}/items",
+    response_model=CollectionItemResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_item_to_saved_collection(
+    collection_id: str,
+    payload: AddItemRequest,
+    session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    return await _add_item_record(
+        collection_id, payload, session, current_user=current_user
+    )
+
+
+@router.patch(
+    "/saved-collections/{collection_id}/items/{poi_id}",
+    response_model=CollectionItemResponse,
+)
+async def update_saved_collection_item(
+    collection_id: str,
+    poi_id: str,
+    payload: UpdateCollectionItemRequest,
+    session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    return await _update_item_record(
+        collection_id, poi_id, payload, session, current_user=current_user
+    )
+
+
+@router.delete(
+    "/saved-collections/{collection_id}/items/{poi_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_item_from_saved_collection(
+    collection_id: str,
+    poi_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    await _remove_item_record(collection_id, poi_id, session, current_user=current_user)
+    return None
 
 
 @router.get("/{trip_id}/collections", response_model=list[CollectionResponse])
@@ -444,6 +792,8 @@ async def add_item_to_collection(
     await session.commit()
     await session.refresh(item)
 
+    await _record_collection_taste(session, current_user, col, item.poi_id, "saved")
+
     poi_map = await _hydrate_poi_summaries({item.poi_id}, session)
     return CollectionItemResponse(
         id=item.id,
@@ -486,6 +836,7 @@ async def update_collection_item(
             detail="Item not found in collection",
         )
 
+    prev_status = item.visit_status
     if payload.visit_status is not None:
         item.visit_status = payload.visit_status
     if payload.notes is not None:
@@ -493,6 +844,16 @@ async def update_collection_item(
 
     await session.commit()
     await session.refresh(item)
+
+    if payload.visit_status is not None and payload.visit_status != prev_status:
+        await _record_collection_taste(
+            session,
+            current_user,
+            None,
+            item.poi_id,
+            payload.visit_status,
+            trip_id=trip_id,
+        )
 
     poi_map = await _hydrate_poi_summaries({item.poi_id}, session)
     return CollectionItemResponse(
@@ -540,6 +901,9 @@ async def remove_item_from_collection(
     )
     await session.execute(del_stmt)
     await session.commit()
+    await _record_collection_taste(
+        session, current_user, col, poi_id, "removed", trip_id=trip_id
+    )
     return None
 
 
@@ -608,6 +972,15 @@ async def toggle_poi_in_collection(
         session.add(new_item)
         await session.commit()
         is_saved = True
+
+    await _record_collection_taste(
+        session,
+        current_user,
+        col,
+        poi_id,
+        "saved" if is_saved else "removed",
+        trip_id=trip_id,
+    )
 
     # Get all active collection IDs for this POI across all shared collections
     active_stmt = select(TripCollectionItemModel.collection_id).where(

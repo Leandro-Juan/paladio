@@ -277,3 +277,87 @@ async def test_trip_collections_lifecycle(
     assert saved_cols_user2.status_code == 200
     col2_for_user2 = next(c for c in saved_cols_user2.json() if c["id"] == col2_id)
     assert any(it["poi_id"] == "tokyo-shinjuku-01" for it in col2_for_user2["items"])
+
+
+@pytest.mark.asyncio
+async def test_standalone_dashboard_collections_lifecycle(async_client: AsyncClient):
+    uid = uuid.uuid4().hex[:8]
+    res_reg = await async_client.post(
+        "/api/auth/register",
+        json={
+            "email": f"dash_coll_{uid}@paladio.com",
+            "username": f"dash_coll_{uid}",
+            "password": "passwordDash123",
+        },
+    )
+    assert res_reg.status_code == 201
+    headers = {"Authorization": f"Bearer {res_reg.json()['access_token']}"}
+
+    # 1. Create a standalone collection from dashboard (no trip_id)
+    create_res = await async_client.post(
+        "/api/trips/saved-collections",
+        json={
+            "name": "Global Bucket List",
+            "description": "Places across the world",
+            "color": "#2A9D8F",
+        },
+        headers=headers,
+    )
+    assert create_res.status_code == 201, create_res.text
+    col = create_res.json()
+    col_id = col["id"]
+    assert col["trip_id"] is None
+    assert col["name"] == "Global Bucket List"
+
+    # 2. Create a custom POI with city & country
+    poi_res = await async_client.post(
+        "/api/pois",
+        json={
+            "name": f"Kinkaku-ji {uid}",
+            "city": "Kyoto",
+            "country": "Japan",
+            "category": "monument",
+            "lat": 35.0394,
+            "lng": 135.7292,
+            "duration_mins": 60,
+            "cost_eur": 3.0,
+        },
+        headers=headers,
+    )
+    assert poi_res.status_code == 200, poi_res.text
+    poi_id = poi_res.json()["id"]
+
+    # 3. Add custom POI to standalone collection
+    add_res = await async_client.post(
+        f"/api/trips/saved-collections/{col_id}/items",
+        json={"poi_id": poi_id},
+        headers=headers,
+    )
+    assert add_res.status_code == 201, add_res.text
+    item_data = add_res.json()
+    assert item_data["poi"]["city"] == "Kyoto"
+    assert item_data["poi"]["country"] == "Japan"
+    assert item_data["visit_status"] == "want_to_go"
+
+    # 4. Mark POI as visited
+    patch_res = await async_client.patch(
+        f"/api/trips/saved-collections/{col_id}/items/{poi_id}",
+        json={"visit_status": "visited"},
+        headers=headers,
+    )
+    assert patch_res.status_code == 200
+    assert patch_res.json()["visit_status"] == "visited"
+
+    # 5. Remove POI from collection
+    del_item_res = await async_client.delete(
+        f"/api/trips/saved-collections/{col_id}/items/{poi_id}",
+        headers=headers,
+    )
+    assert del_item_res.status_code == 204
+
+    # 6. Delete standalone collection
+    del_col_res = await async_client.delete(
+        f"/api/trips/saved-collections/{col_id}",
+        headers=headers,
+    )
+    assert del_col_res.status_code == 204
