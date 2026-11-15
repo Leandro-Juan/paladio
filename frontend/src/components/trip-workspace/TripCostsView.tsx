@@ -33,6 +33,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
   const {
     getTripExpenses,
     addTripExpense,
+    updateTripExpense,
     deleteTripExpense,
     getTripSettlement,
   } = useTrips();
@@ -61,6 +62,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     () => trip.participants || [],
     [trip.participants]
   );
+  const isSingleTraveler = participants.length <= 1;
 
   const currentParticipant = useMemo(() => {
     if (!participants.length) return null;
@@ -207,7 +209,6 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
               currency: 'EUR',
               date: dayDate || `Day ${dayNum}`,
               isUnfinished: true,
-              splitSummary: 'Route ticket estimate',
               raw: scheduledPoi,
             });
           }
@@ -236,19 +237,39 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         payerId: e.payer_id,
         payerName: payer?.name || e.payer_name || 'Traveler',
         isUnfinished: !e.payer_id,
-        splitSummary:
-          e.split_type === 'custom'
-            ? 'Custom split'
-            : `Split among ${e.splits?.length || participants.length} travelers`,
+        splitSummary: isSingleTraveler
+          ? undefined
+          : e.split_type === 'custom'
+          ? 'Custom split'
+          : `Split among ${e.splits?.length || participants.length} travelers`,
         raw: e,
       };
     });
-  }, [expenses, participants, activeCurrency, eurRates]);
+  }, [expenses, participants, activeCurrency, eurRates, isSingleTraveler]);
+
+  // Deduplicate route estimates that have already been logged/paid
+  const visibleItineraryItems = useMemo<DisplayExpenseItem[]>(() => {
+    const loggedCounts = new Map<string, number>();
+    loggedItems.forEach((item) => {
+      const key = `${item.title.trim().toLowerCase()}::${(item.date || '').trim()}`;
+      loggedCounts.set(key, (loggedCounts.get(key) || 0) + 1);
+    });
+
+    return itineraryItems.filter((item) => {
+      const key = `${item.title.trim().toLowerCase()}::${(item.date || '').trim()}`;
+      const count = loggedCounts.get(key) || 0;
+      if (count > 0) {
+        loggedCounts.set(key, count - 1);
+        return false;
+      }
+      return true;
+    });
+  }, [itineraryItems, loggedItems]);
 
   // Combined item list
   const allItems = useMemo(() => {
-    return [...loggedItems, ...itineraryItems];
-  }, [loggedItems, itineraryItems]);
+    return [...loggedItems, ...visibleItineraryItems];
+  }, [loggedItems, visibleItineraryItems]);
 
   // Filtered items
   const filteredItems = useMemo(() => {
@@ -280,6 +301,12 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
       if (scopeFilter === 'owed') {
         // Belongs to expenses where current user paid or is participant
         if (item.payerId !== currentUserId) return false;
+      }
+      if (scopeFilter === 'paid' && item.isUnfinished) {
+        return false;
+      }
+      if (scopeFilter === 'unpaid' && !item.isUnfinished) {
+        return false;
       }
 
       return true;
@@ -413,7 +440,10 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     expense_date: string;
   }) => {
     if (!trip.id) return false;
-    const res = await addTripExpense(trip.id, data);
+    const res =
+      editingExpense && editingExpense.source === 'logged'
+        ? await updateTripExpense(trip.id, editingExpense.id, data)
+        : await addTripExpense(trip.id, data);
     if (res) {
       await loadData();
       if (onTripUpdated) onTripUpdated();
@@ -436,6 +466,39 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
   const handleClaimItem = (item: DisplayExpenseItem) => {
     setEditingExpense(item);
     setShowExpenseModal(true);
+  };
+
+  const handleMarkPaid = async (item: DisplayExpenseItem) => {
+    if (!trip.id) return;
+    const payerId = currentUserId || participants[0]?.id;
+    if (!payerId) return;
+    try {
+      const res = await addTripExpense(trip.id, {
+        payer_id: payerId,
+        description: item.title,
+        amount: item.amount,
+        currency: item.currency || 'EUR',
+        category: getCostCategoryMeta(item.category).key,
+        split_type: 'equal',
+        splits: [{ participant_id: payerId, amount: item.amount }],
+        expense_date: item.date || new Date().toISOString().split('T')[0],
+      });
+      if (res) {
+        await loadData();
+        if (onTripUpdated) onTripUpdated();
+      }
+    } catch (err) {
+      console.error('Failed to mark item as paid', err);
+    }
+  };
+
+  const handleMarkUnpaid = async (item: DisplayExpenseItem) => {
+    if (!trip.id || item.source !== 'logged') return;
+    const ok = await deleteTripExpense(trip.id, item.id);
+    if (ok) {
+      await loadData();
+      if (onTripUpdated) onTripUpdated();
+    }
   };
 
   const handleRecordPayment = async (data: {
@@ -563,32 +626,34 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
 
         {/* Action buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setSettlementPrefill(null);
-              setShowSettlementModal(true);
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 16px',
-              borderRadius: '12px',
-              border: '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-main)',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'background 0.15s ease',
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            Settle up
-          </button>
+          {!isSingleTraveler && (
+            <button
+              type="button"
+              onClick={() => {
+                setSettlementPrefill(null);
+                setShowSettlementModal(true);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '9px 16px',
+                borderRadius: '12px',
+                border: '1px solid var(--color-border-subtle)',
+                background: 'var(--color-surface-card)',
+                color: 'var(--color-text-main)',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'background 0.15s ease',
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Settle up
+            </button>
+          )}
 
           <button
             type="button"
@@ -639,6 +704,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         todaySpend={todaySpend}
         totalBudget={totalBudget}
         expenses={loggedItems}
+        isSingleTraveler={isSingleTraveler}
       />
 
       {/* 3D Cylinder Currency Wheel Picker Modal */}
@@ -674,6 +740,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
             days={dayOptions}
             scopeFilter={scopeFilter}
             onScopeFilterChange={setScopeFilter}
+            isSingleTraveler={isSingleTraveler}
             onExportCsv={handleExportCsv}
           />
 
@@ -714,6 +781,8 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
               <p style={{ margin: '6px 0 16px 0', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
                 {search || categoryFilter || dayFilter || scopeFilter !== 'all'
                   ? 'Try clearing active filters to see all trip costs.'
+                  : isSingleTraveler
+                  ? 'Start by logging your first expense or marking route estimates as paid.'
                   : 'Start by logging your first expense or assigning route tickets.'}
               </p>
               <button
@@ -781,12 +850,15 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                         key={item.id}
                         item={item}
                         activeCurrency={activeCurrency}
+                        isSingleTraveler={isSingleTraveler}
                         onEdit={(it) => {
                           setEditingExpense(it);
                           setShowExpenseModal(true);
                         }}
                         onDelete={handleDeleteExpense}
                         onClaim={handleClaimItem}
+                        onMarkPaid={handleMarkPaid}
+                        onMarkUnpaid={handleMarkUnpaid}
                       />
                     ))}
                   </div>
@@ -798,25 +870,29 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
 
         {/* Right Column: Sidebar Widgets */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* 1. Settle Up Widget */}
-          <SettleUpWidget
-            transfers={convertedTransfers}
-            isSimplified={simplifyDebts}
-            currency={activeCurrency}
-            onToggleSimplified={() => setSimplifyDebts((prev) => !prev)}
-            onAddPayment={() => {
-              setSettlementPrefill(null);
-              setShowSettlementModal(true);
-            }}
-            onSettleFlow={handleSettleFlow}
-          />
+          {!isSingleTraveler && (
+            <>
+              {/* 1. Settle Up Widget */}
+              <SettleUpWidget
+                transfers={convertedTransfers}
+                isSimplified={simplifyDebts}
+                currency={activeCurrency}
+                onToggleSimplified={() => setSimplifyDebts((prev) => !prev)}
+                onAddPayment={() => {
+                  setSettlementPrefill(null);
+                  setShowSettlementModal(true);
+                }}
+                onSettleFlow={handleSettleFlow}
+              />
 
-          {/* 2. Balances Widget */}
-          <BalancesWidget
-            balances={convertedBalances}
-            participants={participants}
-            currency={activeCurrency}
-          />
+              {/* 2. Balances Widget */}
+              <BalancesWidget
+                balances={convertedBalances}
+                participants={participants}
+                currency={activeCurrency}
+              />
+            </>
+          )}
 
           {/* 3. By Category Graph Widget (User requested!) */}
           <CategoryBreakdownWidget

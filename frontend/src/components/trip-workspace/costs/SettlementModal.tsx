@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
 import { TripParticipant, SettlementTransfer } from '@/hooks/useTrips';
 import { CloseIcon } from '@/components/icons';
+import { CustomSelect } from '../wallet/parts/CustomSelect';
 
 interface SettlementModalProps {
   participants: TripParticipant[];
@@ -87,8 +88,8 @@ export function SettlementModal({
       } else {
         setError('Failed to record settlement payment.');
       }
-    } catch {
-      setError('An unexpected error occurred.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }
@@ -191,26 +192,20 @@ export function SettlementModal({
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                 Paid By (Sender)
               </label>
-              <select
+              <CustomSelect
                 value={senderId}
-                onChange={(e) => setSenderId(e.target.value)}
-                style={{
-                  width: '100%',
+                onChange={setSenderId}
+                label="Paid By (Sender)"
+                options={participants.map((p) => ({ value: p.id, label: p.name }))}
+                style={{ fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
+                buttonStyle={{
                   padding: '10px 12px',
                   borderRadius: '10px',
                   border: '1px solid var(--color-border-subtle)',
                   fontSize: '0.9rem',
-                  outline: 'none',
-                  background: 'var(--color-surface-card)',
                   color: 'var(--color-text-main)',
                 }}
-              >
-                {participants.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             {/* Receiver */}
@@ -218,26 +213,20 @@ export function SettlementModal({
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                 Sent To (Recipient)
               </label>
-              <select
+              <CustomSelect
                 value={receiverId}
-                onChange={(e) => setReceiverId(e.target.value)}
-                style={{
-                  width: '100%',
+                onChange={setReceiverId}
+                label="Sent To (Recipient)"
+                options={participants.map((p) => ({ value: p.id, label: p.name }))}
+                style={{ fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
+                buttonStyle={{
                   padding: '10px 12px',
                   borderRadius: '10px',
                   border: '1px solid var(--color-border-subtle)',
                   fontSize: '0.9rem',
-                  outline: 'none',
-                  background: 'var(--color-surface-card)',
                   color: 'var(--color-text-main)',
                 }}
-              >
-                {participants.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             {/* Amount */}

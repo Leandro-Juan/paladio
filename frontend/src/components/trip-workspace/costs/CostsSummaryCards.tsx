@@ -1173,30 +1173,32 @@ function CurrencyConverterDoubleCard({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {onToggleMode && <ModeToggle mode="fx" onChange={onToggleMode} />}
-            <span
-              style={{
-                fontFamily: 'var(--font-mono, monospace)',
-                fontSize: '0.68rem',
-                fontWeight: 600,
-                padding: '4px 10px',
-                borderRadius: '20px',
-                background: isLiveRate ? 'rgba(31, 122, 77, 0.12)' : 'rgba(226, 179, 60, 0.18)',
-                color: isLiveRate ? 'var(--color-success, #1F7A4D)' : 'var(--color-accent-warning, #E2B33C)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
+            {isLiveRate && (
               <span
                 style={{
-                  width: '7px',
-                  height: '7px',
-                  borderRadius: '50%',
-                  background: isLiveRate ? 'var(--color-success, #1F7A4D)' : 'var(--color-accent-warning, #E2B33C)',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontSize: '0.68rem',
+                  fontWeight: 600,
+                  padding: '4px 10px',
+                  borderRadius: '20px',
+                  background: 'rgba(31, 122, 77, 0.12)',
+                  color: 'var(--color-success, #1F7A4D)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
                 }}
-              />
-              {isLiveRate ? 'LIVE ECB' : 'AIR-GAPPED'}
-            </span>
+              >
+                <span
+                  style={{
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '50%',
+                    background: 'var(--color-success, #1F7A4D)',
+                  }}
+                />
+                LIVE ECB
+              </span>
+            )}
           </div>
         </div>
 
@@ -1375,6 +1377,7 @@ interface CostsSummaryCardsProps {
   todaySpend?: number;
   totalBudget?: number;
   expenses?: DisplayExpenseItem[];
+  isSingleTraveler?: boolean;
 }
 
 export function CostsSummaryCards({
@@ -1392,6 +1395,7 @@ export function CostsSummaryCards({
   todaySpend,
   totalBudget,
   expenses,
+  isSingleTraveler = false,
 }: CostsSummaryCardsProps) {
   const currency = totals.currency || activeCurrency || 'EUR';
 
@@ -1457,8 +1461,48 @@ export function CostsSummaryCards({
         />
       )}
 
-      {/* 2. Single Card (Original Size): Merged Debt / Settlement Card */}
-      {hasOwe && hasOwed ? (
+      {/* 2. Single Card (Original Size): Solo Payment Status or Merged Debt / Settlement Card */}
+      {isSingleTraveler ? (
+        (totals.outstandingCount ?? 0) > 0 ? (
+          <SummaryCard
+            label="Pending costs"
+            sub="Unpaid route estimates"
+            amount={totals.outstanding ?? 0}
+            currency={currency}
+            tone="neutral"
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            }
+            foot={
+              <span style={{ color: 'var(--color-accent-secondary)', fontWeight: 600 }}>
+                {totals.outstandingCount} {totals.outstandingCount === 1 ? 'item' : 'items'} unpaid
+              </span>
+            }
+          />
+        ) : (
+          <SummaryCard
+            label="All costs paid"
+            sub="No unpaid estimates"
+            amount={0}
+            currency={currency}
+            tone="owed"
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            }
+            foot={
+              <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
+                All planned expenses paid
+              </span>
+            }
+          />
+        )
+      ) : hasOwe && hasOwed ? (
         // State 4: Both owing and owed -> Split into two dedicated halves
         <SplitDebtCard owe={totals.owe} owed={totals.owed} currency={currency} />
       ) : hasOwe ? (
@@ -1526,7 +1570,7 @@ export function CostsSummaryCards({
       {/* 3. Single Card (Original Size): Total Trip Spend */}
       <SummaryCard
         label="Total trip spend"
-        sub="Across all travelers"
+        sub={isSingleTraveler ? 'Solo trip expenses' : 'Across all travelers'}
         amount={totals.totalSpend}
         targetAmount={totalBudget}
         currency={currency}
@@ -1539,23 +1583,43 @@ export function CostsSummaryCards({
           </svg>
         }
         foot={
-          <div style={{ display: 'flex', gap: '14px', width: '100%', flexWrap: 'wrap' }}>
-            <span>
-              Your share:{' '}
-              <b style={{ color: 'var(--color-text-on-accent)' }}>
-                {formatMoneyParts(totals.myShare, currency).integerPart}
-                {formatMoneyParts(totals.myShare, currency).otherPart}
-              </b>
-            </span>
-            <span>·</span>
-            <span>
-              You paid:{' '}
-              <b style={{ color: 'var(--color-text-on-accent)' }}>
-                {formatMoneyParts(totals.myPaid, currency).integerPart}
-                {formatMoneyParts(totals.myPaid, currency).otherPart}
-              </b>
-            </span>
-          </div>
+          isSingleTraveler ? (
+            <div style={{ display: 'flex', gap: '14px', width: '100%', flexWrap: 'wrap' }}>
+              <span>
+                Paid:{' '}
+                <b style={{ color: 'var(--color-text-on-accent)' }}>
+                  {formatMoneyParts(totals.totalSpend, currency).integerPart}
+                  {formatMoneyParts(totals.totalSpend, currency).otherPart}
+                </b>
+              </span>
+              <span>·</span>
+              <span>
+                Unpaid:{' '}
+                <b style={{ color: 'var(--color-text-on-accent)' }}>
+                  {formatMoneyParts(totals.outstanding ?? 0, currency).integerPart}
+                  {formatMoneyParts(totals.outstanding ?? 0, currency).otherPart}
+                </b>
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '14px', width: '100%', flexWrap: 'wrap' }}>
+              <span>
+                Your share:{' '}
+                <b style={{ color: 'var(--color-text-on-accent)' }}>
+                  {formatMoneyParts(totals.myShare, currency).integerPart}
+                  {formatMoneyParts(totals.myShare, currency).otherPart}
+                </b>
+              </span>
+              <span>·</span>
+              <span>
+                You paid:{' '}
+                <b style={{ color: 'var(--color-text-on-accent)' }}>
+                  {formatMoneyParts(totals.myPaid, currency).integerPart}
+                  {formatMoneyParts(totals.myPaid, currency).otherPart}
+                </b>
+              </span>
+            </div>
+          )
         }
       />
     </div>

@@ -23,12 +23,24 @@ export interface DisplayExpenseItem {
 interface ExpenseRowProps {
   item: DisplayExpenseItem;
   activeCurrency?: string;
+  isSingleTraveler?: boolean;
   onEdit?: (item: DisplayExpenseItem) => void;
   onDelete?: (item: DisplayExpenseItem) => void;
   onClaim?: (item: DisplayExpenseItem) => void;
+  onMarkPaid?: (item: DisplayExpenseItem) => void;
+  onMarkUnpaid?: (item: DisplayExpenseItem) => void;
 }
 
-export function ExpenseRow({ item, activeCurrency, onEdit, onDelete, onClaim }: ExpenseRowProps) {
+export function ExpenseRow({
+  item,
+  activeCurrency,
+  isSingleTraveler = false,
+  onEdit,
+  onDelete,
+  onClaim,
+  onMarkPaid,
+  onMarkUnpaid,
+}: ExpenseRowProps) {
   const meta = getCostCategoryMeta(item.category);
   const Icon = meta.icon;
   const isUnfinished = item.isUnfinished || !item.payerId || item.source === 'itinerary';
@@ -89,27 +101,73 @@ export function ExpenseRow({ item, activeCurrency, onEdit, onDelete, onClaim }: 
               {item.title}
             </span>
 
-            {isUnfinished && (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '1px 7px',
-                  borderRadius: '6px',
-                  background: 'rgba(226, 179, 60, 0.12)',
-                  border: '1px solid rgba(226, 179, 60, 0.3)',
-                  color: 'var(--color-accent-secondary)',
-                  fontFamily: 'var(--font-mono, monospace)',
-                  fontSize: '0.68rem',
-                  fontWeight: 600,
-                  flexShrink: 0,
-                  letterSpacing: '0.03em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Unfinished
-              </span>
+            {isSingleTraveler ? (
+              isUnfinished ? (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '1px 7px',
+                    borderRadius: '6px',
+                    background: 'rgba(226, 179, 60, 0.12)',
+                    border: '1px solid rgba(226, 179, 60, 0.3)',
+                    color: 'var(--color-accent-secondary)',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontSize: '0.68rem',
+                    fontWeight: 600,
+                    flexShrink: 0,
+                    letterSpacing: '0.03em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Unpaid
+                </span>
+              ) : (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '1px 7px',
+                    borderRadius: '6px',
+                    background: 'rgba(5, 150, 105, 0.12)',
+                    border: '1px solid rgba(5, 150, 105, 0.3)',
+                    color: 'var(--color-success)',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontSize: '0.68rem',
+                    fontWeight: 600,
+                    flexShrink: 0,
+                    letterSpacing: '0.03em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Paid
+                </span>
+              )
+            ) : (
+              isUnfinished && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '1px 7px',
+                    borderRadius: '6px',
+                    background: 'rgba(226, 179, 60, 0.12)',
+                    border: '1px solid rgba(226, 179, 60, 0.3)',
+                    color: 'var(--color-accent-secondary)',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontSize: '0.68rem',
+                    fontWeight: 600,
+                    flexShrink: 0,
+                    letterSpacing: '0.03em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Unfinished
+                </span>
+              )
             )}
           </div>
 
@@ -125,13 +183,21 @@ export function ExpenseRow({ item, activeCurrency, onEdit, onDelete, onClaim }: 
               flexWrap: 'wrap',
             }}
           >
-            {item.payerName ? (
+            {isSingleTraveler ? (
+              !isUnfinished ? (
+                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>Paid</span>
+              ) : (
+                <span style={{ color: 'var(--color-accent-secondary)' }}>
+                  {item.source === 'itinerary' ? 'ROUTE ESTIMATE' : 'UNPAID'}
+                </span>
+              )
+            ) : item.payerName ? (
               <span>
                 Paid by <b style={{ color: 'var(--color-text-main)' }}>{item.payerName}</b>
               </span>
             ) : (
               <span style={{ color: 'var(--color-accent-secondary)' }}>
-                {item.source === 'itinerary' ? '// ROUTE ESTIMATE (UNASSIGNED)' : '// NEEDS A PAYER'}
+                {item.source === 'itinerary' ? 'ROUTE ESTIMATE (UNASSIGNED)' : 'NEEDS A PAYER'}
               </span>
             )}
 
@@ -182,29 +248,78 @@ export function ExpenseRow({ item, activeCurrency, onEdit, onDelete, onClaim }: 
 
         {/* Action icons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {isUnfinished && onClaim && (
-            <button
-              type="button"
-              onClick={() => onClaim(item)}
-              title="Assign Payer"
-              style={{
-                border: '1px solid var(--color-accent-primary)',
-                background: 'var(--color-surface-card)',
-                color: 'var(--color-accent-primary)',
-                fontFamily: 'var(--font-mono, monospace)',
-                borderRadius: '8px',
-                padding: '5px 12px',
-                fontSize: '0.74rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Assign
-            </button>
+          {isSingleTraveler ? (
+            <>
+              {isUnfinished && (onMarkPaid || onClaim) && (
+                <button
+                  type="button"
+                  onClick={() => (onMarkPaid ? onMarkPaid(item) : onClaim?.(item))}
+                  title="Mark as Paid"
+                  style={{
+                    border: '1px solid var(--color-accent-primary)',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-accent-primary)',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    borderRadius: '8px',
+                    padding: '5px 12px',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Mark paid
+                </button>
+              )}
+
+              {!isUnfinished && onMarkUnpaid && (
+                <button
+                  type="button"
+                  onClick={() => onMarkUnpaid(item)}
+                  title="Mark as Unpaid"
+                  style={{
+                    border: '1px solid var(--color-border-subtle)',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-muted)',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    borderRadius: '8px',
+                    padding: '5px 10px',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Mark unpaid
+                </button>
+              )}
+            </>
+          ) : (
+            isUnfinished &&
+            onClaim && (
+              <button
+                type="button"
+                onClick={() => onClaim(item)}
+                title="Assign Payer"
+                style={{
+                  border: '1px solid var(--color-accent-primary)',
+                  background: 'var(--color-surface-card)',
+                  color: 'var(--color-accent-primary)',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  borderRadius: '8px',
+                  padding: '5px 12px',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                Assign
+              </button>
+            )
           )}
 
-          {onEdit && item.source === 'logged' && (
+          {onEdit && (isSingleTraveler || item.source === 'logged') && (
             <button
               type="button"
               onClick={() => onEdit(item)}

@@ -3,13 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
-import { TripParticipant, ExpenseSplit } from '@/hooks/useTrips';
+import { TripParticipant, TripExpense, ExpenseSplit } from '@/hooks/useTrips';
 import { COST_CATEGORY_LIST, getCostCategoryMeta, CostCategoryKey } from './costsCategories';
 import { DisplayExpenseItem } from './ExpenseRow';
 import { CurrencyWheelPicker } from './CurrencyWheelPicker';
 import { FlagIcon } from './FlagIcon';
 import { getCurrencyInfo, fetchLiveExchangeRate } from '@/utils/currencyResolver';
-import { CloseIcon } from '@/components/icons';
+import { CalendarIcon, CloseIcon } from '@/components/icons';
+import { PaladioSingleDatePicker } from '@/components/trip-creation/PaladioSingleDatePicker';
+import { CustomSelect } from '../wallet/parts/CustomSelect';
 
 interface ExpenseModalProps {
   participants: TripParticipant[];
@@ -70,18 +72,33 @@ export function ExpenseModal({
     };
   }, [currency, resolvedDefaultCurrency]);
 
+  const isSingleTraveler = participants.length <= 1;
+
+  const rawExpense = prefill?.source === 'logged' ? (prefill.raw as TripExpense | undefined) : undefined;
+  const initialSplitType: 'equal' | 'custom' =
+    rawExpense?.split_type === 'custom' ? 'custom' : 'equal';
+  const initialSelectedParticipants =
+    rawExpense?.splits && rawExpense.splits.length > 0 && initialSplitType === 'equal'
+      ? rawExpense.splits.map((s) => s.participant_id)
+      : participants.map((p) => p.id);
+  const initialCustomSplits =
+    rawExpense?.splits && initialSplitType === 'custom'
+      ? Object.fromEntries(rawExpense.splits.map((s) => [s.participant_id, String(s.amount)]))
+      : {};
+
   const [description, setDescription] = useState(prefill?.title || '');
   const [amount, setAmount] = useState(prefill ? String(prefill.amount) : '');
   const [category, setCategory] = useState(prefill?.category ? getCostCategoryMeta(prefill.category).key : 'food');
   const [payerId, setPayerId] = useState(prefill?.payerId || defaultPayerId || participants[0]?.id || '');
-  const [splitType, setSplitType] = useState<'equal' | 'custom'>('equal');
+  const [splitType, setSplitType] = useState<'equal' | 'custom'>(initialSplitType);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
-    participants.map((p) => p.id)
+    initialSelectedParticipants
   );
-  const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
+  const [customSplits, setCustomSplits] = useState<Record<string, string>>(initialCustomSplits);
   const [expenseDate, setExpenseDate] = useState(
     prefill?.date || new Date().toISOString().split('T')[0]
   );
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,13 +121,19 @@ export function ExpenseModal({
       setError('Please enter a valid positive amount.');
       return;
     }
-    if (!payerId) {
+    const effectivePayerId = isSingleTraveler
+      ? payerId || defaultPayerId || participants[0]?.id || ''
+      : payerId;
+
+    if (!effectivePayerId) {
       setError('Please select who paid for this expense.');
       return;
     }
 
     let finalSplits: ExpenseSplit[] = [];
-    if (splitType === 'equal') {
+    if (isSingleTraveler) {
+      finalSplits = [{ participant_id: effectivePayerId, amount: parsed }];
+    } else if (splitType === 'equal') {
       if (selectedParticipants.length === 0) {
         setError('At least one traveler must be included in the split.');
         return;
@@ -141,12 +164,12 @@ export function ExpenseModal({
     setIsSubmitting(true);
     try {
       const ok = await onSave({
-        payer_id: payerId,
+        payer_id: effectivePayerId,
         description: description.trim(),
         amount: parsed,
         currency,
         category,
-        split_type: splitType,
+        split_type: isSingleTraveler ? 'equal' : splitType,
         splits: finalSplits,
         expense_date: expenseDate,
       });
@@ -155,8 +178,8 @@ export function ExpenseModal({
       } else {
         setError('Failed to record expense. Please try again.');
       }
-    } catch {
-      setError('An unexpected error occurred.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }
@@ -211,10 +234,16 @@ export function ExpenseModal({
         >
           <div>
             <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, fontFamily: 'var(--font-display, "Jost", sans-serif)', color: 'var(--color-text-main)' }}>
-              {prefill ? 'Assign / Edit Expense' : 'Add Trip Expense'}
+              {isSingleTraveler
+                ? prefill
+                  ? 'Edit Expense'
+                  : 'Add Trip Expense'
+                : prefill
+                ? 'Assign / Edit Expense'
+                : 'Add Trip Expense'}
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-              Log shared costs and update balances
+              {isSingleTraveler ? 'Log your trip expense' : 'Log shared costs and update balances'}
             </p>
           </div>
           <button
@@ -386,11 +415,11 @@ export function ExpenseModal({
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                   Date
                 </label>
-                <input
-                  type="date"
-                  required
-                  value={expenseDate}
-                  onChange={(e) => setExpenseDate(e.target.value)}
+                <button
+                  type="button"
+                  onClick={() => setIsDatePickerOpen(true)}
+                  aria-label="Select expense date"
+                  aria-expanded={isDatePickerOpen}
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -400,68 +429,75 @@ export function ExpenseModal({
                     outline: 'none',
                     background: 'var(--color-surface-card)',
                     color: 'var(--color-text-main)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    textAlign: 'left',
                   }}
-                />
+                >
+                  <CalendarIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+                    {expenseDate
+                      ? new Date(`${expenseDate}T12:00:00`).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : 'Select date'}
+                  </span>
+                </button>
               </div>
             </div>
 
             {/* Category & Payer row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isSingleTraveler ? '1fr' : '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
                   Category
                 </label>
-                <select
+                <CustomSelect
                   value={category}
-                  onChange={(e) => setCategory(e.target.value as CostCategoryKey)}
-                  style={{
-                    width: '100%',
+                  onChange={(val) => setCategory(val as CostCategoryKey)}
+                  label="Category"
+                  options={COST_CATEGORY_LIST.map((c) => ({ value: c.key, label: c.label }))}
+                  style={{ fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
+                  buttonStyle={{
                     padding: '10px 12px',
                     borderRadius: '10px',
                     border: '1px solid var(--color-border-subtle)',
                     fontSize: '0.9rem',
-                    outline: 'none',
-                    background: 'var(--color-surface-card)',
                     color: 'var(--color-text-main)',
                   }}
-                >
-                  {COST_CATEGORY_LIST.map((c) => (
-                    <option key={c.key} value={c.key}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
-                  Paid By
-                </label>
-                <select
-                  value={payerId}
-                  onChange={(e) => setPayerId(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--color-border-subtle)',
-                    fontSize: '0.9rem',
-                    outline: 'none',
-                    background: 'var(--color-surface-card)',
-                    color: 'var(--color-text-main)',
-                  }}
-                >
-                  {participants.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {!isSingleTraveler && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
+                    Paid By
+                  </label>
+                  <CustomSelect
+                    value={payerId}
+                    onChange={setPayerId}
+                    label="Paid By"
+                    options={participants.map((p) => ({ value: p.id, label: p.name }))}
+                    style={{ fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
+                    buttonStyle={{
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--color-border-subtle)',
+                      fontSize: '0.9rem',
+                      color: 'var(--color-text-main)',
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Split options */}
-            <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '14px' }}>
+            {!isSingleTraveler && (
+              <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '14px' }}>
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '8px' }}>
                 Split Method
               </label>
@@ -586,7 +622,8 @@ export function ExpenseModal({
                   ))}
                 </div>
               )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Footer Actions */}
@@ -648,6 +685,36 @@ export function ExpenseModal({
           setIsCurrencyPickerOpen(false);
         }}
       />
+
+      {/* Custom Paladio Single Date Picker Modal */}
+      {isDatePickerOpen && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsDatePickerOpen(false);
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10050,
+            background: 'rgba(0, 0, 0, 0.25)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <PaladioSingleDatePicker
+            title="EXPENSE DATE"
+            selectedDate={expenseDate}
+            onChange={(d) => {
+              if (d) setExpenseDate(d);
+              setIsDatePickerOpen(false);
+            }}
+            onClose={() => setIsDatePickerOpen(false)}
+          />
+        </div>
+      )}
     </div>,
     document.body
   );

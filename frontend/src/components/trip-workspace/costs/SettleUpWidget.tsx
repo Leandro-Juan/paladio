@@ -149,16 +149,6 @@ export function SettleUpWidget({
             >
               Everyone&apos;s square
             </div>
-            <div
-              style={{
-                fontFamily: 'var(--font-mono, monospace)',
-                fontSize: '0.74rem',
-                color: 'var(--color-text-muted)',
-                marginTop: '3px',
-              }}
-            >
-              {`// NO PAYMENTS OUTSTANDING`}
-            </div>
           </div>
         </div>
       ) : (

@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { COST_CATEGORY_LIST } from './costsCategories';
+import { CustomSelect } from '../wallet/parts/CustomSelect';
 
-export type FilterScope = 'all' | 'mine' | 'owed';
+export type FilterScope = 'all' | 'mine' | 'owed' | 'paid' | 'unpaid';
 
 interface CostsFilterToolbarProps {
   totalCount: number;
@@ -16,6 +17,7 @@ interface CostsFilterToolbarProps {
   days: Array<{ value: string; label: string }>;
   scopeFilter: FilterScope;
   onScopeFilterChange: (scope: FilterScope) => void;
+  isSingleTraveler?: boolean;
   onExportCsv?: () => void;
 }
 
@@ -30,6 +32,7 @@ export function CostsFilterToolbar({
   days,
   scopeFilter,
   onScopeFilterChange,
+  isSingleTraveler = false,
   onExportCsv,
 }: CostsFilterToolbarProps) {
   return (
@@ -111,55 +114,53 @@ export function CostsFilterToolbar({
         </div>
 
         {/* Category Dropdown */}
-        <select
+        <CustomSelect
           value={categoryFilter}
-          onChange={(e) => onCategoryFilterChange(e.target.value)}
+          onChange={onCategoryFilterChange}
+          label="Filter by category"
+          options={[
+            { value: '', label: 'All categories' },
+            ...COST_CATEGORY_LIST.map((cat) => ({ value: cat.key, label: cat.label })),
+          ]}
           style={{
+            width: 'auto',
+            minWidth: '140px',
+            fontFamily: 'var(--font-body, "Inter", sans-serif)',
+          }}
+          buttonStyle={{
             height: '36px',
             padding: '0 10px',
             borderRadius: '10px',
             border: '1px solid var(--color-border-subtle)',
-            background: 'var(--color-surface-card)',
-            fontFamily: 'var(--font-body, "Inter", sans-serif)',
             fontSize: '0.82rem',
             color: 'var(--color-text-main)',
-            outline: 'none',
-            cursor: 'pointer',
           }}
-        >
-          <option value="">All categories</option>
-          {COST_CATEGORY_LIST.map((cat) => (
-            <option key={cat.key} value={cat.key}>
-              {cat.label}
-            </option>
-          ))}
-        </select>
+        />
 
         {/* Day Dropdown */}
         {days.length > 0 && (
-          <select
+          <CustomSelect
             value={dayFilter}
-            onChange={(e) => onDayFilterChange(e.target.value)}
+            onChange={onDayFilterChange}
+            label="Filter by day"
+            options={[
+              { value: '', label: 'All days' },
+              ...days.map((d) => ({ value: d.value, label: d.label })),
+            ]}
             style={{
+              width: 'auto',
+              minWidth: '112px',
+              fontFamily: 'var(--font-body, "Inter", sans-serif)',
+            }}
+            buttonStyle={{
               height: '36px',
               padding: '0 10px',
               borderRadius: '10px',
               border: '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              fontFamily: 'var(--font-body, "Inter", sans-serif)',
               fontSize: '0.82rem',
               color: 'var(--color-text-main)',
-              outline: 'none',
-              cursor: 'pointer',
             }}
-          >
-            <option value="">All days</option>
-            {days.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
+          />
         )}
 
         {/* Segmented Filter Pills */}
@@ -173,12 +174,17 @@ export function CostsFilterToolbar({
             gap: '2px',
           }}
         >
-          {(
-            [
-              { key: 'all', label: 'All' },
-              { key: 'mine', label: 'Paid by me' },
-              { key: 'owed', label: "I'm owed" },
-            ] as const
+          {(isSingleTraveler
+            ? ([
+                { key: 'all', label: 'All' },
+                { key: 'paid', label: 'Paid' },
+                { key: 'unpaid', label: 'Unpaid' },
+              ] as const)
+            : ([
+                { key: 'all', label: 'All' },
+                { key: 'mine', label: 'Paid by me' },
+                { key: 'owed', label: "I'm owed" },
+              ] as const)
           ).map((item) => {
             const active = scopeFilter === item.key;
             return (
