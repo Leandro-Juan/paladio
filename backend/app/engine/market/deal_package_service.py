@@ -100,6 +100,38 @@ class DealPackageService:
         return {}
 
     @staticmethod
+    async def _sort_items_with_taste(
+        session: AsyncSession,
+        items: list[dict[str, Any]],
+        organizer_user_id: str | None = None,
+        participant_specs: list[dict[str, Any]] | None = None,
+    ) -> None:
+        """Sorts deal packages in-place by taste fit + discount when active taste exists."""
+        if organizer_user_id or participant_specs:
+            try:
+                from app.application.taste.taste_service import TasteService
+                from app.engine.market.taste_ranking import score_flight_and_deal_taste
+
+                merged_tp = await TasteService.get_merged_trip_profile(
+                    session=session,
+                    organizer_user_id=organizer_user_id,
+                    participant_specs=participant_specs,
+                )
+                if merged_tp.active_profile_count > 0:
+                    t_prefs = merged_tp.to_market_preferences()
+                    items.sort(
+                        key=lambda d: (
+                            -score_flight_and_deal_taste(d, t_prefs),
+                            -d["discount_pct"],
+                            d["total_price_eur"],
+                        )
+                    )
+                    return
+            except Exception as exc:
+                logger.debug("Deal package taste sort skipped: %s", exc)
+        items.sort(key=lambda d: (-d["discount_pct"], d["total_price_eur"]))
+
+    @staticmethod
     def _has_rich_lodging_meta(cand: HotelCandidate) -> bool:
         """Returns True when a hotel candidate carries photo, address, or amenities."""
         return bool(cand.photo_url or cand.address or cand.amenities)
@@ -450,7 +482,18 @@ class DealPackageService:
                 items.append(item)
 
         if items:
-            items.sort(key=lambda d: (-d["discount_pct"], d["total_price_eur"]))
+            al = await session.scalar(
+                select(DealWatchAlertModel).where(DealWatchAlertModel.id == route_id)
+            )
+            org_id = user_model.id if user_model else (al.user_id if al else None)
+            part_specs = (
+                al.participants
+                if al and isinstance(getattr(al, "participants", None), list)
+                else None
+            )
+            await self._sort_items_with_taste(
+                session, items, organizer_user_id=org_id, participant_specs=part_specs
+            )
             return items[:limit]
 
         # 2. Dynamic Assembly from market_price_ticks
@@ -648,6 +691,23 @@ class DealPackageService:
             )
             if u_row and u_row.preferences:
                 user_prefs = u_row.preferences
+
+        try:
+            from app.application.taste.taste_service import TasteService
+
+            merged_tp = await TasteService.get_merged_trip_profile(
+                session=session,
+                organizer_user_id=(user_model.id if user_model else alert.user_id),
+                participant_specs=(
+                    alert.participants
+                    if isinstance(getattr(alert, "participants", None), list)
+                    else None
+                ),
+            )
+            if merged_tp.active_profile_count > 0:
+                user_prefs = {**(user_prefs or {}), **merged_tp.to_market_preferences()}
+        except Exception as exc:
+            logger.debug("Merged deal taste profile skipped: %s", exc)
 
         # Load existing lodging observations for destination
         prop_stmt = (
@@ -962,6 +1022,8 @@ class DealPackageService:
                 }
             )
 
+        from app.engine.market.taste_ranking import score_flight_and_deal_taste
+
         cand_packages.sort(
             key=lambda d: (
                 0 if d.get("lodging") is not None else 1,
@@ -971,6 +1033,7 @@ class DealPackageService:
                     and (d["lodging"].get("photo_url") or d["lodging"].get("address"))
                 )
                 else 1,
+                -score_flight_and_deal_taste(d, user_prefs),
                 -d["discount_pct"],
                 d["total_price_eur"],
             )
@@ -1023,7 +1086,12 @@ class DealPackageService:
                 )
                 items.extend(route_pkgs)
 
-        items.sort(key=lambda d: (-d["discount_pct"], d["total_price_eur"]))
+        if items and user_model is not None:
+            await self._sort_items_with_taste(
+                session, items, organizer_user_id=user_model.id
+            )
+        else:
+            items.sort(key=lambda d: (-d["discount_pct"], d["total_price_eur"]))
         return items[:limit]
 
 

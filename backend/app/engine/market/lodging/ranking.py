@@ -126,6 +126,22 @@ def compute_taste_weights(
         w["quality"] += 0.06
         w["location"] -= 0.06
 
+    econ = user_preferences.get("economic_profile")
+    if isinstance(econ, dict):
+        ps = econ.get("price_sensitivity")
+        if ps is not None:
+            w["price"] += (float(ps) - 0.5) * 0.25
+        lp = econ.get("lodging_preferences")
+        if isinstance(lp, dict):
+            fc_bias = lp.get("free_cancellation_bias")
+            if fc_bias is not None and float(fc_bias) > 0.55:
+                w["flexibility"] += (float(fc_bias) - 0.5) * 0.16
+            loc_w = lp.get("location_vs_price_weight")
+            if loc_w is not None:
+                w["location"] += (float(loc_w) - 0.5) * 0.14
+            if lp.get("preferred_types") or lp.get("amenity_affinities"):
+                w["taste"] += 0.08
+
     # Normalize weights to sum strictly to 1.0
     for k in w:
         w[k] = max(w[k], 0.02)
@@ -177,8 +193,15 @@ def is_eligible_candidate(
         if dist > effective_max_km:
             return False
 
-    # Explicit user filters if defined
+    # Explicit user filters and learned vetoes if defined
     if user_preferences:
+        econ = user_preferences.get("economic_profile")
+        if isinstance(econ, dict):
+            lp = econ.get("lodging_preferences")
+            if isinstance(lp, dict):
+                discarded = lp.get("discarded_property_ids") or []
+                if candidate.property_id in discarded:
+                    return False
         min_stars = user_preferences.get("min_stars")
         if (
             min_stars is not None
@@ -302,6 +325,31 @@ def compute_subscores(
         elif budget in ("budget", "backpacker") and p_score >= 0.7:
             t_score += 0.25
         t_score = min(t_score, 1.0)
+
+    if user_preferences and isinstance(user_preferences.get("economic_profile"), dict):
+        lp = user_preferences["economic_profile"].get("lodging_preferences") or {}
+        if isinstance(lp, dict):
+            pref_types = lp.get("preferred_types") or {}
+            pt_key = (candidate.property_type or "hotel").lower()
+            if pt_key in pref_types:
+                t_score += (float(pref_types[pt_key]) - 0.5) * 0.40
+            pref_stars = lp.get("preferred_stars")
+            if pref_stars is not None and candidate.stars is not None:
+                t_score += max(
+                    -0.15, 0.20 - 0.08 * abs(float(candidate.stars) - float(pref_stars))
+                )
+            am_affs = lp.get("amenity_affinities") or {}
+            if candidate.amenities and isinstance(am_affs, dict) and am_affs:
+                cand_ams = {str(a).strip().lower() for a in candidate.amenities if a}
+                matched = [float(am_affs[a]) for a in cand_ams if a in am_affs]
+                if matched:
+                    t_score += min(0.20, (sum(matched) / len(matched) - 0.5) * 0.40)
+            if (
+                float(lp.get("free_cancellation_bias", 0.5)) > 0.6
+                and candidate.free_cancellation
+            ):
+                t_score += 0.08
+            t_score = max(0.0, min(t_score, 1.0))
 
     return {
         "price": round(p_score, 4),

@@ -9,9 +9,10 @@ import calendar
 import logging
 import uuid
 from datetime import date, datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Literal
 
 from app.api.deps import get_optional_user
+from app.application.taste.taste_service import TasteService
 from app.db.models import (
     CityModel,
     DealCandidateModel,
@@ -46,6 +47,43 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _resolve_alert_market_prefs(
+    session: AsyncSession,
+    current_user: UserModel | None,
+    alert: DealWatchAlertModel,
+) -> dict[str, Any]:
+    """Combines explicit user preferences with merged group taste preferences."""
+    user_prefs = (
+        dict(current_user.preferences or {})
+        if isinstance(current_user, UserModel) and current_user.preferences
+        else {}
+    )
+    if not user_prefs and alert.user_id:
+        u_row = await session.scalar(
+            select(UserModel).where(UserModel.id == alert.user_id)
+        )
+        if u_row and u_row.preferences:
+            user_prefs = dict(u_row.preferences)
+    org_uid = current_user.id if isinstance(current_user, UserModel) else alert.user_id
+    part_specs = (
+        alert.participants
+        if isinstance(getattr(alert, "participants", None), list)
+        else None
+    )
+    if org_uid or part_specs:
+        try:
+            merged_tp = await TasteService.get_merged_trip_profile(
+                session=session,
+                organizer_user_id=org_uid,
+                participant_specs=part_specs,
+            )
+            if merged_tp.active_profile_count > 0:
+                user_prefs = {**user_prefs, **merged_tp.to_market_preferences()}
+        except Exception as exc:
+            logger.debug("Alert market taste merge skipped: %s", exc)
+    return user_prefs
 
 
 async def _resolve_city_name(session: AsyncSession, code: str) -> str:
@@ -1450,17 +1488,7 @@ async def get_route_price_history(
         center_lat = city_obj.center_lat if city_obj else None
         center_lon = city_obj.center_lon if city_obj else None
 
-        user_prefs = (
-            (current_user.preferences or {})
-            if isinstance(current_user, UserModel) and current_user.preferences
-            else {}
-        )
-        if not user_prefs and alert.user_id:
-            u_row = await session.scalar(
-                select(UserModel).where(UserModel.id == alert.user_id)
-            )
-            if u_row and u_row.preferences:
-                user_prefs = u_row.preferences
+        user_prefs = await _resolve_alert_market_prefs(session, current_user, alert)
 
         prop_stmt = (
             select(
@@ -1826,17 +1854,7 @@ async def get_route_lodging_for_date(
     # 1. Query existing authentic hotel rate observations for this destination & check_in
     from app.engine.market.lodging.ranking import HotelCandidate, rank_hotels
 
-    user_prefs = (
-        (current_user.preferences or {})
-        if isinstance(current_user, UserModel) and current_user.preferences
-        else {}
-    )
-    if not user_prefs and alert.user_id:
-        u_row = await session.scalar(
-            select(UserModel).where(UserModel.id == alert.user_id)
-        )
-        if u_row and u_row.preferences:
-            user_prefs = u_row.preferences
+    user_prefs = await _resolve_alert_market_prefs(session, current_user, alert)
 
     city_stmt = (
         select(CityModel)
@@ -3096,7 +3114,49 @@ async def discard_deal_event(
             t.status = "discarded"
 
     await session.commit()
+    await TasteService.on_deal_feedback(session, deal.user_id, deal, "discarded")
     return {"status": "discarded", "deal_id": deal_id}
+
+
+class DealFeedbackRequest(BaseModel):
+    feedback: Literal[
+        "accepted",
+        "booked",
+        "saved",
+        "liked",
+        "discarded",
+        "dismissed",
+        "ignored",
+    ]
+
+
+@router.post("/deals/{deal_id}/feedback")
+async def record_deal_feedback(
+    deal_id: str,
+    body: DealFeedbackRequest,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    stmt = select(DealEventModel).where(DealEventModel.id == deal_id)
+    deal = (await session.execute(stmt)).scalar_one_or_none()
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+
+    if current_user and deal.user_id and deal.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized for this deal")
+
+    fb = body.feedback
+    deal.user_feedback = fb
+    deal.feedback_at = datetime.now(timezone.utc)
+    if fb in ("discarded", "dismissed"):
+        deal.status = fb
+    elif fb in ("accepted", "booked"):
+        deal.status = fb
+
+    await session.commit()
+    actor_uid = current_user.id if current_user else deal.user_id
+    await TasteService.on_deal_feedback(session, actor_uid, deal, fb)
+    return {"status": fb, "deal_id": deal_id}
 
 
 @router.get("/providers/health", response_model=list[ProviderHealthItem])

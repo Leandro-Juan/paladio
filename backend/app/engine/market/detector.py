@@ -99,9 +99,19 @@ async def run_deal_detection_scan(
                 if user_id not in user_prefs_by_id:
                     u_stmt = select(UserModel).where(UserModel.id == user_id)
                     u_res = (await session.execute(u_stmt)).scalar_one_or_none()
-                    user_prefs_by_id[user_id] = (
-                        (u_res.preferences or {}) if u_res else {}
-                    )
+                    base_p = (u_res.preferences or {}) if u_res else {}
+                    try:
+                        from app.application.taste.taste_service import TasteService
+
+                        merged_tp = await TasteService.get_merged_trip_profile(
+                            session=session,
+                            organizer_user_id=user_id,
+                        )
+                        if merged_tp.active_profile_count > 0:
+                            base_p = {**base_p, **merged_tp.to_market_preferences()}
+                    except Exception as exc:
+                        logger.debug("Detector taste profile load skipped: %s", exc)
+                    user_prefs_by_id[user_id] = base_p
                 user_prefs = user_prefs_by_id.get(user_id, {})
 
             # P5.1: Collect candidate flight-only deals for this user
@@ -281,7 +291,9 @@ async def run_deal_detection_scan(
             if not candidates_for_user:
                 continue
 
-            # P5.1: Rank candidates by in-range priority, flight-only ratio, then savings
+            # P5.1: Rank candidates by in-range priority, flight-only ratio, taste score, then savings
+            from app.engine.market.taste_ranking import score_flight_and_deal_taste
+
             def _rank_key(c: dict[str, Any]):
                 al = c["alert"]
                 in_stay = (
@@ -295,7 +307,30 @@ async def run_deal_detection_scan(
                     else True
                 )
                 tier = 0 if (in_stay and in_window) else 1
-                return (tier, c["flight_ratio"], -c["flight_savings"])
+                ft = c.get("outbound_tick")
+                taste_s = (
+                    score_flight_and_deal_taste(
+                        {
+                            "discount_pct": round(
+                                (1.0 - float(c["flight_ratio"])) * 100.0, 1
+                            ),
+                            "flight": {
+                                "airline": getattr(ft, "airline", None),
+                                "depart_time": getattr(ft, "depart_time", None),
+                                "stops": getattr(ft, "stops", None),
+                            },
+                        },
+                        user_prefs,
+                    )
+                    if user_prefs
+                    else 50.0
+                )
+                return (
+                    tier,
+                    round(c["flight_ratio"], 2),
+                    -taste_s,
+                    -c["flight_savings"],
+                )
 
             candidates_for_user.sort(key=_rank_key)
 
@@ -455,6 +490,21 @@ async def run_deal_detection_scan(
                 cand_id = str(uuid.uuid4())
                 idempotency_key = f"deal:{orig}:{dest}:{dep_date.isoformat()}:{nights}:{total_deal_cents}:{deal_status}"
 
+                if best_ret_tick:
+                    if landed_flight_cents >= best_ret_tick.base_price_cents:
+                        return_landed_cents = best_ret_tick.base_price_cents
+                        outbound_landed_cents = (
+                            landed_flight_cents - return_landed_cents
+                        )
+                    else:
+                        outbound_landed_cents = landed_flight_cents // 2
+                        return_landed_cents = (
+                            landed_flight_cents - outbound_landed_cents
+                        )
+                else:
+                    outbound_landed_cents = landed_flight_cents
+                    return_landed_cents = 0
+
                 package_payload = {
                     "alert_id": alert.id,
                     "user_id": alert.user_id,
@@ -474,7 +524,7 @@ async def run_deal_detection_scan(
                         "depart_time": dep_dt.isoformat() if dep_dt else None,
                         "arrival_time": arr_dt.isoformat() if arr_dt else None,
                         "base_price_cents": ft.base_price_cents,
-                        "landed_price_cents": landed_flight_cents,
+                        "landed_price_cents": outbound_landed_cents,
                         "deep_link": meta.get("deep_link"),
                         "source": ft.source,
                         "source_class": ft.source_class,
@@ -499,6 +549,7 @@ async def run_deal_detection_scan(
                         "base_price_cents": best_ret_tick.base_price_cents
                         if best_ret_tick
                         else 0,
+                        "landed_price_cents": return_landed_cents,
                         "source": best_ret_tick.source if best_ret_tick else None,
                     }
                     if best_ret_tick
