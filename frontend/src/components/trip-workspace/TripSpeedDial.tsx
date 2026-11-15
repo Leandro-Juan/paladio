@@ -172,7 +172,7 @@ export function TripSpeedDial({
       ref={containerRef}
       style={{
         position: 'absolute',
-        bottom: transitMode === 'detailed' ? '72px' : '24px',
+        bottom: '24px',
         left: isLeft ? (isPanelOpen ? `calc(${panelWidth} + 28px)` : '24px') : 'auto',
         right: isLeft ? 'auto' : (isRightOpen ? 'calc(min(380px, calc(100vw - 32px)) + 24px)' : '24px'),
         transition: `${isLeft ? 'left' : 'right'} 0.28s cubic-bezier(0.23, 1, 0.32, 1), bottom 0.32s cubic-bezier(0.34, 1.25, 0.64, 1)`,

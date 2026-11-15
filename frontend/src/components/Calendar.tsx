@@ -11,7 +11,6 @@ import {
   generateMonthGrid,
   generateYearGrid,
   getTripStatus,
-  calculateTripDurationDays,
   MONTH_NAMES,
   TripStatus,
   CalendarDay,
@@ -251,39 +250,9 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
     }));
   }, [trips]);
 
-  // Telemetry statistics
-  const telemetry = useMemo(() => {
-    const now = new Date();
-    let completedCount = 0;
-    let upcomingCount = 0;
-    let activeCount = 0;
-    let deployedDaysYear = 0;
-
-    trips.forEach((t) => {
-      const status = getTripStatus(t, now);
-      if (status === 'COMPLETED') completedCount++;
-      else if (status === 'ACTIVE') activeCount++;
-      else upcomingCount++;
-
-      // Deployed days in current year
-      if (t.start_date && t.end_date) {
-        const startY = new Date(t.start_date).getFullYear();
-        if (startY === year) {
-          deployedDaysYear += calculateTripDurationDays(t.start_date, t.end_date);
-        }
-      }
-    });
-
-    const holidayDaysYear = Array.from(holidays).filter((d) => d.startsWith(`${year}-`)).length;
-
-    return {
-      total: trips.length,
-      completed: completedCount,
-      queued: upcomingCount + activeCount,
-      deployedDays: deployedDaysYear,
-      holidayDays: holidayDaysYear,
-    };
-  }, [trips, year, holidays]);
+  const holidayDaysYear = useMemo(() => {
+    return Array.from(holidays).filter((d) => d.startsWith(`${year}-`)).length;
+  }, [year, holidays]);
 
   const handlePrev = () => {
     setActivePopover(null);
@@ -371,28 +340,6 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
 
   return (
     <div className={`${styles.wrapper} ${interactionMode === 'HOLIDAY' ? styles.holidayPaintingActive : ''}`}>
-      {/* KPI Row */}
-      <div className={styles.kpiRow}>
-        <div className={styles.kpiCell}>
-          <span className={styles.kpiLabel}>TOTAL MISSIONS</span>
-          <p className={styles.kpiValue}>{telemetry.total}</p>
-        </div>
-        <div className={styles.kpiCell}>
-          <span className={styles.kpiLabel}>ACTIVE / QUEUED</span>
-          <p className={styles.kpiValue}>{telemetry.queued}</p>
-        </div>
-        <div className={styles.kpiCell}>
-          <span className={styles.kpiLabel}>ARCHIVED MISSIONS</span>
-          <p className={styles.kpiValue} style={{ color: 'var(--color-text-muted)' }}>
-            {telemetry.completed}
-          </p>
-        </div>
-        <div className={styles.kpiCell}>
-          <span className={styles.kpiLabel}>DEPLOYED DAYS ({year})</span>
-          <p className={styles.kpiValue}>{telemetry.deployedDays}</p>
-        </div>
-      </div>
-
       {/* Main Calendar Card */}
       <div className={styles.calendarCard}>
         {/* Header Controls: Navigation, View Toggle, Mode Toggle */}
@@ -486,7 +433,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 className={`${styles.segmentedBtn} ${interactionMode === 'HOLIDAY' ? styles.holidayBtnActive : ''}`}
                 aria-label="Mark holidays mode"
               >
-                <UmbrellaIcon size={13} style={{ marginRight: '5px' }} /> Mark Holidays ({telemetry.holidayDays}d)
+                <UmbrellaIcon size={13} style={{ marginRight: '5px' }} /> Mark Holidays ({holidayDaysYear}d)
               </button>
             </div>
           </div>
@@ -512,7 +459,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 <RefreshIcon size={11} className={isSyncingHolidays ? 'animate-spin' : ''} style={{ marginRight: '4px' }} />
                 {isSyncingHolidays ? 'Syncing...' : `Sync ${publicHolidayCountryName || 'Holidays'}`}
               </button>
-              {telemetry.holidayDays > 0 && (
+              {holidayDaysYear > 0 && (
                 <button
                   type="button"
                   onClick={handleClearYearHolidays}
@@ -563,7 +510,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
               style={{ cursor: 'pointer' }}
             >
               <span className={styles.holidaySwatch} />
-              <span>Holiday / PTO ({telemetry.holidayDays}d)</span>
+              <span>Holiday / PTO ({holidayDaysYear}d)</span>
             </div>
             {monitoredDeals.length > 0 && (
               <div

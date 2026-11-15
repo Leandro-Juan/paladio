@@ -153,6 +153,13 @@ export function TripTransitTab({
       return () => clearTimeout(timer);
     }
   }, [spatialCircle]);
+
+  // Broadcast active transit sub-view so TripMapView only loads bbox stations in Nearby mode
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('paladio:transit-subview', { detail: { subView } }));
+    }
+  }, [subView]);
   const [activeModes, setActiveModes] = useState<Set<TransitModeFilter>>(
     new Set(ALL_TRANSIT_MODES)
   );
@@ -393,7 +400,6 @@ export function TripTransitTab({
     setTransitStatus('BUILDING');
     try {
       await triggerGtfsCompileApi(destinationCity);
-      notify.info('Transit download started', `Downloading GTFS public transit data for ${destinationCity}`);
       await fetchAvailability();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to start transit download';

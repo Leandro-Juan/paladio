@@ -25,20 +25,24 @@ export function CustomHourPickerModal({
   // Parse hour and minute
   const [selectedHour, setSelectedHour] = React.useState(() => {
     const parts = (value || '09:00').split(':');
-    return parseInt(parts[0], 10) || 9;
+    const parsed = parseInt(parts[0], 10);
+    return Number.isNaN(parsed) ? 9 : parsed;
   });
 
   const [selectedMinute, setSelectedMinute] = React.useState(() => {
     const parts = (value || '09:00').split(':');
-    return parseInt(parts[1], 10) || 0;
+    const parsed = parseInt(parts[1], 10);
+    return Number.isNaN(parsed) ? 0 : parsed;
   });
 
   const [prevValue, setPrevValue] = React.useState(value);
   if (value !== prevValue) {
     setPrevValue(value);
     const parts = (value || '09:00').split(':');
-    setSelectedHour(parseInt(parts[0], 10) || 9);
-    setSelectedMinute(parseInt(parts[1], 10) || 0);
+    const parsedH = parseInt(parts[0], 10);
+    const parsedM = parseInt(parts[1], 10);
+    setSelectedHour(Number.isNaN(parsedH) ? 9 : parsedH);
+    setSelectedMinute(Number.isNaN(parsedM) ? 0 : parsedM);
   }
 
   // Click outside to close

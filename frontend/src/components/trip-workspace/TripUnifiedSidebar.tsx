@@ -2263,9 +2263,7 @@ export function TripUnifiedSidebar({
             pointerEvents: isOpen ? 'auto' : 'none',
             width:
               activeTab === 'route'
-                ? transitMode === 'detailed'
-                  ? 'min(520px, calc(100vw - 32px))'
-                  : 'min(380px, calc(100vw - 32px))'
+                ? 'min(380px, calc(100vw - 32px))'
                 : 'min(520px, calc(100vw - 32px))',
             height: '100%',
             background: 'var(--color-surface-card, #FFFFFF)',
@@ -2887,7 +2885,7 @@ export function TripUnifiedSidebar({
                                 {poiIdx > 0 && (
                                   transitMode === 'detailed' && transitFromPrev ? (
                                     <div
-                                      style={{ margin: '2px 0 2px 24px' }}
+                                      style={{ margin: '2px 0 2px 16px' }}
                                       onDragOver={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
@@ -2906,7 +2904,7 @@ export function TripUnifiedSidebar({
                                         destinationName={p?.name}
                                         city={destinationCity}
                                         tripId={tripId}
-                                        defaultExpanded={true}
+                                        defaultExpanded={false}
                                         onInspectPoi={onInspectPoi}
                                       />
                                     </div>

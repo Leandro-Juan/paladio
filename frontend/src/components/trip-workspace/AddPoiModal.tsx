@@ -25,9 +25,11 @@ export interface AddPoiModalProps {
   isOpen: boolean;
   onClose: () => void;
   city: string;
+  defaultCountry?: string;
+  allowCityCountryEdit?: boolean;
   defaultLat?: number;
   defaultLng?: number;
-  onPoiCreated: (poi: PoiApiItem) => void;
+  onPoiCreated: (poi: PoiApiItem & { city?: string; country?: string }) => void;
 }
 
 const emptySubscribe = () => () => {};
@@ -145,6 +147,8 @@ export function AddPoiModal({
   isOpen,
   onClose,
   city,
+  defaultCountry = '',
+  allowCityCountryEdit = false,
   defaultLat,
   defaultLng,
   onPoiCreated,
@@ -153,6 +157,8 @@ export function AddPoiModal({
 
   // Core fields
   const [name, setName] = useState('');
+  const [cityInput, setCityInput] = useState(city || '');
+  const [countryInput, setCountryInput] = useState(defaultCountry || '');
   const [category, setCategory] = useState('attraction');
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const categoryMenuRef = useRef<HTMLDivElement>(null);
@@ -219,6 +225,7 @@ export function AddPoiModal({
   // Submission & Duplicate Warning
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState<DuplicateCandidate[] | null>(null);
 
   // Close category menu on outside click
@@ -235,6 +242,8 @@ export function AddPoiModal({
 
   const resetForm = () => {
     setName('');
+    setCityInput(city || '');
+    setCountryInput(defaultCountry || '');
     setCategory('attraction');
     setIsCategoryMenuOpen(false);
     setDuration(60);
@@ -257,6 +266,7 @@ export function AddPoiModal({
     setPhotos([]);
     setPhotoUrlInput('');
     setFormError(null);
+    setLocationWarning(null);
     setDuplicateWarning(null);
   };
 
@@ -341,9 +351,13 @@ export function AddPoiModal({
         closingTimePayload = uniformCloseTime;
       }
 
+      const effectiveCity = allowCityCountryEdit ? cityInput.trim() : city;
+      const effectiveCountry = allowCityCountryEdit ? countryInput.trim() : defaultCountry.trim();
+
       const payload = {
         name: name.trim(),
-        city: city || 'Destination',
+        city: effectiveCity || 'Destination',
+        country: effectiveCountry || undefined,
         category: category.trim().toLowerCase(),
         lat: parsedLat,
         lng: parsedLng,
@@ -376,7 +390,7 @@ export function AddPoiModal({
 
       const createdPoi: PoiDetail = await res.json();
 
-      const apiItem: PoiApiItem = {
+      const apiItem: PoiApiItem & { city?: string; country?: string } = {
         id: createdPoi.id,
         name: createdPoi.name,
         category: createdPoi.category,
@@ -393,6 +407,9 @@ export function AddPoiModal({
             }
           : undefined,
         match_type: 'custom',
+        city: effectiveCity || createdPoi.city,
+        country: effectiveCountry || undefined,
+        photo_url: photos[0]?.url || undefined,
       };
 
       onPoiCreated(apiItem);
@@ -413,6 +430,10 @@ export function AddPoiModal({
       setFormError('Please enter a place name.');
       return;
     }
+    if (allowCityCountryEdit && (!cityInput.trim() || !countryInput.trim())) {
+      setFormError('Please enter both City and Country.');
+      return;
+    }
 
     const parsedLat = parseFloat(lat);
     const parsedLng = parseFloat(lng);
@@ -427,7 +448,7 @@ export function AddPoiModal({
     try {
       const baseUrl = getApiBaseUrl();
       const dupParams = new URLSearchParams({
-        city: city || '',
+        city: (allowCityCountryEdit ? cityInput.trim() : city) || '',
         name: name.trim(),
         lat: String(parsedLat),
         lng: String(parsedLng),
@@ -543,7 +564,7 @@ export function AddPoiModal({
               Add New Place
             </h2>
             <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--color-text-muted, #64748B)' }}>
-              Create a custom point of interest in {city || 'your trip destination'}
+              Create a custom point of interest in {(allowCityCountryEdit ? cityInput.trim() : city) || 'your destination'}
             </p>
           </div>
 
@@ -1038,7 +1059,16 @@ export function AddPoiModal({
               <button
                 type="button"
                 data-testid="open-poi-map-picker-btn"
-                onClick={() => setIsMapPickerOpen(true)}
+                onClick={() => {
+                  if (allowCityCountryEdit && (!cityInput.trim() || !countryInput.trim())) {
+                    setLocationWarning(
+                      'Please enter both the City and Country first so the map can open and center on that city.'
+                    );
+                    return;
+                  }
+                  setLocationWarning(null);
+                  setIsMapPickerOpen(true);
+                }}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -1058,6 +1088,28 @@ export function AddPoiModal({
               </button>
             </div>
 
+            {locationWarning && (
+              <div
+                data-testid="add-poi-location-warning"
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  borderRadius: '10px',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  color: '#B45309',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  lineHeight: 1.35,
+                }}
+              >
+                <AlertTriangleIcon size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+                <span>{locationWarning}</span>
+              </div>
+            )}
+
             <input
               type="text"
               data-testid="add-poi-address-input"
@@ -1066,6 +1118,41 @@ export function AddPoiModal({
               onChange={(e) => setAddress(e.target.value)}
               style={inputStyle}
             />
+
+            {allowCityCountryEdit && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <label style={{ ...labelStyle, fontSize: '10px' }}>City *</label>
+                  <input
+                    type="text"
+                    required
+                    data-testid="add-poi-city-input"
+                    placeholder="e.g. Tokyo"
+                    value={cityInput}
+                    onChange={(e) => {
+                      setCityInput(e.target.value);
+                      if (locationWarning) setLocationWarning(null);
+                    }}
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <label style={{ ...labelStyle, fontSize: '10px' }}>Country *</label>
+                  <input
+                    type="text"
+                    required
+                    data-testid="add-poi-country-input"
+                    placeholder="e.g. Japan"
+                    value={countryInput}
+                    onChange={(e) => {
+                      setCountryInput(e.target.value);
+                      if (locationWarning) setLocationWarning(null);
+                    }}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -1723,7 +1810,8 @@ export function AddPoiModal({
       <PoiLocationPickerModal
         isOpen={isMapPickerOpen}
         onClose={() => setIsMapPickerOpen(false)}
-        city={city}
+        city={allowCityCountryEdit ? cityInput.trim() || city : city}
+        country={allowCityCountryEdit ? countryInput.trim() : defaultCountry}
         initialLat={lat ? parseFloat(lat) : undefined}
         initialLng={lng ? parseFloat(lng) : undefined}
         initialAddress={address}

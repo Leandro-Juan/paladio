@@ -57,6 +57,7 @@ export interface TransitStationNode {
   line?: string | null;
   instruction: string;
   color?: string;
+  role?: 'station' | 'intermediate';
 }
 
 export interface FocusedWaypointPlace {
@@ -1300,13 +1301,27 @@ function MapBboxSync({
   enabled,
   city,
   onStationsLoaded,
+  onZoomChange,
 }: {
   enabled: boolean;
   city: string;
   onStationsLoaded: (stations: StationBboxItem[]) => void;
+  onZoomChange?: (zoom: number) => void;
 }) {
   const map = useMap();
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!map || !onZoomChange) return;
+    onZoomChange(map.getZoom());
+    const handleZoomEnd = () => {
+      onZoomChange(map.getZoom());
+    };
+    map.on('zoomend', handleZoomEnd);
+    return () => {
+      map.off('zoomend', handleZoomEnd);
+    };
+  }, [map, onZoomChange]);
 
   const fetchStationsForBounds = useCallback(() => {
     if (!enabled || !city || !map) return;
@@ -1330,7 +1345,11 @@ function MapBboxSync({
   }, [enabled, city, map, onStationsLoaded]);
 
   useEffect(() => {
-    if (!enabled || !city || !map) return;
+    if (!enabled) {
+      onStationsLoaded([]);
+      return;
+    }
+    if (!city || !map) return;
     fetchStationsForBounds();
 
     const onMoveEnd = () => {
@@ -1345,7 +1364,7 @@ function MapBboxSync({
       if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
       map.off('moveend', onMoveEnd);
     };
-  }, [enabled, city, map, fetchStationsForBounds]);
+  }, [enabled, city, map, fetchStationsForBounds, onStationsLoaded]);
 
   return null;
 }
@@ -1551,7 +1570,22 @@ export default function TripMapView({
   const [internalCatFilter, setInternalCatFilter] = useState<PoiCategoryType | null>(null);
   const activeCategory = categoryFilter !== undefined ? categoryFilter : internalCatFilter;
   const [mapStations, setMapStations] = useState<StationBboxItem[]>([]);
+  const [mapZoom, setMapZoom] = useState<number>(13);
+  const [transitSubView, setTransitSubView] = useState<'directions' | 'lines' | 'nearby'>('directions');
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handleTransitSubView = (e: Event) => {
+      const customEvent = e as CustomEvent<{ subView?: 'directions' | 'lines' | 'nearby' }>;
+      if (customEvent.detail?.subView) {
+        setTransitSubView(customEvent.detail.subView);
+      }
+    };
+    window.addEventListener('paladio:transit-subview', handleTransitSubView);
+    return () => {
+      window.removeEventListener('paladio:transit-subview', handleTransitSubView);
+    };
+  }, []);
   const [displayedHoveredDay, setDisplayedHoveredDay] = useState<number | null>(null);
   const [isHoverExiting, setIsHoverExiting] = useState(false);
   const hoverEndTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -1632,9 +1666,12 @@ export default function TripMapView({
     const segments: DetailedTransitSegment[] = [];
     const nodes: TransitStationNode[] = [];
 
-    const daysToProcess = activeDay === 'all'
-      ? days
-      : (activeDayData ? [activeDayData] : []);
+    const targetDayData = activeDay === 'all'
+      ? (effectiveDisplayedHoveredDay !== null
+          ? days.find((d) => d.dayNumber === effectiveDisplayedHoveredDay) || null
+          : null)
+      : activeDayData;
+    const daysToProcess = targetDayData ? [targetDayData] : [];
 
     daysToProcess.forEach((dayGroup) => {
       const pois = dayGroup.pois;
@@ -1659,26 +1696,55 @@ export default function TripMapView({
             for (let sIdx = 0; sIdx < leg.steps.length; sIdx++) {
               const step = leg.steps[sIdx];
               const style = getTransitStepStyle(step);
-              const positions: [number, number][] = (Array.isArray(step.geometry) && step.geometry.length > 1)
-                ? (step.geometry as [number, number][])
-                : [startCoord, endCoord];
+              const hasOwnGeom = Array.isArray(step.geometry) && step.geometry.length > 1;
+              let positions: [number, number][] | null = null;
 
-              segments.push({
-                key: `d${dayGroup.dayNumber}-leg${k}-step${sIdx}`,
-                positions,
-                color: style.color,
-                isDashed: style.isDashed,
-                weight: style.weight,
-                instruction: step.instruction || 'Transit maneuver',
-                type: step.type || 'transit',
-                transitLine: step.transit_line,
-                durationMins: step.duration_mins,
-                distanceKm: step.distance_km,
-                stationName: step.station_name,
-              });
+              if (hasOwnGeom) {
+                positions = step.geometry as [number, number][];
+              } else {
+                let prevPt: [number, number] = startCoord;
+                for (let j = sIdx - 1; j >= 0; j--) {
+                  const g = leg.steps[j]?.geometry;
+                  if (Array.isArray(g) && g.length > 0) {
+                    prevPt = g[g.length - 1] as [number, number];
+                    break;
+                  }
+                }
+                let nextPt: [number, number] = endCoord;
+                for (let j = sIdx + 1; j < leg.steps.length; j++) {
+                  const g = leg.steps[j]?.geometry;
+                  if (Array.isArray(g) && g.length > 0) {
+                    nextPt = g[0] as [number, number];
+                    break;
+                  }
+                }
+                if (Math.hypot(nextPt[0] - prevPt[0], nextPt[1] - prevPt[1]) > 0.00005) {
+                  positions = [prevPt, nextPt];
+                }
+              }
+
+              if (positions && positions.length > 1) {
+                segments.push({
+                  key: `d${dayGroup.dayNumber}-leg${k}-step${sIdx}`,
+                  positions,
+                  color: style.color,
+                  isDashed: style.isDashed,
+                  weight: style.weight,
+                  instruction: step.instruction || 'Transit maneuver',
+                  type: step.type || 'transit',
+                  transitLine: step.transit_line,
+                  durationMins: step.duration_mins,
+                  distanceKm: step.distance_km,
+                  stationName: step.station_name,
+                });
+              }
 
               if (step.station_name) {
-                const nodePos = positions.length > 0 ? positions[0] : startCoord;
+                const nodePos = (positions && positions.length > 0)
+                  ? positions[0]
+                  : (Array.isArray(step.geometry) && step.geometry.length > 0
+                      ? (step.geometry[0] as [number, number])
+                      : startCoord);
                 nodes.push({
                   key: `d${dayGroup.dayNumber}-leg${k}-st${sIdx}`,
                   position: nodePos,
@@ -1686,6 +1752,7 @@ export default function TripMapView({
                   line: step.transit_line,
                   instruction: step.instruction || 'Station stop',
                   color: style.color,
+                  role: 'station',
                 });
               }
 
@@ -1699,6 +1766,7 @@ export default function TripMapView({
                       line: step.transit_line,
                       instruction: `Intermediate Stop on ${step.transit_line || 'transit line'}`,
                       color: style.color,
+                      role: 'intermediate',
                     });
                   }
                 });
@@ -1764,6 +1832,7 @@ export default function TripMapView({
                   stationName: step.station_name,
                   line: step.transit_line,
                   instruction: step.instruction || 'Station stop',
+                  role: 'station',
                 });
               }
 
@@ -1806,7 +1875,7 @@ export default function TripMapView({
     });
 
     return { detailedSegments: segments, stationNodes: nodes };
-  }, [transitMode, activeDay, days, activeDayData]);
+  }, [transitMode, activeDay, days, activeDayData, effectiveDisplayedHoveredDay]);
 
   // Compute cluster polygons for each day (excluding transit hubs and accommodation depots so territory is not warped)
   const dayClusters = useMemo(() => {
@@ -2113,9 +2182,10 @@ export default function TripMapView({
           disabled={Boolean(activeMapPickField || isDroppingWaypoint)}
         />
         <MapBboxSync
-          enabled={sidebarTab === 'transit'}
+          enabled={sidebarTab === 'transit' && transitSubView === 'nearby'}
           city={destinationCity}
           onStationsLoaded={setMapStations}
+          onZoomChange={setMapZoom}
         />
 
         {focusedPlace &&
@@ -2380,7 +2450,9 @@ export default function TripMapView({
             ))}
 
             {/* Station nodes for transfers and boardings */}
-            {stationNodes.map((node) => (
+            {stationNodes
+              .filter((node) => node.role !== 'intermediate' || mapZoom >= 14)
+              .map((node) => (
               <CircleMarker
                 key={`node-${node.key}-${node.position[0]},${node.position[1]}`}
                 center={node.position}
@@ -2891,7 +2963,7 @@ export default function TripMapView({
         )}
 
         {/* 7. Transit Tab Bounding Box Stations Layer */}
-        {sidebarTab === 'transit' && !activeTransitLine && mapStations && mapStations.length > 0 && (
+        {sidebarTab === 'transit' && transitSubView === 'nearby' && !activeTransitLine && mapStations && mapStations.length > 0 && (
           mapStations.map((st) => {
             const stableId = `gtfs:${destinationCity}:${st.id}`;
             const primaryLineColor = st.lines?.[0]?.color || '#007AFF';
@@ -3323,14 +3395,17 @@ export default function TripMapView({
           data-testid="detailed-transit-legend"
           style={{
             position: 'absolute',
-            bottom: '18px',
-            left: '400px',
+            bottom: '28px',
+            left: isSidebarOpen
+              ? `calc(${sidebarTab === 'route' ? 'min(380px, calc(100vw - 32px))' : 'min(520px, calc(100vw - 32px))'} + 84px)`
+              : '84px',
+            transition: 'left 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
             zIndex: 900,
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
             border: '1px solid #E2E8F0',
-            borderRadius: '8px',
+            borderRadius: '9999px',
             padding: '6px 14px',
             display: 'flex',
             alignItems: 'center',

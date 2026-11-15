@@ -1758,6 +1758,134 @@ export function TripTransitDirectionsView({
         </div>
       )}
 
+      {/* Scheduled Day Legs Quick-Pick (Empty State) */}
+      {!routeResult && !isCalculating && (() => {
+        const targetDayNum = typeof selectedDayOption === 'number' ? selectedDayOption : 1;
+        const activeDayEntry =
+          tripDays.find((d) => d.day_number === targetDayNum) || tripDays[0];
+        const validPois = (activeDayEntry?.pois || []).filter(
+          (p) => typeof p.lat === 'number' && typeof p.lng === 'number' && (p.lat !== 0 || p.lng !== 0)
+        );
+        if (validPois.length < 2) return null;
+
+        const legPairs = validPois.slice(0, -1).map((fromPoi, idx) => ({
+          from: fromPoi,
+          to: validPois[idx + 1],
+        }));
+
+        return (
+          <div
+            data-testid="directions-scheduled-legs"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              marginTop: '4px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-mono)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--color-text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '2px 2px 0 2px',
+              }}
+            >
+              <span>Scheduled Legs (Day {activeDayEntry.day_number})</span>
+              <span>{legPairs.length}</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {legPairs.map(({ from, to }, idx) => (
+                <button
+                  key={`${from.id}-${to.id}-${idx}`}
+                  type="button"
+                  onClick={() => {
+                    const origSite: DirectionSite = {
+                      name: from.name,
+                      lat: from.lat,
+                      lng: from.lng,
+                      category: from.category,
+                    };
+                    const targetSite: DirectionSite = {
+                      name: to.name,
+                      lat: to.lat,
+                      lng: to.lng,
+                      category: to.category,
+                    };
+                    setOriginSite(origSite);
+                    setOriginQuery(from.name);
+                    setDestSite(targetSite);
+                    setDestQuery(to.name);
+                    setIsOriginMenuOpen(false);
+                    setIsDestMenuOpen(false);
+                    setErrorMsg(null);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '7px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.15s ease, background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
+                    e.currentTarget.style.background = 'rgba(15, 76, 92, 0.04)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                    e.currentTarget.style.background = 'var(--color-surface-card)';
+                  }}
+                  title={`Prefill route: ${from.name} → ${to.name}`}
+                >
+                  <span
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', fontSize: '10.5px', marginRight: '6px' }}>
+                      {idx + 1}.
+                    </span>
+                    {from.name} <span style={{ color: 'var(--color-text-muted)', margin: '0 3px' }}>→</span> {to.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      color: 'var(--color-accent-primary)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    Load
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 4. Route Calculation Result */}
       {routeResult && activeDisplayLeg && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}>

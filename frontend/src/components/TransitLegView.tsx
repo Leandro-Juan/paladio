@@ -396,14 +396,16 @@ export function TransitLegView({
       data-testid="transit-leg-view"
       title={originName && destinationName ? `${originName} → ${destinationName}` : undefined}
       style={{
-        margin: '0.5rem 0 1rem 1.75rem',
-        padding: '0.6rem 0.85rem',
-        borderRadius: 'var(--radius-sm)',
+        margin: isExpanded ? '0.5rem 0 0.85rem 1.25rem' : '0.25rem 0 0.35rem 1.25rem',
+        padding: isExpanded ? '0.6rem 0.85rem' : '0.4rem 0.65rem',
+        borderRadius: '10px',
         background: 'var(--color-surface-card)',
         border: '1px solid var(--color-border)',
-        fontSize: '0.825rem',
+        fontSize: isExpanded ? '0.825rem' : '0.75rem',
         fontFamily: 'var(--font-mono)',
         position: 'relative',
+        cursor: steps.length > 0 && !isExpanded ? 'pointer' : 'default',
+        transition: 'padding 0.15s ease, margin 0.15s ease',
       }}
     >
       {/* Connector line to the timeline */}
@@ -420,12 +422,14 @@ export function TransitLegView({
 
       {/* Header / Summary Bar */}
       <div
+        onClick={steps.length > 0 ? () => setUserExpanded(!isExpanded) : undefined}
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '0.5rem',
+          gap: isExpanded ? '0.5rem' : '0.35rem',
+          cursor: steps.length > 0 ? 'pointer' : 'default',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -563,7 +567,10 @@ export function TransitLegView({
           <button
             type="button"
             data-testid="toggle-transit-steps-btn"
-            onClick={() => setUserExpanded(!isExpanded)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setUserExpanded(!isExpanded);
+            }}
             aria-expanded={isExpanded}
             style={{
               background: 'transparent',
@@ -585,7 +592,7 @@ export function TransitLegView({
       </div>
 
       {/* Tactical Transit Stations Route */}
-      {stationFlow && stationFlow.keyStations.length > 0 && (
+      {isExpanded && stationFlow && stationFlow.keyStations.length > 0 && (
         <div
           data-testid="transit-stations-to-go"
           style={{

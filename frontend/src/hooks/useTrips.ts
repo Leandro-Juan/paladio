@@ -228,16 +228,16 @@ export function useTrips() {
     }
   };
 
-  const getTripExpenses = async (tripId: string) => {
+  const getTripExpenses = useCallback(async (tripId: string) => {
     try {
       return await apiFetch<TripExpense[]>(`/trips/${tripId}/expenses`);
     } catch (e) {
       console.error("Failed to get expenses", e);
       return [];
     }
-  };
+  }, []);
 
-  const addTripExpense = async (
+  const addTripExpense = useCallback(async (
     tripId: string,
     data: {
       payer_id: string;
@@ -250,18 +250,33 @@ export function useTrips() {
       expense_date?: string;
     }
   ) => {
-    try {
-      return await apiFetch<TripExpense>(`/trips/${tripId}/expenses`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    } catch (e) {
-      console.error("Failed to add expense", e);
-      return null;
-    }
-  };
+    return await apiFetch<TripExpense>(`/trips/${tripId}/expenses`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }, []);
 
-  const deleteTripExpense = async (tripId: string, expenseId: string) => {
+  const updateTripExpense = useCallback(async (
+    tripId: string,
+    expenseId: string,
+    data: {
+      payer_id: string;
+      description: string;
+      amount: number;
+      currency?: string;
+      category?: string;
+      split_type?: string;
+      splits?: ExpenseSplit[];
+      expense_date?: string;
+    }
+  ) => {
+    return await apiFetch<TripExpense>(`/trips/${tripId}/expenses/${expenseId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }, []);
+
+  const deleteTripExpense = useCallback(async (tripId: string, expenseId: string) => {
     try {
       await apiFetch(`/trips/${tripId}/expenses/${expenseId}`, {
         method: 'DELETE',
@@ -271,9 +286,9 @@ export function useTrips() {
       console.error("Failed to delete expense", e);
       return false;
     }
-  };
+  }, []);
 
-  const getTripSettlement = async (tripId: string, simplify: boolean = false) => {
+  const getTripSettlement = useCallback(async (tripId: string, simplify: boolean = false) => {
     try {
       const q = simplify ? '?simplify=true' : '?simplify=false';
       return await apiFetch<TripSettlement>(`/trips/${tripId}/settlement${q}`);
@@ -281,7 +296,7 @@ export function useTrips() {
       console.error("Failed to get settlement", e);
       return null;
     }
-  };
+  }, []);
 
   const getCollaboratorOptions = async () => {
     try {
@@ -340,6 +355,7 @@ export function useTrips() {
     removeParticipant,
     getTripExpenses,
     addTripExpense,
+    updateTripExpense,
     deleteTripExpense,
     getTripSettlement,
     getCollaboratorOptions,

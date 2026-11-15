@@ -10,6 +10,7 @@ export interface PoiLocationPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
   city: string;
+  country?: string;
   initialLat?: number;
   initialLng?: number;
   initialAddress?: string;
@@ -52,6 +53,7 @@ export function PoiLocationPickerModal({
   isOpen,
   onClose,
   city,
+  country,
   initialLat,
   initialLng,
   initialAddress = '',
@@ -78,9 +80,9 @@ export function PoiLocationPickerModal({
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const [prevInitialKey, setPrevInitialKey] = useState(
-    `${isOpen}|${initialLat ?? ''}|${initialLng ?? ''}|${initialAddress}`
+    `${isOpen}|${city}|${country ?? ''}|${initialLat ?? ''}|${initialLng ?? ''}|${initialAddress}`
   );
-  const currentInitialKey = `${isOpen}|${initialLat ?? ''}|${initialLng ?? ''}|${initialAddress}`;
+  const currentInitialKey = `${isOpen}|${city}|${country ?? ''}|${initialLat ?? ''}|${initialLng ?? ''}|${initialAddress}`;
   if (currentInitialKey !== prevInitialKey) {
     setPrevInitialKey(currentInitialKey);
     if (isOpen) {
@@ -90,6 +92,8 @@ export function PoiLocationPickerModal({
         setIsLocating(false);
         setLocationError(null);
       } else {
+        setPinPos(null);
+        setCenter(null);
         setIsLocating(true);
         setLocationError(null);
       }
@@ -105,7 +109,23 @@ export function PoiLocationPickerModal({
     const resolveCityCenter = async () => {
       const baseUrl = getApiBaseUrl();
       const destQuery = (city || '').trim();
+      const countryQuery = (country || '').trim();
+      const fullQuery = countryQuery ? `${destQuery}, ${countryQuery}` : destQuery;
       if (destQuery) {
+        try {
+          const searchRes = await fetch(`${baseUrl}/locations/search?q=${encodeURIComponent(fullQuery)}&limit=1`);
+          if (searchRes.ok) {
+            const items = await searchRes.json();
+            if (Array.isArray(items) && items[0]?.latitude && items[0]?.longitude && active) {
+              setCenter([items[0].latitude, items[0].longitude]);
+              setIsLocating(false);
+              return;
+            }
+          }
+        } catch {
+          // fall through
+        }
+
         try {
           const apRes = await fetch(`${baseUrl}/locations/resolve-airport?city=${encodeURIComponent(destQuery)}`);
           if (apRes.ok) {
@@ -121,22 +141,8 @@ export function PoiLocationPickerModal({
         }
 
         try {
-          const searchRes = await fetch(`${baseUrl}/locations/search?q=${encodeURIComponent(destQuery)}&limit=1`);
-          if (searchRes.ok) {
-            const items = await searchRes.json();
-            if (Array.isArray(items) && items[0]?.latitude && items[0]?.longitude && active) {
-              setCenter([items[0].latitude, items[0].longitude]);
-              setIsLocating(false);
-              return;
-            }
-          }
-        } catch {
-          // fall through
-        }
-
-        try {
           const placeRes = await fetch(
-            `${baseUrl}/locations/places?city=${encodeURIComponent(destQuery)}&q=${encodeURIComponent(destQuery)}&limit=1`
+            `${baseUrl}/locations/places?city=${encodeURIComponent(fullQuery)}&q=${encodeURIComponent(fullQuery)}&limit=1`
           );
           if (placeRes.ok) {
             const items = await placeRes.json();
@@ -153,7 +159,7 @@ export function PoiLocationPickerModal({
 
       if (active) {
         setIsLocating(false);
-        setLocationError(`Could not automatically center map on "${city || 'destination'}". Use the street search above.`);
+        setLocationError(`Could not automatically center map on "${fullQuery || 'destination'}". Use the street search above.`);
       }
     };
 
@@ -161,7 +167,7 @@ export function PoiLocationPickerModal({
     return () => {
       active = false;
     };
-  }, [isOpen, hasValidInitial, city]);
+  }, [isOpen, hasValidInitial, city, country]);
 
   // Dismiss search dropdown on outside click
   useEffect(() => {
@@ -184,8 +190,9 @@ export function PoiLocationPickerModal({
       setIsSearching(true);
       try {
         const baseUrl = getApiBaseUrl();
+        const cityScope = country?.trim() ? `${city || ''}, ${country.trim()}` : city || '';
         const res = await fetch(
-          `${baseUrl}/locations/places?city=${encodeURIComponent(city || '')}&q=${encodeURIComponent(q)}&limit=8`
+          `${baseUrl}/locations/places?city=${encodeURIComponent(cityScope)}&q=${encodeURIComponent(q)}&limit=8`
         );
         if (res.ok) {
           const data = await res.json();
@@ -199,7 +206,7 @@ export function PoiLocationPickerModal({
     }, 260);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, city]);
+  }, [searchQuery, city, country]);
 
   const handleMapClick = useCallback(async (lat: number, lng: number) => {
     setSearchResults([]);

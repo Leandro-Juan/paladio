@@ -107,10 +107,6 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     });
   }, []);
 
-  const handleToggleTransitMode = useCallback(() => {
-    setTransitMode((prev) => (prev === 'simple' ? 'detailed' : 'simple'));
-  }, []);
-
   const handleCategoryPoisChange = useCallback((pois: PoiApiItem[]) => {
     setCategoryPois(
       pois.map((p) => ({
@@ -364,6 +360,21 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       window.dispatchEvent(new CustomEvent('paladio:clear-transit-line'));
     }
   }, []);
+
+  const handleTransitModeChange = useCallback(
+    (nextMode: 'simple' | 'detailed') => {
+      setTransitMode(nextMode);
+      if (nextMode === 'detailed' && selectedDay === 'all') {
+        const firstDay = daysOutput[0]?.day ?? 1;
+        setSelectedDay(firstDay);
+      }
+    },
+    [selectedDay, daysOutput]
+  );
+
+  const handleToggleTransitMode = useCallback(() => {
+    handleTransitModeChange(transitMode === 'simple' ? 'detailed' : 'simple');
+  }, [transitMode, handleTransitModeChange]);
 
   const isInspectorOpen = Boolean(inspectedPoiId);
 
@@ -749,7 +760,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             categoryFilter={sidebarTab === 'route' ? null : categoryFilter}
             onCategoryFilterChange={handleCategoryFilterChange}
             transitMode={transitMode}
-            onTransitModeChange={setTransitMode}
+            onTransitModeChange={handleTransitModeChange}
             places={places}
             onPlaceClick={handlePlaceClick}
             onCategoryPoisChange={handleCategoryPoisChange}
@@ -787,9 +798,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             isPanelOpen={isSidebarOpen}
             panelWidth={
               sidebarTab === 'route'
-                ? transitMode === 'detailed'
-                  ? 'min(520px, calc(100vw - 32px))'
-                  : 'min(380px, calc(100vw - 32px))'
+                ? 'min(380px, calc(100vw - 32px))'
                 : 'min(520px, calc(100vw - 32px))'
             }
             isEditMode={isEditMode}

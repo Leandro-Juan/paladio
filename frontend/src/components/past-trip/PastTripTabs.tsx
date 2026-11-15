@@ -500,7 +500,7 @@ export function PastTripTabs({
       {activeTab === 'costs' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <CategoryBreakdownWidget items={expenseItems} currency={currency} />
-          {settlement && (
+          {settlement && participants.length > 1 && (
             <BalancesWidget
               balances={settlement.balances}
               participants={participants}

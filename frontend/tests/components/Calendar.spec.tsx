@@ -31,13 +31,10 @@ test.describe('Calendar Component', () => {
     },
   ];
 
-  test('renders 12-month annual dispatch grid and telemetry stats by default', async ({ mount }) => {
+  test('renders 12-month annual dispatch grid by default', async ({ mount }) => {
     const component = await mount(<Calendar trips={mockTrips} />);
 
-    // Header and Telemetry checks
-    await expect(component.getByText('TOTAL MISSIONS')).toBeVisible();
-    await expect(component.getByText('ACTIVE / QUEUED')).toBeVisible();
-    await expect(component.getByText('ARCHIVED MISSIONS')).toBeVisible();
+    // Header checks
     await expect(component.getByText(`${currentYear} ANNUAL DISPATCH`)).toBeVisible();
 
     // Verify all 12 months are rendered in annual view

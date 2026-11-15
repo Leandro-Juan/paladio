@@ -68,10 +68,27 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     headers.set('Content-Type', 'application/json');
   }
 
-  const res = await fetch(`${baseUrl}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const timeoutMs = 15000;
+  const controller = options.signal ? null : new AbortController();
+  const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}${endpoint}`, {
+      ...options,
+      headers,
+      signal: options.signal ?? controller?.signal,
+    });
+  } catch (err) {
+    if (controller?.signal.aborted && !options.signal?.aborted) {
+      throw new Error('Request timed out. Please check your connection and try again.');
+    }
+    throw err;
+  } finally {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+  }
 
   if (!res.ok) {
     let errorDetail = `Request failed with status ${res.status}`;
@@ -620,6 +637,62 @@ export const testSecretApi = (
   return apiFetch<{ success: boolean; message: string }>(`/system/secrets/test/${secretType}`, {
     method: 'POST',
     body: JSON.stringify({ token: token || null }),
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Taste Profile, Deal Sweep & Vault Operations API
+// ---------------------------------------------------------------------------
+
+export interface TasteAffinityItem {
+  category: string;
+  score: number;
+}
+
+export interface TasteProfileResponse {
+  status: string;
+  active: boolean;
+  dimensions: number;
+  affinities: TasteAffinityItem[];
+}
+
+export const fetchTasteProfileApi = (): Promise<TasteProfileResponse> => {
+  return apiFetch<TasteProfileResponse>('/system/taste-profile');
+};
+
+export const resetTasteProfileApi = (): Promise<TasteProfileResponse> => {
+  return apiFetch<TasteProfileResponse>('/system/taste-profile/reset', {
+    method: 'POST',
+  });
+};
+
+export const triggerDealSweepApi = (): Promise<{
+  status: string;
+  message: string;
+  triggered_at: string;
+}> => {
+  return apiFetch('/system/deals/sweep', {
+    method: 'POST',
+  });
+};
+
+export const createVaultSnapshotApi = (): Promise<{
+  status: string;
+  snapshot_at: string;
+  domains_archived: string[];
+}> => {
+  return apiFetch('/system/vault/snapshot', {
+    method: 'POST',
+  });
+};
+
+export const purgeSystemCacheApi = (): Promise<{
+  status: string;
+  purged: boolean;
+  keys_cleared: number;
+}> => {
+  return apiFetch('/system/cache/purge', {
+    method: 'POST',
   });
 };
 

@@ -913,7 +913,7 @@ export function TripCreationBoxes({
                 padding: '6px 16px',
                 borderRadius: '9999px',
                 border: 'none',
-                background: selectedMode === 'personalized' ? '#2563EB' : 'transparent',
+                background: selectedMode === 'personalized' ? 'var(--color-accent-primary, #0F4C5C)' : 'transparent',
                 color: selectedMode === 'personalized' ? '#FFFFFF' : 'var(--color-text-secondary)',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '13px',
@@ -1556,7 +1556,7 @@ export function TripCreationBoxes({
                     padding: '13px 24px',
                     borderRadius: '9999px',
                     border: 'none',
-                    background: status === 'inferencing' || disabled ? 'var(--color-text-muted)' : '#2563EB',
+                    background: status === 'inferencing' || disabled ? 'var(--color-text-muted)' : 'var(--color-accent-primary, #0F4C5C)',
                     color: '#FFFFFF',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '14px',
@@ -1567,7 +1567,7 @@ export function TripCreationBoxes({
                     justifyContent: 'center',
                     gap: '8px',
                     transition: 'all 0.15s ease',
-                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                    boxShadow: '0 2px 8px rgba(15, 76, 92, 0.25)',
                   }}
                 >
                   {status === 'inferencing' ? (
