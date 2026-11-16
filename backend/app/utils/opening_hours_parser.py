@@ -133,9 +133,8 @@ def parse_osm_opening_hours(hours_str: str | None) -> ParsedWeeklySchedule:
             # Date/holiday closure (e.g. Dec 28-Jan 01 off) should NOT wipe out the weekly schedule!
             if is_closed and has_month_or_holiday:
                 continue
-            # If general time range with no day constraints and no holiday constraints, applies to all 7 days
-            if not has_month_or_holiday:
-                applicable_days = list(range(7))
+            # Seasonal or general time range with no specific day constraints applies to all 7 days
+            applicable_days = list(range(7))
 
         if is_closed:
             for d in applicable_days:

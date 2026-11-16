@@ -7,13 +7,142 @@ Selects the global set of POIs for the entire trip before day assignment:
 4. Typed reason codes for all selected and dropped candidates
 """
 
+from __future__ import annotations
+
 import math
 import unicodedata
 from enum import Enum
 
 from app.engine.candidate_pool import CandidatePoi
 from app.engine.trip_frame import TripFrame
+from app.schemas.user import PacePreference
 from pydantic import BaseModel
+
+
+def is_quick_landmark(cand: CandidatePoi) -> bool:
+    """True if POI is an open-air plaza, viewpoint, monument, or brief stop."""
+    if getattr(cand, "visit_mode", "full") in ("quick", "walk_by"):
+        return True
+    return bool(
+        getattr(cand, "duration_mins", 60) <= 45
+        and getattr(cand, "cost_eur", 0.0) == 0.0
+    )
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dphi / 2.0) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2.0) ** 2
+    )
+    return 2.0 * r * math.asin(math.sqrt(max(0.0, min(1.0, a))))
+
+
+_CANONICAL_NAME_ROOTS: dict[str, str] = {
+    "palace": "palacio",
+    "royal": "real",
+    "museum": "museo",
+    "cathedral": "catedral",
+    "church": "iglesia",
+    "square": "plaza",
+    "gate": "puerta",
+    "garden": "jardin",
+    "gardens": "jardin",
+    "park": "parque",
+    "castle": "castillo",
+    "tower": "torre",
+    "bridge": "puente",
+    "temple": "templo",
+    "market": "mercado",
+    "basilica": "basilica",
+    "monastery": "monasterio",
+}
+_CANONICAL_STOPWORDS: set[str] = {
+    "of",
+    "the",
+    "in",
+    "at",
+    "and",
+    "de",
+    "del",
+    "la",
+    "el",
+    "los",
+    "las",
+    "y",
+    "en",
+    "da",
+    "di",
+}
+
+
+def _get_name_roots(name: str) -> set[str]:
+    import re
+
+    words = re.findall(r"[a-z0-9]+", name.lower())
+    roots = set()
+    for w in words:
+        if w in _CANONICAL_STOPWORDS or len(w) <= 1:
+            continue
+        roots.add(_CANONICAL_NAME_ROOTS.get(w, w))
+    return roots
+
+
+def _is_spatial_duplicate(
+    cand: CandidatePoi, selected: list[SelectedPoi], threshold_km: float = 0.25
+) -> bool:
+    c_loc = getattr(cand, "location", None) or {}
+    c_lat = (
+        c_loc.get("latitude")
+        if isinstance(c_loc, dict)
+        else getattr(c_loc, "latitude", None)
+    )
+    c_lon = (
+        c_loc.get("longitude")
+        if isinstance(c_loc, dict)
+        else getattr(c_loc, "longitude", None)
+    )
+    if c_lat is None or c_lon is None:
+        return False
+    c_roots = _get_name_roots(getattr(cand, "name", ""))
+    c_cat = getattr(cand, "taxonomy_category", None) or getattr(
+        cand, "category_id", None
+    )
+
+    for s in selected:
+        s_loc = getattr(s.poi, "location", None) or {}
+        s_lat = (
+            s_loc.get("latitude")
+            if isinstance(s_loc, dict)
+            else getattr(s_loc, "latitude", None)
+        )
+        s_lon = (
+            s_loc.get("longitude")
+            if isinstance(s_loc, dict)
+            else getattr(s_loc, "longitude", None)
+        )
+        if s_lat is None or s_lon is None:
+            continue
+        dist = _haversine_km(float(c_lat), float(c_lon), float(s_lat), float(s_lon))
+        if dist > threshold_km:
+            continue
+        # Immediate physical duplicate if virtually identical location (<= 50m)
+        if dist <= 0.05:
+            return True
+        # Translation or naming duplicate within threshold
+        s_roots = _get_name_roots(getattr(s.poi, "name", ""))
+        if c_roots and s_roots and (c_roots & s_roots):
+            return True
+        # Same exact taxonomy category and very close (<= 100m)
+        s_cat = getattr(s.poi, "taxonomy_category", None) or getattr(
+            s.poi, "category_id", None
+        )
+        if dist <= 0.10 and c_cat is not None and s_cat is not None and c_cat == s_cat:
+            return True
+    return False
 
 
 def normalize_poi_name(name: str) -> str:
@@ -170,10 +299,39 @@ def select_trip_pois(
         key=lambda x: 0.5 * (x.iconicity_score * 100.0) + 0.5 * x.taste_score,
         reverse=True,
     )
+    pace = getattr(trip_frame, "pace", PacePreference.BALANCED)
+    if pace == PacePreference.LEISURELY:
+        quick_per_day = 2
+    elif pace == PacePreference.INTENSE:
+        quick_per_day = 4
+    else:  # BALANCED
+        quick_per_day = 3
+
+    n_days = max(1, len(trip_frame.days))
+    max_quick_t1 = max(2, n_days * quick_per_day)
+
+    heavy_t1_count = sum(
+        1 for s in selected if s.poi.tier == 1 and not is_quick_landmark(s.poi)
+    )
+    quick_t1_count = sum(
+        1 for s in selected if s.poi.tier == 1 and is_quick_landmark(s.poi)
+    )
+
     for cand in t1_candidates:
-        if len([s for s in selected if s.poi.tier == 1]) >= max_tier1_slots:
-            break
+        if _is_spatial_duplicate(cand, selected):
+            continue
+        cand_is_quick = is_quick_landmark(cand)
+        if cand_is_quick:
+            if quick_t1_count >= max_quick_t1:
+                continue
+        else:
+            if heavy_t1_count >= max_tier1_slots:
+                continue
+
         dur = cand.duration_mins
+        if current_time_mins + dur > max_active_time:
+            continue
+
         gain = 80.0 + cand.iconicity_score * 20.0
         selected.append(
             SelectedPoi(
@@ -196,8 +354,16 @@ def select_trip_pois(
         current_cost_eur += cand.cost_eur
         total_score += gain
 
+        if cand_is_quick:
+            quick_t1_count += 1
+        else:
+            heavy_t1_count += 1
+
     # 3. Submodular Greedy Selection Loop
-    while len(selected) < max_anchor_slots and current_time_mins < max_active_time:
+    while (
+        sum(1 for s in selected if not is_quick_landmark(s.poi)) < max_anchor_slots
+        and current_time_mins < max_active_time
+    ):
         best_cand: CandidatePoi | None = None
         best_gain = -1.0
         best_mode = "full"
@@ -215,7 +381,9 @@ def select_trip_pois(
             u_min = min(avg_s, key=avg_s.get)
             min_sat = avg_s[u_min]
 
-        current_tier1_count = sum(1 for s in selected if s.poi.tier == 1)
+        current_tier1_count = sum(
+            1 for s in selected if s.poi.tier == 1 and not is_quick_landmark(s.poi)
+        )
         prefers_offbeat = bool(getattr(trip_frame, "prefers_offbeat", False))
 
         for cand in candidate_pool:
@@ -224,9 +392,13 @@ def select_trip_pois(
                 continue
             if not cand.is_mandatory and cand.taste_score <= 0.0:
                 continue
+            if not cand.is_mandatory and cand.tier == 1 and cand.taste_score < 35.0:
+                continue
             if not cand.is_mandatory and not is_poi_open_any_trip_day(
                 cand, trip_weekdays
             ):
+                continue
+            if not cand.is_mandatory and _is_spatial_duplicate(cand, selected):
                 continue
 
             # A. Base taste & quality

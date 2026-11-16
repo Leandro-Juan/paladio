@@ -13,7 +13,7 @@ from typing import Any
 
 import numpy as np
 from app.engine.transit_matrix import haversine_distance
-from app.engine.selection import SelectedPoi
+from app.engine.selection import SelectedPoi, _is_spatial_duplicate
 from app.engine.trip_frame import DayFrame, TripFrame
 from app.schemas.user import PacePreference
 from pydantic import BaseModel, Field
@@ -72,6 +72,17 @@ def _bundle_centroid(bundle: list[SelectedPoi]) -> tuple[float, float]:
     return float(np.mean([c[0] for c in coords])), float(
         np.mean([c[1] for c in coords])
     )
+
+
+def _is_quick_poi(p: Any) -> bool:
+    """True if POI is an open-air plaza, viewpoint, monument, or brief stop."""
+    poi = getattr(p, "poi", p)
+    vmode = getattr(poi, "visit_mode", "full")
+    dur = getattr(p, "effective_duration_mins", getattr(poi, "duration_mins", 60))
+    cost = getattr(poi, "cost_eur", 0.0)
+    if vmode in ("quick", "walk_by"):
+        return True
+    return bool(dur <= 45 and cost == 0.0)
 
 
 def compute_dynamic_bundling_threshold(pois: list[SelectedPoi]) -> float:
@@ -238,7 +249,6 @@ def _calculate_insertion_cost(
     """Computes spatial dispersion, capacity penalty, and time strain of inserting a bundle."""
     b_dur = sum(p.effective_duration_mins for p in bundle)
     curr_dur = sum(p.effective_duration_mins for p in cluster)
-    curr_nodes = len(cluster)
 
     # 1. Spatial distance cost and cluster diameter / sprawl penalty
     if not cluster:
@@ -266,8 +276,10 @@ def _calculate_insertion_cost(
         over = (curr_dur + b_dur) - day_frame.target_active_mins
         cap_penalty += over * 5.0
 
-    if curr_nodes + len(bundle) > day_frame.max_anchors:
-        node_over = (curr_nodes + len(bundle)) - day_frame.max_anchors
+    curr_heavy_nodes = sum(1 for p in cluster if not _is_quick_poi(p))
+    bundle_heavy_nodes = sum(1 for p in bundle if not _is_quick_poi(p))
+    if curr_heavy_nodes + bundle_heavy_nodes > day_frame.max_anchors:
+        node_over = (curr_heavy_nodes + bundle_heavy_nodes) - day_frame.max_anchors
         cap_penalty += node_over * 50.0
 
     # 3. Trip closure feasibility check
@@ -581,7 +593,6 @@ def assign_pois_to_days(
     for c_idx in range(k):
         cl = clusters[c_idx]
         cl_dur = sum(p.effective_duration_mins for p in cl)
-        cl_nodes = len(cl)
 
         for d_idx in range(k):
             day_f = trip_frame.days[d_idx]
@@ -596,11 +607,12 @@ def assign_pois_to_days(
             time_diff = (cl_dur - day_f.target_active_mins) / 60.0
             capacity_cost = (time_diff**2) * 50.0
 
-            # C. Arrival/Departure light load preference
+            # C. Arrival/Departure light load preference (counts heavy anchors only)
+            cl_heavy_nodes = sum(1 for p in cl if not _is_quick_poi(p))
             if (
                 day_f.is_arrival_day or day_f.is_departure_day
-            ) and cl_nodes > day_f.max_anchors:
-                capacity_cost += (cl_nodes - day_f.max_anchors) * 500.0
+            ) and cl_heavy_nodes > day_f.max_anchors:
+                capacity_cost += (cl_heavy_nodes - day_f.max_anchors) * 500.0
 
             # D. Hotel / Depot proximity for arrival / departure days
             hotel_cost = 0.0
@@ -718,6 +730,8 @@ def assign_pois_to_days(
                     or cand_id in claimed_surplus_ids
                     or cand_name in claimed_surplus_names
                 ):
+                    continue
+                if _is_spatial_duplicate(cp, selected_pois):
                     continue
                 if getattr(cp, "is_meal_spot", False):
                     continue

@@ -38,6 +38,8 @@ class DayFrame(BaseModel):
     daily_budget_eur: float = 0.0
     start_depot: dict[str, Any] = Field(default_factory=dict)
     end_depot: dict[str, Any] = Field(default_factory=dict)
+    hotel_check_in_mins: int | None = None
+    hotel_check_out_mins: int | None = None
 
     @property
     def total_available_mins(self) -> int:
@@ -156,6 +158,32 @@ def build_trip_frame(
         )
         if dep_t:
             departure_flight_mins = _parse_flight_time_to_minutes(dep_t)
+
+    # Extract hotel check-in / check-out dates and times if available
+    hotel_cin_mins: int | None = None
+    hotel_cout_mins: int | None = None
+    hotel_cin_date: date | None = None
+    hotel_cout_date: date | None = None
+    if anchors and getattr(anchors, "hotel", None):
+        h_anc = anchors.hotel
+        hotel_cin_mins = _parse_flight_time_to_minutes(
+            getattr(h_anc, "check_in_time", None)
+        )
+        hotel_cout_mins = _parse_flight_time_to_minutes(
+            getattr(h_anc, "check_out_time", None)
+        )
+        raw_cin_d = getattr(h_anc, "check_in_date", None)
+        if raw_cin_d:
+            try:
+                hotel_cin_date = date.fromisoformat(str(raw_cin_d).split("T")[0])
+            except Exception:
+                pass
+        raw_cout_d = getattr(h_anc, "check_out_date", None)
+        if raw_cout_d:
+            try:
+                hotel_cout_date = date.fromisoformat(str(raw_cout_d).split("T")[0])
+            except Exception:
+                pass
 
     days: list[DayFrame] = []
     total_anchors = 0
@@ -306,6 +334,32 @@ def build_trip_frame(
         if "dinner" in day_meals and not (is_dep and departure_flight_mins is not None):
             end_time = max(end_time, r.evening_cutoff_min, 1350)
 
+        is_cin_day = (
+            (cal_date == hotel_cin_date)
+            if (cal_date is not None and hotel_cin_date is not None)
+            else (is_arr and hotel_cin_mins is not None)
+        )
+        is_cout_day = (
+            (cal_date == hotel_cout_date)
+            if (cal_date is not None and hotel_cout_date is not None)
+            else (is_dep and hotel_cout_mins is not None)
+        )
+
+        day_cin_mins = hotel_cin_mins if is_cin_day else None
+        day_cout_mins = hotel_cout_mins if is_cout_day else None
+
+        if day_cin_mins is not None and not (
+            is_dep and departure_flight_mins is not None
+        ):
+            end_time = max(end_time, day_cin_mins)
+
+        if day_cout_mins is not None:
+            start_time = min(start_time, day_cout_mins)
+        if is_dep and departure_flight_mins is not None:
+            start_time = min(start_time, max(360, departure_flight_mins - 180))
+        if start_time > end_time:
+            end_time = min(1440, start_time + 60)
+
         days.append(
             DayFrame(
                 day_index=d,
@@ -321,15 +375,26 @@ def build_trip_frame(
                 daily_budget_eur=daily_budget_eur,
                 start_depot=default_depot,
                 end_depot=default_depot,
+                hotel_check_in_mins=day_cin_mins,
+                hotel_check_out_mins=day_cout_mins,
             )
         )
 
     prefers_offbeat = bool(getattr(constraints, "prefers_offbeat", False))
-    # 55% anchor cap for Tier 1 iconic POIs (capped tightly when offbeat/neighborhoods preferred)
+    n_days = max(1, len(days))
+    # Duration-decaying anchor cap for Tier 1 iconic POIs
+    # Short trips allow high iconic density; long trips reserve slots for neighborhood discovery
     if prefers_offbeat:
         max_t1_slots = min(total_anchors, max(1, min(3, int(0.35 * total_anchors))))
     else:
-        max_t1_slots = min(total_anchors, max(1, int(0.55 * total_anchors)))
+        if n_days <= 2:
+            max_t1_slots = total_anchors
+        elif n_days <= 4:
+            max_t1_slots = min(total_anchors, max(2, int(0.80 * total_anchors)))
+        elif n_days <= 7:
+            max_t1_slots = min(total_anchors, max(3, int(0.65 * total_anchors)))
+        else:
+            max_t1_slots = min(total_anchors, max(4, int(0.55 * total_anchors)))
 
     return TripFrame(
         city=city,

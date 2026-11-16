@@ -47,7 +47,9 @@ def test_build_trip_frame_balanced():
     assert len(tf.days) == 3
     # Arrival: 2, Middle: 3, Departure: 2 -> Total = 7
     assert tf.total_anchor_slots == 7
-    assert tf.max_tier1_slots == 3
+    assert (
+        tf.max_tier1_slots == 5
+    )  # Dynamic duration curve allows up to 80% Tier 1 on short trips
     assert tf.total_budget_eur == usd_to_eur(1200.0)
     assert tf.days[0].is_arrival_day is True
     assert tf.days[1].is_arrival_day is False
@@ -518,3 +520,125 @@ def test_poi_to_candidate_preserves_category():
         tier=2,
     )
     assert _is_meal_poi(bakery) is True
+
+
+def test_dynamic_tier1_curve_across_durations():
+    """Verify that Tier 1 anchor limits scale dynamically with trip duration."""
+    city_center = (40.4168, -3.7038)
+    tc2 = TravelConstraints(
+        destination_city="Madrid",
+        pace=PacePreference.BALANCED,
+        start_date=date(2026, 10, 1),
+        end_date=date(2026, 10, 2),
+    )
+    tf2 = build_trip_frame(tc2, city_center=city_center)
+    assert tf2.total_anchor_slots == 4
+    assert tf2.max_tier1_slots == 4  # 100% on 2-day sprint
+
+    tc4 = TravelConstraints(
+        destination_city="Madrid",
+        pace=PacePreference.BALANCED,
+        start_date=date(2026, 10, 1),
+        end_date=date(2026, 10, 4),
+    )
+    tf4 = build_trip_frame(tc4, city_center=city_center)
+    assert tf4.total_anchor_slots == 10
+    assert tf4.max_tier1_slots == 8  # 80% on 4-day highlights
+
+    tc10 = TravelConstraints(
+        destination_city="Madrid",
+        pace=PacePreference.BALANCED,
+        start_date=date(2026, 10, 1),
+        end_date=date(2026, 10, 10),
+    )
+    tf10 = build_trip_frame(tc10, city_center=city_center)
+    assert tf10.max_tier1_slots == int(0.55 * tf10.total_anchor_slots)
+
+    tc_offbeat = TravelConstraints(
+        destination_city="Madrid",
+        pace=PacePreference.BALANCED,
+        start_date=date(2026, 10, 1),
+        end_date=date(2026, 10, 4),
+        prefers_offbeat=True,
+    )
+    tf_offbeat = build_trip_frame(tc_offbeat, city_center=city_center)
+    assert tf_offbeat.max_tier1_slots == min(
+        tf_offbeat.total_anchor_slots,
+        max(1, min(3, int(0.35 * tf_offbeat.total_anchor_slots))),
+    )
+
+
+def test_quick_landmarks_do_not_exhaust_heavy_tier1_anchor_slots():
+    """Verify that quick waypoints (open-air plazas) do not block heavy Tier 1 anchors."""
+    day0 = DayFrame(day_index=0, max_anchors=2, target_active_mins=360)
+    day1 = DayFrame(day_index=1, max_anchors=2, target_active_mins=360)
+    tf = TripFrame(
+        city="Madrid",
+        days=[day0, day1],
+        total_anchor_slots=4,
+        max_tier1_slots=2,
+        pace=PacePreference.BALANCED,
+    )
+
+    cands = [
+        CandidatePoi(
+            id="prado",
+            name="Museo del Prado",
+            city="Madrid",
+            tier=1,
+            iconicity_score=0.99,
+            category_id=0,
+            taxonomy_category="art_culture",
+            taste_score=85.0,
+            duration_mins=120,
+            cost_eur=15.0,
+            visit_mode="full",
+        ),
+        CandidatePoi(
+            id="palacio_real",
+            name="Palacio Real de Madrid",
+            city="Madrid",
+            tier=1,
+            iconicity_score=0.98,
+            category_id=1,
+            taxonomy_category="history_heritage",
+            taste_score=85.0,
+            duration_mins=90,
+            cost_eur=14.0,
+            visit_mode="full",
+        ),
+        CandidatePoi(
+            id="puerta_del_sol",
+            name="Puerta del Sol",
+            city="Madrid",
+            tier=1,
+            iconicity_score=0.97,
+            category_id=2,
+            taxonomy_category="architecture",
+            taste_score=80.0,
+            duration_mins=25,
+            cost_eur=0.0,
+            visit_mode="quick",
+        ),
+        CandidatePoi(
+            id="plaza_mayor",
+            name="Plaza Mayor",
+            city="Madrid",
+            tier=1,
+            iconicity_score=0.96,
+            category_id=2,
+            taxonomy_category="architecture",
+            taste_score=80.0,
+            duration_mins=25,
+            cost_eur=0.0,
+            visit_mode="quick",
+        ),
+    ]
+
+    res = select_trip_pois(cands, tf)
+    selected_ids = {s.poi.id for s in res.selected_pois}
+
+    assert "prado" in selected_ids
+    assert "palacio_real" in selected_ids
+    assert "puerta_del_sol" in selected_ids
+    assert "plaza_mayor" in selected_ids
