@@ -405,9 +405,9 @@ async def get_weather_forecast(
     days_list: list[WeatherDayForecast] = []
     day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-    def format_time_label(iso_t: str) -> str:
+    def format_time_label(iso_t: str, default_label: str = "06:30 AM") -> str:
         if not iso_t or "T" not in iso_t:
-            return "06:30 AM"
+            return default_label
         try:
             parts = iso_t.split("T")[1].split(":")
             hour = int(parts[0])
@@ -455,30 +455,42 @@ async def get_weather_forecast(
         s_rise_raw = sunrises[i] if i < len(sunrises) else ""
         s_set_raw = sunsets[i] if i < len(sunsets) else ""
 
-        s_rise_formatted = format_time_label(s_rise_raw)
-        s_set_formatted = format_time_label(s_set_raw)
+        s_rise_formatted = format_time_label(s_rise_raw, "06:30 AM")
+        s_set_formatted = format_time_label(s_set_raw, "06:30 PM")
 
         start_idx = i * 24
         end_idx = start_idx + 24
-        day_hum_slice = (
-            hourly_hum[start_idx:end_idx] if start_idx < len(hourly_hum) else []
-        )
-        day_vis_slice = (
-            hourly_vis[start_idx:end_idx] if start_idx < len(hourly_vis) else []
-        )
-        day_aqi_slice = (
-            hourly_aqi[start_idx:end_idx] if start_idx < len(hourly_aqi) else []
-        )
+        day_hum_slice = [
+            float(v)
+            for v in (
+                hourly_hum[start_idx:end_idx] if start_idx < len(hourly_hum) else []
+            )
+            if v is not None
+        ]
+        day_vis_slice = [
+            float(v)
+            for v in (
+                hourly_vis[start_idx:end_idx] if start_idx < len(hourly_vis) else []
+            )
+            if v is not None
+        ]
+        day_aqi_slice = [
+            float(v)
+            for v in (
+                hourly_aqi[start_idx:end_idx] if start_idx < len(hourly_aqi) else []
+            )
+            if v is not None
+        ]
 
         avg_hum = (
             round(sum(day_hum_slice) / len(day_hum_slice))
             if day_hum_slice
-            else int(current_block.get("relative_humidity_2m", 60))
+            else int(current_block.get("relative_humidity_2m") or 60)
         )
         avg_vis_m = (
             sum(day_vis_slice) / len(day_vis_slice)
             if day_vis_slice
-            else float(current_block.get("visibility", 10000.0))
+            else float(current_block.get("visibility") or 10000.0)
         )
         vis_km = round(avg_vis_m / 1000.0, 1)
 

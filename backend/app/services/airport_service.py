@@ -811,11 +811,11 @@ class AirportService:
                     ),
                     "display_name": f"{city_name}, {c_name}",
                     "display_airport": f"{ap.name} ({ap.iata})",
-                    "latitude": float(c.get("latitude"))
-                    if c.get("latitude") is not None
+                    "latitude": float(c.latitude)
+                    if getattr(c, "latitude", None) is not None
                     else getattr(ap, "latitude", None),
-                    "longitude": float(c.get("longitude"))
-                    if c.get("longitude") is not None
+                    "longitude": float(c.longitude)
+                    if getattr(c, "longitude", None) is not None
                     else getattr(ap, "longitude", None),
                 }
             )

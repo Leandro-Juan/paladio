@@ -1527,6 +1527,24 @@ class TransitService:
         gtfs_status = cache.get("gtfs_status", "PENDING")
         derived_status = cache.get("derived_status", "PENDING")
 
+        if (
+            gtfs_status == "UNAVAILABLE"
+            or derived_status == "UNAVAILABLE"
+            or status == "UNAVAILABLE"
+        ):
+            return {
+                "city": city,
+                "status": "UNAVAILABLE",
+                "gtfs_status": "UNAVAILABLE",
+                "derived_status": "UNAVAILABLE",
+                "reason": "No open public transit GTFS schedule exists for this city.",
+                "capabilities": {},
+                "agencies": [],
+                "feed_valid_from": None,
+                "feed_valid_to": None,
+                "as_of": None,
+            }
+
         agencies = []
         build_id = cache.get("active_build_id")
         if build_id:
@@ -1542,21 +1560,46 @@ class TransitService:
             except ValueError:
                 pass
 
+        from app.tasks import is_transit_task_alive
+
+        task_alive = is_transit_task_alive(city)
+
+        is_stale_build = False
+        if not build_id and cache.get("updated_at"):
+            try:
+                upd_dt = datetime.fromisoformat(cache["updated_at"])
+                if upd_dt.tzinfo is None:
+                    from datetime import timezone as _tz
+
+                    upd_dt = upd_dt.replace(tzinfo=_tz.utc)
+                if (now - upd_dt).total_seconds() > 900:
+                    is_stale_build = True
+            except ValueError:
+                pass
+
         if (
             gtfs_status in ("BUILDING", "QUEUED")
             or derived_status in ("BUILDING", "QUEUED")
             or status in ("BUILDING", "QUEUED")
         ):
-            final_status = (
-                "QUEUED"
-                if "QUEUED" in (derived_status, gtfs_status, status)
-                else "BUILDING"
-            )
+            if not task_alive and is_stale_build:
+                final_status = "FAILED"
+            elif not task_alive:
+                final_status = "FAILED"
+            else:
+                final_status = (
+                    "QUEUED"
+                    if "QUEUED" in (derived_status, gtfs_status, status)
+                    else "BUILDING"
+                )
         elif derived_status == "READY":
             final_status = "EXPIRED" if is_expired else "READY"
-        elif gtfs_status == "READY":
-            # GTFS download complete, line derivation in progress
-            final_status = "BUILDING"
+        elif (
+            derived_status == "FAILED" or gtfs_status == "FAILED" or status == "FAILED"
+        ):
+            final_status = "FAILED"
+        elif is_stale_build and derived_status != "READY":
+            final_status = "NOT_REQUESTED"
         elif derived_status in ("PENDING", "NOT_REQUESTED"):
             final_status = "NOT_REQUESTED"
         else:

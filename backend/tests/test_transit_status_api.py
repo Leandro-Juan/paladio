@@ -193,3 +193,133 @@ async def test_stop_active_compilation_and_clean(
     check_db = (await db_session.execute(stmt)).scalar_one_or_none()
     assert check_db is None
     assert not city_dir.exists()
+
+
+@pytest.mark.asyncio
+async def test_transit_status_unavailable_stops_recompile(
+    async_client: AsyncClient, db_session
+):
+    await db_session.execute(
+        delete(TransitCacheModel).where(TransitCacheModel.city == "atlantis")
+    )
+    cache_record = TransitCacheModel(
+        city="atlantis",
+        status=TransitCacheStatus.UNAVAILABLE.value,
+        osm_status="READY",
+        gtfs_status="UNAVAILABLE",
+        derived_status="UNAVAILABLE",
+    )
+    db_session.add(cache_record)
+    await db_session.commit()
+
+    # Verify transit status API returns UNAVAILABLE
+    res_status = await async_client.get("/api/trips/transit-status?city=atlantis")
+    assert res_status.status_code == 200
+    data_status = res_status.json()
+    assert data_status["city"] == "atlantis"
+    assert data_status["gtfs_status"] == "UNAVAILABLE"
+    assert data_status["is_ready"] is False
+
+    # Verify compile request is rejected with unavailable message and not re-queued
+    res_compile = await async_client.post(
+        "/api/trips/transit/compile", json={"city": "atlantis"}
+    )
+    assert res_compile.status_code == 200
+    data_compile = res_compile.json()
+    assert data_compile["status"] == "unavailable"
+    assert "cannot be downloaded" in data_compile["message"]
+
+
+@pytest.mark.asyncio
+async def test_city_storage_registry_and_delete_pois_preserves_trips(
+    async_client: AsyncClient, db_session
+):
+    from app.db.models import AttractionModel, CityModel, TripModel
+
+    # 1. Clean previous test items
+    await db_session.execute(
+        delete(AttractionModel).where(AttractionModel.id == "poi-storage-test-1")
+    )
+    await db_session.execute(
+        delete(TripModel).where(TripModel.id == "trip-storage-test-1")
+    )
+    await db_session.execute(delete(CityModel).where(CityModel.id == "testville_es"))
+    await db_session.commit()
+
+    # 2. Seed city, attraction, and trip
+    city_rec = CityModel(
+        id="testville_es",
+        name="Testville",
+        country_code="ES",
+        center_lat=40.0,
+        center_lon=-3.0,
+        bbox=[39.9, -3.1, 40.1, -2.9],
+        timezone="UTC",
+        currency="EUR",
+    )
+    db_session.add(city_rec)
+
+    poi_rec = AttractionModel(
+        id="poi-storage-test-1",
+        city="testville",
+        city_id="testville_es",
+        name="Testville Monument",
+        category="monument",
+        category_id=1,
+        location={"lat": 40.0, "lon": -3.0},
+        scoring={"rating": 4.5},
+        metadata_field={"source": "test"},
+    )
+    db_session.add(poi_rec)
+
+    trip_rec = TripModel(
+        id="trip-storage-test-1",
+        destination="Testville",
+        start_date="2027-04-01",
+        end_date="2027-04-05",
+        itinerary_data={"days": []},
+    )
+    db_session.add(trip_rec)
+    await db_session.commit()
+
+    # 3. Test registry returns full city data and disk/db storage metrics
+    res_reg = await async_client.get("/api/trips/transit/registry")
+    assert res_reg.status_code == 200
+    data_reg = res_reg.json()
+    assert data_reg["total_cities"] > 0
+    assert "total_disk_bytes" in data_reg
+    assert "total_db_bytes" in data_reg
+    assert "total_storage_bytes" in data_reg
+
+    testville_items = [c for c in data_reg["cities"] if c["city"] == "testville"]
+    assert len(testville_items) == 1
+    tv = testville_items[0]
+    assert tv["display_name"] == "Testville"
+    assert tv["country_code"] == "ES"
+    assert tv["poi_count"] >= 1
+    assert tv["poi_db_bytes"] > 0
+    assert tv["total_storage_bytes"] > 0
+
+    # 4. Delete POIs for testville
+    res_del = await async_client.delete("/api/trips/pois/testville")
+    assert res_del.status_code == 200
+    data_del = res_del.json()
+    assert data_del["status"] == "deleted"
+    assert data_del["deleted_pois"] >= 1
+
+    # Verify POI was removed
+    stmt_poi = select(AttractionModel).where(AttractionModel.id == "poi-storage-test-1")
+    assert (await db_session.execute(stmt_poi)).scalar_one_or_none() is None
+
+    # Crucially verify trip was NOT removed and remains completely intact
+    stmt_trip = select(TripModel).where(TripModel.id == "trip-storage-test-1")
+    trip_check = (await db_session.execute(stmt_trip)).scalar_one_or_none()
+    assert trip_check is not None
+    assert trip_check.id == "trip-storage-test-1"
+
+    # Clean up
+    await db_session.execute(
+        delete(TripModel).where(TripModel.id == "trip-storage-test-1")
+    )
+    await db_session.execute(delete(CityModel).where(CityModel.id == "testville_es"))
+    await db_session.commit()

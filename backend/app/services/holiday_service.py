@@ -159,17 +159,23 @@ class HolidayService:
     @classmethod
     def get_supported_countries(cls) -> list[dict[str, str]]:
         """
-        Returns list of all ISO country codes supported by python-holidays,
-        enriched with country display names.
+        Returns list of all ISO 3166-1 alpha-2 country codes supported by python-holidays,
+        enriched with country display names and sorted alphabetically.
         """
         airport_svc = get_airport_service()
+        airport_svc._ensure_countries_loaded()
         country_names = getattr(airport_svc, "_country_iso_to_name", {})
 
         supported = holidays.list_supported_countries()
         results: list[dict[str, str]] = []
-        for code in sorted(supported.keys()):
-            iso_code = str(code).upper()
+        for code in supported.keys():
+            iso_code = str(code).upper().strip()
+            # Standardize strictly on ISO 3166-1 alpha-2 (2-letter) codes
+            if len(iso_code) != 2:
+                continue
             name = country_names.get(iso_code, iso_code)
             results.append({"code": iso_code, "name": name})
 
+        # Sort alphabetically by country display name
+        results.sort(key=lambda x: x["name"])
         return results

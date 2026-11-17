@@ -17,7 +17,7 @@ from app.db.models import (
     TransitTransferModel,
 )
 from app.domain.interfaces.transit_repository import ITransitRepository
-from sqlalchemy import and_, or_, select
+from sqlalchemy import Float, and_, cast, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,7 @@ class SQLTransitRepository(ITransitRepository):
             "osm_status": row.osm_status,
             "derived_status": row.derived_status or "PENDING",
             "derived_at": row.derived_at.isoformat() if row.derived_at else None,
+            "updated_at": row.updated_at.isoformat() if row.updated_at else None,
             "active_build_id": row.active_build_id,
             "capabilities": row.capabilities or {},
             "valid_until": row.valid_until.isoformat() if row.valid_until else None,
@@ -693,27 +694,38 @@ class SQLTransitRepository(ITransitRepository):
         max_lon: float,
         limit: int = 200,
     ) -> list[dict[str, Any]]:
+        lat_expr = cast(AttractionModel.location["latitude"].astext, Float)
+        lon_expr = cast(AttractionModel.location["longitude"].astext, Float)
         stmt = (
             select(AttractionModel)
             .where(
                 AttractionModel.city.ilike(city),
                 AttractionModel.category == "transit",
-                AttractionModel.latitude >= min_lat,
-                AttractionModel.latitude <= max_lat,
-                AttractionModel.longitude >= min_lon,
-                AttractionModel.longitude <= max_lon,
+                AttractionModel.location["latitude"].astext.isnot(None),
+                AttractionModel.location["longitude"].astext.isnot(None),
+                lat_expr >= min_lat,
+                lat_expr <= max_lat,
+                lon_expr >= min_lon,
+                lon_expr <= max_lon,
             )
             .limit(limit)
         )
         res = await self.db.execute(stmt)
-        return [
-            {
-                "id": a.id,
-                "name": a.name,
-                "lat": a.latitude,
-                "lon": a.longitude,
-                "mode": "Transit",
-                "source": "osm",
-            }
-            for a in res.scalars().all()
-        ]
+        stations: list[dict[str, Any]] = []
+        for a in res.scalars().all():
+            loc = a.location or {}
+            lat_val = loc.get("latitude")
+            lon_val = loc.get("longitude")
+            if lat_val is None or lon_val is None:
+                continue
+            stations.append(
+                {
+                    "id": a.id,
+                    "name": a.name,
+                    "lat": float(lat_val),
+                    "lon": float(lon_val),
+                    "mode": "Transit",
+                    "source": "osm",
+                }
+            )
+        return stations
