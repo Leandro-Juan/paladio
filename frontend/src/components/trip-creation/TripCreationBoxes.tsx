@@ -105,6 +105,8 @@ export function TripCreationBoxes({
     hotelAddress,
     hotelLat,
     hotelLng,
+    hotelCheckInDate,
+    hotelCheckOutDate,
     hotelCheckInHour,
     hotelCheckOutHour,
     participants,
@@ -305,6 +307,8 @@ export function TripCreationBoxes({
       hotelLng: extra?.lng !== undefined ? extra.lng : draft.hotelLng,
     });
   };
+  const setHotelCheckInDate = (val: string) => updateDraft({ hotelCheckInDate: val });
+  const setHotelCheckOutDate = (val: string) => updateDraft({ hotelCheckOutDate: val });
   const setHotelCheckInHour = (val: string) => updateDraft({ hotelCheckInHour: val });
   const setHotelCheckOutHour = (val: string) => updateDraft({ hotelCheckOutHour: val });
   const setParticipants = (val: SelectedParticipant[]) => updateDraft({ participants: val });
@@ -330,13 +334,25 @@ export function TripCreationBoxes({
     { meal_type: 'DINNER', start_time: '19:30', end_time: '22:00' },
   ]);
 
-  // Calculate duration
+  const parseLocalIsoDate = (iso: string): Date => {
+    const [y, m, d] = iso.split('T')[0].split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
+
+  const formatLocalIsoDate = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  // Calculate inclusive duration in calendar days
   const tripDurationDays = useMemo(() => {
     if (!startDate || !endDate) return 5;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseLocalIsoDate(startDate);
+    const end = parseLocalIsoDate(endDate);
     const diff = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    return diff > 0 ? diff : 1;
+    return diff >= 0 ? diff + 1 : 1;
   }, [startDate, endDate]);
 
   const handlePhotoSelect = (dataUrl: string) => {
@@ -383,38 +399,55 @@ export function TripCreationBoxes({
     else if (data.destination_iata) setDestination(data.destination_iata);
     if (data.destination_iata) setDestIata(data.destination_iata);
 
-    if (data.departure_date) {
+    const hasScannedFlight = scannedDocuments.some((d) => d.ticket_type === 'flight');
+    const isHotelOnly = data.document_type === 'hotel';
+
+    if (data.departure_date && (!isHotelOnly || !hasScannedFlight)) {
       const start = data.departure_date;
       let end = data.return_date;
       if (!end) {
-        const sDate = new Date(start);
+        const sDate = parseLocalIsoDate(start);
         sDate.setDate(sDate.getDate() + 5);
-        const y = sDate.getFullYear();
-        const m = String(sDate.getMonth() + 1).padStart(2, '0');
-        const d = String(sDate.getDate()).padStart(2, '0');
-        end = `${y}-${m}-${d}`;
+        end = formatLocalIsoDate(sDate);
       }
       setStartDate(start);
       setEndDate(end);
+      if (!data.check_in_date && (!hotelCheckInDate || hotelCheckInDate === startDate)) {
+        setHotelCheckInDate(start);
+      }
+      if (!data.check_out_date && (!hotelCheckOutDate || hotelCheckOutDate === endDate)) {
+        setHotelCheckOutDate(end);
+      }
     }
 
-    // Departure flight arrival time in destination sets trip start hour
-    if (data.flight_arrival_hour) {
-      setDepartureHour(data.flight_arrival_hour);
-    } else if (data.departure_hour) {
-      setDepartureHour(data.departure_hour);
-    }
+    // Only flight / trip_package docs update flight arrival/departure hours
+    if (!isHotelOnly) {
+      // Departure flight arrival time in destination sets trip start hour
+      if (data.flight_arrival_hour) {
+        setDepartureHour(data.flight_arrival_hour);
+      } else if (data.departure_hour) {
+        setDepartureHour(data.departure_hour);
+      }
 
-    // Return flight departure time in destination sets trip end hour
-    if (data.return_departure_hour) {
-      setArrivalHour(data.return_departure_hour);
-    } else if (data.arrival_hour) {
-      setArrivalHour(data.arrival_hour);
+      // Return flight departure time in destination sets trip end hour
+      if (data.return_departure_hour) {
+        setArrivalHour(data.return_departure_hour);
+      } else if (data.arrival_hour) {
+        setArrivalHour(data.arrival_hour);
+      }
     }
 
     // Hotel details and check-in / check-out constraints
-    if (data.hotel_name) {
-      setHotelArea(data.hotel_name);
+    if (data.hotel_name || data.hotel_address) {
+      setHotelInfo(data.hotel_name || hotelArea, {
+        address: data.hotel_address || undefined,
+      });
+    }
+    if (data.check_in_date) {
+      setHotelCheckInDate(data.check_in_date);
+    }
+    if (data.check_out_date) {
+      setHotelCheckOutDate(data.check_out_date);
     }
     if (data.check_in_hour) {
       setHotelCheckInHour(data.check_in_hour);
@@ -504,6 +537,12 @@ export function TripCreationBoxes({
       setBlankError('Trip return date cannot precede departure date.');
       return;
     }
+    const effectiveCheckInDate = hotelCheckInDate || startDate;
+    const effectiveCheckOutDate = hotelCheckOutDate || endDate;
+    if (effectiveCheckOutDate < effectiveCheckInDate) {
+      setBlankError('Hotel check-out date cannot precede check-in date.');
+      return;
+    }
     if (!participants || participants.length === 0) {
       setBlankError('At least one traveler or participant must be added to the trip.');
       return;
@@ -513,7 +552,26 @@ export function TripCreationBoxes({
     onBlankSubmitStart?.('Creating blank trip workspace...');
 
     try {
-      const start = new Date(startDate);
+      const start = parseLocalIsoDate(startDate);
+      const parseHhmm = (val: string | undefined, fallbackMins: number): number => {
+        if (!val) return fallbackMins;
+        const parts = val.trim().split(':');
+        const h = parseInt(parts[0], 10);
+        const m = parseInt(parts[1] || '0', 10);
+        if (Number.isNaN(h) || Number.isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+          return fallbackMins;
+        }
+        return h * 60 + m;
+      };
+      const fmtHhmm = (mins: number): string => {
+        const clamped = Math.max(0, Math.min(23 * 60 + 59, Math.round(mins)));
+        return `${String(Math.floor(clamped / 60)).padStart(2, '0')}:${String(clamped % 60).padStart(2, '0')}`;
+      };
+
+      const arrMins = parseHhmm(departureHour, 9 * 60);
+      const depMins = parseHhmm(arrivalHour, 20 * 60);
+      const cinMins = parseHhmm(hotelCheckInHour, 15 * 60);
+      const coutMins = parseHhmm(hotelCheckOutHour, 11 * 60);
 
       // Dynamically resolve destination airport anchor
       let airportPoi: { id: string; name: string; city: string; category: string; duration_mins: number; cost_eur: number; location: { latitude: number; longitude: number } } | null = null;
@@ -521,11 +579,17 @@ export function TripCreationBoxes({
       if (!effectiveIata) {
         effectiveIata = (await resolveAirportIata(destination.trim())) || '';
       }
+      const baseUrl = getApiBaseUrl();
+      let cityFallbackLat = 0;
+      let cityFallbackLng = 0;
       try {
-        const baseUrl = getApiBaseUrl();
         const apRes = await fetch(`${baseUrl}/locations/resolve-airport?city=${encodeURIComponent(destination.trim())}`);
         if (apRes.ok) {
           const apData = await apRes.json();
+          if (typeof apData?.latitude === 'number' && typeof apData?.longitude === 'number') {
+            cityFallbackLat = apData.latitude;
+            cityFallbackLng = apData.longitude;
+          }
           if (apData?.iata) {
             effectiveIata = apData.iata;
             airportPoi = {
@@ -545,39 +609,65 @@ export function TripCreationBoxes({
       } catch {
         // fallback
       }
-      if (!airportPoi && effectiveIata) {
+      if (!airportPoi) {
         airportPoi = {
-          id: `airport-${effectiveIata.toLowerCase()}`,
-          name: `${effectiveIata} Airport`,
+          id: effectiveIata ? `airport-${effectiveIata.toLowerCase()}` : 'airport-dest',
+          name: effectiveIata ? `${effectiveIata} Airport` : `${destination.trim()} Airport`,
           city: destination.trim(),
           category: 'AIRPORT',
           duration_mins: 120,
           cost_eur: 0,
-          location: { latitude: 0, longitude: 0 },
+          location: { latitude: cityFallbackLat, longitude: cityFallbackLng },
         };
       }
 
-      // Dynamically resolve hotel anchor
-      let hotelPoi: { id: string; name: string; city: string; category: string; duration_mins: number; cost_eur: number; location: { latitude: number; longitude: number } } | null = null;
-      if (hotelArea.trim()) {
-        hotelPoi = {
-          id: 'hotel-base',
-          name: hotelArea.trim(),
-          city: destination.trim(),
-          category: 'HOTEL',
-          duration_mins: 0,
-          cost_eur: 0,
-          location: {
-            latitude: typeof hotelLat === 'number' ? hotelLat : 0,
-            longitude: typeof hotelLng === 'number' ? hotelLng : 0,
-          },
-        };
+      // Dynamically resolve hotel anchor (always present for daily start/end anchors even on blank trips)
+      let resolvedHotelLat = typeof hotelLat === 'number' ? hotelLat : 0;
+      let resolvedHotelLng = typeof hotelLng === 'number' ? hotelLng : 0;
+      if (resolvedHotelLat === 0 && resolvedHotelLng === 0) {
+        try {
+          const locQuery = hotelArea.trim()
+            ? `${hotelArea.trim()} ${destination.trim()}`
+            : destination.trim();
+          const locRes = await fetch(`${baseUrl}/locations/search?q=${encodeURIComponent(locQuery)}&limit=1`);
+          if (locRes.ok) {
+            const locItems = await locRes.json();
+            if (Array.isArray(locItems) && locItems.length > 0) {
+              if (typeof locItems[0].latitude === 'number' && typeof locItems[0].longitude === 'number') {
+                resolvedHotelLat = locItems[0].latitude;
+                resolvedHotelLng = locItems[0].longitude;
+              }
+            }
+          }
+        } catch {
+          // keep 0 or fallback to city airport coordinates resolved above
+        }
+        if (resolvedHotelLat === 0 && resolvedHotelLng === 0 && (cityFallbackLat !== 0 || cityFallbackLng !== 0)) {
+          resolvedHotelLat = cityFallbackLat;
+          resolvedHotelLng = cityFallbackLng;
+        }
       }
+
+      const hotelPoi = {
+        id: 'hotel-base',
+        name: hotelArea.trim() || 'Accommodation / Hotel',
+        city: destination.trim(),
+        category: 'HOTEL',
+        duration_mins: 0,
+        cost_eur: 0,
+        location: {
+          latitude: resolvedHotelLat,
+          longitude: resolvedHotelLng,
+        },
+      };
 
       const days = [];
       for (let i = 1; i <= tripDurationDays; i++) {
         const d = new Date(start);
         d.setDate(d.getDate() + (i - 1));
+        const dayDateStr = formatLocalIsoDate(d);
+        const isCinDay = dayDateStr === effectiveCheckInDate;
+        const isCoutDay = dayDateStr === effectiveCheckOutDate;
 
         let dayPath: Array<{
           poi: { id: string; name: string; city: string; category: string; duration_mins: number; cost_eur: number; location: { latitude: number; longitude: number } };
@@ -588,69 +678,55 @@ export function TripCreationBoxes({
         }> = [];
 
         if (tripDurationDays === 1) {
-          if (airportPoi && hotelPoi) {
-            dayPath = [
-              { poi: airportPoi, scheduled_start: '10:00', scheduled_end: '11:00', arrival_time: '10:00', departure_time: '11:00' },
-              { poi: hotelPoi, scheduled_start: hotelCheckInHour || '14:00', scheduled_end: hotelCheckInHour || '14:00', arrival_time: hotelCheckInHour || '14:00', departure_time: hotelCheckInHour || '14:00' },
-              { poi: airportPoi, scheduled_start: '18:00', scheduled_end: '19:00', arrival_time: '18:00', departure_time: '19:00' },
-            ];
-          } else if (airportPoi) {
-            dayPath = [
-              { poi: airportPoi, scheduled_start: '10:00', scheduled_end: '11:00', arrival_time: '10:00', departure_time: '11:00' },
-              { poi: airportPoi, scheduled_start: '18:00', scheduled_end: '19:00', arrival_time: '18:00', departure_time: '19:00' },
-            ];
-          } else if (hotelPoi) {
-            dayPath = [
-              { poi: hotelPoi, scheduled_start: '09:00', scheduled_end: '09:00', arrival_time: '09:00', departure_time: '09:00' },
-              { poi: hotelPoi, scheduled_start: '21:00', scheduled_end: '21:00', arrival_time: '21:00', departure_time: '21:00' },
-            ];
-          }
+          const arrStart = arrMins;
+          const depEnd = depMins > arrStart + 60
+            ? depMins
+            : Math.min(23 * 60 + 59, Math.max(arrStart + 120, depMins));
+          const arrEnd = Math.min(arrStart + 60, Math.max(arrStart, depEnd - 60));
+          let depStart = Math.max(arrEnd + 30, depEnd - 120);
+          const midHotel = Math.max(arrEnd + 15, Math.min(cinMins, Math.max(arrEnd + 15, depStart - 15)));
+          depStart = Math.max(midHotel + 15, depStart);
+          dayPath = [
+            { poi: airportPoi, scheduled_start: fmtHhmm(arrStart), scheduled_end: fmtHhmm(arrEnd), arrival_time: fmtHhmm(arrStart), departure_time: fmtHhmm(arrEnd) },
+            { poi: hotelPoi, scheduled_start: fmtHhmm(midHotel), scheduled_end: fmtHhmm(midHotel), arrival_time: fmtHhmm(midHotel), departure_time: fmtHhmm(midHotel) },
+            { poi: airportPoi, scheduled_start: fmtHhmm(depStart), scheduled_end: fmtHhmm(depEnd), arrival_time: fmtHhmm(depStart), departure_time: fmtHhmm(depEnd) },
+          ];
         } else {
           if (i === 1) {
-            if (airportPoi && hotelPoi) {
-              dayPath = [
-                { poi: airportPoi, scheduled_start: departureHour || '12:00', scheduled_end: '13:00', arrival_time: departureHour || '12:00', departure_time: '13:00' },
-                { poi: hotelPoi, scheduled_start: hotelCheckInHour || '18:00', scheduled_end: hotelCheckInHour || '18:00', arrival_time: hotelCheckInHour || '18:00', departure_time: hotelCheckInHour || '18:00' },
-              ];
-            } else if (airportPoi) {
-              dayPath = [
-                { poi: airportPoi, scheduled_start: departureHour || '12:00', scheduled_end: '13:00', arrival_time: departureHour || '12:00', departure_time: '13:00' },
-              ];
-            } else if (hotelPoi) {
-              dayPath = [
-                { poi: hotelPoi, scheduled_start: '09:00', scheduled_end: '09:00', arrival_time: '09:00', departure_time: '09:00' },
-                { poi: hotelPoi, scheduled_start: '21:00', scheduled_end: '21:00', arrival_time: '21:00', departure_time: '21:00' },
-              ];
-            }
+            const arrStart = arrMins;
+            const arrEnd = Math.min(23 * 60 + 59, arrStart + 60);
+            const hotelTime = isCinDay
+              ? Math.max(Math.min(23 * 60 + 59, arrEnd + 30), cinMins)
+              : Math.max(Math.min(23 * 60 + 59, arrEnd + 30), 21 * 60);
+            dayPath = [
+              { poi: airportPoi, scheduled_start: fmtHhmm(arrStart), scheduled_end: fmtHhmm(arrEnd), arrival_time: fmtHhmm(arrStart), departure_time: fmtHhmm(arrEnd) },
+              { poi: hotelPoi, scheduled_start: fmtHhmm(hotelTime), scheduled_end: fmtHhmm(hotelTime), arrival_time: fmtHhmm(hotelTime), departure_time: fmtHhmm(hotelTime) },
+            ];
           } else if (i === tripDurationDays) {
-            if (airportPoi && hotelPoi) {
-              dayPath = [
-                { poi: hotelPoi, scheduled_start: hotelCheckOutHour || '09:00', scheduled_end: hotelCheckOutHour || '09:00', arrival_time: hotelCheckOutHour || '09:00', departure_time: hotelCheckOutHour || '09:00' },
-                { poi: airportPoi, scheduled_start: '17:00', scheduled_end: '18:00', arrival_time: '17:00', departure_time: '18:00' },
-              ];
-            } else if (airportPoi) {
-              dayPath = [
-                { poi: airportPoi, scheduled_start: '17:00', scheduled_end: '18:00', arrival_time: '17:00', departure_time: '18:00' },
-              ];
-            } else if (hotelPoi) {
-              dayPath = [
-                { poi: hotelPoi, scheduled_start: '09:00', scheduled_end: '09:00', arrival_time: '09:00', departure_time: '09:00' },
-                { poi: hotelPoi, scheduled_start: '21:00', scheduled_end: '21:00', arrival_time: '21:00', departure_time: '21:00' },
-              ];
-            }
+            const depEnd = depMins;
+            const rawAirportStart = Math.max(0, depEnd - 120);
+            const maxHotelDep = Math.max(0, rawAirportStart - 30);
+            const hotelStart = isCoutDay
+              ? Math.min(coutMins, maxHotelDep)
+              : Math.min(9 * 60, maxHotelDep);
+            const depStart = Math.max(depEnd >= hotelStart + 30 ? hotelStart + 30 : hotelStart, rawAirportStart);
+            dayPath = [
+              { poi: hotelPoi, scheduled_start: fmtHhmm(hotelStart), scheduled_end: fmtHhmm(hotelStart), arrival_time: fmtHhmm(hotelStart), departure_time: fmtHhmm(hotelStart) },
+              { poi: airportPoi, scheduled_start: fmtHhmm(depStart), scheduled_end: fmtHhmm(depEnd), arrival_time: fmtHhmm(depStart), departure_time: fmtHhmm(depEnd) },
+            ];
           } else {
-            if (hotelPoi) {
-              dayPath = [
-                { poi: hotelPoi, scheduled_start: '09:00', scheduled_end: '09:00', arrival_time: '09:00', departure_time: '09:00' },
-                { poi: hotelPoi, scheduled_start: '21:00', scheduled_end: '21:00', arrival_time: '21:00', departure_time: '21:00' },
-              ];
-            }
+            const mornTime = isCoutDay ? Math.min(9 * 60, coutMins) : 9 * 60;
+            const eveTime = isCinDay ? Math.max(21 * 60, cinMins) : 21 * 60;
+            dayPath = [
+              { poi: hotelPoi, scheduled_start: fmtHhmm(mornTime), scheduled_end: fmtHhmm(mornTime), arrival_time: fmtHhmm(mornTime), departure_time: fmtHhmm(mornTime) },
+              { poi: hotelPoi, scheduled_start: fmtHhmm(eveTime), scheduled_end: fmtHhmm(eveTime), arrival_time: fmtHhmm(eveTime), departure_time: fmtHhmm(eveTime) },
+            ];
           }
         }
 
         days.push({
           day: i,
-          date: d.toISOString().split('T')[0],
+          date: dayDateStr,
           theme: `Day ${i} Exploration`,
           itinerary: {
             day_index: i - 1,
@@ -668,6 +744,8 @@ export function TripCreationBoxes({
         destination: destination.trim(),
         origin: origin.trim() || undefined,
         description: tripDescription.trim() || undefined,
+        departure_hour: departureHour || '09:00',
+        arrival_hour: arrivalHour || '20:00',
         participants: participants.map((p) => ({
           id: p.id,
           user_id: p.user_id,
@@ -680,25 +758,28 @@ export function TripCreationBoxes({
           flight_number: (outboundFlightDoc.metadata?.flight_number as string) || undefined,
           origin_iata: (outboundFlightDoc.metadata?.origin_iata as string) || originIata || undefined,
           destination_iata: (outboundFlightDoc.metadata?.destination_iata as string) || destIata || undefined,
-          departure_time: outboundFlightDoc.start_time || `${startDate}T${departureHour || '10:00'}:00`,
+          departure_time: outboundFlightDoc.start_time || `${startDate}T${departureHour || '09:00'}:00`,
+          arrival_time: `${startDate}T${departureHour || '09:00'}:00`,
           seat: outboundFlightDoc.seat_or_room || undefined,
           pnr: outboundFlightDoc.reference_code || undefined,
           holder_name: outboundFlightDoc.holder_name || undefined,
         } : undefined,
         scanned_documents: scannedDocuments,
-        hotel: hotelPoi ? {
+        hotel: {
           name: hotelPoi.name,
           address: hotelAddress || undefined,
           lat: hotelPoi.location.latitude,
           lng: hotelPoi.location.longitude,
+          check_in_date: effectiveCheckInDate,
           check_in_time: hotelCheckInHour || '15:00',
+          check_out_date: effectiveCheckOutDate,
           check_out_time: hotelCheckOutHour || '11:00',
-        } : undefined,
-        airport: airportPoi ? {
+        },
+        airport: {
           name: airportPoi.name,
           lat: airportPoi.location.latitude,
           lng: airportPoi.location.longitude,
-        } : undefined,
+        },
         travel_constraints: {
           destination_city: destination.trim(),
           destination_iata: destIata.trim().toUpperCase() || effectiveIata || undefined,
@@ -706,8 +787,8 @@ export function TripCreationBoxes({
           origin_iata: originIata.trim().toUpperCase() || undefined,
           start_date: startDate,
           end_date: endDate,
-          departure_hour: departureHour,
-          arrival_hour: arrivalHour,
+          departure_hour: departureHour || '09:00',
+          arrival_hour: arrivalHour || '20:00',
           budget: Number(budgetUsd) || 1500,
           budget_usd: Number(budgetUsd) || 1500,
           currency: currency,
@@ -719,15 +800,17 @@ export function TripCreationBoxes({
             email: p.email,
             is_guest: p.is_guest,
           })),
-          accommodation: hotelArea.trim() || undefined,
-          hotel: hotelArea.trim() ? {
-            name: hotelArea.trim(),
+          accommodation: hotelPoi.name,
+          hotel: {
+            name: hotelPoi.name,
             address: hotelAddress || undefined,
-            lat: hotelLat,
-            lng: hotelLng,
+            lat: hotelPoi.location.latitude,
+            lng: hotelPoi.location.longitude,
+            check_in_date: effectiveCheckInDate,
             check_in_time: hotelCheckInHour || '15:00',
+            check_out_date: effectiveCheckOutDate,
             check_out_time: hotelCheckOutHour || '11:00',
-          } : undefined,
+          },
         },
         days,
         is_blank_trip: true,
@@ -776,6 +859,12 @@ export function TripCreationBoxes({
       setBlankError('Trip return date cannot precede departure date.');
       return;
     }
+    const effectiveCheckInDate = hotelCheckInDate || startDate;
+    const effectiveCheckOutDate = hotelCheckOutDate || endDate;
+    if (effectiveCheckOutDate < effectiveCheckInDate) {
+      setBlankError('Hotel check-out date cannot precede check-in date.');
+      return;
+    }
     if (!participants || participants.length === 0) {
       setBlankError('At least one traveler or participant must be added to the trip.');
       return;
@@ -818,7 +907,9 @@ export function TripCreationBoxes({
         address: hotelAddress || undefined,
         lat: hotelLat,
         lng: hotelLng,
+        check_in_date: effectiveCheckInDate,
         check_in_time: hotelCheckInHour || '15:00',
+        check_out_date: effectiveCheckOutDate,
         check_out_time: hotelCheckOutHour || '11:00',
       } : undefined,
       manual_constraints: {
@@ -848,7 +939,9 @@ export function TripCreationBoxes({
           address: hotelAddress || undefined,
           lat: hotelLat,
           lng: hotelLng,
+          check_in_date: effectiveCheckInDate,
           check_in_time: hotelCheckInHour || '15:00',
+          check_out_date: effectiveCheckOutDate,
           check_out_time: hotelCheckOutHour || '11:00',
         } : undefined,
         meals,
@@ -1030,7 +1123,7 @@ export function TripCreationBoxes({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
             gap: '1.75rem',
             alignItems: 'start',
           }}
@@ -1333,6 +1426,16 @@ export function TripCreationBoxes({
               hotelLat={hotelLat}
               hotelLng={hotelLng}
               destination={destination}
+              checkInDate={hotelCheckInDate || startDate}
+              checkOutDate={hotelCheckOutDate || endDate}
+              checkInHour={hotelCheckInHour}
+              checkOutHour={hotelCheckOutHour}
+              tripStartDate={startDate}
+              tripEndDate={endDate}
+              onCheckInDateChange={setHotelCheckInDate}
+              onCheckOutDateChange={setHotelCheckOutDate}
+              onCheckInHourChange={setHotelCheckInHour}
+              onCheckOutHourChange={setHotelCheckOutHour}
               onChange={setHotelInfo}
               disabled={disabled}
             />
@@ -1430,7 +1533,7 @@ export function TripCreationBoxes({
           </div>
 
           {/* Column B (Right): 2-Month Calendar Side-by-Side + Execution Action */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0, width: '100%' }}>
             <label
               style={{
                 display: 'block',
@@ -1447,8 +1550,14 @@ export function TripCreationBoxes({
               startDate={startDate}
               endDate={endDate}
               onChange={(start, end) => {
-                setStartDate(start);
-                setEndDate(end);
+                const updates: Partial<typeof draft> = { startDate: start, endDate: end };
+                if (!hotelCheckInDate || hotelCheckInDate === startDate || hotelCheckInDate < start || hotelCheckInDate > end) {
+                  updates.hotelCheckInDate = start;
+                }
+                if (!hotelCheckOutDate || hotelCheckOutDate === endDate || hotelCheckOutDate > end || hotelCheckOutDate < start) {
+                  updates.hotelCheckOutDate = end;
+                }
+                updateDraft(updates);
               }}
               disabled={disabled}
               inline={true}

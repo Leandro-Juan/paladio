@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { HotelIcon, PinIcon, CheckIcon } from '@/components/icons';
+import { HotelIcon, PinIcon, CheckIcon, ClockIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
+import { CustomHourPickerModal } from './CustomHourPickerModal';
 
 const HotelMapModal = dynamic(
   () => import('./HotelMapModal').then((mod) => mod.HotelMapModal),
@@ -52,6 +53,16 @@ interface HotelStayAnchorBarProps {
   hotelLat?: number;
   hotelLng?: number;
   destination: string;
+  checkInDate?: string;
+  checkOutDate?: string;
+  checkInHour?: string;
+  checkOutHour?: string;
+  tripStartDate?: string;
+  tripEndDate?: string;
+  onCheckInDateChange?: (val: string) => void;
+  onCheckOutDateChange?: (val: string) => void;
+  onCheckInHourChange?: (val: string) => void;
+  onCheckOutHourChange?: (val: string) => void;
   onChange: (
     name: string,
     extra?: { address?: string; lat?: number; lng?: number }
@@ -65,6 +76,16 @@ export function HotelStayAnchorBar({
   hotelLat,
   hotelLng,
   destination,
+  checkInDate,
+  checkOutDate,
+  checkInHour = '15:00',
+  checkOutHour = '11:00',
+  tripStartDate,
+  tripEndDate,
+  onCheckInDateChange,
+  onCheckOutDateChange,
+  onCheckInHourChange,
+  onCheckOutHourChange,
   onChange,
   disabled = false,
 }: HotelStayAnchorBarProps) {
@@ -73,6 +94,7 @@ export function HotelStayAnchorBar({
   const [isLoading, setIsLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [activeHourPicker, setActiveHourPicker] = useState<'checkin' | 'checkout' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -342,6 +364,184 @@ export function HotelStayAnchorBar({
         </button>
       </div>
 
+      {/* Hotel Check-In & Check-Out Schedule Controls */}
+      {(onCheckInHourChange || onCheckOutHourChange || onCheckInDateChange || onCheckOutDateChange) && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: '8px',
+            marginTop: '8px',
+          }}
+        >
+          {/* Check-In Card */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              background: 'var(--color-bg-main, #FAF8F5)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '14px',
+              padding: '6px 12px',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                Check-In
+              </span>
+              {onCheckInDateChange ? (
+                <input
+                  type="date"
+                  aria-label="Hotel check-in date"
+                  disabled={disabled}
+                  value={checkInDate || tripStartDate || ''}
+                  min={tripStartDate || undefined}
+                  max={tripEndDate || undefined}
+                  onChange={(e) => onCheckInDateChange(e.target.value)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    color: 'var(--color-text-primary, #1A1A1A)',
+                    padding: 0,
+                    width: '100%',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                  }}
+                />
+              ) : (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11.5px', fontWeight: 600 }}>
+                  {checkInDate || tripStartDate || 'Arrival'}
+                </span>
+              )}
+            </div>
+            {onCheckInHourChange && (
+              <button
+                type="button"
+                disabled={disabled}
+                aria-label="Hotel check-in time"
+                data-testid="hotel-checkin-time-btn"
+                onClick={() => setActiveHourPicker('checkin')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  background: 'var(--color-surface-raised, #FFFFFF)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '10px',
+                  padding: '5px 10px',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: 'var(--color-text-primary, #1A1A1A)',
+                  flexShrink: 0,
+                }}
+                title="Click to customize hotel check-in time"
+              >
+                <ClockIcon size={12} color="var(--color-accent-primary, #0F4C5C)" />
+                <span>{checkInHour || '15:00'}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Check-Out Card */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              background: 'var(--color-bg-main, #FAF8F5)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '14px',
+              padding: '6px 12px',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                Check-Out
+              </span>
+              {onCheckOutDateChange ? (
+                <input
+                  type="date"
+                  aria-label="Hotel check-out date"
+                  disabled={disabled}
+                  value={checkOutDate || tripEndDate || ''}
+                  min={checkInDate || tripStartDate || undefined}
+                  max={tripEndDate || undefined}
+                  onChange={(e) => onCheckOutDateChange(e.target.value)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    color: 'var(--color-text-primary, #1A1A1A)',
+                    padding: 0,
+                    width: '100%',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                  }}
+                />
+              ) : (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11.5px', fontWeight: 600 }}>
+                  {checkOutDate || tripEndDate || 'Departure'}
+                </span>
+              )}
+            </div>
+            {onCheckOutHourChange && (
+              <button
+                type="button"
+                disabled={disabled}
+                aria-label="Hotel check-out time"
+                data-testid="hotel-checkout-time-btn"
+                onClick={() => setActiveHourPicker('checkout')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  background: 'var(--color-surface-raised, #FFFFFF)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '10px',
+                  padding: '5px 10px',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: 'var(--color-text-primary, #1A1A1A)',
+                  flexShrink: 0,
+                }}
+                title="Click to customize hotel check-out time"
+              >
+                <ClockIcon size={12} color="var(--color-accent-primary, #0F4C5C)" />
+                <span>{checkOutHour || '11:00'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Deployed Dropdown Menu matching RouteIntakeBar city search aesthetic */}
       {isMenuOpen && (results.length > 0 || isLoading || (query && query.trim().length > 0)) && (
         <div
@@ -516,6 +716,21 @@ export function HotelStayAnchorBar({
           onConfirm={handleMapConfirm}
         />
       )}
+
+      {/* Hotel Check-In / Check-Out Hour Picker Modal */}
+      <CustomHourPickerModal
+        isOpen={activeHourPicker !== null}
+        onClose={() => setActiveHourPicker(null)}
+        value={activeHourPicker === 'checkin' ? (checkInHour || '15:00') : (checkOutHour || '11:00')}
+        onChange={(newVal) => {
+          if (activeHourPicker === 'checkin') {
+            onCheckInHourChange?.(newVal);
+          } else if (activeHourPicker === 'checkout') {
+            onCheckOutHourChange?.(newVal);
+          }
+        }}
+        anchorLabel={activeHourPicker === 'checkin' ? 'Hotel Check-In Time' : 'Hotel Check-Out Time'}
+      />
     </div>
   );
 }

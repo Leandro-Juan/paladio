@@ -19,6 +19,8 @@ export interface TripDraftData {
   hotelAddress?: string;
   hotelLat?: number;
   hotelLng?: number;
+  hotelCheckInDate: string;
+  hotelCheckOutDate: string;
   hotelCheckInHour: string;
   hotelCheckOutHour: string;
   participants: SelectedParticipant[];
@@ -65,6 +67,8 @@ const DEFAULT_DRAFT: TripDraftData = {
   hotelAddress: '',
   hotelLat: undefined,
   hotelLng: undefined,
+  hotelCheckInDate: formatDateOffset(7),
+  hotelCheckOutDate: formatDateOffset(12),
   hotelCheckInHour: '15:00',
   hotelCheckOutHour: '11:00',
   participants: [

@@ -255,7 +255,7 @@ export function PaladioDateRangePicker({
     const monthTitle = `${MONTH_NAMES[m]} ${y}`;
 
     return (
-      <div style={{ flex: 1, minWidth: '210px' }}>
+      <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
         <div
           style={{
             textAlign: 'center',
@@ -274,7 +274,7 @@ export function PaladioDateRangePicker({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
+            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
             textAlign: 'center',
             marginBottom: '6px',
           }}
@@ -299,7 +299,7 @@ export function PaladioDateRangePicker({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
+            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
             gap: '2px',
           }}
         >
@@ -390,8 +390,10 @@ export function PaladioDateRangePicker({
                 title={dayTitle}
                 aria-label={dayTitle || dateStr}
                 style={{
-                  height: '36px',
+                  height: '34px',
                   width: '100%',
+                  minWidth: 0,
+                  boxSizing: 'border-box',
                   background: cellBg,
                   color: cellColor,
                   opacity: isSelectedOrRange || tripInfo || isHoliday ? 1 : isPast ? 0.38 : 1,
@@ -423,12 +425,13 @@ export function PaladioDateRangePicker({
         background: inline ? 'var(--color-bg-main, #FAF8F5)' : 'var(--color-surface-raised, #FFFFFF)',
         border: '1px solid var(--color-border, #E2D9CC)',
         borderRadius: '24px',
-        padding: '1.25rem 1.5rem',
+        padding: inline ? '1.15rem 1rem' : '1.25rem 1.5rem',
         boxShadow: inline ? 'none' : '0 12px 36px rgba(0,0,0,0.12)',
         maxWidth: inline ? '100%' : '580px',
         width: '100%',
         margin: '0 auto',
         boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
     >
       {/* Header controls: month navigation chevrons */}
@@ -504,8 +507,8 @@ export function PaladioDateRangePicker({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr auto 1fr',
-          gap: '1.25rem',
+          gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+          gap: inline ? '0.85rem' : '1.25rem',
           alignItems: 'start',
         }}
       >
