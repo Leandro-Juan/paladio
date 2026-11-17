@@ -192,11 +192,16 @@ def extract_itinerary_seeds(
 
     if hotel_name:
         dest_city = trip.destination or "Destination"
+        h_dict = hotel_info if isinstance(hotel_info, dict) else {}
+        cin_date = str(h_dict.get("check_in_date") or trip.start_date or "")[:10]
+        cout_date = str(h_dict.get("check_out_date") or trip.end_date or "")[:10]
+        cin_time = str(h_dict.get("check_in_time") or "15:00")[:5]
+        cout_time = str(h_dict.get("check_out_time") or "11:00")[:5]
         start_dt, start_tz = _safe_parse_aware_datetime(
-            f"{trip.start_date[:10]} 15:00:00", dest_city
+            f"{cin_date} {cin_time}:00", dest_city
         )
         end_dt, end_tz = _safe_parse_aware_datetime(
-            f"{trip.end_date[:10]} 11:00:00", dest_city
+            f"{cout_date} {cout_time}:00", dest_city
         )
 
         seeds.append(
@@ -215,8 +220,10 @@ def extract_itinerary_seeds(
                 "status": "planned",
                 "metadata": {
                     "address": hotel_address or dest_city,
-                    "checkin_time": "15:00",
-                    "checkout_time": "11:00",
+                    "checkin_time": cin_time,
+                    "checkout_time": cout_time,
+                    "check_in_date": cin_date,
+                    "check_out_date": cout_date,
                 },
                 "source": "itinerary",
             }

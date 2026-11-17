@@ -831,6 +831,11 @@ def hydrate_city_pipeline_task(self, city_name: str, force: bool = False):
         return {"status": "in_progress", "city": city_name}
 
     try:
+        r.set(f"paladio:city_hydration_active:{city_clean}", "1", ex=1800)
+    except Exception:
+        pass
+
+    try:
         _publish_city_hydration_event(
             "HYDRATION_STARTED",
             city_id=city_clean,
@@ -848,6 +853,15 @@ def hydrate_city_pipeline_task(self, city_name: str, force: bool = False):
 
         stage3_result = _run_async(
             _run_enrich_long_tail_city_pois(city_name, city_id=city_id)
+        )
+
+        _publish_city_hydration_event(
+            "HYDRATION_COMPLETED",
+            city_id=city_id,
+            city_name=city_name,
+            stage="COMPLETED",
+            progress=1.0,
+            raw_count=stage1_result.get("raw_count", 0),
         )
 
         return {
@@ -870,6 +884,10 @@ def hydrate_city_pipeline_task(self, city_name: str, force: bool = False):
         )
         raise
     finally:
+        try:
+            r.delete(f"paladio:city_hydration_active:{city_clean}")
+        except Exception:
+            pass
         try:
             lock.release()
         except Exception:
@@ -1008,6 +1026,7 @@ def sanitize_gtfs_feed(
                 if r["trip_id"] in valid_trip_ids and r["stop_id"] in valid_stop_ids:
                     writer.writerow(r)
 
+        valid_shape_ids: set[str] = set()
         if os.path.exists(trips_file):
             with (
                 open(trips_file, "r", encoding="utf-8") as in_f,
@@ -1018,6 +1037,22 @@ def sanitize_gtfs_feed(
                 writer.writeheader()
                 for r in reader:
                     if r["trip_id"] in valid_trip_ids:
+                        writer.writerow(r)
+                        sh_id = (r.get("shape_id") or "").strip()
+                        if sh_id:
+                            valid_shape_ids.add(sh_id)
+
+        shapes_file = os.path.join(gtfs_dir, "shapes.txt")
+        if os.path.exists(shapes_file) and valid_shape_ids:
+            with (
+                open(shapes_file, "r", encoding="utf-8", errors="replace") as in_f,
+                open(shapes_file + ".tmp", "w", encoding="utf-8", newline="") as out_f,
+            ):
+                reader = csv.DictReader(in_f)
+                writer = csv.DictWriter(out_f, fieldnames=reader.fieldnames)
+                writer.writeheader()
+                for r in reader:
+                    if (r.get("shape_id") or "").strip() in valid_shape_ids:
                         writer.writerow(r)
 
         if os.path.exists(transfers_file):
@@ -1037,7 +1072,13 @@ def sanitize_gtfs_feed(
                     ):
                         writer.writerow(r)
 
-        for fname in ["stops.txt", "stop_times.txt", "trips.txt", "transfers.txt"]:
+        for fname in [
+            "stops.txt",
+            "stop_times.txt",
+            "trips.txt",
+            "transfers.txt",
+            "shapes.txt",
+        ]:
             tmp_f = os.path.join(gtfs_dir, fname + ".tmp")
             dest_f = os.path.join(gtfs_dir, fname)
             if os.path.exists(tmp_f):
@@ -1880,7 +1921,8 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                     _async_update_transit_cache(
                         city_name=city_lower,
                         gtfs_status="UNAVAILABLE",
-                        status=TransitCacheStatus.READY.value,
+                        derived_status="UNAVAILABLE",
+                        status=TransitCacheStatus.UNAVAILABLE.value,
                         create_if_missing=False,
                     )
                 )
@@ -1940,7 +1982,8 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 _async_update_transit_cache(
                     city_name=city_lower,
                     gtfs_status="UNAVAILABLE",
-                    status=TransitCacheStatus.READY.value,
+                    derived_status="UNAVAILABLE",
+                    status=TransitCacheStatus.UNAVAILABLE.value,
                     create_if_missing=False,
                 )
             )
@@ -2002,6 +2045,41 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 center_lon=center_lon,
                 max_radius_km=70.0,
             )
+
+            # Check if any valid stops remain after sanitization
+            stops_file = os.path.join(gtfs_dest_dir, "stops.txt")
+            has_stops = False
+            if os.path.exists(stops_file):
+                try:
+                    with open(stops_file, "r", encoding="utf-8") as sf:
+                        reader = csv.DictReader(sf)
+                        for _ in reader:
+                            has_stops = True
+                            break
+                except Exception:
+                    has_stops = False
+
+            if not has_stops:
+                logger.warning(
+                    f"No valid transit stops found for {city_name}. Marking transit as UNAVAILABLE."
+                )
+                _run_async(
+                    _async_update_transit_cache(
+                        city_name=city_lower,
+                        gtfs_status="UNAVAILABLE",
+                        derived_status="UNAVAILABLE",
+                        status=TransitCacheStatus.UNAVAILABLE.value,
+                        create_if_missing=False,
+                    )
+                )
+                _publish_transit_event(
+                    "TRANSIT_UNAVAILABLE",
+                    city_lower,
+                    city_name,
+                    trip_id,
+                    message=f"No transit stops found for {city_name}. Walking and driving routing remain available.",
+                )
+                return {"status": "unavailable", "city": city_lower}
 
         # 4a. Queue transit derivation immediately after download and pruning
         # Runs asynchronously without blocking Valhalla compile

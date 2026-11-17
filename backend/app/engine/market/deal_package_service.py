@@ -129,6 +129,10 @@ class DealPackageService:
                     return
             except Exception as exc:
                 logger.debug("Deal package taste sort skipped: %s", exc)
+                try:
+                    await session.rollback()
+                except Exception:
+                    pass
         items.sort(key=lambda d: (-d["discount_pct"], d["total_price_eur"]))
 
     @staticmethod
@@ -708,6 +712,10 @@ class DealPackageService:
                 user_prefs = {**(user_prefs or {}), **merged_tp.to_market_preferences()}
         except Exception as exc:
             logger.debug("Merged deal taste profile skipped: %s", exc)
+            try:
+                await session.rollback()
+            except Exception:
+                pass
 
         # Load existing lodging observations for destination
         prop_stmt = (

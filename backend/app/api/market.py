@@ -3052,10 +3052,11 @@ async def list_routes_best_deals(
     user_model = current_user if isinstance(current_user, UserModel) else None
     target_curr = _resolve_target_currency(currency_param, user_model, default="EUR")
     alerts = (await session.execute(select(DealWatchAlertModel))).scalars().all()
+    alert_ids = [alert.id for alert in alerts]
     all_deals: list[DealPackageItem] = []
-    for alert in alerts:
+    for alert_id in alert_ids:
         route_deals = await list_route_deals(
-            route_id=alert.id,
+            route_id=alert_id,
             session=session,
             limit=limit_per_route,
             currency_param=target_curr,

@@ -186,41 +186,79 @@ class SwarmSessionAdapter(ISwarmSession):
             booking_anchors = data["booking_anchors"]
         else:
             anchors_dict = {}
+            dest_city = data.get("destination_city") or "Unknown"
+            origin_city = data.get("origin_city")
             if (
                 "hotel" in data
                 and isinstance(data["hotel"], dict)
                 and data["hotel"].get("name")
             ):
                 h = data["hotel"]
-                dest_city = data.get("destination_city") or "Unknown"
                 anchors_dict["hotel"] = {
                     "name": h["name"],
                     "address": h.get("address"),
                     "city": dest_city,
-                    "check_in_date": data.get("start_date"),
+                    "lat": h.get("lat"),
+                    "lng": h.get("lng"),
+                    "check_in_date": h.get("check_in_date") or data.get("start_date"),
                     "check_in_time": h.get("check_in_time", "15:00"),
-                    "check_out_date": data.get("end_date"),
+                    "check_out_date": h.get("check_out_date") or data.get("end_date"),
                     "check_out_time": h.get("check_out_time", "11:00"),
                 }
 
             origin_iata = data.get("origin_iata")
             dest_iata = data.get("destination_iata")
+            if not dest_iata and dest_city and dest_city != "Unknown":
+                try:
+                    from app.services.airport_service import get_airport_service
+
+                    ap_dest = get_airport_service().resolve_airport_for_city(dest_city)
+                    if ap_dest and ap_dest.iata:
+                        dest_iata = ap_dest.iata
+                except Exception:
+                    pass
+            if not origin_iata and origin_city and origin_city != "Unknown":
+                try:
+                    from app.services.airport_service import get_airport_service
+
+                    ap_orig = get_airport_service().resolve_airport_for_city(
+                        origin_city
+                    )
+                    if ap_orig and ap_orig.iata:
+                        origin_iata = ap_orig.iata
+                except Exception:
+                    pass
+
             start_date = data.get("start_date")
             end_date = data.get("end_date")
-            dep_hour = data.get("departure_hour", "10:00")
-            arr_hour = data.get("arrival_hour", "18:00")
+            dep_hour = data.get("departure_hour", "09:00")
+            arr_hour = data.get("arrival_hour", "20:00")
 
-            if origin_iata and dest_iata and start_date:
+            scanned_docs = data.get("scanned_documents")
+            flight_dep_from_doc = None
+            if isinstance(scanned_docs, list):
+                for sdoc in scanned_docs:
+                    if isinstance(sdoc, dict) and sdoc.get("ticket_type") == "flight":
+                        meta = sdoc.get("metadata") or {}
+                        if meta.get("flight_departure_hour"):
+                            flight_dep_from_doc = meta.get("flight_departure_hour")
+                            break
+
+            eff_origin = origin_iata or "ORG"
+            if dest_iata and start_date:
                 anchors_dict["outbound_flight"] = {
-                    "origin_iata": origin_iata,
+                    "origin_iata": eff_origin,
                     "destination_iata": dest_iata,
-                    "departure_time": f"{start_date} {dep_hour}",
+                    "departure_time": f"{start_date} {flight_dep_from_doc or dep_hour}",
+                    "arrival_time": f"{start_date} {dep_hour}",
+                    "direction": "arrival",
                 }
-            if origin_iata and dest_iata and end_date:
+            if dest_iata and end_date:
                 anchors_dict["return_flight"] = {
                     "origin_iata": dest_iata,
-                    "destination_iata": origin_iata,
+                    "destination_iata": eff_origin,
                     "departure_time": f"{end_date} {arr_hour}",
+                    "direction": "departure",
                 }
 
             if anchors_dict:

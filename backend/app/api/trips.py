@@ -7,7 +7,7 @@ import shutil
 import tempfile
 import uuid
 import zipfile
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from app.api.deps import get_optional_user
@@ -17,6 +17,8 @@ from app.application.trip_editing.expense_service import ExpenseService
 from app.application.trip_editing.participant_service import ParticipantService
 from app.core.access import TripAccessLevel, assert_trip_access
 from app.db.models import (
+    AttractionModel,
+    CityModel,
     TransitCacheModel,
     TransitCacheStatus,
     TripCollectionItemModel,
@@ -42,7 +44,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from sqlalchemy import delete, func
+from sqlalchemy import delete, func, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -77,6 +79,7 @@ class TransitStatusResponse(BaseModel):
 class CityGtfsItem(BaseModel):
     city: str
     display_name: str
+    country_code: str | None = None
     status: str
     osm_status: str
     gtfs_status: str
@@ -90,6 +93,19 @@ class CityGtfsItem(BaseModel):
     valid_until: str | None = None
     gtfs_feed_name: str | None = None
     updated_at: str | None = None
+    # Storage and database metrics
+    poi_count: int = 0
+    poi_db_bytes: int = 0
+    transit_stations_count: int = 0
+    transit_lines_count: int = 0
+    transit_db_bytes: int = 0
+    hotel_count: int = 0
+    hotel_db_bytes: int = 0
+    disk_gtfs_bytes: int = 0
+    disk_osm_bytes: int = 0
+    total_disk_bytes: int = 0
+    total_db_bytes: int = 0
+    total_storage_bytes: int = 0
 
 
 class GtfsRegistryResponse(BaseModel):
@@ -99,6 +115,9 @@ class GtfsRegistryResponse(BaseModel):
     total_cities: int
     compiled_cities: int
     queued_cities: int = 0
+    total_disk_bytes: int = 0
+    total_db_bytes: int = 0
+    total_storage_bytes: int = 0
     cities: list[CityGtfsItem]
 
 
@@ -512,9 +531,79 @@ def _populate_initial_anchors(
             else None
         )
     )
+    is_blank_trip = bool(itin_data.get("is_blank_trip"))
+    if (
+        not isinstance(hotel_info, dict) or not hotel_info.get("name")
+    ) and is_blank_trip:
+        hotel_info = {"name": "Accommodation / Hotel"}
+
+    def _parse_hhmm(val: Any, default_mins: int) -> int:
+        if not val or not isinstance(val, str):
+            return default_mins
+        try:
+            clean = val.strip()
+            if "T" in clean:
+                clean = clean.split("T")[-1][:5]
+            elif " " in clean:
+                clean = clean.split(" ")[-1][:5]
+            parts = clean.split(":")
+            h, m = int(parts[0]), int(parts[1][:2])
+            if 0 <= h <= 23 and 0 <= m <= 59:
+                return h * 60 + m
+        except Exception:
+            pass
+        return default_mins
+
+    def _fmt_hhmm(mins: int) -> str:
+        clamped = max(0, min(23 * 60 + 59, int(mins)))
+        return f"{clamped // 60:02d}:{clamped % 60:02d}"
+
+    outbound_f = (
+        itin_data.get("outbound_flight")
+        if isinstance(itin_data.get("outbound_flight"), dict)
+        else {}
+    )
+    return_f = (
+        itin_data.get("return_flight")
+        if isinstance(itin_data.get("return_flight"), dict)
+        else {}
+    )
+    raw_arr_hour = (
+        tc.get("departure_hour")
+        or itin_data.get("departure_hour")
+        or outbound_f.get("arrival_time")
+        or outbound_f.get("departure_time")
+    )
+    raw_dep_hour = (
+        tc.get("arrival_hour")
+        or itin_data.get("arrival_hour")
+        or return_f.get("departure_time")
+    )
+    arr_mins = _parse_hhmm(raw_arr_hour, 9 * 60)
+    dep_mins = _parse_hhmm(raw_dep_hour, 20 * 60)
+
+    hotel_cin_date: str | None = None
+    hotel_cout_date: str | None = None
+    hotel_cin_mins = 15 * 60
+    hotel_cout_mins = 11 * 60
+    hotel_address: str | None = None
+
     hotel_poi = None
     if isinstance(hotel_info, dict) and hotel_info.get("name"):
         h_name = str(hotel_info["name"]).strip()
+        hotel_address = hotel_info.get("address")
+        hotel_cin_date = (
+            str(hotel_info["check_in_date"]).split("T")[0]
+            if hotel_info.get("check_in_date")
+            else (start_date.split("T")[0] if start_date else None)
+        )
+        hotel_cout_date = (
+            str(hotel_info["check_out_date"]).split("T")[0]
+            if hotel_info.get("check_out_date")
+            else (end_date.split("T")[0] if end_date else None)
+        )
+        hotel_cin_mins = _parse_hhmm(hotel_info.get("check_in_time"), 15 * 60)
+        hotel_cout_mins = _parse_hhmm(hotel_info.get("check_out_time"), 11 * 60)
         h_lat = hotel_info.get("lat") or (
             hotel_info.get("location", {}).get("latitude")
             if isinstance(hotel_info.get("location"), dict)
@@ -533,9 +622,14 @@ def _populate_initial_anchors(
                 from app.services.airport_service import get_airport_service
 
                 clean_dest = destination.split(",")[0].strip()
-                locs = get_airport_service().search_locations(
-                    f"{h_name} {clean_dest}", limit=1
+                query_str = (
+                    clean_dest
+                    if h_name == "Accommodation / Hotel"
+                    else f"{h_name} {clean_dest}"
                 )
+                locs = get_airport_service().search_locations(query_str, limit=1)
+                if not locs and query_str != clean_dest:
+                    locs = get_airport_service().search_locations(clean_dest, limit=1)
                 if locs:
                     h_lat = locs[0].get("latitude")
                     h_lng = locs[0].get("longitude")
@@ -561,8 +655,13 @@ def _populate_initial_anchors(
     if hotel_poi:
         itin_data["hotel"] = {
             "name": hotel_poi["name"],
+            "address": hotel_address,
             "lat": hotel_poi["location"]["latitude"],
             "lng": hotel_poi["location"]["longitude"],
+            "check_in_date": hotel_cin_date,
+            "check_in_time": _fmt_hhmm(hotel_cin_mins),
+            "check_out_date": hotel_cout_date,
+            "check_out_time": _fmt_hhmm(hotel_cout_mins),
         }
     if airport_poi:
         itin_data["airport"] = {
@@ -584,61 +683,155 @@ def _populate_initial_anchors(
             "departure_time": end_t,
         }
 
+    base_start_dt = None
+    if start_date:
+        try:
+            base_start_dt = datetime.fromisoformat(start_date.split("T")[0]).date()
+        except Exception:
+            base_start_dt = None
+
     for idx, d in enumerate(days):
         if not isinstance(d, dict):
             continue
 
+        day_date_str = d.get("date")
+        if not day_date_str and base_start_dt:
+            day_date_str = (base_start_dt + timedelta(days=idx)).isoformat()
+            d["date"] = day_date_str
+
+        is_cin_day = bool(
+            day_date_str and hotel_cin_date and day_date_str == hotel_cin_date
+        ) or (not hotel_cin_date and idx == 0)
+        is_cout_day = bool(
+            day_date_str and hotel_cout_date and day_date_str == hotel_cout_date
+        ) or (not hotel_cout_date and idx == total_days - 1)
+
         path: list[dict[str, Any]] = []
 
         if total_days == 1:
+            arr_start = arr_mins
+            dep_end = (
+                dep_mins
+                if dep_mins > arr_start + 60
+                else min(23 * 60 + 59, max(arr_start + 120, dep_mins))
+            )
+            arr_end = min(arr_start + 60, max(arr_start, dep_end - 60))
+            dep_start = max(arr_end + 30, dep_end - 120)
             if airport_poi and hotel_poi:
+                mid_hotel = max(
+                    arr_end + 15, min(hotel_cin_mins, max(arr_end + 15, dep_start - 15))
+                )
+                dep_start = max(mid_hotel + 15, dep_start)
                 path = [
-                    _make_scheduled(airport_poi, "10:00", "11:00"),
-                    _make_scheduled(hotel_poi, "14:00", "14:00"),
-                    _make_scheduled(airport_poi, "18:00", "19:00"),
+                    _make_scheduled(
+                        airport_poi, _fmt_hhmm(arr_start), _fmt_hhmm(arr_end)
+                    ),
+                    _make_scheduled(
+                        hotel_poi, _fmt_hhmm(mid_hotel), _fmt_hhmm(mid_hotel)
+                    ),
+                    _make_scheduled(
+                        airport_poi, _fmt_hhmm(dep_start), _fmt_hhmm(dep_end)
+                    ),
                 ]
             elif airport_poi:
                 path = [
-                    _make_scheduled(airport_poi, "10:00", "11:00"),
-                    _make_scheduled(airport_poi, "18:00", "19:00"),
+                    _make_scheduled(
+                        airport_poi, _fmt_hhmm(arr_start), _fmt_hhmm(arr_end)
+                    ),
+                    _make_scheduled(
+                        airport_poi, _fmt_hhmm(dep_start), _fmt_hhmm(dep_end)
+                    ),
                 ]
             elif hotel_poi:
                 path = [
-                    _make_scheduled(hotel_poi, "09:00", "09:00"),
-                    _make_scheduled(hotel_poi, "21:00", "21:00"),
+                    _make_scheduled(
+                        hotel_poi,
+                        _fmt_hhmm(hotel_cin_mins if is_cin_day else 9 * 60),
+                        _fmt_hhmm(hotel_cin_mins if is_cin_day else 9 * 60),
+                    ),
+                    _make_scheduled(
+                        hotel_poi,
+                        _fmt_hhmm(hotel_cout_mins if is_cout_day else 21 * 60),
+                        _fmt_hhmm(hotel_cout_mins if is_cout_day else 21 * 60),
+                    ),
                 ]
         else:
             if idx == 0:
+                arr_start = arr_mins
+                arr_end = min(23 * 60 + 59, arr_start + 60)
                 if airport_poi and hotel_poi:
+                    hotel_t = (
+                        max(min(23 * 60 + 59, arr_end + 30), hotel_cin_mins)
+                        if is_cin_day
+                        else max(min(23 * 60 + 59, arr_end + 30), 21 * 60)
+                    )
                     path = [
-                        _make_scheduled(airport_poi, "12:00", "13:00"),
-                        _make_scheduled(hotel_poi, "18:00", "18:00"),
+                        _make_scheduled(
+                            airport_poi, _fmt_hhmm(arr_start), _fmt_hhmm(arr_end)
+                        ),
+                        _make_scheduled(
+                            hotel_poi, _fmt_hhmm(hotel_t), _fmt_hhmm(hotel_t)
+                        ),
                     ]
                 elif airport_poi:
-                    path = [_make_scheduled(airport_poi, "12:00", "13:00")]
+                    path = [
+                        _make_scheduled(
+                            airport_poi, _fmt_hhmm(arr_start), _fmt_hhmm(arr_end)
+                        )
+                    ]
                 elif hotel_poi:
+                    end_t = max(21 * 60, hotel_cin_mins) if is_cin_day else 21 * 60
                     path = [
                         _make_scheduled(hotel_poi, "09:00", "09:00"),
-                        _make_scheduled(hotel_poi, "21:00", "21:00"),
+                        _make_scheduled(hotel_poi, _fmt_hhmm(end_t), _fmt_hhmm(end_t)),
                     ]
             elif idx == total_days - 1:
+                dep_end = dep_mins
+                dep_start = max(0, dep_end - 120)
                 if airport_poi and hotel_poi:
+                    max_hotel_dep = max(0, dep_start - 30)
+                    hotel_start = (
+                        min(hotel_cout_mins, max_hotel_dep)
+                        if is_cout_day
+                        else min(9 * 60, max_hotel_dep)
+                    )
+                    dep_start = max(
+                        hotel_start + 30
+                        if dep_end >= hotel_start + 30
+                        else hotel_start,
+                        dep_start,
+                    )
                     path = [
-                        _make_scheduled(hotel_poi, "09:00", "09:00"),
-                        _make_scheduled(airport_poi, "17:00", "18:00"),
+                        _make_scheduled(
+                            hotel_poi, _fmt_hhmm(hotel_start), _fmt_hhmm(hotel_start)
+                        ),
+                        _make_scheduled(
+                            airport_poi, _fmt_hhmm(dep_start), _fmt_hhmm(dep_end)
+                        ),
                     ]
                 elif airport_poi:
-                    path = [_make_scheduled(airport_poi, "17:00", "18:00")]
-                elif hotel_poi:
                     path = [
-                        _make_scheduled(hotel_poi, "09:00", "09:00"),
+                        _make_scheduled(
+                            airport_poi, _fmt_hhmm(dep_start), _fmt_hhmm(dep_end)
+                        )
+                    ]
+                elif hotel_poi:
+                    start_t = min(9 * 60, hotel_cout_mins) if is_cout_day else 9 * 60
+                    path = [
+                        _make_scheduled(
+                            hotel_poi, _fmt_hhmm(start_t), _fmt_hhmm(start_t)
+                        ),
                         _make_scheduled(hotel_poi, "21:00", "21:00"),
                     ]
             else:
                 if hotel_poi:
+                    morn_t = min(9 * 60, hotel_cout_mins) if is_cout_day else 9 * 60
+                    eve_t = max(21 * 60, hotel_cin_mins) if is_cin_day else 21 * 60
                     path = [
-                        _make_scheduled(hotel_poi, "09:00", "09:00"),
-                        _make_scheduled(hotel_poi, "21:00", "21:00"),
+                        _make_scheduled(
+                            hotel_poi, _fmt_hhmm(morn_t), _fmt_hhmm(morn_t)
+                        ),
+                        _make_scheduled(hotel_poi, _fmt_hhmm(eve_t), _fmt_hhmm(eve_t)),
                     ]
                 else:
                     path = []
@@ -834,6 +1027,7 @@ async def scan_new_trip_boarding_pass(
                 check_in_date=hotel.get("check_in_date") or manifest.start_date,
                 check_out_date=hotel.get("check_out_date") or manifest.end_date,
                 check_in_hour=hotel.get("check_in_time") or "15:00",
+                check_out_hour=hotel.get("check_out_time") or "11:00",
                 excerpt=f"Extracted from {manifest.destination} (.trip package)",
                 drafts=[],
             )
@@ -958,37 +1152,43 @@ async def scan_new_trip_boarding_pass(
         # Trip end hour in destination: return flight takeoff departure time
         arrival_hour = return_departure_hour or meta.get("arrival_hour") or "20:00"
 
-    elif hotel_drafts:
-        document_type = "hotel"
+    if hotel_drafts:
+        if not flight_drafts:
+            document_type = "hotel"
         first_h = hotel_drafts[0]
         h_meta = first_h.metadata or {}
 
         hotel_name = h_meta.get("hotel_name") or first_h.title
         hotel_address = h_meta.get("address") or first_h.location_or_venue
-        reference_code = first_h.reference_code
-        destination_city = h_meta.get("destination_city")
-        destination_iata = h_meta.get("destination_iata")
+        if not reference_code:
+            reference_code = first_h.reference_code
+        if not destination_city:
+            destination_city = h_meta.get("destination_city")
+        if not destination_iata:
+            destination_iata = h_meta.get("destination_iata")
 
-        if destination_iata:
-            ap_dest = airport_svc.get_airport(destination_iata)
-            if ap_dest:
-                destination_airport = ap_dest.name
-        elif destination_city:
-            destination_iata = airport_svc.get_iata_from_city(destination_city)
+        if not destination_airport:
             if destination_iata:
                 ap_dest = airport_svc.get_airport(destination_iata)
                 if ap_dest:
                     destination_airport = ap_dest.name
+            elif destination_city:
+                destination_iata = airport_svc.get_iata_from_city(destination_city)
+                if destination_iata:
+                    ap_dest = airport_svc.get_airport(destination_iata)
+                    if ap_dest:
+                        destination_airport = ap_dest.name
 
         check_in_date = h_meta.get("check_in_date")
         check_out_date = h_meta.get("check_out_date")
         check_in_hour = h_meta.get("check_in_hour") or "15:00"
         check_out_hour = h_meta.get("check_out_hour") or "11:00"
 
-        departure_date = check_in_date
-        return_date = check_out_date
-        departure_hour = check_in_hour
-        arrival_hour = check_out_hour
+        if not flight_drafts:
+            departure_date = check_in_date
+            return_date = check_out_date
+            departure_hour = check_in_hour
+            arrival_hour = check_out_hour
 
     today = datetime.now(timezone.utc).date()
 
@@ -1331,8 +1531,16 @@ async def get_transit_status_by_city(
     res = await session.execute(stmt)
     record = res.scalar_one_or_none()
 
-    gtfs_status = record.gtfs_status if record else "PENDING"
-    is_ready = bool(record and record.gtfs_status == "READY")
+    if record and (
+        record.gtfs_status == "UNAVAILABLE"
+        or record.derived_status == "UNAVAILABLE"
+        or record.status == "UNAVAILABLE"
+    ):
+        gtfs_status = "UNAVAILABLE"
+        is_ready = False
+    else:
+        gtfs_status = record.gtfs_status if record else "PENDING"
+        is_ready = bool(record and record.gtfs_status == "READY")
 
     return TransitStatusResponse(
         city=city_clean,
@@ -1357,8 +1565,16 @@ async def get_transit_status_by_trip(
     res_cache = await session.execute(stmt_cache)
     record = res_cache.scalar_one_or_none()
 
-    gtfs_status = record.gtfs_status if record else "PENDING"
-    is_ready = bool(record and record.gtfs_status == "READY")
+    if record and (
+        record.gtfs_status == "UNAVAILABLE"
+        or record.derived_status == "UNAVAILABLE"
+        or record.status == "UNAVAILABLE"
+    ):
+        gtfs_status = "UNAVAILABLE"
+        is_ready = False
+    else:
+        gtfs_status = record.gtfs_status if record else "PENDING"
+        is_ready = bool(record and record.gtfs_status == "READY")
 
     return TransitStatusResponse(
         city=city,
@@ -1580,29 +1796,159 @@ async def sync_planned_trips_gtfs(
 
 @router.get("/transit/registry", response_model=GtfsRegistryResponse)
 async def get_transit_registry(session: AsyncSession = Depends(get_db)):
+    # 1. Fetch all registered cities
+    stmt_cities = select(CityModel).order_by(CityModel.name.asc())
+    res_cities = await session.execute(stmt_cities)
+    all_cities_db = res_cities.scalars().all()
+    city_by_clean: dict[str, CityModel] = {}
+    for c in all_cities_db:
+        clean_k = re.sub(r"[^a-z0-9_-]", "", c.name.strip().lower())
+        city_by_clean[clean_k] = c
+        city_by_clean[c.id.lower()] = c
+        city_by_clean[c.name.lower()] = c
+        if "_" in c.id:
+            city_by_clean[c.id.split("_")[0].lower()] = c
+
+    # 2. Fetch transit cache records
     stmt = select(TransitCacheModel).order_by(TransitCacheModel.city.asc())
     res = await session.execute(stmt)
     records = {r.city.lower(): r for r in res.scalars().all()}
 
-    all_city_keys = sorted(records.keys())
+    # 3. Dynamic database storage metrics
+    res_sizes = await session.execute(
+        text("""
+            SELECT 
+                pg_total_relation_size('attractions'),
+                pg_total_relation_size('transit_stations'),
+                pg_total_relation_size('transit_lines'),
+                pg_total_relation_size('lodging_offers'),
+                (SELECT count(*) FROM attractions),
+                (SELECT count(*) FROM transit_stations),
+                (SELECT count(*) FROM transit_lines),
+                (SELECT count(*) FROM lodging_offers);
+        """)
+    )
+    (
+        att_bytes_total,
+        st_bytes_total,
+        tl_bytes_total,
+        lo_bytes_total,
+        att_cnt_total,
+        st_cnt_total,
+        tl_cnt_total,
+        lo_cnt_total,
+    ) = res_sizes.fetchone()
+
+    att_byte_per_row = (att_bytes_total / att_cnt_total) if att_cnt_total else 0
+    st_byte_per_row = (st_bytes_total / st_cnt_total) if st_cnt_total else 0
+    tl_byte_per_row = (tl_bytes_total / tl_cnt_total) if tl_cnt_total else 0
+    lo_byte_per_row = (lo_bytes_total / lo_cnt_total) if lo_cnt_total else 0
+
+    res_poi = await session.execute(
+        text("SELECT LOWER(city), COUNT(*) FROM attractions GROUP BY LOWER(city);")
+    )
+    poi_counts = {r[0]: r[1] for r in res_poi.fetchall()}
+
+    res_st = await session.execute(
+        text("SELECT LOWER(city), COUNT(*) FROM transit_stations GROUP BY LOWER(city);")
+    )
+    st_counts = {r[0]: r[1] for r in res_st.fetchall()}
+
+    res_tl = await session.execute(
+        text("SELECT LOWER(city), COUNT(*) FROM transit_lines GROUP BY LOWER(city);")
+    )
+    tl_counts = {r[0]: r[1] for r in res_tl.fetchall()}
+
+    res_lo = await session.execute(
+        text("SELECT LOWER(city), COUNT(*) FROM lodging_offers GROUP BY LOWER(city);")
+    )
+    lo_counts = {r[0]: r[1] for r in res_lo.fetchall()}
+
+    # 4. Filesystem storage metrics
+    gtfs_disk_sizes: dict[str, int] = {}
+    gtfs_base = os.path.realpath(os.environ.get("GTFS_BASE_DIR", "/gtfs_feeds"))
+    if os.path.isdir(gtfs_base):
+        for item in os.listdir(gtfs_base):
+            item_dir = os.path.join(gtfs_base, item)
+            if os.path.isdir(item_dir):
+                sz = 0
+                for root, _, files in os.walk(item_dir):
+                    for f in files:
+                        try:
+                            sz += os.path.getsize(os.path.join(root, f))
+                        except OSError:
+                            pass
+                gtfs_disk_sizes[item.lower()] = sz
+
+    osm_disk_sizes: dict[str, int] = {}
+    custom_files_dir = os.environ.get("OSM_PBF_DIR", "/custom_files")
+    if os.path.isdir(custom_files_dir):
+        for f in os.listdir(custom_files_dir):
+            if f.endswith(".osm.pbf"):
+                try:
+                    osm_disk_sizes[f.lower()] = os.path.getsize(
+                        os.path.join(custom_files_dir, f)
+                    )
+                except OSError:
+                    pass
+
+    # 5. Build union of all cities
+    all_city_keys = set(records.keys())
+    for c in all_cities_db:
+        clean_k = re.sub(r"[^a-z0-9_-]", "", c.name.strip().lower())
+        all_city_keys.add(clean_k)
+    for k in gtfs_disk_sizes.keys():
+        all_city_keys.add(k)
+    sorted_city_keys = sorted(all_city_keys)
 
     city_items: list[CityGtfsItem] = []
     active_cities: list[str] = []
     need_commit = False
 
-    for city_key in all_city_keys:
+    for city_key in sorted_city_keys:
         rec = records.get(city_key)
+        c_obj = city_by_clean.get(city_key)
+        c_name = c_obj.name if c_obj else None
+
         has_feed = bool(
-            rec
-            and (
-                rec.gtfs_status in ("READY", "BUILDING", "QUEUED") or rec.gtfs_feed_name
+            (
+                rec
+                and (
+                    rec.gtfs_status in ("READY", "BUILDING", "QUEUED")
+                    or rec.gtfs_feed_name
+                )
             )
+            or (city_key in gtfs_disk_sizes and gtfs_disk_sizes[city_key] > 0)
         )
         feed_url = rec.gtfs_feed_name if rec else None
 
-        status_val = rec.status if rec else "PENDING"
-        osm_status_val = rec.osm_status if rec else "PENDING"
-        gtfs_status_val = rec.gtfs_status if rec else "PENDING"
+        status_val = (
+            rec.status
+            if rec
+            else (
+                "READY"
+                if city_key in gtfs_disk_sizes and gtfs_disk_sizes[city_key] > 0
+                else "PENDING"
+            )
+        )
+        osm_status_val = (
+            rec.osm_status
+            if rec
+            else (
+                "READY"
+                if city_key in gtfs_disk_sizes and gtfs_disk_sizes[city_key] > 0
+                else "PENDING"
+            )
+        )
+        gtfs_status_val = (
+            rec.gtfs_status
+            if rec
+            else (
+                "READY"
+                if city_key in gtfs_disk_sizes and gtfs_disk_sizes[city_key] > 0
+                else "UNAVAILABLE"
+            )
+        )
 
         # Reconcile stale/dead tasks
         if rec and (
@@ -1626,32 +1972,72 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
             or osm_status_val == "BUILDING"
         )
         is_ready = bool(gtfs_status_val == "READY")
-        is_downloaded = is_ready
-        is_compiled = bool(is_ready and status_val == "READY")
+        is_downloaded = is_ready or (
+            city_key in gtfs_disk_sizes and gtfs_disk_sizes[city_key] > 0
+        )
+        is_compiled = bool(
+            (is_ready and status_val == "READY")
+            or (city_key in gtfs_disk_sizes and gtfs_disk_sizes[city_key] > 0)
+        )
 
-        display_name = city_key.title()
+        display_name = c_name if c_name else city_key.title()
         if city_key == "oporto":
             display_name = "Porto (Oporto)"
 
         if is_building or is_queued:
             active_cities.append(display_name)
 
-        is_failed = bool(gtfs_status_val == "FAILED" or status_val == "FAILED")
-        is_unavailable = bool(gtfs_status_val == "UNAVAILABLE")
-
-        # List cities that have transit state (compiled, building, queued, failed, or unavailable)
-        if not (is_compiled or is_building or is_queued or is_failed or is_unavailable):
-            continue
-
         valid_until_str = (
             rec.valid_until.isoformat() if rec and rec.valid_until else None
         )
         updated_at_str = rec.updated_at.isoformat() if rec and rec.updated_at else None
 
+        # Calculate POI metrics
+        poi_cnt = poi_counts.get(city_key, 0)
+        if not poi_cnt and c_name:
+            poi_cnt = poi_counts.get(c_name.lower(), 0)
+        if not poi_cnt and c_obj:
+            poi_cnt = poi_counts.get(c_obj.id.lower(), 0)
+        poi_bytes = int(poi_cnt * att_byte_per_row)
+
+        # Calculate Transit metrics
+        st_cnt = st_counts.get(city_key, 0)
+        if not st_cnt and c_name:
+            st_cnt = st_counts.get(c_name.lower(), 0)
+        tl_cnt = tl_counts.get(city_key, 0)
+        if not tl_cnt and c_name:
+            tl_cnt = tl_counts.get(c_name.lower(), 0)
+        transit_bytes = int(st_cnt * st_byte_per_row + tl_cnt * tl_byte_per_row)
+
+        # Calculate Hotel metrics
+        h_cnt = lo_counts.get(city_key, 0)
+        if not h_cnt and c_name:
+            h_cnt = lo_counts.get(c_name.lower(), 0)
+        hotel_bytes = int(h_cnt * lo_byte_per_row)
+
+        # Calculate Filesystem metrics
+        disk_gtfs = gtfs_disk_sizes.get(city_key, 0)
+        if not disk_gtfs and c_name:
+            disk_gtfs = gtfs_disk_sizes.get(c_name.lower(), 0)
+
+        disk_osm = 0
+        if rec and rec.gtfs_feed_name and rec.gtfs_feed_name.lower() in osm_disk_sizes:
+            disk_osm = osm_disk_sizes[rec.gtfs_feed_name.lower()]
+        else:
+            for pbf_name, pbf_sz in osm_disk_sizes.items():
+                if city_key in pbf_name or (c_name and c_name.lower() in pbf_name):
+                    disk_osm = pbf_sz
+                    break
+
+        total_disk = disk_gtfs + disk_osm
+        total_db = poi_bytes + transit_bytes + hotel_bytes
+        total_storage = total_disk + total_db
+
         city_items.append(
             CityGtfsItem(
                 city=city_key,
                 display_name=display_name,
+                country_code=c_obj.country_code if c_obj else None,
                 status=status_val,
                 osm_status=osm_status_val,
                 gtfs_status=gtfs_status_val,
@@ -1665,6 +2051,18 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
                 valid_until=valid_until_str,
                 gtfs_feed_name=rec.gtfs_feed_name if rec else None,
                 updated_at=updated_at_str,
+                poi_count=poi_cnt,
+                poi_db_bytes=poi_bytes,
+                transit_stations_count=st_cnt,
+                transit_lines_count=tl_cnt,
+                transit_db_bytes=transit_bytes,
+                hotel_count=h_cnt,
+                hotel_db_bytes=hotel_bytes,
+                disk_gtfs_bytes=disk_gtfs,
+                disk_osm_bytes=disk_osm,
+                total_disk_bytes=total_disk,
+                total_db_bytes=total_db,
+                total_storage_bytes=total_storage,
             )
         )
 
@@ -1673,6 +2071,12 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
 
     compiled_count = sum(1 for c in city_items if c.is_compiled)
     queued_count = sum(1 for c in city_items if c.is_queued)
+    grand_total_disk = sum(c.total_disk_bytes for c in city_items)
+    grand_total_db = sum(c.total_db_bytes for c in city_items)
+    grand_total_storage = sum(c.total_storage_bytes for c in city_items)
+
+    # Sort cities by total storage size from highest to lowest
+    city_items.sort(key=lambda c: (-c.total_storage_bytes, c.display_name.lower()))
 
     return GtfsRegistryResponse(
         has_active_process=len(active_cities) > 0,
@@ -1681,6 +2085,9 @@ async def get_transit_registry(session: AsyncSession = Depends(get_db)):
         total_cities=len(city_items),
         compiled_cities=compiled_count,
         queued_cities=queued_count,
+        total_disk_bytes=grand_total_disk,
+        total_db_bytes=grand_total_db,
+        total_storage_bytes=grand_total_storage,
         cities=city_items,
     )
 
@@ -1730,6 +2137,17 @@ async def trigger_city_gtfs_compile(
     stmt = select(TransitCacheModel).where(TransitCacheModel.city == city_clean)
     res = await session.execute(stmt)
     record = res.scalar_one_or_none()
+    if record and (
+        record.gtfs_status == "UNAVAILABLE"
+        or record.derived_status == "UNAVAILABLE"
+        or record.status == "UNAVAILABLE"
+    ):
+        return {
+            "status": "unavailable",
+            "city": city_clean,
+            "message": f"No open public transit GTFS schedule exists for {req.city.strip()}. It cannot be downloaded.",
+        }
+
     if not record:
         record = TransitCacheModel(
             city=city_clean,
@@ -1902,13 +2320,77 @@ async def delete_city_gtfs(
         except Exception:
             pass
 
-    # 6. Remove city record from database (TransitCacheModel)
+    # 6. Remove city record from database (TransitCacheModel and transit relation models)
     stmt = select(TransitCacheModel).where(TransitCacheModel.city == city_clean)
     res = await session.execute(stmt)
     record = res.scalar_one_or_none()
     if record:
         await session.delete(record)
-        await session.commit()
+
+    from app.db.models import (
+        TransitAgencyModel,
+        TransitFareModel,
+        TransitFareQuoteModel,
+        TransitFareRuleModel,
+        TransitLineModel,
+        TransitPatternModel,
+        TransitPatternStopModel,
+        TransitPatternTripModel,
+        TransitServiceDayModel,
+        TransitServiceSummaryModel,
+        TransitShapeModel,
+        TransitStationLineModel,
+        TransitStationModel,
+    )
+
+    await session.execute(
+        delete(TransitStationModel).where(TransitStationModel.city == city_clean)
+    )
+    await session.execute(
+        delete(TransitLineModel).where(TransitLineModel.city == city_clean)
+    )
+    await session.execute(
+        delete(TransitAgencyModel).where(TransitAgencyModel.city == city_clean)
+    )
+    await session.execute(
+        delete(TransitPatternModel).where(TransitPatternModel.city == city_clean)
+    )
+    await session.execute(
+        delete(TransitPatternStopModel).where(
+            TransitPatternStopModel.city == city_clean
+        )
+    )
+    await session.execute(
+        delete(TransitPatternTripModel).where(
+            TransitPatternTripModel.city == city_clean
+        )
+    )
+    await session.execute(
+        delete(TransitStationLineModel).where(
+            TransitStationLineModel.city == city_clean
+        )
+    )
+    await session.execute(
+        delete(TransitShapeModel).where(TransitShapeModel.city == city_clean)
+    )
+    await session.execute(
+        delete(TransitFareModel).where(TransitFareModel.city == city_clean)
+    )
+    await session.execute(
+        delete(TransitFareRuleModel).where(TransitFareRuleModel.city == city_clean)
+    )
+    await session.execute(
+        delete(TransitFareQuoteModel).where(TransitFareQuoteModel.city == city_clean)
+    )
+    await session.execute(
+        delete(TransitServiceSummaryModel).where(
+            TransitServiceSummaryModel.city == city_clean
+        )
+    )
+    await session.execute(
+        delete(TransitServiceDayModel).where(TransitServiceDayModel.city == city_clean)
+    )
+    await session.commit()
 
     # 7. Publish real-time telemetry event to Redis
     try:
@@ -1931,6 +2413,88 @@ async def delete_city_gtfs(
         "city": city_clean,
         "message": f"GTFS data for {city_clean} was deleted and compilation stopped.",
     }
+
+
+@router.delete("/city/{city}/pois")
+@router.delete("/pois/{city}")
+async def delete_city_pois(
+    city: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Deletes all ingested POIs / attractions and price records for a city.
+    Leaves user trips and hotel accommodations strictly untouched.
+    """
+    city_clean = re.sub(r"[^a-z0-9_-]", "", city.strip().lower())
+    if not city_clean:
+        raise HTTPException(status_code=400, detail="Invalid city name provided")
+
+    # Match attractions by city lowercase or city_id
+    stmt = select(AttractionModel).where(
+        or_(
+            func.lower(AttractionModel.city) == city_clean,
+            AttractionModel.city_id == city_clean,
+            AttractionModel.city_id.startswith(f"{city_clean}_"),
+        )
+    )
+    res = await session.execute(stmt)
+    attractions = res.scalars().all()
+    count = len(attractions)
+
+    if count > 0:
+        await session.execute(
+            delete(AttractionModel).where(
+                or_(
+                    func.lower(AttractionModel.city) == city_clean,
+                    AttractionModel.city_id == city_clean,
+                    AttractionModel.city_id.startswith(f"{city_clean}_"),
+                )
+            )
+        )
+        # Reset ingested_at on CityModel if present
+        stmt_city = select(CityModel).where(
+            or_(
+                func.lower(CityModel.id) == city_clean,
+                func.lower(CityModel.name) == city_clean,
+            )
+        )
+        res_c = await session.execute(stmt_city)
+        c_ent = res_c.scalar_one_or_none()
+        if c_ent:
+            c_ent.ingested_at = None
+
+        await session.commit()
+
+    # Clear any active POI hydration state for this city
+    try:
+        import os
+        import redis
+
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        r = redis.from_url(redis_url)
+        r.delete(f"paladio:city_hydration_active:{city_clean}")
+        r.delete(f"paladio:lock:hydrate_city:{city_clean}")
+    except Exception:
+        pass
+
+    return {
+        "status": "deleted",
+        "city": city_clean,
+        "deleted_pois": count,
+        "message": f"Successfully removed {count} POIs for {city.title()}.",
+    }
+
+
+@router.post("/city/{city}/pois/download")
+@router.post("/pois/{city}/download")
+async def download_city_pois_route(
+    city: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """Triggers downloading the POI database for a city."""
+    from app.api.pois import download_city_pois
+
+    return await download_city_pois(city=city, session=session)
 
 
 @router.get("/{trip_id}", response_model=TripResponse)
