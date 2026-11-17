@@ -76,9 +76,12 @@ class HotelAnchor(BaseModel):
     name: str = Field(..., description="Name of the accommodation")
     address: str | None = Field(None, description="Full street address")
     city: str = Field(..., description="City name")
+    lat: float | None = Field(None, description="Latitude if known")
+    lng: float | None = Field(None, description="Longitude if known")
     check_in_date: str | None = None
     check_in_time: str | None = Field(None, description="HH:MM (24h format)")
     check_out_date: str | None = None
+    check_out_time: str | None = Field(None, description="HH:MM (24h format)")
 
 
 class BookingAnchors(BaseModel):

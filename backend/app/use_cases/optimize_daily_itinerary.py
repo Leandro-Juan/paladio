@@ -104,8 +104,12 @@ class OptimizeDailyItineraryUseCase:
             )
 
         if hotel_anchor:
-            hotel_lat = getattr(hotel_anchor, "latitude", None)
-            hotel_lon = getattr(hotel_anchor, "longitude", None)
+            hotel_lat = getattr(hotel_anchor, "latitude", None) or getattr(
+                hotel_anchor, "lat", None
+            )
+            hotel_lon = getattr(hotel_anchor, "longitude", None) or getattr(
+                hotel_anchor, "lng", None
+            )
             if (hotel_lat is None or float(hotel_lat) == 0.0) and hotel_dict:
                 loc = hotel_dict.get("location", {})
                 hotel_lat = loc.get("latitude", hotel_dict.get("lat"))
@@ -179,11 +183,14 @@ class OptimizeDailyItineraryUseCase:
                 )
             if not iata and outbound and isinstance(outbound, dict):
                 iata = outbound.get("destination_iata") or outbound.get("origin_iata")
-            if iata:
+            if iata or city:
                 try:
                     from app.services.airport_service import get_airport_service
 
-                    ap_info = get_airport_service().get_airport(iata)
+                    ap_svc = get_airport_service()
+                    ap_info = ap_svc.get_airport(iata) if iata else None
+                    if not ap_info and city:
+                        ap_info = ap_svc.resolve_airport_for_city(city)
                     if ap_info:
                         selected_airport = {
                             "name": ap_info.name,
@@ -294,6 +301,32 @@ class OptimizeDailyItineraryUseCase:
         themes: list[str] = []
         num_days = len(v2_res.days)
 
+        def _parse_clock_mins(val: str | None, fallback: int) -> int:
+            if not val:
+                return fallback
+            try:
+                if "T" in val:
+                    dt = datetime.fromisoformat(val)
+                    return dt.hour * 60 + dt.minute
+                time_part = val.split(" ")[-1] if " " in val else val
+                parts = time_part.split(":")
+                return int(parts[0]) * 60 + int(parts[1][:2])
+            except Exception:
+                return fallback
+
+        def _fmt_clock_mins(mins: int) -> str:
+            c = max(0, min(23 * 60 + 59, int(mins)))
+            return f"{c // 60:02d}:{c % 60:02d}"
+
+        def _is_hotel_node(node: dict[str, Any]) -> bool:
+            p = node.get("poi") or {}
+            return (
+                str(p.get("category", "")).upper() == "HOTEL"
+                or "hotel" in str(p.get("name", "")).lower()
+            )
+
+        tf_days = getattr(getattr(v2_res, "trip_frame", None), "days", None) or []
+
         for d_idx, d_data in enumerate(v2_res.days):
             itin_val = d_data.get("itinerary")
             if hasattr(itin_val, "model_dump"):
@@ -308,29 +341,35 @@ class OptimizeDailyItineraryUseCase:
                     "total_score": 0.0,
                 }
 
+            day_frame = tf_days[d_idx] if d_idx < len(tf_days) else None
+            day_cin_mins = getattr(day_frame, "hotel_check_in_mins", None)
+            day_cout_mins = getattr(day_frame, "hotel_check_out_mins", None)
+            path_list = itin_dict.setdefault("path", [])
+
             # Prepend/append airport nodes if airport is provided
             if d_idx == 0 and selected_airport and outbound:
-                arr_t = outbound.get("arrival_time") or "12:00"
-                if "T" in arr_t:
-                    dt = datetime.fromisoformat(arr_t)
-                    arr_mins = dt.hour * 60 + dt.minute
-                elif " " in arr_t:
-                    time_part = arr_t.split(" ")[-1]
-                    arr_parts = time_part.split(":")
-                    arr_mins = int(arr_parts[0]) * 60 + int(arr_parts[1])
-                else:
-                    arr_parts = arr_t.split(":")
-                    arr_mins = int(arr_parts[0]) * 60 + int(arr_parts[1])
+                arr_t = outbound.get("arrival_time") or "09:00"
+                arr_mins = _parse_clock_mins(arr_t, 9 * 60)
 
                 airport_start = arr_mins
-                airport_end = arr_mins + 60
+                airport_end = min(23 * 60 + 59, arr_mins + 60)
                 airport_node = {
                     "poi": selected_airport,
-                    "scheduled_start": f"{airport_start // 60:02d}:{airport_start % 60:02d}",
-                    "scheduled_end": f"{airport_end // 60:02d}:{airport_end % 60:02d}",
+                    "scheduled_start": _fmt_clock_mins(airport_start),
+                    "scheduled_end": _fmt_clock_mins(airport_end),
                 }
-                path_list = itin_dict.setdefault("path", [])
                 path_list.insert(0, airport_node)
+
+                # On multi-day trips, drop redundant Hotel (Start) immediately after Airport
+                # so Day 1 goes Airport -> activities -> Hotel (End)
+                if (
+                    num_days > 1
+                    and len(path_list) >= 3
+                    and _is_hotel_node(path_list[1])
+                    and _is_hotel_node(path_list[-1])
+                ):
+                    path_list.pop(1)
+
                 if len(path_list) > 1:
                     from app.services.transit_service import (
                         synthesize_fallback_transit_leg,
@@ -344,6 +383,16 @@ class OptimizeDailyItineraryUseCase:
                         is_airport_leg=True,
                     )
                     path_list[1]["transit_from_previous"] = leg.model_dump(mode="json")
+
+                    # If Day 1 goes straight from Airport to Hotel, schedule Hotel arrival & respect check-in
+                    if len(path_list) == 2 and _is_hotel_node(path_list[1]):
+                        arr_hotel = airport_end + int(leg.duration_mins)
+                        if day_cin_mins is not None:
+                            arr_hotel = max(arr_hotel, day_cin_mins)
+                        arr_hotel_str = _fmt_clock_mins(arr_hotel)
+                        path_list[1]["scheduled_start"] = arr_hotel_str
+                        path_list[1]["scheduled_end"] = arr_hotel_str
+
                     itin_dict["total_time_mins"] = (
                         itin_dict.get("total_time_mins", 0)
                         + 60
@@ -355,38 +404,49 @@ class OptimizeDailyItineraryUseCase:
                         + float(leg.cost_eur)
                     )
 
+            # Respect hotel check-in time on check-in day (for ending HOTEL stop)
+            if (
+                day_cin_mins is not None
+                and path_list
+                and _is_hotel_node(path_list[-1])
+                and not (d_idx == num_days - 1 and ret_flight)
+            ):
+                cur_h_start = _parse_clock_mins(
+                    path_list[-1].get("scheduled_start"), day_cin_mins
+                )
+                if cur_h_start < day_cin_mins:
+                    cin_str = _fmt_clock_mins(day_cin_mins)
+                    path_list[-1]["scheduled_start"] = cin_str
+                    path_list[-1]["scheduled_end"] = cin_str
+
+            # Respect hotel check-out time on check-out day (for starting HOTEL stop)
+            if day_cout_mins is not None and path_list and _is_hotel_node(path_list[0]):
+                cur_h_start = _parse_clock_mins(
+                    path_list[0].get("scheduled_start"), day_cout_mins
+                )
+                if cur_h_start > day_cout_mins:
+                    cout_str = _fmt_clock_mins(day_cout_mins)
+                    path_list[0]["scheduled_start"] = cout_str
+                    path_list[0]["scheduled_end"] = cout_str
+
             if d_idx == num_days - 1 and selected_airport and ret_flight:
-                dep_t = ret_flight.get("departure_time") or "18:00"
-                if "T" in dep_t:
-                    dt = datetime.fromisoformat(dep_t)
-                    dep_mins = dt.hour * 60 + dt.minute
-                elif " " in dep_t:
-                    time_part = dep_t.split(" ")[-1]
-                    dep_parts = time_part.split(":")
-                    dep_mins = int(dep_parts[0]) * 60 + int(dep_parts[1])
-                else:
-                    dep_parts = dep_t.split(":")
-                    dep_mins = int(dep_parts[0]) * 60 + int(dep_parts[1])
+                dep_t = ret_flight.get("departure_time") or "20:00"
+                dep_mins = _parse_clock_mins(dep_t, 20 * 60)
 
                 airport_end = dep_mins
                 airport_start = max(0, dep_mins - 120)
-                path_list = itin_dict.setdefault("path", [])
-                prev_poi = (
-                    path_list[-2].get("poi", {})
-                    if (
-                        path_list
-                        and (
-                            str(
-                                path_list[-1].get("poi", {}).get("category", "")
-                            ).upper()
-                            == "HOTEL"
-                            or "hotel"
-                            in str(path_list[-1].get("poi", {}).get("name", "")).lower()
-                        )
-                        and len(path_list) > 1
-                    )
-                    else (path_list[-1].get("poi", {}) if path_list else {})
-                )
+
+                if len(path_list) >= 2 and _is_hotel_node(path_list[-1]):
+                    path_list.pop()
+
+                # Remove any overflowing intermediate stops that end after airport departure buffer
+                while len(path_list) > 1 and not _is_hotel_node(path_list[-1]):
+                    prev_end = _parse_clock_mins(path_list[-1].get("scheduled_end"), 0)
+                    if prev_end <= airport_start:
+                        break
+                    path_list.pop()
+
+                prev_poi = path_list[-1].get("poi", {}) if path_list else {}
                 from app.services.transit_service import synthesize_fallback_transit_leg
 
                 leg = synthesize_fallback_transit_leg(
@@ -395,21 +455,29 @@ class OptimizeDailyItineraryUseCase:
                     city=constraints.destination_city or "",
                     is_airport_leg=True,
                 )
+
+                # Ensure hotel check-out departure precedes airport transit arrival
+                if len(path_list) == 1 and _is_hotel_node(path_list[0]):
+                    max_hotel_dep = max(0, airport_start - int(leg.duration_mins))
+                    cur_h = _parse_clock_mins(
+                        path_list[0].get("scheduled_start"), max_hotel_dep
+                    )
+                    target_h = (
+                        min(cur_h, day_cout_mins, max_hotel_dep)
+                        if day_cout_mins is not None
+                        else min(cur_h, max_hotel_dep)
+                    )
+                    h_str = _fmt_clock_mins(target_h)
+                    path_list[0]["scheduled_start"] = h_str
+                    path_list[0]["scheduled_end"] = h_str
+
                 airport_node = {
                     "poi": selected_airport,
-                    "scheduled_start": f"{airport_start // 60:02d}:{airport_start % 60:02d}",
-                    "scheduled_end": f"{airport_end // 60:02d}:{airport_end % 60:02d}",
+                    "scheduled_start": _fmt_clock_mins(airport_start),
+                    "scheduled_end": _fmt_clock_mins(airport_end),
                     "transit_from_previous": leg.model_dump(mode="json"),
                 }
-                if path_list and (
-                    str(path_list[-1].get("poi", {}).get("category", "")).upper()
-                    == "HOTEL"
-                    or "hotel"
-                    in str(path_list[-1].get("poi", {}).get("name", "")).lower()
-                ):
-                    path_list[-1] = airport_node
-                else:
-                    path_list.append(airport_node)
+                path_list.append(airport_node)
 
                 itin_dict["total_time_mins"] = (
                     itin_dict.get("total_time_mins", 0) + 120 + int(leg.duration_mins)

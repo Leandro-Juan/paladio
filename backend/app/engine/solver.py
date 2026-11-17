@@ -689,6 +689,9 @@ async def solve_day_v2(
     start_depot.name = f"{depot_poi.name} (Start)"
     end_depot = depot_poi.model_copy(deep=True)
     end_depot.name = f"{depot_poi.name} (End)"
+    if start_depot.id == end_depot.id:
+        start_depot.id = f"{depot_poi.id}_start"
+        end_depot.id = f"{depot_poi.id}_end"
 
     pace = getattr(constraints, "pace", PacePreference.BALANCED)
     max_surplus_allow = compute_surplus_quota(
@@ -826,8 +829,67 @@ async def solve_day_v2(
         ) from e
 
     # 7. Map back using direct arrival times from C++ result with 2-opt trajectory smoothing
-    path_nodes = opt_res.path
-    arr_times = getattr(opt_res, "arrival_times", [])
+    path_nodes = list(getattr(opt_res, "path", None) or [])
+    arr_times = list(getattr(opt_res, "arrival_times", None) or [])
+
+    if not path_nodes and len(all_pois) >= 2:
+        logger.warning(
+            f"Day {assigned_day.day_index} C++ solve returned empty path; retrying with relaxed meal deadlines and idle bounds."
+        )
+        relaxed_cpp_pois = build_cpp_pois(
+            scored_pois,
+            day_start_mins=assigned_day.start_time_mins,
+            mandatory_names=[
+                p.name
+                for p in committed_entities
+                if getattr(p, "is_user_mandatory", False)
+            ],
+            day_weekday=assigned_day.weekday,
+            rhythm=rhythm,
+        )
+        relaxed_cfg = build_optimization_config(
+            constraints=constraints,
+            day_start_mins=assigned_day.start_time_mins,
+            day_end_mins=assigned_day.end_time_mins,
+            start_node_index=0,
+            end_node_index=len(all_pois) - 1,
+            cpp_pois=relaxed_cpp_pois,
+            monotony_threshold=2,
+            monotony_multiplier=0.5,
+            max_nodes_expanded=max_nodes_expanded,
+            max_budget=max(assigned_day.daily_budget_eur, 1000.0),
+            enforce_default_meal_deadlines=False,
+            max_idle_time=720,
+            rhythm=rhythm,
+            requested_meals=[],
+        )
+        if relaxed_cfg is not None:
+            relaxed_cfg.breakfast_deadline = -1
+            relaxed_cfg.lunch_deadline = -1
+            relaxed_cfg.dinner_deadline = -1
+        try:
+            opt_res_relaxed = await asyncio.to_thread(
+                paladio_core.optimize_itinerary,
+                relaxed_cpp_pois,
+                durations,
+                costs,
+                relaxed_cfg,
+            )
+            path_nodes = list(getattr(opt_res_relaxed, "path", None) or [])
+            arr_times = list(getattr(opt_res_relaxed, "arrival_times", None) or [])
+            if path_nodes:
+                opt_res = opt_res_relaxed
+        except Exception as e:
+            logger.debug(
+                f"Relaxed C++ retry failed for day {assigned_day.day_index}: {e}"
+            )
+
+    if not path_nodes and len(all_pois) >= 2:
+        path_nodes = [0, len(all_pois) - 1]
+        arr_times = [
+            assigned_day.start_time_mins,
+            max(assigned_day.start_time_mins, assigned_day.end_time_mins),
+        ]
 
     # Apply 2-opt smoothing on intermediate path to eliminate zigzag crossings
     smoothed_route, smoothed_arr = _two_opt_smooth_path(

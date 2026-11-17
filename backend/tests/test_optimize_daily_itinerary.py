@@ -188,3 +188,174 @@ async def test_gtfs_trigger_failure_does_not_abort_optimization(
         assert result is not None
         assert "days" in result
         assert len(result["days"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_generated_itinerary_respects_airport_times_and_hotel_checkin_checkout(
+    sample_pois_data,
+):
+    from unittest.mock import AsyncMock, patch
+
+    from app.adapters.repositories.in_memory_poi_repository import InMemoryPoiRepository
+    from app.schemas.itinerary import BookingAnchors, FlightSegment, HotelAnchor
+
+    constraints = TravelConstraints(
+        origin_city="Madrid",
+        destination_city="Paris",
+        start_date=date(2026, 12, 1),
+        end_date=date(2026, 12, 3),
+        budget_usd=1500.0,
+        nodes=[NodeConstraint(poi_id="Louvre")],
+        booking_anchors=BookingAnchors(
+            outbound_flight=FlightSegment(
+                origin_iata="MAD",
+                destination_iata="CDG",
+                departure_time="2026-12-01 07:30",
+                arrival_time="2026-12-01 09:30",
+                direction="arrival",
+            ),
+            return_flight=FlightSegment(
+                origin_iata="CDG",
+                destination_iata="MAD",
+                departure_time="2026-12-03 19:00",
+                direction="departure",
+            ),
+            hotel=HotelAnchor(
+                name="Hotel Paris",
+                city="Paris",
+                lat=48.8566,
+                lng=2.3522,
+                check_in_date="2026-12-01",
+                check_in_time="16:00",
+                check_out_date="2026-12-03",
+                check_out_time="08:00",
+            ),
+        ),
+    )
+
+    non_depot_pois = [
+        p for p in sample_pois_data if p.get("category") not in ("HOTEL", "AIRPORT")
+    ]
+    use_case = OptimizeDailyItineraryUseCase(
+        poi_repo=InMemoryPoiRepository(non_depot_pois, city="Paris"),
+        transit_matrix_fn=_fast_matrix,
+    )
+    with (
+        patch(
+            "app.tasks.async_trigger_city_gtfs_download_if_needed",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "app.services.gtfs_route_service.get_gtfs_route_finder",
+            return_value=None,
+        ),
+    ):
+        result = await use_case.execute(constraints, [sample_pois_data])
+
+    days = result["days"]
+    assert len(days) == 3
+
+    # Day 1: First stop is Airport (at 09:30), last stop is Hotel (>= 16:00 check-in)
+    d1_path = days[0]["itinerary"]["path"]
+    assert d1_path[0]["poi"]["category"] == "AIRPORT"
+    assert d1_path[0]["scheduled_start"] == "09:30"
+    assert d1_path[-1]["poi"]["category"] == "HOTEL"
+    assert d1_path[-1]["scheduled_start"] >= "16:00"
+
+    # Day 2: First stop is Hotel, last stop is Hotel
+    d2_path = days[1]["itinerary"]["path"]
+    assert d2_path[0]["poi"]["category"] == "HOTEL"
+    assert d2_path[-1]["poi"]["category"] == "HOTEL"
+
+    # Day 3: First stop is Hotel (<= 08:00 check-out), last stop is Airport (ends 19:00)
+    d3_path = days[2]["itinerary"]["path"]
+    assert d3_path[0]["poi"]["category"] == "HOTEL"
+    assert d3_path[0]["scheduled_start"] <= "08:00"
+    assert d3_path[-1]["poi"]["category"] == "AIRPORT"
+    assert d3_path[-1]["scheduled_end"] == "19:00"
+    assert d3_path[-1]["scheduled_start"] == "17:00"
+
+
+@pytest.mark.asyncio
+async def test_solve_day_never_returns_empty_path_under_tight_deadlines(
+    sample_pois_data,
+):
+    """If C++ solve returns empty path under tight meal/idle constraints, fallback keeps Hotel Start/End."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from app.adapters.repositories.in_memory_poi_repository import InMemoryPoiRepository
+    from app.schemas.itinerary import BookingAnchors, FlightSegment, HotelAnchor
+
+    constraints = TravelConstraints(
+        origin_city="Madrid",
+        destination_city="Paris",
+        start_date=date(2026, 12, 1),
+        end_date=date(2026, 12, 3),
+        budget_usd=1500.0,
+        booking_anchors=BookingAnchors(
+            outbound_flight=FlightSegment(
+                origin_iata="MAD",
+                destination_iata="CDG",
+                departure_time="2026-12-01 09:00",
+                arrival_time="2026-12-01 09:00",
+                direction="arrival",
+            ),
+            return_flight=FlightSegment(
+                origin_iata="CDG",
+                destination_iata="MAD",
+                departure_time="2026-12-03 20:00",
+                direction="departure",
+            ),
+            hotel=HotelAnchor(
+                name="Hotel Paris",
+                city="Paris",
+                lat=48.8566,
+                lng=2.3522,
+                check_in_date="2026-12-01",
+                check_in_time="15:00",
+                check_out_date="2026-12-03",
+                check_out_time="11:00",
+            ),
+        ),
+    )
+
+    non_depot_pois = [
+        p for p in sample_pois_data if p.get("category") not in ("HOTEL", "AIRPORT")
+    ]
+    use_case = OptimizeDailyItineraryUseCase(
+        poi_repo=InMemoryPoiRepository(non_depot_pois, city="Paris"),
+        transit_matrix_fn=_fast_matrix,
+    )
+
+    empty_res = MagicMock()
+    empty_res.path = []
+    empty_res.arrival_times = []
+    empty_res.total_score = 0.0
+    empty_res.total_cost = 0.0
+    empty_res.total_time = 0
+    empty_res.nodes_expanded = 9
+    empty_res.timed_out = False
+
+    with (
+        patch(
+            "app.tasks.async_trigger_city_gtfs_download_if_needed",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "app.services.gtfs_route_service.get_gtfs_route_finder",
+            return_value=None,
+        ),
+        patch(
+            "app.engine.solver.paladio_core.optimize_itinerary",
+            return_value=empty_res,
+        ),
+    ):
+        result = await use_case.execute(constraints, [sample_pois_data])
+
+    days = result["days"]
+    assert len(days) == 3
+    # Day 2 must still have Hotel Start and Hotel End instead of an empty path
+    d2_path = days[1]["itinerary"]["path"]
+    assert len(d2_path) >= 2
+    assert d2_path[0]["poi"]["category"] == "HOTEL"
+    assert d2_path[-1]["poi"]["category"] == "HOTEL"

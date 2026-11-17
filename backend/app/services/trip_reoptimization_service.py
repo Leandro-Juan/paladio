@@ -128,6 +128,16 @@ class TripReoptimizationService:
                 start_p = start_stop.get("poi") or {}
                 start_name = str(start_p.get("name") or "").strip().lower()
                 start_id = str(start_p.get("id") or "").strip()
+                cat_0 = str(start_p.get("category") or "").upper()
+                is_airport_start = (
+                    cat_0 in ("AIRPORT", "FLIGHT") or "airport" in start_name
+                )
+
+                end_p = end_stop.get("poi") or {}
+                end_name = str(end_p.get("name") or "").strip().lower()
+                end_id = str(end_p.get("id") or "").strip()
+                cat_end = str(end_p.get("category") or "").upper()
+                is_hotel_end = cat_end == "HOTEL" or "hotel" in end_name
 
                 cleaned_mid: list[dict[str, Any]] = []
                 prev_name = start_name
@@ -149,13 +159,41 @@ class TripReoptimizationService:
 
                     # Un-locked duplicate copies of the accommodation depot are redundant
                     if not is_locked and (
-                        (p_id and p_id == start_id) or (p_name and p_name == start_name)
+                        (
+                            p_id
+                            and (p_id == start_id or (is_hotel_end and p_id == end_id))
+                        )
+                        or (
+                            p_name
+                            and (
+                                p_name == start_name
+                                or (
+                                    is_hotel_end
+                                    and (
+                                        p_name == end_name or "hotel (start)" in p_name
+                                    )
+                                )
+                            )
+                        )
                     ):
                         continue
 
                     cleaned_mid.append(item)
                     prev_name = p_name
                     prev_id = p_id
+
+                # If the day begins with an airport arrival and concludes with a hotel depot,
+                # drop any redundant morning Hotel (Start) depot appearing immediately after the airport
+                if is_airport_start and is_hotel_end and cleaned_mid:
+                    fm_p = cleaned_mid[0].get("poi") or {}
+                    fm_name = str(fm_p.get("name") or "").lower()
+                    fm_cat = str(fm_p.get("category") or "").upper()
+                    fm_locked = (
+                        cleaned_mid[0].get("locked") is True
+                        or fm_p.get("locked") is True
+                    )
+                    if not fm_locked and (fm_cat == "HOTEL" or "hotel" in fm_name):
+                        cleaned_mid.pop(0)
 
                 sanitized_path = [start_stop] + cleaned_mid + [end_stop]
             else:
