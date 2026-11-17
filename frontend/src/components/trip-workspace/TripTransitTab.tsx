@@ -214,16 +214,16 @@ export function TripTransitTab({
       const st = (data.status || '').toUpperCase();
 
       let resolved = 'NOT_REQUESTED';
-      if (ds === 'READY' || gs === 'READY') {
-        resolved = ds === 'READY' ? (expired ? 'EXPIRED' : 'READY') : 'BUILDING';
+      if (ds === 'UNAVAILABLE' || gs === 'UNAVAILABLE' || st === 'UNAVAILABLE') {
+        resolved = 'UNAVAILABLE';
+      } else if (ds === 'FAILED' || gs === 'FAILED' || st === 'FAILED') {
+        resolved = 'FAILED';
+      } else if (ds === 'READY') {
+        resolved = expired ? 'EXPIRED' : 'READY';
       } else if (ds === 'BUILDING' || gs === 'BUILDING' || st === 'BUILDING') {
         resolved = 'BUILDING';
       } else if (ds === 'QUEUED' || gs === 'QUEUED' || st === 'QUEUED') {
         resolved = 'QUEUED';
-      } else if (ds === 'FAILED' || gs === 'FAILED' || st === 'FAILED') {
-        resolved = 'FAILED';
-      } else if (ds === 'UNAVAILABLE' || gs === 'UNAVAILABLE') {
-        resolved = 'UNAVAILABLE';
       } else {
         resolved = ds || gs || st || 'NOT_REQUESTED';
       }
@@ -245,7 +245,7 @@ export function TripTransitTab({
     void run();
 
     let interval: NodeJS.Timeout | null = null;
-    if (['BUILDING', 'QUEUED', 'CHECKING'].includes(transitStatus) || isDownloading) {
+    if (['BUILDING', 'QUEUED'].includes(transitStatus) || isDownloading) {
       interval = setInterval(() => {
         if (!isCancelled) void fetchAvailability();
       }, 3000);
@@ -271,6 +271,8 @@ export function TripTransitTab({
     window.addEventListener('paladio:transit_tiles_ready', onTransitUpdate);
     window.addEventListener('paladio:transit_derivation_ready', onTransitUpdate);
     window.addEventListener('paladio:transit_compile_failed', onTransitUpdate);
+    window.addEventListener('paladio:transit_derivation_failed', onTransitUpdate);
+    window.addEventListener('paladio:transit_unavailable', onTransitUpdate);
 
     return () => {
       window.removeEventListener('paladio:transit_event', onTransitUpdate);
@@ -278,6 +280,8 @@ export function TripTransitTab({
       window.removeEventListener('paladio:transit_tiles_ready', onTransitUpdate);
       window.removeEventListener('paladio:transit_derivation_ready', onTransitUpdate);
       window.removeEventListener('paladio:transit_compile_failed', onTransitUpdate);
+      window.removeEventListener('paladio:transit_derivation_failed', onTransitUpdate);
+      window.removeEventListener('paladio:transit_unavailable', onTransitUpdate);
     };
   }, [fetchAvailability, destinationCity]);
 
@@ -395,11 +399,16 @@ export function TripTransitTab({
   };
 
   const handleTriggerDownload = async () => {
-    if (!destinationCity) return;
+    if (!destinationCity || transitStatus === 'UNAVAILABLE') return;
     setIsDownloading(true);
     setTransitStatus('BUILDING');
     try {
-      await triggerGtfsCompileApi(destinationCity);
+      const res = await triggerGtfsCompileApi(destinationCity);
+      if (res?.status === 'unavailable') {
+        setTransitStatus('UNAVAILABLE');
+        notify.info('Transit Unavailable', res.message || `No GTFS schedule exists for ${destinationCity}.`);
+        return;
+      }
       await fetchAvailability();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to start transit download';
@@ -904,6 +913,118 @@ export function TripTransitTab({
               Retrieving lines, routes, and station stops for {destinationCity}...
             </div>
           </div>
+        </div>
+      ) : transitStatus === 'UNAVAILABLE' ? (
+        <div
+          data-testid="transit-unavailable-card"
+          style={{
+            padding: '24px 16px',
+            borderRadius: '12px',
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-surface-card)',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--color-danger, #EF4444)',
+            }}
+          >
+            <CompassIcon size={24} />
+          </div>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              Transit Feed Unavailable
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px', lineHeight: 1.4 }}>
+              A public transit GTFS schedule does not exist or could not be fetched for {destinationCity}. Point-to-point transit directions remain active via Transitous, but schedule lines and station stops cannot be downloaded.
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled
+            data-testid="transit-unavailable-button"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-surface-sunken, rgba(0,0,0,0.05))',
+              color: 'var(--color-text-muted)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'not-allowed',
+              opacity: 0.6,
+            }}
+          >
+            Feed Unavailable
+          </button>
+        </div>
+      ) : transitStatus === 'FAILED' ? (
+        <div
+          data-testid="transit-failed-card"
+          style={{
+            padding: '24px 16px',
+            borderRadius: '12px',
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-surface-card)',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              background: 'rgba(245, 158, 11, 0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--color-warning, #F59E0B)',
+            }}
+          >
+            <CompassIcon size={24} />
+          </div>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              Download or Derivation Failed
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px', lineHeight: 1.4 }}>
+              Processing transit data for {destinationCity} encountered an error. You can retry the download.
+            </div>
+          </div>
+          <button
+            type="button"
+            data-testid="transit-retry-button"
+            onClick={handleTriggerDownload}
+            disabled={isDownloading}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'var(--color-accent-primary)',
+              color: '#FFFFFF',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: isDownloading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {isDownloading ? 'Retrying...' : 'Retry Download'}
+          </button>
         </div>
       ) : !['READY', 'EXPIRED'].includes(transitStatus) ? (
         <div style={{ padding: '24px 16px', borderRadius: '12px', border: '1px solid var(--color-border)', background: 'var(--color-surface-card)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>

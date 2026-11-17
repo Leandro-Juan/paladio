@@ -334,6 +334,168 @@ test.describe('Trip Workspace Renovated Components', () => {
     const day1Path = updatedItinerary.days[0].itinerary.path;
     expect(day1Path.some((s: any) => s.poi?.name === 'Tokyo Tower')).toBe(true);
   });
+
+  test('TripUnifiedSidebar hides day add/remove buttons and POI blue outlines outside edit mode', async ({ mount }) => {
+    const mockDays: DayOutput[] = [
+      {
+        day: 1,
+        theme: 'Arrival & Old Town',
+        itinerary: {
+          path: [
+            {
+              poi: { id: 'hotel-1', name: 'Hotel Grand Central', category: 'hotel' },
+              arrival_time: 540,
+              departure_time: 600,
+            } as any,
+            {
+              poi: { id: 'p1', name: 'Sagrada Familia', category: 'monument' },
+              arrival_time: 620,
+              departure_time: 700,
+            } as any,
+          ],
+        },
+      },
+      { day: 2, theme: 'Museums & Art', itinerary: { path: [] } },
+    ];
+
+    // 1. Mount outside edit mode (isEditMode = false)
+    const component = await mount(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Barcelona"
+        days={mockDays}
+        selectedDay={1}
+        onSelectDay={() => {}}
+        onAddDay={() => {}}
+        onRemoveDay={() => {}}
+        hotelAnchor={{ name: 'Hotel Grand Central', lat: 41.3851, lng: 2.1734 }}
+        isEditMode={false}
+      />
+    );
+
+    // Verify + and - buttons are NOT rendered outside edit mode
+    await expect(component.getByTestId('add-day-tab-btn')).toHaveCount(0);
+    await expect(component.getByTestId('remove-day-tab-1')).toHaveCount(0);
+    await expect(component.getByTestId('remove-day-tab-2')).toHaveCount(0);
+
+    // Verify hotel stop card does not have blue outline (2px #2563EB) outside edit mode
+    const hotelCard = component.getByTestId('poi-stop-card-hotel-1');
+    await expect(hotelCard).toBeVisible();
+    await expect(hotelCard).not.toHaveCSS('border-color', 'rgb(37, 99, 235)');
+
+    // 2. Re-mount with isEditMode = true
+    await component.update(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Barcelona"
+        days={mockDays}
+        selectedDay={1}
+        onSelectDay={() => {}}
+        onAddDay={() => {}}
+        onRemoveDay={() => {}}
+        hotelAnchor={{ name: 'Hotel Grand Central', lat: 41.3851, lng: 2.1734 }}
+        isEditMode={true}
+      />
+    );
+
+    // Verify + and - buttons are now visible in edit mode
+    await expect(component.getByTestId('add-day-tab-btn')).toBeVisible();
+    await expect(component.getByTestId('remove-day-tab-1')).toBeVisible();
+    await expect(component.getByTestId('remove-day-tab-2')).toBeVisible();
+
+    // Verify hotel stop card (anchor/fixed) now has blue outline (#2563EB) in edit mode
+    await expect(hotelCard).toHaveCSS('border-color', 'rgb(37, 99, 235)');
+  });
+
+  test('TripUnifiedSidebar displays Download POIs Database button when city POI database is erased and shows spinner on click', async ({ mount, page }) => {
+    test.setTimeout(30000);
+
+    // Mock /pois/search to return city_total_pois: 0
+    await page.route('**/api/pois/search*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          city: 'Bangkok',
+          query: '',
+          search_type: 'recommendations',
+          exact_match_found: false,
+          results: [],
+          total: 0,
+          city_total_pois: 0,
+          is_hydrating: false,
+        }),
+      });
+    });
+
+    // Mock /pois/city/Bangkok/download
+    await page.route('**/api/pois/city/*/download', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'initiated',
+          city: 'Bangkok',
+          task_id: 'test-download-task',
+          message: 'POI database download initiated for Bangkok.',
+        }),
+      });
+    });
+
+    // Mock status endpoint
+    await page.route('**/api/pois/city/*/status', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          city: 'Bangkok',
+          poi_count: 0,
+          is_hydrating: false,
+        }),
+      });
+    });
+
+    const mockDays: DayOutput[] = [
+      {
+        day: 1,
+        theme: 'Arrival',
+        itinerary: { path: [] },
+      },
+    ];
+
+    const component = await mount(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Bangkok"
+        days={mockDays}
+        selectedDay="all"
+        onSelectDay={() => {}}
+      />
+    );
+
+    // Switch to Search tab
+    await component.getByRole('button', { name: 'Search', exact: true }).click();
+
+    // Verify Download POI Database card and button appear
+    const downloadCard = component.getByTestId('poi-database-download-card');
+    await expect(downloadCard).toBeVisible();
+    await expect(component.getByText('POI Database Required')).toBeVisible();
+
+    const downloadBtn = component.getByTestId('download-pois-database-btn');
+    await expect(downloadBtn).toBeVisible();
+    await expect(downloadBtn).toHaveText(/Download POIs Database/i);
+
+    // Click download button
+    await downloadBtn.click();
+
+    // Verify spinner and downloading state appear
+    const spinnerState = component.getByTestId('download-pois-spinner');
+    await expect(spinnerState).toBeVisible();
+    await expect(spinnerState).toHaveText(/Downloading POIs? database for Bangkok/i);
+  });
 });
 
 

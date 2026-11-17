@@ -446,17 +446,20 @@ function InteractiveSpatialCircleLayer({
     }
   }, [spatialCircle.lat, spatialCircle.lng, spatialCircle.radiusMeters]);
 
-  // Safely close popups and tooltips on unmount so Leaflet never processes events on detached DOM nodes
+  // Safely close popups and tooltips on unmount only if marker is still attached to a map
   useEffect(() => {
+    const centerRef = centerMarkerRef;
+    const handleRef = handleMarkerRef;
     return () => {
       try {
-        if (centerMarkerRef.current) {
-          centerMarkerRef.current.closePopup();
+        const cm = centerRef.current as (L.Marker & { _map?: unknown }) | null;
+        if (cm && cm._map && cm.isPopupOpen()) {
+          cm.closePopup();
         }
-        if (handleMarkerRef.current) {
-          handleMarkerRef.current.closeTooltip();
+        const hm = handleRef.current as (L.Marker & { _map?: unknown }) | null;
+        if (hm && hm._map && hm.isTooltipOpen()) {
+          hm.closeTooltip();
         }
-        map.closePopup();
       } catch {
         // ignore unmount cleanup errors
       }
@@ -566,17 +569,7 @@ function InteractiveSpatialCircleLayer({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  try {
-                    if (centerMarkerRef.current) {
-                      centerMarkerRef.current.closePopup();
-                    }
-                    map.closePopup();
-                  } catch {
-                    // ignore
-                  }
-                  window.setTimeout(() => {
-                    onClearSpatialCircle();
-                  }, 0);
+                  onClearSpatialCircle();
                 }}
                 style={{
                   marginTop: '6px',
@@ -2532,7 +2525,34 @@ export default function TripMapView({
               />
             )}
           </>
-        ) : allDaysHoveredPolyline ? (
+        ) : (
+          <>
+            {days.map((dayData) => {
+              const positions = (dayData.pois || [])
+                .filter((p) => typeof p.lat === 'number' && !isNaN(p.lat) && typeof p.lng === 'number' && !isNaN(p.lng))
+                .map((p) => [p.lat, p.lng] as [number, number]);
+              if (positions.length < 2) return null;
+              const isHighlighted = effectiveDisplayedHoveredDay === dayData.dayNumber;
+              const isDimmed = effectiveDisplayedHoveredDay !== null && !isHighlighted;
+              return (
+                <Polyline
+                  key={`all-day-poly-d${dayData.dayNumber}`}
+                  positions={positions}
+                  pathOptions={{
+                    color: getDayColor(dayData.dayNumber),
+                    weight: isHighlighted ? 4 : 3,
+                    opacity: isDimmed ? 0.25 : 0.9,
+                    className: 'paladio-polyline-fade-in',
+                  }}
+                  eventHandlers={{
+                    mouseover: () => handleDayHoverStart(dayData.dayNumber),
+                    mouseout: () => handleDayHoverEnd(),
+                    click: () => onDayChange(dayData.dayNumber),
+                  }}
+                />
+              );
+            })}
+            {allDaysHoveredPolyline ? (
           <Polyline
             key={`all-hover-poly-d${allDaysHoveredPolyline.dayNumber}-${isHoverExiting ? 'exit' : 'enter'}`}
             positions={allDaysHoveredPolyline.positions}
@@ -2617,6 +2637,8 @@ export default function TripMapView({
             })()}
           </Polyline>
         ) : null}
+          </>
+        )}
 
         {/* 4. Hotel Base Camp Anchor Marker (Only in single day view, if not already in day waypoints) */}
         {activeDay !== 'all' && hotel && typeof hotel.lat === 'number' && !isNaN(hotel.lat) && !activeDayData?.pois?.some((p) => isPlaceMatch(p, hotel)) && (() => {
@@ -2702,11 +2724,11 @@ export default function TripMapView({
           );
         })()}
 
-        {/* 6. Waypoint Markers (Rendered for active day, or only for hovered polygon in ALL DAYS mode) */}
+        {/* 6. Waypoint Markers (Rendered for active day, or all/hovered day in ALL DAYS mode) */}
         {(() => {
           const isAllDays = activeDay === 'all';
           const daysToRender = isAllDays
-            ? (effectiveDisplayedHoveredDay !== null ? days.filter((d) => d.dayNumber === effectiveDisplayedHoveredDay) : [])
+            ? (effectiveDisplayedHoveredDay !== null ? days.filter((d) => d.dayNumber === effectiveDisplayedHoveredDay) : days)
             : days.filter((d) => d.dayNumber === activeDay);
           if (!daysToRender || daysToRender.length === 0) return null;
 

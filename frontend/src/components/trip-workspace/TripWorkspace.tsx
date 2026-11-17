@@ -6,6 +6,8 @@ import { Trip, useTrips } from '@/hooks/useTrips';
 import { OptimizationResult, DayOutput, RouteItineraryData, PoiDetail, TripPhotoItem } from '@/types/domain';
 import { PoiCategoryType } from '@/utils/poiCategory';
 import { getScheduledPoiTimes } from '@/utils/date';
+import { apiFetch } from '@/utils/api';
+import { hydrateDayTransitIndices } from '@/utils/transitFetch';
 import { notify } from '@/utils/notify';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 
@@ -182,6 +184,191 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     [trip.id, updateTrip]
   );
 
+  const computeEndDate = useCallback((startDateStr: string | undefined, dayCount: number): string | undefined => {
+    if (!startDateStr || dayCount < 1) return undefined;
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(startDateStr);
+    if (!match) return undefined;
+    const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+    date.setUTCDate(date.getUTCDate() + dayCount - 1);
+    return date.toISOString().slice(0, 10);
+  }, []);
+
+  const handleAddDay = useCallback(() => {
+    const cloned: RouteItineraryData = currentItinerary
+      ? JSON.parse(JSON.stringify(currentItinerary))
+      : { days: [] };
+    if (!Array.isArray(cloned.days)) cloned.days = [];
+
+    const nextDayNum = cloned.days.length + 1;
+
+    // Resolve trip hotel anchor from existing days or travel constraints so first & last POIs are the hotel
+    let hotelLat: number | undefined;
+    let hotelLng: number | undefined;
+    let hotelStartName = 'Hotel (Start)';
+    let hotelEndName = 'Hotel (End)';
+    let hotelBaseId = `hotel-day-${nextDayNum}`;
+
+    for (const d of cloned.days) {
+      const firstStop = d.itinerary?.path?.[0]?.poi;
+      const cat = (firstStop?.category || '').toUpperCase();
+      const nm = (firstStop?.name || '').toLowerCase();
+      if (firstStop && (cat === 'HOTEL' || nm.includes('hotel'))) {
+        hotelLat = firstStop.location?.latitude ?? (firstStop as unknown as { lat?: number })?.lat;
+        hotelLng = firstStop.location?.longitude ?? (firstStop as unknown as { lng?: number })?.lng;
+        if (firstStop.name) {
+          hotelStartName = firstStop.name;
+          hotelEndName = firstStop.name.includes('(Start)')
+            ? firstStop.name.replace('(Start)', '(End)')
+            : firstStop.name;
+        }
+        if (firstStop.id) hotelBaseId = String(firstStop.id);
+        break;
+      }
+    }
+
+    if (typeof hotelLat !== 'number' || typeof hotelLng !== 'number') {
+      const hInfo = (cloned as unknown as { hotel?: { name?: string; location?: { latitude?: number; longitude?: number }; lat?: number; lng?: number } })?.hotel ||
+        (cloned as unknown as { travel_constraints?: { hotel?: { name?: string; location?: { latitude?: number; longitude?: number }; lat?: number; lng?: number } } })?.travel_constraints?.hotel;
+      if (hInfo) {
+        hotelLat = hInfo.lat ?? hInfo.location?.latitude;
+        hotelLng = hInfo.lng ?? hInfo.location?.longitude;
+        if (hInfo.name) {
+          hotelStartName = hInfo.name;
+          hotelEndName = hInfo.name;
+        }
+      }
+    }
+
+    type RouteDayPath = NonNullable<NonNullable<NonNullable<RouteItineraryData['days']>[number]['itinerary']>['path']>;
+    const initialPath: RouteDayPath =
+      typeof hotelLat === 'number' && typeof hotelLng === 'number' && !isNaN(hotelLat) && !isNaN(hotelLng)
+        ? [
+            {
+              poi: {
+                id: hotelBaseId,
+                name: hotelStartName,
+                city: trip.destination,
+                category: 'HOTEL',
+                location: { latitude: hotelLat, longitude: hotelLng },
+                duration_mins: 0,
+                cost_eur: 0,
+              },
+              scheduled_start: '08:00',
+              scheduled_end: '08:00',
+              locked: true,
+              is_fixed: true,
+            } as unknown as RouteDayPath[number],
+            {
+              poi: {
+                id: `${hotelBaseId}-end`,
+                name: hotelEndName,
+                city: trip.destination,
+                category: 'HOTEL',
+                location: { latitude: hotelLat, longitude: hotelLng },
+                duration_mins: 0,
+                cost_eur: 0,
+              },
+              scheduled_start: '21:00',
+              scheduled_end: '21:00',
+              locked: true,
+              is_fixed: true,
+            } as unknown as RouteDayPath[number],
+          ]
+        : [];
+
+    cloned.days.push({ day: nextDayNum, itinerary: { path: initialPath } });
+
+    setCurrentItinerary(cloned);
+    setSelectedDay(nextDayNum);
+
+    if (trip.id) {
+      const nextEndDate = computeEndDate(trip.start_date, cloned.days.length);
+      updateTrip(trip.id, {
+        itinerary_data: cloned as unknown as Record<string, unknown>,
+        ...(nextEndDate ? { end_date: nextEndDate } : {}),
+      }).then(() => {
+        onTripUpdated?.();
+      });
+    }
+    notify.success('Day Added', `Added Day ${nextDayNum} to the trip.`);
+  }, [currentItinerary, trip.id, trip.destination, trip.start_date, computeEndDate, updateTrip, onTripUpdated]);
+
+  const handleRemoveDay = useCallback((dayNumArg?: number) => {
+    if (!currentItinerary || !Array.isArray(currentItinerary.days) || currentItinerary.days.length <= 1) {
+      notify.info('Cannot Remove Day', 'A trip must have at least 1 day.');
+      return;
+    }
+
+    const cloned: RouteItineraryData = JSON.parse(JSON.stringify(currentItinerary));
+    const daysArr = cloned.days || [];
+    const targetDayNum = typeof dayNumArg === 'number'
+      ? dayNumArg
+      : typeof selectedDay === 'number'
+      ? selectedDay
+      : daysArr.length;
+    const removeIdx = daysArr.findIndex((d, idx) => (d.day ?? idx + 1) === targetDayNum);
+    const idxToRemove = removeIdx >= 0 ? removeIdx : daysArr.length - 1;
+    const removedDayNum = daysArr[idxToRemove]?.day ?? idxToRemove + 1;
+
+    daysArr.splice(idxToRemove, 1);
+    daysArr.forEach((d, idx) => {
+      d.day = idx + 1;
+    });
+    cloned.days = daysArr;
+
+    setCurrentItinerary(cloned);
+    if (typeof selectedDay === 'number') {
+      if (selectedDay === removedDayNum) {
+        setSelectedDay(Math.min(removedDayNum, daysArr.length));
+      } else if (selectedDay > removedDayNum) {
+        setSelectedDay(selectedDay - 1);
+      }
+    }
+
+    if (trip.id) {
+      const nextEndDate = computeEndDate(trip.start_date, daysArr.length);
+      updateTrip(trip.id, {
+        itinerary_data: cloned as unknown as Record<string, unknown>,
+        ...(nextEndDate ? { end_date: nextEndDate } : {}),
+      }).then(() => {
+        onTripUpdated?.();
+      });
+    }
+    notify.info('Day Removed', `Removed Day ${removedDayNum}. Remaining days renumbered (1–${daysArr.length}).`);
+  }, [currentItinerary, selectedDay, trip.id, trip.start_date, computeEndDate, updateTrip, onTripUpdated]);
+
+  const handleReorderDays = useCallback((fromDayNum: number, toDayNum: number) => {
+    if (fromDayNum === toDayNum || !currentItinerary || !Array.isArray(currentItinerary.days)) return;
+    const cloned: RouteItineraryData = JSON.parse(JSON.stringify(currentItinerary));
+    const daysArr = cloned.days || [];
+    const fromIdx = daysArr.findIndex((d, idx) => (d.day ?? idx + 1) === fromDayNum);
+    const toIdx = daysArr.findIndex((d, idx) => (d.day ?? idx + 1) === toDayNum);
+    if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+
+    const [moved] = daysArr.splice(fromIdx, 1);
+    daysArr.splice(toIdx, 0, moved);
+    daysArr.forEach((d, idx) => {
+      d.day = idx + 1;
+    });
+    cloned.days = daysArr;
+
+    setCurrentItinerary(cloned);
+    if (selectedDay === fromDayNum) {
+      setSelectedDay(toIdx + 1);
+    } else if (selectedDay === toDayNum) {
+      setSelectedDay(toIdx > fromIdx ? selectedDay - 1 : selectedDay + 1);
+    }
+
+    if (trip.id) {
+      updateTrip(trip.id, {
+        itinerary_data: cloned as unknown as Record<string, unknown>,
+      }).then(() => {
+        onTripUpdated?.();
+      });
+    }
+    notify.success('Days Reordered', `Moved Day ${fromDayNum} to Day ${toIdx + 1}.`);
+  }, [currentItinerary, selectedDay, trip.id, updateTrip, onTripUpdated]);
+
   const handleReoptimizeDay = useCallback(async () => {
     if (isReoptimizing) return;
     if (!trip.id) {
@@ -322,6 +509,40 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       daysOutput: daysOutputList,
     };
   }, [itinerary]);
+
+  const [resolvedAirportAnchor, setResolvedAirportAnchor] = useState<{ name: string; lat: number; lng: number } | undefined>(undefined);
+
+  useEffect(() => {
+    if (airport) {
+      return;
+    }
+    const tc = (itinerary as unknown as { travel_constraints?: { destination_iata?: string } })?.travel_constraints;
+    const q = tc?.destination_iata || trip.destination;
+    if (!q) return;
+    let cancelled = false;
+    apiFetch<Array<{ display_airport?: string; airport_name?: string; airport_iata?: string; latitude?: number; longitude?: number }>>(
+      `/locations/search?q=${encodeURIComponent(q)}&limit=1`
+    )
+      .then((rows) => {
+        if (cancelled || !Array.isArray(rows) || rows.length === 0) return;
+        const first = rows[0];
+        if (typeof first.latitude === 'number' && typeof first.longitude === 'number') {
+          setResolvedAirportAnchor({
+            name: first.display_airport || first.airport_name || `${q} Airport`,
+            lat: first.latitude,
+            lng: first.longitude,
+          });
+        }
+      })
+      .catch(() => {
+        // ignore airport lookup errors
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [airport, itinerary, trip.destination]);
+
+  const effectiveAirport = airport || resolvedAirportAnchor;
 
   const handlePlaceClick = useCallback((place: PlaceItem) => {
     shouldFocusInspectedPoiRef.current = true;
@@ -604,14 +825,31 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         scheduled_start: '10:00',
         scheduled_end: '11:00',
       };
-      targetDay.itinerary.path.push(newStop);
+      const pathArr = targetDay.itinerary.path;
+      const lastPoi = pathArr[pathArr.length - 1]?.poi;
+      const lastCat = (lastPoi?.category || '').toUpperCase();
+      const lastName = (lastPoi?.name || '').toLowerCase();
+      const insertIdx =
+        pathArr.length >= 2 && (lastCat === 'HOTEL' || lastName.includes('hotel'))
+          ? pathArr.length - 1
+          : pathArr.length;
+      pathArr.splice(insertIdx, 0, newStop);
       setCurrentItinerary(cloned);
       if (trip.id) {
         updateTrip(trip.id, { itinerary_data: cloned as unknown as Record<string, unknown> });
       }
+      void hydrateDayTransitIndices(cloned, dayNum, [insertIdx, insertIdx + 1], trip.destination || '', trip.id).then(
+        (hydrated) => {
+          if (!hydrated) return;
+          setCurrentItinerary(hydrated);
+          if (trip.id) {
+            updateTrip(trip.id, { itinerary_data: hydrated as unknown as Record<string, unknown> });
+          }
+        }
+      );
       notify.success(
         'Place Added to Itinerary',
-        `Added "${poi.name}" to Day ${dayNum}. Click Re-Optimize Route to recalculate.`
+        `Added "${poi.name}" to Day ${dayNum}. Fetching transit route...`
       );
     },
     [currentItinerary, trip.destination, trip.id, updateTrip]
@@ -708,7 +946,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           <TripMapLoader
             days={mapDays}
             hotel={hotel}
-            airport={airport}
+            airport={effectiveAirport}
             activeDay={selectedDay}
             onDayChange={handleSelectDay}
             focusedPlace={focusedPlace}
@@ -765,11 +1003,14 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onPlaceClick={handlePlaceClick}
             onCategoryPoisChange={handleCategoryPoisChange}
             hotelAnchor={hotel}
-            airportAnchor={airport}
+            airportAnchor={effectiveAirport}
             onInspectPoi={handleInspectPoi}
             inspectedPoiId={inspectedPoiId}
             onCloseInspect={handleCloseInspect}
             onAddToDay={handleAddPoiToDay}
+            onAddDay={handleAddDay}
+            onRemoveDay={handleRemoveDay}
+            onReorderDays={handleReorderDays}
             onFocusFromInspector={handleFocusFromDrawer}
             availableDays={daysOutput.map((d) => d.day)}
             initialDay={typeof selectedDay === 'number' ? selectedDay : 1}

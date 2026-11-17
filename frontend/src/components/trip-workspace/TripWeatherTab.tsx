@@ -422,6 +422,17 @@ export function TripWeatherTab({
           throw new Error('Meteorological provider returned empty daily forecast data.');
         }
 
+        const formatSunTime = (isoStr: string | undefined, fallbackLabel: string): string => {
+          if (!isoStr || !isoStr.includes('T')) return fallbackLabel;
+          const timePart = isoStr.split('T')[1];
+          const [hStr, mStr] = (timePart || '').split(':');
+          const hour = Number(hStr);
+          if (Number.isNaN(hour) || !mStr) return fallbackLabel;
+          const amPm = hour < 12 ? 'AM' : 'PM';
+          const h12 = hour % 12 || 12;
+          return `${h12}:${mStr.slice(0, 2)} ${amPm}`;
+        };
+
         const days: WeatherDayForecast[] = times.map((t: string, i: number) => {
           const code = fJson.daily?.weather_code?.[i] || 0;
           const dObj = new Date(t);
@@ -440,11 +451,11 @@ export function TripWeatherTab({
               wind_speed_kmh: Math.round(fJson.daily?.wind_speed_10m_max?.[i] || 8),
               wind_direction_deg: fJson.daily?.wind_direction_10m_dominant?.[i] || 240,
               wind_direction_cardinal: 'WSW',
-              sunrise: '6:35 AM',
-              sunset: '5:42 PM',
-              humidity_pct: 58,
+              sunrise: formatSunTime(fJson.daily?.sunrise?.[i], '06:30 AM'),
+              sunset: formatSunTime(fJson.daily?.sunset?.[i], '06:30 PM'),
+              humidity_pct: Math.round(fJson.current?.relative_humidity_2m ?? 58),
               humidity_status: 'Normal',
-              visibility_km: 10.0,
+              visibility_km: Number(((fJson.current?.visibility ?? 10000) / 1000).toFixed(1)),
               visibility_status: 'Clear',
               aqi: 42,
               aqi_status: 'Good',

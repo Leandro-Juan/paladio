@@ -11,6 +11,10 @@ export interface PaladioEvent {
   message?: string;
   city?: string;
   city_name?: string;
+  city_id?: string;
+  stage?: string;
+  raw_count?: number;
+  progress?: number;
   trip_id?: string;
 }
 
@@ -451,6 +455,32 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         }
         break;
       }
+      case 'TRANSIT_DERIVATION_FAILED': {
+        const cityName = payload.city_name || payload.city || 'City';
+        addLog(`> [TRANSIT] Transit derivation failed for ${cityName}.`);
+        notify.error(
+          'Transit Derivation Failed',
+          `Derivation of transit lines for ${cityName} encountered an error.`
+        );
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:transit_derivation_failed', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:transit_event', { detail: payload }));
+        }
+        break;
+      }
+      case 'TRANSIT_UNAVAILABLE': {
+        const cityName = payload.city_name || payload.city || 'City';
+        addLog(`> [TRANSIT] No GTFS transit schedule available for ${cityName}.`);
+        notify.info(
+          'Transit Feed Unavailable',
+          `No public transit GTFS schedule exists for ${cityName}. Point-to-point transit directions remain active via Transitous.`
+        );
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:transit_unavailable', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:transit_event', { detail: payload }));
+        }
+        break;
+      }
       case 'TRANSIT_DELETED': {
         const cityName = payload.city_name || payload.city || 'City';
         addLog(`> [TRANSIT] GTFS transit data deleted / stopped for ${cityName}.`);
@@ -461,6 +491,56 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('paladio:transit_deleted', { detail: payload }));
           window.dispatchEvent(new CustomEvent('paladio:transit_event', { detail: payload }));
+        }
+        break;
+      }
+      case 'HYDRATION_STARTED': {
+        const cityName = payload.city_name || payload.city || 'City';
+        addLog(`> [POI HYDRATION] Database download initiated for ${cityName}...`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:city_hydration_started', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:city_hydration_event', { detail: payload }));
+        }
+        break;
+      }
+      case 'HYDRATION_STAGE_STARTED': {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:city_hydration_stage_started', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:city_hydration_event', { detail: payload }));
+        }
+        break;
+      }
+      case 'HYDRATION_STAGE_COMPLETED': {
+        const cityName = payload.city_name || payload.city || 'City';
+        if (payload.stage === 'INGESTING') {
+          addLog(`> [POI HYDRATION] ${payload.raw_count || 'Venues'} POIs ingested for ${cityName}.`);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('paladio:city_hydration_completed', { detail: payload }));
+          }
+        }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:city_hydration_stage_completed', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:city_hydration_event', { detail: payload }));
+        }
+        break;
+      }
+      case 'HYDRATION_COMPLETED': {
+        const cityName = payload.city_name || payload.city || 'City';
+        addLog(`> [POI HYDRATION] Database download & indexing complete for ${cityName}.`);
+        notify.success('POI Database Ready', `POI database for ${cityName} has finished downloading and indexing.`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:city_hydration_completed', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:city_hydration_event', { detail: payload }));
+        }
+        break;
+      }
+      case 'HYDRATION_FAILED': {
+        const cityName = payload.city_name || payload.city || 'City';
+        addLog(`> [POI HYDRATION] Download failed for ${cityName}.`);
+        notify.error('POI Download Failed', `Downloading POI database for ${cityName} encountered an error.`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:city_hydration_failed', { detail: payload }));
+          window.dispatchEvent(new CustomEvent('paladio:city_hydration_event', { detail: payload }));
         }
         break;
       }

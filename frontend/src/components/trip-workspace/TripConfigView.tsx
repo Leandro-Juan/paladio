@@ -80,6 +80,18 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
   const [hotelAddress, setHotelAddress] = useState(itin.hotel?.address || '');
   const [hotelLat, setHotelLat] = useState<number | undefined>(itin.hotel?.lat);
   const [hotelLng, setHotelLng] = useState<number | undefined>(itin.hotel?.lng);
+  const [hotelCheckInDate, setHotelCheckInDate] = useState(
+    itin.hotel?.check_in_date || travelConstraints.hotel?.check_in_date || trip.start_date || ''
+  );
+  const [hotelCheckOutDate, setHotelCheckOutDate] = useState(
+    itin.hotel?.check_out_date || travelConstraints.hotel?.check_out_date || trip.end_date || ''
+  );
+  const [hotelCheckInHour, setHotelCheckInHour] = useState(
+    itin.hotel?.check_in_time || travelConstraints.hotel?.check_in_time || '15:00'
+  );
+  const [hotelCheckOutHour, setHotelCheckOutHour] = useState(
+    itin.hotel?.check_out_time || travelConstraints.hotel?.check_out_time || '11:00'
+  );
   const setHotelInfo = (
     name: string,
     extra?: { address?: string; lat?: number; lng?: number }
@@ -254,8 +266,10 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
               address: hotelAddress || undefined,
               lat: hotelLat,
               lng: hotelLng,
-              check_in_time: '15:00',
-              check_out_time: '11:00',
+              check_in_date: hotelCheckInDate || startDate || undefined,
+              check_in_time: hotelCheckInHour || '15:00',
+              check_out_date: hotelCheckOutDate || endDate || undefined,
+              check_out_time: hotelCheckOutHour || '11:00',
             }
           : undefined,
       };
@@ -277,6 +291,10 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
               address: hotelAddress || undefined,
               lat: hotelLat,
               lng: hotelLng,
+              check_in_date: hotelCheckInDate || startDate || undefined,
+              check_in_time: hotelCheckInHour || '15:00',
+              check_out_date: hotelCheckOutDate || endDate || undefined,
+              check_out_time: hotelCheckOutHour || '11:00',
             }
           : undefined,
       };
@@ -493,6 +511,16 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             hotelLat={hotelLat}
             hotelLng={hotelLng}
             destination={destination}
+            checkInDate={hotelCheckInDate || startDate}
+            checkOutDate={hotelCheckOutDate || endDate}
+            checkInHour={hotelCheckInHour}
+            checkOutHour={hotelCheckOutHour}
+            tripStartDate={startDate}
+            tripEndDate={endDate}
+            onCheckInDateChange={setHotelCheckInDate}
+            onCheckOutDateChange={setHotelCheckOutDate}
+            onCheckInHourChange={setHotelCheckInHour}
+            onCheckOutHourChange={setHotelCheckOutHour}
             onChange={setHotelInfo}
             disabled={isSaving}
           />

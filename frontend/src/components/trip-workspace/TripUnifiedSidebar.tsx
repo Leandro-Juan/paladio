@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { DayOutput, OptimizationResult, ScheduledPoi, PoiDetail } from '@/types/domain';
-import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
+import { classifyPoiCategory, isCategoryMatch, PoiCategoryType, isAirportPoi, isHotelPoi } from '@/utils/poiCategory';
 import { PoiCategoryIcon, PoiCategoryBadge } from '@/components/PoiCategoryBadge';
 import { MinimalistPoiCard } from './MinimalistPoiCard';
 import { TransitRecommendationCard, TransitLegView } from '@/components/TransitLegView';
@@ -15,7 +15,8 @@ import { SaveToCollectionMenu } from './SaveToCollectionMenu';
 import { AddPoiModal } from './AddPoiModal';
 import { Modal } from '@/components/Modal';
 import { useTripCollections } from '@/hooks/useTripCollections';
-import { getApiBaseUrl, getAuthToken } from '@/utils/api';
+import { getApiBaseUrl, getAuthToken, downloadCityPoisApi, fetchCityPoisStatusApi } from '@/utils/api';
+import { hydrateDayTransitIndices } from '@/utils/transitFetch';
 import { notify } from '@/utils/notify';
 import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
@@ -132,6 +133,8 @@ interface PoiSearchResponseData {
   exact_match?: PoiApiItem | null;
   results: PoiApiItem[];
   total?: number | null;
+  city_total_pois?: number | null;
+  is_hydrating?: boolean;
 }
 
 export function isCustomPoi(p: { id?: string; match_type?: string; source?: string; metadata?: any; metadata_field?: any; cost_source?: string }) {
@@ -176,6 +179,9 @@ export interface TripUnifiedSidebarProps {
   inspectedPoiId?: string | null;
   onCloseInspect?: () => void;
   onAddToDay?: (dayNumber: number, poi: PoiDetail) => void;
+  onAddDay?: () => void;
+  onRemoveDay?: (dayNum: number) => void;
+  onReorderDays?: (fromDayNum: number, toDayNum: number) => void;
   onFocusFromInspector?: (poi: {
     lat: number;
     lng: number;
@@ -1220,6 +1226,9 @@ export function TripUnifiedSidebar({
   inspectedPoiId,
   onCloseInspect,
   onAddToDay,
+  onAddDay,
+  onRemoveDay,
+  onReorderDays,
   onFocusFromInspector,
   availableDays = [],
   initialDay = 1,
@@ -1258,10 +1267,13 @@ export function TripUnifiedSidebar({
   const [searchData, setSearchData] = useState<PoiSearchResponseData | null>(null);
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [draggedDayTab, setDraggedDayTab] = useState<number | null>(null);
+  const [dragOverDayTab, setDragOverDayTab] = useState<number | null>(null);
   const [searchErrorMessage, setSearchErrorMessage] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [isAddPoiModalOpen, setIsAddPoiModalOpen] = useState(false);
   const [onlyCustomPois, setOnlyCustomPois] = useState(false);
+  const [isDownloadingPois, setIsDownloadingPois] = useState(false);
 
   const handlePoiCreated = useCallback(
     (newPoi: PoiApiItem) => {
@@ -1603,9 +1615,11 @@ export function TripUnifiedSidebar({
         const catParam = currentCat && currentCat !== 'all' ? `&category=${encodeURIComponent(currentCat)}` : '';
         const tripParam = tripId ? `&trip_id=${encodeURIComponent(tripId)}` : '';
         const dayParam = selectedDay !== 'all' ? `&day=${encodeURIComponent(String(selectedDay))}` : '';
-        const boundsParam = activeDayBounds ? `&bounds=${encodeURIComponent(activeDayBounds)}` : '';
+        // Only apply day spatial territory hints when browsing without an explicit typed query
+        const useDaySpatialHint = !q && !spatialCircle;
+        const boundsParam = useDaySpatialHint && activeDayBounds ? `&bounds=${encodeURIComponent(activeDayBounds)}` : '';
         const hullParam =
-          activeDayHull && activeDayHull.length >= 3
+          useDaySpatialHint && activeDayHull && activeDayHull.length >= 3
             ? `&polygon=${encodeURIComponent(
                 activeDayHull.map(([lat, lng]) => `${lat.toFixed(6)},${lng.toFixed(6)}`).join(';')
               )}`
@@ -1638,6 +1652,18 @@ export function TripUnifiedSidebar({
         // Stale check: ignore response if superseded by a newer search request
         if (reqId !== searchReqSeqRef.current) {
           return;
+        }
+
+        if (!Array.isArray(data.results)) {
+          data.results = [];
+        }
+
+        // Ensure exact_match is included in results list so exact-name queries never show 0 items
+        if (data.exact_match_found && data.exact_match) {
+          const exactId = String(data.exact_match.id);
+          if (!data.results.some((r) => String(r.id) === exactId)) {
+            data.results.unshift(data.exact_match);
+          }
         }
 
         // Inject trip-specific anchors when user queries "hotel" or "airport"
@@ -1695,15 +1721,24 @@ export function TripUnifiedSidebar({
           });
         } else {
           setSearchData(data);
+          if (data.is_hydrating) {
+            setIsDownloadingPois(true);
+          } else if ((data.city_total_pois || 0) > 0) {
+            setIsDownloadingPois(false);
+          }
           if (onCategoryPoisChange && activeTab === 'search' && reqId === searchReqSeqRef.current) {
             onCategoryPoisChange(data.results || []);
           }
         }
       } catch (err: unknown) {
-        if (reqId !== searchReqSeqRef.current) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          if (reqId === searchReqSeqRef.current) {
+            setIsLoadingSearch(false);
+            setIsLoadingMore(false);
+          }
           return;
         }
-        if (err instanceof Error && err.name === 'AbortError') {
+        if (reqId !== searchReqSeqRef.current) {
           return;
         }
         const msg = err instanceof Error ? err.message : 'Error executing POI search';
@@ -1723,6 +1758,76 @@ export function TripUnifiedSidebar({
     const currentOffset = searchData.results.length;
     executeSearch(searchQuery, activeCategory, currentOffset, true);
   }, [isLoadingSearch, isLoadingMore, searchData, searchQuery, activeCategory, executeSearch]);
+
+  const handleDownloadPoiDatabase = useCallback(async () => {
+    if (!destinationCity || isDownloadingPois) return;
+    try {
+      setIsDownloadingPois(true);
+      notify.info('Downloading POIs', `Initiated POI database download for ${destinationCity}...`);
+      await downloadCityPoisApi(destinationCity);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to download POI database';
+      notify.error('Download Failed', msg);
+      setIsDownloadingPois(false);
+    }
+  }, [destinationCity, isDownloadingPois]);
+
+  // Listen for POI hydration events from WebSocket and refresh search once complete
+  useEffect(() => {
+    if (!destinationCity) return;
+    const cleanDest = destinationCity.trim().toLowerCase();
+
+    const handleHydrationEvent = (e: Event) => {
+      const customEvt = e as CustomEvent<{ city?: string; city_name?: string; city_id?: string; stage?: string }>;
+      const eventCity = (customEvt.detail?.city || customEvt.detail?.city_name || customEvt.detail?.city_id || '').toLowerCase();
+      if (!eventCity || cleanDest.includes(eventCity) || eventCity.includes(cleanDest)) {
+        if (e.type === 'paladio:city_hydration_started') {
+          setIsDownloadingPois(true);
+        } else if (e.type === 'paladio:city_hydration_completed') {
+          setIsDownloadingPois(false);
+          void executeSearch(searchQuery, activeCategory);
+        } else if (e.type === 'paladio:city_hydration_failed') {
+          setIsDownloadingPois(false);
+        }
+      }
+    };
+
+    window.addEventListener('paladio:city_hydration_started', handleHydrationEvent);
+    window.addEventListener('paladio:city_hydration_completed', handleHydrationEvent);
+    window.addEventListener('paladio:city_hydration_failed', handleHydrationEvent);
+
+    return () => {
+      window.removeEventListener('paladio:city_hydration_started', handleHydrationEvent);
+      window.removeEventListener('paladio:city_hydration_completed', handleHydrationEvent);
+      window.removeEventListener('paladio:city_hydration_failed', handleHydrationEvent);
+    };
+  }, [destinationCity, executeSearch, searchQuery, activeCategory]);
+
+  // Polling fallback when isDownloadingPois is active
+  useEffect(() => {
+    if (!isDownloadingPois || !destinationCity) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const status = await fetchCityPoisStatusApi(destinationCity);
+        if (status.poi_count > 0 && !status.is_hydrating) {
+          setIsDownloadingPois(false);
+          void executeSearch(searchQuery, activeCategory);
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [isDownloadingPois, destinationCity, executeSearch, searchQuery, activeCategory]);
+
+  const isPoiDatabaseEmpty = Boolean(
+    !isLoadingSearch &&
+    destinationCity &&
+    searchData &&
+    (searchData.city_total_pois === 0 || (searchData.total === 0 && !searchQuery.trim() && activeCategory === 'all'))
+  );
 
   // Sync external categoryFilter
   const [prevCategoryFilter, setPrevCategoryFilter] = useState(categoryFilter);
@@ -1752,6 +1857,8 @@ export function TripUnifiedSidebar({
       searchAbortRef.current.abort();
     }
     searchReqSeqRef.current += 1;
+    setIsLoadingSearch(false);
+    setIsLoadingMore(false);
     const nextFilter = nextCat === 'all' ? null : (nextCat as PoiCategoryType);
     setPrevCategoryFilter(nextFilter);
     setActiveCategory(nextCat);
@@ -1869,8 +1976,53 @@ export function TripUnifiedSidebar({
       });
     }
 
+    // By default in Recommendations ("all" tab, no search query), always surface Hotel (#1) and Airport (#2) first
+    if (!searchQuery.trim() && activeCategory === 'all' && !onlyCustomPois) {
+      const anchorItems: PoiApiItem[] = [];
+      if (hotelAnchor && typeof hotelAnchor.lat === 'number' && typeof hotelAnchor.lng === 'number') {
+        anchorItems.push({
+          id: `trip-hotel-anchor-${tripId || 'hotel'}`,
+          name: hotelAnchor.name,
+          category: 'hotel',
+          lat: hotelAnchor.lat,
+          lng: hotelAnchor.lng,
+          duration_mins: 30,
+          cost_eur: 0,
+          similarity: 1.0,
+          match_type: 'trip_hotel_base',
+          description: `Booked hotel base for ${destinationCity || 'your trip'}`,
+        });
+      }
+      if (airportAnchor && typeof airportAnchor.lat === 'number' && typeof airportAnchor.lng === 'number') {
+        anchorItems.push({
+          id: `trip-airport-anchor-${tripId || 'airport'}`,
+          name: airportAnchor.name,
+          category: 'airport',
+          lat: airportAnchor.lat,
+          lng: airportAnchor.lng,
+          duration_mins: 60,
+          cost_eur: 0,
+          similarity: 1.0,
+          match_type: 'trip_airport_gateway',
+          description: `Gateway airport for ${destinationCity || 'your trip'}`,
+        });
+      }
+      if (anchorItems.length > 0) {
+        const anchorIds = new Set(anchorItems.map((a) => String(a.id).toLowerCase()));
+        const anchorNames = new Set(anchorItems.map((a) => a.name.trim().toLowerCase()));
+        list = [
+          ...anchorItems,
+          ...list.filter(
+            (item) =>
+              !anchorIds.has(String(item.id).toLowerCase()) &&
+              !anchorNames.has(item.name.trim().toLowerCase())
+          ),
+        ];
+      }
+    }
+
     return list;
-  }, [searchData, costRange, durationRange, minRating, onlyCustomPois, sortOption, searchQuery, activeCategory, routePoiIdentifiers, activeDayHull, selectedDay]);
+  }, [searchData, costRange, durationRange, minRating, onlyCustomPois, sortOption, searchQuery, activeCategory, routePoiIdentifiers, activeDayHull, selectedDay, hotelAnchor, airportAnchor, tripId, destinationCity]);
 
   // Displayed days in Route tab
   const displayedDays = useMemo(() => {
@@ -1887,8 +2039,15 @@ export function TripUnifiedSidebar({
       totalDays: number
     ): { isFixed: boolean; isAnchor: boolean; type?: string; label?: string } => {
       const p = scheduledPoi.poi;
-      const isExplicitlyLocked = (scheduledPoi as unknown as { is_fixed?: boolean }).is_fixed === true;
-      const isExplicitlyUnlocked = (scheduledPoi as unknown as { is_fixed?: boolean }).is_fixed === false;
+      const rawItem = scheduledPoi as unknown as { is_fixed?: boolean; locked?: boolean };
+      const rawPoi = p as unknown as { is_fixed?: boolean; locked?: boolean } | undefined;
+      const isExplicitlyLocked =
+        rawItem?.is_fixed === true ||
+        rawItem?.locked === true ||
+        rawPoi?.is_fixed === true ||
+        rawPoi?.locked === true;
+      const isExplicitlyUnlocked =
+        rawItem?.is_fixed === false || rawItem?.locked === false;
 
       const normName = (p?.name || '').toLowerCase();
       const normCat = (p?.category || '').toLowerCase();
@@ -1975,6 +2134,93 @@ export function TripUnifiedSidebar({
     [itinerary, onItineraryUpdate]
   );
 
+  // Parse HH:MM into minutes since midnight for schedule conflict checks
+  const parseTimeToMins = useCallback((val?: string): number | null => {
+    if (!val || val === '--:--') return null;
+    const m = /^(\d{1,2}):(\d{2})/.exec(val.trim());
+    if (!m) return null;
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    if (Number.isNaN(h) || Number.isNaN(min)) return null;
+    return h * 60 + min;
+  }, []);
+
+  const getStopConflict = useCallback(
+    (path: ScheduledPoi[], idx: number): string | null => {
+      const stop = path[idx];
+      if (!stop) return null;
+      const { start, end } = getScheduledPoiTimes(stop);
+      const startMins = parseTimeToMins(start);
+      const endMins = parseTimeToMins(end);
+
+      if (startMins !== null && endMins !== null && endMins < startMins) {
+        return `Exit (${end}) is before entry (${start})`;
+      }
+      if (idx > 0 && startMins !== null) {
+        const prev = path[idx - 1];
+        const { end: prevEnd } = getScheduledPoiTimes(prev);
+        const prevEndMins = parseTimeToMins(prevEnd);
+        const transitMins = stop.transit_from_previous?.duration_mins ?? 0;
+        if (prevEndMins !== null) {
+          if (startMins < prevEndMins) {
+            return `Overlaps previous stop (ends ${prevEnd})`;
+          }
+          if (transitMins > 0 && startMins < prevEndMins + transitMins) {
+            return `Conflicts with ${transitMins}m transit from previous stop (ends ${prevEnd})`;
+          }
+        }
+      }
+      if (idx + 1 < path.length && endMins !== null) {
+        const next = path[idx + 1];
+        const { start: nextStart } = getScheduledPoiTimes(next);
+        const nextStartMins = parseTimeToMins(nextStart);
+        const nextTransitMins = next.transit_from_previous?.duration_mins ?? 0;
+        if (nextStartMins !== null) {
+          if (endMins > nextStartMins) {
+            return `Overlaps next stop (starts ${nextStart})`;
+          }
+          if (nextTransitMins > 0 && endMins + nextTransitMins > nextStartMins) {
+            return `Leaves < ${nextTransitMins}m transit before next stop (${nextStart})`;
+          }
+        }
+      }
+      return null;
+    },
+    [parseTimeToMins]
+  );
+
+  const handleUpdateStopTimes = useCallback(
+    (dayNum: number, poiIdx: number, newStart: string, newEnd: string) => {
+      if (!itinerary || !onItineraryUpdate) return;
+      const clonedItin: OptimizationResult = JSON.parse(JSON.stringify(itinerary));
+      const targetDayObj = clonedItin.days?.find((d) => (d.day ?? 1) === dayNum);
+      const path = targetDayObj?.itinerary?.path;
+      if (!path || !path[poiIdx]) return;
+
+      const stop = path[poiIdx];
+      if (newStart) {
+        stop.scheduled_start = newStart;
+        stop.arrival_time = newStart;
+        const sm = parseTimeToMins(newStart);
+        if (sm !== null) stop.arrival_time_mins = sm;
+      }
+      if (newEnd) {
+        stop.scheduled_end = newEnd;
+        stop.departure_time = newEnd;
+        const em = parseTimeToMins(newEnd);
+        if (em !== null) stop.departure_time_mins = em;
+      }
+
+      onItineraryUpdate(clonedItin);
+
+      const conflict = getStopConflict(path, poiIdx);
+      if (conflict) {
+        notify.warning('Schedule Time Conflict', `${stop.poi?.name || 'Stop'}: ${conflict}`);
+      }
+    },
+    [itinerary, onItineraryUpdate, parseTimeToMins, getStopConflict]
+  );
+
   // Move scheduled waypoint up or down in the route sequence
   const handleMoveStop = useCallback(
     (targetDayNum: number, sourceIdx: number, direction: 'up' | 'down') => {
@@ -1992,12 +2238,19 @@ export function TripUnifiedSidebar({
       path.splice(targetIdx, 0, movedItem);
 
       onItineraryUpdate(clonedItin);
+      const minIdx = Math.min(sourceIdx, targetIdx);
+      const maxIdx = Math.max(sourceIdx, targetIdx);
+      void hydrateDayTransitIndices(clonedItin, targetDayNum, [minIdx, maxIdx, maxIdx + 1], destinationCity, tripId).then(
+        (hydrated) => {
+          if (hydrated) onItineraryUpdate(hydrated);
+        }
+      );
       notify.info('Stop Reordered', `Moved "${movedItem.poi?.name || 'Waypoint'}" to position ${targetIdx + 1}.`);
     },
-    [itinerary, onItineraryUpdate]
+    [itinerary, onItineraryUpdate, destinationCity, tripId]
   );
 
-  // Remove scheduled waypoint from the route (e.g. dropped outside route or collection)
+  // Remove scheduled waypoint from the route (e.g. dropped outside route or collection, or '-' in edit mode)
   const handleRemoveStopFromRoute = useCallback(
     (targetDayNum: number, sourceIdx: number, poiId?: string, poiName?: string) => {
       if (!itinerary || !onItineraryUpdate) return;
@@ -2007,7 +2260,12 @@ export function TripUnifiedSidebar({
 
       const path = targetDayObj.itinerary.path;
       let removeIdx = -1;
-      if (poiId) {
+      if (sourceIdx >= 0 && sourceIdx < path.length) {
+        if (!poiId || path[sourceIdx]?.poi?.id === poiId || path[sourceIdx]?.poi?.name === poiName) {
+          removeIdx = sourceIdx;
+        }
+      }
+      if (removeIdx === -1 && poiId) {
         removeIdx = path.findIndex((item) => item.poi?.id === poiId);
       }
       if (removeIdx === -1 && poiName) {
@@ -2021,11 +2279,16 @@ export function TripUnifiedSidebar({
         const [removedItem] = path.splice(removeIdx, 1);
         if (removedItem) {
           onItineraryUpdate(clonedItin);
+          void hydrateDayTransitIndices(clonedItin, targetDayNum, [removeIdx], destinationCity, tripId).then(
+            (hydrated) => {
+              if (hydrated) onItineraryUpdate(hydrated);
+            }
+          );
           notify.info('Place Removed', `Removed "${removedItem.poi?.name || poiName || 'Waypoint'}" from Day ${targetDayNum}`);
         }
       }
     },
-    [itinerary, onItineraryUpdate]
+    [itinerary, onItineraryUpdate, destinationCity, tripId]
   );
 
   // Drag and drop handlers for Route reordering
@@ -2070,7 +2333,28 @@ export function TripUnifiedSidebar({
             }
             const safeIdx = Math.max(0, Math.min(adjustedTargetIdx, targetDayObj.itinerary.path.length));
             targetDayObj.itinerary.path.splice(safeIdx, 0, movedItem);
+
+            // If an airport is moved to the start of Day 1 and a redundant Hotel (Start) follows it, drop the redundant hotel depot
+            if (safeIdx === 0 && targetDayNum === 1 && isAirportPoi(movedItem.poi) && targetDayObj.itinerary.path.length >= 3) {
+              const nextStop = targetDayObj.itinerary.path[1];
+              const lastStop = targetDayObj.itinerary.path[targetDayObj.itinerary.path.length - 1];
+              const rawNext = nextStop as unknown as { locked?: boolean; is_fixed?: boolean } | undefined;
+              const isLocked = rawNext?.locked === true || rawNext?.is_fixed === true;
+              if (isHotelPoi(nextStop?.poi) && isHotelPoi(lastStop?.poi) && !isLocked) {
+                targetDayObj.itinerary.path.splice(1, 1);
+              }
+            }
+
             onItineraryUpdate(clonedItin);
+            const indicesToHydrate =
+              srcDayNum === targetDayNum
+                ? [Math.min(srcIdx, safeIdx), Math.min(srcIdx, safeIdx) + 1, safeIdx, safeIdx + 1]
+                : [safeIdx, safeIdx + 1];
+            void hydrateDayTransitIndices(clonedItin, targetDayNum, indicesToHydrate, destinationCity, tripId).then(
+              (hydrated) => {
+                if (hydrated) onItineraryUpdate(hydrated);
+              }
+            );
             notify.success('Waypoint Reordered', `Moved stop to Day ${targetDayNum}`);
           }
         } else if (payload.source === 'search' || payload.source === 'inspector' || payload.source === 'map' || payload.source === 'collection') {
@@ -2094,8 +2378,29 @@ export function TripUnifiedSidebar({
             },
           };
           const safeIdx = Math.max(0, Math.min(targetIdx, targetDayObj.itinerary.path.length));
+          const isDroppingAirportAtStart = safeIdx === 0 && targetDayNum === 1 && isAirportPoi(newScheduled.poi);
           targetDayObj.itinerary.path.splice(safeIdx, 0, newScheduled);
+
+          // If inserting an airport as the first stop on Day 1 and a redundant Hotel (Start) follows it, drop the redundant hotel depot
+          if (isDroppingAirportAtStart && targetDayObj.itinerary.path.length >= 3) {
+            const nextStop = targetDayObj.itinerary.path[1];
+            const lastStop = targetDayObj.itinerary.path[targetDayObj.itinerary.path.length - 1];
+            const rawNext = nextStop as unknown as { locked?: boolean; is_fixed?: boolean } | undefined;
+            const isLocked = rawNext?.locked === true || rawNext?.is_fixed === true;
+            if (isHotelPoi(nextStop?.poi) && isHotelPoi(lastStop?.poi) && !isLocked) {
+              if (nextStop.scheduled_start && !newScheduled.scheduled_start) {
+                newScheduled.scheduled_start = nextStop.scheduled_start;
+              }
+              targetDayObj.itinerary.path.splice(1, 1);
+            }
+          }
+
           onItineraryUpdate(clonedItin);
+          void hydrateDayTransitIndices(clonedItin, targetDayNum, [safeIdx, safeIdx + 1], destinationCity, tripId).then(
+            (hydrated) => {
+              if (hydrated) onItineraryUpdate(hydrated);
+            }
+          );
           setJustInserted((prev) => ({ day: targetDayNum, index: safeIdx, key: (prev?.key ?? 0) + 1 }));
           window.setTimeout(() => setJustInserted(null), 800);
           notify.success('Place Added', `Added ${poiName} to Day ${targetDayNum}`);
@@ -2104,7 +2409,7 @@ export function TripUnifiedSidebar({
         console.error('Failed to execute drop:', err);
       }
     },
-    [itinerary, onItineraryUpdate, destinationCity]
+    [itinerary, onItineraryUpdate, destinationCity, tripId]
   );
 
   const handleDrop = (e: React.DragEvent, targetDayNum: number, targetIdx: number) => {
@@ -2609,32 +2914,145 @@ export function TripUnifiedSidebar({
 
                     {days.map((d) => {
                       const isSel = selectedDay === d.day;
+                      const isDragOver = dragOverDayTab === d.day && draggedDayTab !== d.day;
                       return (
-                        <button
+                        <div
                           key={d.day}
-                          type="button"
-                          data-testid={`day-tab-${d.day}`}
-                          onClick={() => onSelectDay(d.day)}
+                          draggable={isEditMode && days.length > 1 && Boolean(onReorderDays)}
+                          onDragStart={(e) => {
+                            if (!isEditMode || days.length <= 1 || !onReorderDays) return;
+                            setDraggedDayTab(d.day);
+                            e.dataTransfer.setData('application/paladio-day', String(d.day));
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onDragOver={(e) => {
+                            if (!isEditMode || draggedDayTab === null || draggedDayTab === d.day) return;
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                            setDragOverDayTab(d.day);
+                          }}
+                          onDragLeave={() => {
+                            if (dragOverDayTab === d.day) setDragOverDayTab(null);
+                          }}
+                          onDrop={(e) => {
+                            if (!isEditMode || draggedDayTab === null) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const fromDay = draggedDayTab;
+                            setDraggedDayTab(null);
+                            setDragOverDayTab(null);
+                            if (fromDay !== d.day) {
+                              onReorderDays?.(fromDay, d.day);
+                            }
+                          }}
+                          onDragEnd={() => {
+                            setDraggedDayTab(null);
+                            setDragOverDayTab(null);
+                          }}
                           style={{
-                            background: 'transparent',
-                            border: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
                             borderBottom: isSel ? '2.5px solid var(--color-accent-primary)' : '2.5px solid transparent',
-                            padding: '6px 4px',
-                            color: isSel ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
-                            fontSize: '12px',
-                            fontWeight: isSel ? 700 : 500,
-                            fontFamily: 'var(--font-mono)',
-                            letterSpacing: '0.04em',
-                            whiteSpace: 'nowrap',
+                            borderLeft: isDragOver ? '2px solid var(--color-accent-primary)' : 'none',
+                            background: isDragOver ? 'rgba(15, 76, 92, 0.08)' : 'transparent',
+                            borderRadius: isDragOver ? '6px 6px 0 0' : 0,
+                            padding: isEditMode ? '0 2px' : '0 6px',
                             flexShrink: 0,
-                            cursor: 'pointer',
+                            opacity: draggedDayTab === d.day ? 0.5 : 1,
+                            cursor: isEditMode && days.length > 1 && onReorderDays ? 'grab' : 'pointer',
                             transition: 'all 0.16s ease',
                           }}
                         >
-                          DAY {d.day}
-                        </button>
+                          <button
+                            type="button"
+                            data-testid={`day-tab-${d.day}`}
+                            onClick={() => onSelectDay(d.day)}
+                            title={isEditMode && days.length > 1 && onReorderDays ? `Day ${d.day} (drag tab to reorder)` : `Day ${d.day}`}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              padding: '6px 2px 6px 4px',
+                              color: isSel ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
+                              fontSize: '12px',
+                              fontWeight: isSel ? 700 : 500,
+                              fontFamily: 'var(--font-mono)',
+                              letterSpacing: '0.04em',
+                              whiteSpace: 'nowrap',
+                              cursor: 'inherit',
+                            }}
+                          >
+                            DAY {d.day}
+                          </button>
+                          {isEditMode && onRemoveDay && (
+                            <button
+                              type="button"
+                              data-testid={`remove-day-tab-${d.day}`}
+                              aria-label={`Remove Day ${d.day}`}
+                              title={days.length <= 1 ? 'At least 1 day required' : `Remove Day ${d.day}`}
+                              disabled={days.length <= 1}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRemoveDay(d.day);
+                              }}
+                              style={{
+                                width: '15px',
+                                height: '15px',
+                                borderRadius: '50%',
+                                border: '1px solid var(--color-border)',
+                                background: 'transparent',
+                                color: days.length <= 1 ? 'var(--color-text-muted)' : '#DC2626',
+                                opacity: days.length <= 1 ? 0.35 : 0.8,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                lineHeight: 1,
+                                padding: 0,
+                                cursor: days.length <= 1 ? 'not-allowed' : 'pointer',
+                                flexShrink: 0,
+                              }}
+                            >
+                              -
+                            </button>
+                          )}
+                        </div>
                       );
                     })}
+
+                    {isEditMode && onAddDay && (
+                      <button
+                        type="button"
+                        data-testid="add-day-tab-btn"
+                        aria-label="Add Day"
+                        title="Add a new day"
+                        onClick={onAddDay}
+                        style={{
+                          marginLeft: 'auto',
+                          width: '22px',
+                          height: '22px',
+                          borderRadius: '50%',
+                          border: '1px solid var(--color-border)',
+                          background: 'var(--color-surface-card)',
+                          color: 'var(--color-accent-primary)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '14px',
+                          fontWeight: 700,
+                          lineHeight: 1,
+                          padding: 0,
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                          transition: 'all 0.16s ease',
+                        }}
+                      >
+                        +
+                      </button>
+                    )}
                   </HoverScrollRow>
                 ) : activeTab === 'search' ? (
                   /* 2. Categories Bar for Search View (Smooth Hover-to-Scroll) */
@@ -2838,7 +3256,7 @@ export function TripUnifiedSidebar({
                             const anchorInfo = checkFixedAnchor(scheduledPoi, poiIdx, path.length, dayObj.day, days.length);
 
                             return (
-                              <React.Fragment key={p?.id || `poi-${poiIdx}`}>
+                              <React.Fragment key={`${p?.id || 'poi'}-${poiIdx}`}>
                                 {/* Insertion indicator before stop if targeted */}
                                 {activeDropTarget?.day === dayObj.day && activeDropTarget?.index === poiIdx && (
                                   <div
@@ -3061,6 +3479,18 @@ export function TripUnifiedSidebar({
                                       e.stopPropagation();
                                       handleMoveStop(dayObj.day, poiIdx, 'down');
                                     }}
+                                    onRemove={
+                                      isEditMode
+                                        ? (e) => {
+                                            e.stopPropagation();
+                                            handleRemoveStopFromRoute(dayObj.day, poiIdx, p?.id, p?.name);
+                                          }
+                                        : undefined
+                                    }
+                                    onUpdateTimes={(newStart, newEnd) =>
+                                      handleUpdateStopTimes(dayObj.day, poiIdx, newStart, newEnd)
+                                    }
+                                    timeConflict={isEditMode ? getStopConflict(path, poiIdx) : null}
                                     onToggleLock={(e) => {
                                       e.stopPropagation();
                                       handleToggleLock(dayObj.day, poiIdx, scheduledPoi, anchorInfo);
@@ -3236,6 +3666,12 @@ export function TripUnifiedSidebar({
                           data-testid="unified-search-input"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              executeSearch(searchQuery, activeCategory);
+                            }
+                          }}
                           placeholder={`Search attractions, food, sights in ${destinationCity || 'city'}...`}
                           style={{
                             flex: 1,
@@ -3269,7 +3705,6 @@ export function TripUnifiedSidebar({
                         type="button"
                         data-testid="unified-search-btn"
                         onClick={() => executeSearch(searchQuery, activeCategory)}
-                        disabled={isLoadingSearch}
                         style={{
                           width: '100%',
                           padding: '10px',
@@ -3283,7 +3718,7 @@ export function TripUnifiedSidebar({
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: '8px',
-                          cursor: isLoadingSearch ? 'not-allowed' : 'pointer',
+                          cursor: 'pointer',
                           transition: 'all 0.16s ease',
                           boxShadow: '0 2px 6px rgba(15, 76, 92, 0.25)',
                         }}
@@ -3383,7 +3818,9 @@ export function TripUnifiedSidebar({
                           : `Top ${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)} in ${destinationCity || 'City'}`}
                       </span>
                       <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
-                        {filteredSearchResults.length === 0
+                        {isPoiDatabaseEmpty
+                          ? '0 PLACES'
+                          : filteredSearchResults.length === 0
                           ? '0 PLACES'
                           : searchData?.total != null
                           ? searchData.total > 1000
@@ -3393,12 +3830,130 @@ export function TripUnifiedSidebar({
                       </span>
                     </div>
 
+                    {/* POI Database Download Card */}
+                    {(isPoiDatabaseEmpty || isDownloadingPois) && (
+                      <div
+                        data-testid="poi-database-download-card"
+                        style={{
+                          background: 'var(--color-surface-subtle, #FAFAFA)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '14px',
+                          padding: '16px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px',
+                          marginTop: '6px',
+                          marginBottom: '4px',
+                          boxShadow: 'var(--shadow-sm)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                          <div
+                            style={{
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '8px',
+                              background: isDownloadingPois ? 'var(--color-accent-gold-soft)' : 'var(--color-surface-card)',
+                              border: `1px solid ${isDownloadingPois ? 'var(--color-accent-gold)' : 'var(--color-border)'}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {isDownloadingPois ? (
+                              <Spinner size={18} color="var(--color-accent-gold)" />
+                            ) : (
+                              <SearchIcon size={18} color="var(--color-accent-primary)" />
+                            )}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                                {isDownloadingPois ? 'Downloading POI Database...' : 'POI Database Required'}
+                              </span>
+                              <span
+                                className="font-mono"
+                                style={{
+                                  fontSize: '10px',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  background: isDownloadingPois ? 'var(--color-accent-gold-soft)' : 'var(--color-surface-page)',
+                                  color: isDownloadingPois ? 'var(--color-accent-gold)' : 'var(--color-text-muted)',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {isDownloadingPois ? 'DOWNLOADING' : 'NOT INSTALLED'}
+                              </span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+                              {isDownloadingPois
+                                ? `Downloading and indexing attractions, sights, and restaurants for ${destinationCity || 'this city'}. Search will activate automatically once finished.`
+                                : `The POI database for ${destinationCity || 'this city'} was erased or has not been downloaded yet. Download it to unlock city sights, food, and attractions.`}
+                            </p>
+                          </div>
+                        </div>
+
+                        {!isDownloadingPois ? (
+                          <button
+                            type="button"
+                            data-testid="download-pois-database-btn"
+                            onClick={handleDownloadPoiDatabase}
+                            style={{
+                              width: '100%',
+                              padding: '10px 16px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'var(--color-accent-primary)',
+                              color: '#FFFFFF',
+                              fontSize: '13px',
+                              fontWeight: 600,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              cursor: 'pointer',
+                              transition: 'all 0.16s ease',
+                              boxShadow: '0 2px 6px rgba(15, 76, 92, 0.25)',
+                            }}
+                          >
+                            <SearchIcon size={14} color="#FFFFFF" />
+                            <span>Download POIs Database</span>
+                          </button>
+                        ) : (
+                          <div
+                            data-testid="download-pois-spinner"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              padding: '10px 16px',
+                              borderRadius: '8px',
+                              background: 'var(--color-surface-card)',
+                              border: '1px solid var(--color-border)',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: 'var(--color-accent-gold)',
+                            }}
+                          >
+                            <Spinner size={14} color="var(--color-accent-gold)" />
+                            <span>Downloading POI database for {destinationCity || 'city'}...</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* 5. Results List: Cards Styled like Reference Flight Cards */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {filteredSearchResults.map((poi) => (
+                      {filteredSearchResults.map((poi) => {
+                        const isAnchorRecommendation =
+                          poi.match_type === 'trip_hotel_base' || poi.match_type === 'trip_airport_gateway';
+                        return (
                         <div
                           key={poi.id}
                           data-testid={`poi-card-${poi.id}`}
+                          data-anchor-recommendation={isAnchorRecommendation ? 'true' : 'false'}
                           draggable={true}
                           onDragStart={(e) => {
                             startCustomDragPreview(e, poi);
@@ -3456,13 +4011,17 @@ export function TripUnifiedSidebar({
                           }}
                           style={{
                             background: 'var(--color-surface-card, #FFFFFF)',
-                            border: '1px solid var(--color-border)',
+                            border: isAnchorRecommendation
+                              ? '2px solid var(--color-accent-primary, #0F4C5C)'
+                              : '1px solid var(--color-border)',
                             borderRadius: '16px',
                             padding: '14px 16px',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '10px',
-                            boxShadow: 'var(--shadow-sm)',
+                            boxShadow: isAnchorRecommendation
+                              ? '0 0 0 2px rgba(15, 76, 92, 0.12), var(--shadow-sm)'
+                              : 'var(--shadow-sm)',
                             transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                             cursor: 'pointer',
                           }}
@@ -3472,7 +4031,9 @@ export function TripUnifiedSidebar({
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                            e.currentTarget.style.boxShadow = isAnchorRecommendation
+                              ? '0 0 0 2px rgba(15, 76, 92, 0.12), var(--shadow-sm)'
+                              : 'var(--shadow-sm)';
                           }}
                         >
                           {/* Card Top Row: Badge, Title & Price Tag */}
@@ -3506,12 +4067,16 @@ export function TripUnifiedSidebar({
 
                             {/* Price Tag & Bookmark */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                              <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                                  {poi.cost_eur === 0 ? 'FREE' : `${currencySymbol}${poi.cost_eur}`}
+                              {!isAnchorRecommendation && (
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                                    {poi.cost_eur === 0 ? 'FREE' : `${currencySymbol}${poi.cost_eur}`}
+                                  </div>
+                                  {poi.cost_eur > 0 && (
+                                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>/pax</div>
+                                  )}
                                 </div>
-                                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>/pax</div>
-                              </div>
+                              )}
                               {isCustomPoi(poi) && (
                                 <button
                                   type="button"
@@ -3609,7 +4174,7 @@ export function TripUnifiedSidebar({
                               <ClockIcon size={12} color="var(--color-text-muted)" />
                               <span>Suggested stay: {poi.duration_mins} mins</span>
                             </div>
-                            {poi.similarity > 0 && (
+                            {!isAnchorRecommendation && poi.similarity > 0 ? (
                               <span
                                 style={{
                                   fontSize: '10px',
@@ -3620,12 +4185,14 @@ export function TripUnifiedSidebar({
                               >
                                 {Math.round(poi.similarity * 100)}% AFFINITY
                               </span>
-                            )}
+                            ) : null}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
 
                       {filteredSearchResults.length > 0 &&
+                        !isPoiDatabaseEmpty &&
                         searchData?.results &&
                         (searchData.total != null
                           ? searchData.results.length < searchData.total
@@ -3672,7 +4239,7 @@ export function TripUnifiedSidebar({
                           </div>
                         )}
 
-                      {filteredSearchResults.length === 0 && hasSearched && !isLoadingSearch && (
+                      {filteredSearchResults.length === 0 && !isPoiDatabaseEmpty && hasSearched && !isLoadingSearch && (
                         <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--color-text-muted)' }}>
                           No matching places found. Try another search query or category filter.
                         </div>

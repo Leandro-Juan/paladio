@@ -312,6 +312,7 @@ export function TripSpeedDial({
                   backdropFilter: isOpen ? 'blur(16px)' : 'none',
                   WebkitBackdropFilter: isOpen ? 'blur(16px)' : 'none',
                   cursor: act.disabled ? 'not-allowed' : 'pointer',
+                  opacity: act.disabled ? 0.45 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

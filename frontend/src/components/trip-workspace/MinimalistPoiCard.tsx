@@ -35,6 +35,9 @@ export interface MinimalistPoiCardProps {
   onToggleLock?: (e: React.MouseEvent) => void;
   onMoveUp?: (e: React.MouseEvent) => void;
   onMoveDown?: (e: React.MouseEvent) => void;
+  onRemove?: (e: React.MouseEvent) => void;
+  onUpdateTimes?: (newStart: string, newEnd: string) => void;
+  timeConflict?: string | null;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
 
@@ -70,6 +73,9 @@ export function MinimalistPoiCard({
   onToggleLock,
   onMoveUp,
   onMoveDown,
+  onRemove,
+  onUpdateTimes,
+  timeConflict = null,
   canMoveUp = false,
   canMoveDown = false,
   extraBadge,
@@ -104,9 +110,28 @@ export function MinimalistPoiCard({
     timeDisplay = 'Flexible';
   }
 
+  const isLocked = Boolean(anchorInfo?.isFixed);
+  const showLockedHighlight = Boolean(isEditMode && isLocked);
+  const showConflictHighlight = Boolean(timeConflict);
+  const normalizeTimeInput = (val?: string) => {
+    if (!val || val === '--:--') return '';
+    const m = /^(\d{1,2}):(\d{2})/.exec(val.trim());
+    if (!m) return '';
+    return `${m[1].padStart(2, '0')}:${m[2]}`;
+  };
+  const entryVal = normalizeTimeInput(startTime);
+  const exitVal = normalizeTimeInput(endTime);
+  const restBorderColor = showConflictHighlight
+    ? '#DC2626'
+    : showLockedHighlight
+    ? '#2563EB'
+    : 'var(--color-border)';
+  const restBorderWidth = showLockedHighlight || showConflictHighlight ? '2px' : '1px';
+
   return (
     <div
       data-testid={`poi-stop-card-${id || name}`}
+      data-locked={isLocked ? 'true' : 'false'}
       className={className}
       draggable={draggable && !isRemoving}
       onDragStart={onDragStart}
@@ -119,14 +144,21 @@ export function MinimalistPoiCard({
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: isRemoving ? '0px 10px 0px 16px' : '8px 10px 8px 16px',
-        background: isBeingDragged ? 'rgba(15, 76, 92, 0.05)' : 'var(--color-bg-card, #FFFFFF)',
+        background: isBeingDragged ? 'rgba(15, 76, 92, 0.05)' : 'var(--color-surface-card, #FFFFFF)',
         border: isBeingDragged
           ? '1.5px dashed var(--color-accent-teal-soft)'
           : isRemoving
           ? '1px solid transparent'
-          : '1px solid var(--color-border)',
-        borderRadius: '9999px', // Pill / capsule shape from sketch!
-        boxShadow: isBeingDragged || isRemoving ? 'none' : 'var(--shadow-sm)',
+          : `${restBorderWidth} solid ${restBorderColor}`,
+        borderRadius: isEditMode ? '22px' : '9999px',
+        boxShadow:
+          isBeingDragged || isRemoving
+            ? 'none'
+            : showConflictHighlight
+            ? '0 0 0 2px rgba(220, 38, 38, 0.16), var(--shadow-sm)'
+            : showLockedHighlight
+            ? '0 0 0 2px rgba(37, 99, 235, 0.14), var(--shadow-sm)'
+            : 'var(--shadow-sm)',
         cursor: draggable ? 'grab' : 'pointer',
         opacity: isRemoving ? 0 : isBeingDragged ? 0.45 : 1,
         transform: isRemoving
@@ -134,7 +166,7 @@ export function MinimalistPoiCard({
           : isBeingDragged
           ? 'scale(0.98)'
           : 'none',
-        maxHeight: isRemoving ? '0px' : '90px',
+        maxHeight: isRemoving ? '0px' : isEditMode ? '160px' : '90px',
         overflow: isRemoving ? 'hidden' : 'visible',
         transition: isRemoving
           ? 'all 0.28s cubic-bezier(0.2, 0, 0, 1)'
@@ -146,16 +178,24 @@ export function MinimalistPoiCard({
       }}
       onMouseEnter={(e) => {
         if (!isBeingDragged) {
-          e.currentTarget.style.borderColor = 'var(--color-accent-primary)';
+          e.currentTarget.style.borderColor = showConflictHighlight
+            ? '#DC2626'
+            : showLockedHighlight
+            ? '#1D4ED8'
+            : 'var(--color-accent-primary)';
           e.currentTarget.style.transform = 'translateY(-1px)';
           e.currentTarget.style.boxShadow = 'var(--shadow-md)';
         }
       }}
       onMouseLeave={(e) => {
         if (!isBeingDragged) {
-          e.currentTarget.style.borderColor = 'var(--color-border)';
+          e.currentTarget.style.borderColor = restBorderColor;
           e.currentTarget.style.transform = 'none';
-          e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+          e.currentTarget.style.boxShadow = showConflictHighlight
+            ? '0 0 0 2px rgba(220, 38, 38, 0.16), var(--shadow-sm)'
+            : showLockedHighlight
+            ? '0 0 0 2px rgba(37, 99, 235, 0.14), var(--shadow-sm)'
+            : 'var(--shadow-sm)';
         }
       }}
     >
@@ -277,6 +317,33 @@ export function MinimalistPoiCard({
                   <ChevronDownIcon size={10} color="currentColor" />
                 </button>
               )}
+              {onRemove && (
+                <button
+                  type="button"
+                  data-testid={`remove-stop-btn-${id || stopNum || name}`}
+                  onClick={onRemove}
+                  style={{
+                    background: 'rgba(220, 38, 38, 0.08)',
+                    border: '1px solid rgba(220, 38, 38, 0.35)',
+                    borderRadius: '3px',
+                    padding: '0px 5px',
+                    height: '16px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#DC2626',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    lineHeight: 1,
+                  }}
+                  aria-label={`Remove ${name} from day`}
+                  title={`Remove ${name} from day`}
+                >
+                  -
+                </button>
+              )}
             </div>
           )}
 
@@ -299,33 +366,112 @@ export function MinimalistPoiCard({
           {name}
         </span>
 
-        {/* Bottom Left: Time in start - end format */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '11px',
-            fontFamily: 'var(--font-mono)',
-            color: 'var(--color-text-muted)',
-            fontVariantNumeric: 'tabular-nums',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          <span>{timeDisplay}</span>
-          {typeof costEur === 'number' && costEur > 0 && (
-            <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
-              • {costEur.toFixed(1)}€
-            </span>
-          )}
-          {typeof costEur === 'number' && costEur === 0 && !isHotelPoi({ category, name, id }) && !isAirportPoi({ category, name, id }) && (
-            <span style={{ color: '#10b981', fontWeight: 600 }}>
-              • Free
-            </span>
-          )}
-        </div>
+        {/* Bottom Left: Time in start - end format (editable in Edit Mode) */}
+        {isEditMode && onUpdateTimes ? (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '3px',
+              marginTop: '2px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--color-text-muted)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <input
+                type="time"
+                data-testid={`poi-entry-time-${id || stopNum || name}`}
+                aria-label={`Entry time for ${name}`}
+                value={entryVal}
+                onChange={(e) => onUpdateTimes(e.target.value, exitVal || e.target.value)}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '10.5px',
+                  padding: '1px 4px',
+                  borderRadius: '4px',
+                  border: `1px solid ${timeConflict ? '#DC2626' : 'var(--color-border)'}`,
+                  background: 'var(--color-surface-subtle, rgba(0,0,0,0.03))',
+                  color: 'var(--color-text-primary)',
+                  height: '20px',
+                }}
+              />
+              <span>–</span>
+              <input
+                type="time"
+                data-testid={`poi-exit-time-${id || stopNum || name}`}
+                aria-label={`Exit time for ${name}`}
+                value={exitVal}
+                onChange={(e) => onUpdateTimes(entryVal || e.target.value, e.target.value)}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '10.5px',
+                  padding: '1px 4px',
+                  borderRadius: '4px',
+                  border: `1px solid ${timeConflict ? '#DC2626' : 'var(--color-border)'}`,
+                  background: 'var(--color-surface-subtle, rgba(0,0,0,0.03))',
+                  color: 'var(--color-text-primary)',
+                  height: '20px',
+                }}
+              />
+              {typeof costEur === 'number' && costEur > 0 && (
+                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
+                  • {costEur.toFixed(1)}€
+                </span>
+              )}
+            </div>
+            {timeConflict && (
+              <div
+                data-testid={`poi-time-conflict-${id || stopNum || name}`}
+                style={{
+                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 600,
+                  color: '#DC2626',
+                  lineHeight: 1.2,
+                }}
+              >
+                ⚠ {timeConflict}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--color-text-muted)',
+              fontVariantNumeric: 'tabular-nums',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            <span>{timeDisplay}</span>
+            {typeof costEur === 'number' && costEur > 0 && (
+              <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
+                • {costEur.toFixed(1)}€
+              </span>
+            )}
+            {typeof costEur === 'number' && costEur === 0 && !isHotelPoi({ category, name, id }) && !isAirportPoi({ category, name, id }) && (
+              <span style={{ color: '#10b981', fontWeight: 600 }}>
+                • Free
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right: Photo in a Circle */}

@@ -203,6 +203,7 @@ export const fetchUserEmbeddingApi = (): Promise<{
 export interface CityGtfsItem {
   city: string;
   display_name: string;
+  country_code?: string | null;
   status: string;
   osm_status: string;
   gtfs_status: string;
@@ -216,6 +217,18 @@ export interface CityGtfsItem {
   valid_until?: string | null;
   gtfs_feed_name?: string | null;
   updated_at?: string | null;
+  poi_count?: number;
+  poi_db_bytes?: number;
+  transit_stations_count?: number;
+  transit_lines_count?: number;
+  transit_db_bytes?: number;
+  hotel_count?: number;
+  hotel_db_bytes?: number;
+  disk_gtfs_bytes?: number;
+  disk_osm_bytes?: number;
+  total_disk_bytes?: number;
+  total_db_bytes?: number;
+  total_storage_bytes?: number;
 }
 
 export interface GtfsRegistryResponse {
@@ -225,6 +238,9 @@ export interface GtfsRegistryResponse {
   total_cities: number;
   compiled_cities: number;
   queued_cities?: number;
+  total_disk_bytes?: number;
+  total_db_bytes?: number;
+  total_storage_bytes?: number;
   cities: CityGtfsItem[];
 }
 
@@ -243,6 +259,22 @@ export const deleteGtfsApi = (city: string): Promise<{ status: string; city: str
   return apiFetch<{ status: string; city: string; message: string }>(`/trips/transit/${encodeURIComponent(city)}`, {
     method: 'DELETE',
   });
+};
+
+export const deleteCityPoisApi = (city: string): Promise<{ status: string; city: string; deleted_pois: number; message: string }> => {
+  return apiFetch<{ status: string; city: string; deleted_pois: number; message: string }>(`/trips/pois/${encodeURIComponent(city)}`, {
+    method: 'DELETE',
+  });
+};
+
+export const downloadCityPoisApi = (city: string): Promise<{ status: string; city: string; task_id?: string; message: string }> => {
+  return apiFetch<{ status: string; city: string; task_id?: string; message: string }>(`/pois/city/${encodeURIComponent(city)}/download`, {
+    method: 'POST',
+  });
+};
+
+export const fetchCityPoisStatusApi = (city: string): Promise<{ city: string; poi_count: number; is_hydrating: boolean }> => {
+  return apiFetch<{ city: string; poi_count: number; is_hydrating: boolean }>(`/pois/city/${encodeURIComponent(city)}/status`);
 };
 
 export interface PlannedTripTransitItem {
