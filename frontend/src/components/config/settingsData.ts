@@ -158,13 +158,13 @@ export const SETTINGS_CATEGORIES: SettingCategoryGroup[] = [
       },
       {
         id: 'transit',
-        title: 'Public Transit & GTFS',
-        description: 'Compiled transit schedules, Valhalla tiles, and planned trip synchronizer',
+        title: 'City Data',
+        description: 'City database storage, POIs, compiled transit schedules, and disk usage vault',
         category: 'engine',
         iconName: 'transit',
         iconTone: 'teal',
-        keywords: ['gtfs', 'transit', 'valhalla', 'metro', 'subway', 'bus', 'train', 'schedules', 'tiles'],
-        statusBadge: 'Valhalla Core',
+        keywords: ['city', 'data', 'storage', 'gtfs', 'transit', 'valhalla', 'metro', 'subway', 'bus', 'train', 'schedules', 'tiles', 'pois'],
+        statusBadge: 'Storage Vault',
       },
       {
         id: 'deals',

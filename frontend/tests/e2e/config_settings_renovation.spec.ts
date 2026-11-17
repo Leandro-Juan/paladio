@@ -29,14 +29,24 @@ test.describe('Settings Renovation & Consolidation', () => {
     await expect(saveBtn).toBeVisible();
     await expect(saveBtn).toBeDisabled();
 
-    // Test entering mismatched password stays disabled
+    // Test entering mismatched password stays disabled and displays mismatch error
     await newPassInput.fill('secret123');
     await confirmPassInput.fill('mismatch456');
     await expect(saveBtn).toBeDisabled();
+    await expect(page.getByText("The passwords don't match")).toBeVisible();
 
-    // Test entering matching valid password turns enabled
+    // Test eye icon toggles password visibility
+    const showPassBtn = page.getByRole('button', { name: 'Show passphrase' });
+    await expect(showPassBtn).toBeVisible();
+    await showPassBtn.click();
+    await expect(newPassInput).toHaveAttribute('type', 'text');
+    await page.getByRole('button', { name: 'Hide passphrase' }).click();
+    await expect(newPassInput).toHaveAttribute('type', 'password');
+
+    // Test entering matching valid password turns enabled and hides mismatch error
     await confirmPassInput.fill('secret123');
     await expect(saveBtn).toBeEnabled();
+    await expect(page.getByText("The passwords don't match")).toHaveCount(0);
 
     // Clear password inputs
     await newPassInput.fill('');
@@ -55,7 +65,7 @@ test.describe('Settings Renovation & Consolidation', () => {
     await expect(cityInput).toBeVisible();
     // Dropdown list buttons should not be visible when input has not been focused/interacted with
     await page.waitForTimeout(400); // Wait past debounce time
-    await expect(page.getByRole('button', { name: /Spain/i })).toHaveCount(0);
+    await expect(page.getByTestId('city-suggestions-dropdown')).toHaveCount(0);
 
     // 6. Verify badges on the right of names like "Credentials" are removed
     await expect(page.getByText('Credentials', { exact: true })).toHaveCount(0);
