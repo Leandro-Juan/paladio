@@ -340,3 +340,33 @@ async def test_hotel_search_and_reverse_geocode(async_client: AsyncClient):
     assert "lat" in data_reverse
     assert "lng" in data_reverse
     assert "name" in data_reverse
+
+
+@pytest.mark.asyncio
+async def test_scan_hotel_document_with_parenthesized_hours_and_booking_date(
+    async_client: AsyncClient,
+):
+    from datetime import date, timedelta
+
+    cin_d = (date.today() + timedelta(days=12)).isoformat()
+    cout_d = (date.today() + timedelta(days=17)).isoformat()
+    hotel_text = f"""
+    Booked on: {date.today().isoformat()}
+    MARRIOTT BONVOY RESERVATION CONFIRMATION
+    Hotel: AC Hotel Sevilla Torneo
+    Location: Sevilla
+    Check-in: {cin_d} (from 16:30)
+    Check-out: {cout_d} (until 10:15)
+    Access Code: 7129
+    """
+    res = await async_client.post(
+        "/api/trips/scan-boarding-pass",
+        data={"raw_text": hotel_text},
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["document_type"] == "hotel"
+    assert data["check_in_date"] == cin_d
+    assert data["check_out_date"] == cout_d
+    assert data["check_in_hour"] == "16:30"
+    assert data["check_out_hour"] == "10:15"

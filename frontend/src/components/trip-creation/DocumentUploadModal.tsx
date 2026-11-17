@@ -602,14 +602,16 @@ export function DocumentUploadModal({
                   </div>
                 )}
 
-                <div>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
-                    TIME WINDOWS
-                  </span>
-                  <strong style={{ color: 'var(--color-text-primary)' }}>
-                    Start: {extractedResult.departure_hour || '09:00'} | End: {extractedResult.arrival_hour || '20:00'}
-                  </strong>
-                </div>
+                {extractedResult.document_type !== 'hotel' && (
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
+                      TIME WINDOWS
+                    </span>
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      Arr: {extractedResult.departure_hour || '09:00'} | Dep: {extractedResult.arrival_hour || '20:00'}
+                    </strong>
+                  </div>
+                )}
 
                 {extractedResult.flight_number && (
                   <div>
@@ -629,6 +631,28 @@ export function DocumentUploadModal({
                     </span>
                     <strong style={{ color: 'var(--color-text-primary)' }}>
                       {extractedResult.hotel_name}
+                    </strong>
+                  </div>
+                )}
+
+                {(extractedResult.check_in_date || extractedResult.check_in_hour) && (
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
+                      HOTEL CHECK-IN
+                    </span>
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      {[extractedResult.check_in_date, extractedResult.check_in_hour].filter(Boolean).join(' · ')}
+                    </strong>
+                  </div>
+                )}
+
+                {(extractedResult.check_out_date || extractedResult.check_out_hour) && (
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
+                      HOTEL CHECK-OUT
+                    </span>
+                    <strong style={{ color: 'var(--color-text-primary)' }}>
+                      {[extractedResult.check_out_date, extractedResult.check_out_hour].filter(Boolean).join(' · ')}
                     </strong>
                   </div>
                 )}

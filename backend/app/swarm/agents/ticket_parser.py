@@ -185,12 +185,55 @@ def _extract_clause_datetimes(
     return dep_dt, arr_dt, duration_mins
 
 
+def _extract_time_hhmm(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    m = re.search(
+        r"\b(\d{1,2}):(\d{2})\s*(am|pm)?\b|\b(\d{1,2})\s*(am|pm)\b",
+        raw.strip(),
+        re.IGNORECASE,
+    )
+    if not m:
+        return None
+    if m.group(1) is not None:
+        h = int(m.group(1))
+        mins = int(m.group(2))
+        ampm = (m.group(3) or "").lower()
+    else:
+        h = int(m.group(4))
+        mins = 0
+        ampm = (m.group(5) or "").lower()
+    if ampm == "pm" and h < 12:
+        h += 12
+    elif ampm == "am" and h == 12:
+        h = 0
+    if 0 <= h <= 23 and 0 <= mins <= 59:
+        return f"{h:02d}:{mins:02d}"
+    return None
+
+
 def _extract_hotel_anchor(
     clauses: list[str],
     outbound: FlightSegment | None,
     ret_flight: FlightSegment | None,
     airport_svc,
 ) -> HotelAnchor | None:
+    full_text = " ".join(clauses)
+    cin_time_m = re.search(
+        r"\bcheck[- ]?in(?:\s+time)?[:\s#]*(?:from|after|at)?\s*(?:\d{4}-\d{2}-\d{2}\s*(?:at|from)?\s*)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})",
+        full_text,
+        re.IGNORECASE,
+    )
+    cout_time_m = re.search(
+        r"\bcheck[- ]?out(?:\s+time)?[:\s#]*(?:until|before|by|at)?\s*(?:\d{4}-\d{2}-\d{2}\s*(?:until|before|by|at)?\s*)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})",
+        full_text,
+        re.IGNORECASE,
+    )
+    extracted_cin_time = _extract_time_hhmm(cin_time_m.group(1)) if cin_time_m else None
+    extracted_cout_time = (
+        _extract_time_hhmm(cout_time_m.group(1)) if cout_time_m else None
+    )
+
     for clause in clauses:
         for pat in _HOTEL_PATTERNS:
             m = pat.search(clause)
@@ -210,16 +253,24 @@ def _extract_hotel_anchor(
                 raw_name,
                 flags=re.I,
             ).strip()
-            check_in = (
-                _parse_date_only(m.group(3))
-                if m.lastindex and m.lastindex >= 3 and m.group(3)
-                else None
+            raw_cin = (
+                m.group(3) if m.lastindex and m.lastindex >= 3 and m.group(3) else None
             )
-            check_out = (
-                _parse_date_only(m.group(4))
-                if m.lastindex and m.lastindex >= 4 and m.group(4)
-                else None
+            raw_cout = (
+                m.group(4) if m.lastindex and m.lastindex >= 4 and m.group(4) else None
             )
+            check_in = _parse_date_only(raw_cin) if raw_cin else None
+            check_out = _parse_date_only(raw_cout) if raw_cout else None
+            cin_time = (
+                _extract_time_hhmm(raw_cin)
+                if raw_cin and _TIME_ONLY_RE.search(raw_cin)
+                else None
+            ) or extracted_cin_time
+            cout_time = (
+                _extract_time_hhmm(raw_cout)
+                if raw_cout and _TIME_ONLY_RE.search(raw_cout)
+                else None
+            ) or extracted_cout_time
             if not check_in and outbound and outbound.departure_time:
                 check_in = outbound.departure_time[:10]
             if not check_out and ret_flight and ret_flight.departure_time:
@@ -228,7 +279,9 @@ def _extract_hotel_anchor(
                 name=raw_name,
                 city=raw_city.title(),
                 check_in_date=check_in,
+                check_in_time=cin_time,
                 check_out_date=check_out,
+                check_out_time=cout_time,
             )
 
     # Fallback: "Booked at the Savoy hotel" without explicit city when outbound IATA resolves city
@@ -248,9 +301,11 @@ def _extract_hotel_anchor(
                         check_in_date=outbound.departure_time[:10]
                         if outbound.departure_time
                         else None,
+                        check_in_time=extracted_cin_time,
                         check_out_date=ret_flight.departure_time[:10]
                         if ret_flight and ret_flight.departure_time
                         else None,
+                        check_out_time=extracted_cout_time,
                     )
     return None
 

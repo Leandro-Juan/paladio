@@ -105,3 +105,20 @@ async def test_ticket_parser_node_empty_text_passthrough():
         {"booking_text": "   ", "booking_anchors": existing}
     )
     assert result["booking_anchors"] == existing
+
+
+def test_parse_booking_text_hotel_checkin_checkout_times():
+    """Extracts explicit check-in and check-out times on HotelAnchor."""
+    booking_text = (
+        "Flight MAD to CDG on 2026-12-01 at 08:30. "
+        "Return CDG to MAD on 2026-12-04 at 19:00. "
+        "Hotel: Le Meurice, Paris (Check-in: 2026-12-01 16:00, Check-out: 2026-12-04 10:30)."
+    )
+    anchors = parse_booking_text(booking_text)
+    assert anchors is not None
+    assert anchors.hotel is not None
+    assert anchors.hotel.name == "Le Meurice"
+    assert anchors.hotel.check_in_date == "2026-12-01"
+    assert anchors.hotel.check_in_time == "16:00"
+    assert anchors.hotel.check_out_date == "2026-12-04"
+    assert anchors.hotel.check_out_time == "10:30"

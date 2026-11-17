@@ -296,9 +296,11 @@ def parse_pkpass(
                 room_num = None
                 check_in_date = None
                 check_out_date = None
+                check_in_hour = None
+                check_out_hour = None
                 for fld in all_fields:
                     k = str(fld.get("key", "")).lower()
-                    v = str(fld.get("value", ""))
+                    v = str(fld.get("value", "")).strip()
                     if "pin" in k or "code" in k or "access" in k:
                         pin_code = v
                     if "room" in k or "suite" in k:
@@ -307,7 +309,20 @@ def parse_pkpass(
                         w in k
                         for w in ("checkin", "check-in", "check in", "arrival", "fecha")
                     ):
-                        check_in_date = v
+                        if any(t in k for t in ("time", "hour", "hora")):
+                            check_in_hour = normalize_time_str(v) or check_in_hour
+                        else:
+                            dates = extract_dates_from_text(v, trip_start_year)
+                            check_in_date = (
+                                dates[0]
+                                if dates
+                                else (v.split("T")[0] if "T" in v else v)
+                            )
+                            if "T" in v or ":" in v:
+                                check_in_hour = (
+                                    normalize_time_str(v.split("T")[-1])
+                                    or check_in_hour
+                                )
                     if any(
                         w in k
                         for w in (
@@ -318,7 +333,20 @@ def parse_pkpass(
                             "salida",
                         )
                     ):
-                        check_out_date = v
+                        if any(t in k for t in ("time", "hour", "hora")):
+                            check_out_hour = normalize_time_str(v) or check_out_hour
+                        else:
+                            dates = extract_dates_from_text(v, trip_start_year)
+                            check_out_date = (
+                                dates[0]
+                                if dates
+                                else (v.split("T")[0] if "T" in v else v)
+                            )
+                            if "T" in v or ":" in v:
+                                check_out_hour = (
+                                    normalize_time_str(v.split("T")[-1])
+                                    or check_out_hour
+                                )
 
                 is_hotel = any(
                     w in desc.lower() or w in org.lower()
@@ -330,6 +358,10 @@ def parse_pkpass(
                     gen_meta["check_in_date"] = check_in_date
                 if check_out_date:
                     gen_meta["check_out_date"] = check_out_date
+                if check_in_hour:
+                    gen_meta["check_in_hour"] = check_in_hour
+                if check_out_hour:
+                    gen_meta["check_out_hour"] = check_out_hour
                 return TravelDocumentDraft(
                     ticket_type=ticket_type,
                     title=desc or f"{org} Pass",
@@ -337,6 +369,7 @@ def parse_pkpass(
                     access_code=pin_code,
                     seat_or_room=room_num,
                     start_time=check_in_date or pass_data.get("relevantDate"),
+                    end_time=check_out_date,
                     barcode_value=barcode_val,
                     barcode_format=barcode_fmt,
                     metadata=gen_meta,
@@ -416,10 +449,15 @@ def normalize_time_str(val: str | None) -> str | None:
     is_pm = bool(re.search(r"pm", val, re.IGNORECASE))
     is_am = bool(re.search(r"am", val, re.IGNORECASE))
     m = re.search(r"(\d{1,2})[:.\-](\d{2})", val)
-    if not m:
-        return None
-    h = int(m.group(1))
-    mins = int(m.group(2))
+    if m:
+        h = int(m.group(1))
+        mins = int(m.group(2))
+    else:
+        m_ampm = re.search(r"\b(\d{1,2})\s*(?:am|pm)\b", val, re.IGNORECASE)
+        if not m_ampm:
+            return None
+        h = int(m_ampm.group(1))
+        mins = 0
     if is_pm and h < 12:
         h += 12
     elif is_am and h == 12:
@@ -463,25 +501,43 @@ def extract_dates_from_text(text: str, trip_start_year: int = 2026) -> list[str]
         if norm and norm not in found_dates:
             found_dates.append(norm)
 
-    month_regex = r"\b(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember))\b(?:\s+(\d{4}))?"
+    month_map = {
+        "jan": 1,
+        "feb": 2,
+        "mar": 3,
+        "apr": 4,
+        "may": 5,
+        "jun": 6,
+        "jul": 7,
+        "aug": 8,
+        "sep": 9,
+        "oct": 10,
+        "nov": 11,
+        "dec": 12,
+    }
+    month_names_pat = r"(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+    month_regex = (
+        rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+{month_names_pat}\b(?:,?\s+(\d{{4}}))?"
+    )
     for m in re.finditer(month_regex, text, re.IGNORECASE):
         day = int(m.group(1))
         mon_str = m.group(2)[:3].lower()
         yr = int(m.group(3)) if m.group(3) else trip_start_year
-        month_map = {
-            "jan": 1,
-            "feb": 2,
-            "mar": 3,
-            "apr": 4,
-            "may": 5,
-            "jun": 6,
-            "jul": 7,
-            "aug": 8,
-            "sep": 9,
-            "oct": 10,
-            "nov": 11,
-            "dec": 12,
-        }
+        if mon_str in month_map:
+            try:
+                iso = date(yr, month_map[mon_str], day).isoformat()
+                if iso not in found_dates:
+                    found_dates.append(iso)
+            except Exception:
+                pass
+
+    month_first_regex = (
+        rf"\b{month_names_pat}\.?\s+(\d{{1,2}})(?:st|nd|rd|th)?(?:,?\s+(\d{{4}}))?"
+    )
+    for m in re.finditer(month_first_regex, text, re.IGNORECASE):
+        mon_str = m.group(1)[:3].lower()
+        day = int(m.group(2))
+        yr = int(m.group(3)) if m.group(3) else trip_start_year
         if mon_str in month_map:
             try:
                 iso = date(yr, month_map[mon_str], day).isoformat()
@@ -1095,21 +1151,55 @@ def classify_text_document(
                     hotel_name = line[:60].strip()
                     break
 
-        checkin_m = re.search(
-            r"(?:check-?in|entrada|arrival)[:\s#]*(?:(?:from|starting|at|desde|after)?\s*)?([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
-            text,
-            re.IGNORECASE,
-        )
-        checkin_hour = normalize_time_str(checkin_m.group(1)) if checkin_m else "15:00"
+        def _extract_labeled_hotel_field(
+            keywords_pat: str, stop_pat: str
+        ) -> tuple[str | None, str | None]:
+            found_d: str | None = None
+            found_h: str | None = None
+            for m_lbl in re.finditer(keywords_pat, text, re.IGNORECASE):
+                segment_raw = text[m_lbl.end() : m_lbl.end() + 120]
+                # Stop at newline or the complementary keyword so check-in never eats check-out
+                segment = segment_raw.splitlines()[0]
+                stop_m = re.search(stop_pat, segment, re.IGNORECASE)
+                if stop_m:
+                    segment = segment[: stop_m.start()]
+                if not found_d:
+                    lbl_dates = extract_dates_from_text(segment, trip_start_year)
+                    if lbl_dates:
+                        found_d = lbl_dates[0]
+                if not found_h:
+                    t_m = re.search(
+                        r"([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?|\b1?\d\s*(?:am|pm)\b)",
+                        segment,
+                        re.IGNORECASE,
+                    )
+                    if t_m:
+                        found_h = normalize_time_str(t_m.group(1))
+                if found_d and found_h:
+                    break
+            return found_d, found_h
 
-        checkout_m = re.search(
-            r"(?:check-?out|checkout|salida|departure)[:\s#]*(?:(?:until|before|by|hasta)?\s*)?([0-2]?\d[:.][0-5]\d(?:\s*(?:am|pm))?)",
-            text,
-            re.IGNORECASE,
+        lbl_cin_date, lbl_cin_hour = _extract_labeled_hotel_field(
+            r"\b(?:check-?in(?:\s*(?:date|time))?|entrada|arrival(?:\s*date)?)\b[:\s#-]*",
+            r"\b(?:check-?out|checkout|salida|departure)\b",
         )
-        checkout_hour = (
-            normalize_time_str(checkout_m.group(1)) if checkout_m else "11:00"
+        lbl_cout_date, lbl_cout_hour = _extract_labeled_hotel_field(
+            r"\b(?:check-?out(?:\s*(?:date|time))?|checkout(?:\s*(?:date|time))?|salida|departure(?:\s*date)?)\b[:\s#-]*",
+            r"\b(?:check-?in|entrada|arrival)\b",
         )
+
+        check_in_date = lbl_cin_date or date_found
+        check_out_date = lbl_cout_date or (
+            return_date_found
+            if (not lbl_cin_date or return_date_found != check_in_date)
+            else (
+                next((d for d in extracted_dates if d > check_in_date), None)
+                if check_in_date
+                else return_date_found
+            )
+        )
+        checkin_hour = lbl_cin_hour or "15:00"
+        checkout_hour = lbl_cout_hour or "11:00"
 
         # Identify city in hotel text
         hotel_city = None
@@ -1205,16 +1295,14 @@ def classify_text_document(
             seat_or_room=hotel_room,
             location_or_venue=hotel_addr,
             price=hotel_price,
-            start_time=f"{date_found}T{checkin_hour}:00" if date_found else None,
-            end_time=f"{return_date_found}T{checkout_hour}:00"
-            if return_date_found
-            else None,
+            start_time=f"{check_in_date}T{checkin_hour}:00" if check_in_date else None,
+            end_time=f"{check_out_date}T{checkout_hour}:00" if check_out_date else None,
             metadata={
                 "hotel_name": hotel_name,
                 "destination_city": hotel_city,
                 "destination_iata": hotel_iata,
-                "check_in_date": date_found,
-                "check_out_date": return_date_found,
+                "check_in_date": check_in_date,
+                "check_out_date": check_out_date,
                 "check_in_hour": checkin_hour,
                 "check_out_hour": checkout_hour,
                 "departure_hour": checkin_hour,
