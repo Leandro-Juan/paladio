@@ -240,7 +240,7 @@ async def ensure_city_ready(city: str, poi_repo: IPoiRepository) -> CityReadines
                 await hydrate_attractions(
                     city=name,
                     tier_max=2,
-                    batch_size=32,
+                    batch_size=8,
                     session=active_session,
                 )
                 if active_session is not None:

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 async def hydrate_attractions(
-    batch_size: int = 32,
+    batch_size: int = 8,
     force_all: bool = False,
     city: str | None = None,
     tier_max: int | None = None,

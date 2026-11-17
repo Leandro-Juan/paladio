@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.db.models import AttractionModel, CityModel
@@ -391,3 +391,60 @@ async def test_poi_search_prioritizes_richer_info(
         assert "Galería Completa" in rag_names
         assert "Galería Minimal" in rag_names
         assert rag_names.index("Galería Completa") < rag_names.index("Galería Minimal")
+
+
+@pytest.mark.asyncio
+async def test_poi_search_erased_city_and_download_flow(async_client: AsyncClient):
+    """Verifies that an erased city database returns city_total_pois == 0, and that download/status endpoints work."""
+    import os
+    import redis
+
+    redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    r = redis.from_url(redis_url)
+    r.delete("paladio:city_hydration_active:atlantisghostcity")
+    r.delete("paladio:lock:hydrate_city:atlantisghostcity")
+
+    try:
+        # 1. Search an erased / empty city
+        resp = await async_client.get(
+            "/api/pois/search",
+            params={"city": "AtlantisGhostCity", "query": ""},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["city_total_pois"] == 0
+        assert data["is_hydrating"] is False
+        assert len(data["results"]) == 0
+
+        # 2. Check city status
+        resp_status = await async_client.get("/api/pois/city/AtlantisGhostCity/status")
+        assert resp_status.status_code == 200
+        status_data = resp_status.json()
+        assert status_data["city"] == "AtlantisGhostCity"
+        assert status_data["poi_count"] == 0
+        assert status_data["is_hydrating"] is False
+
+        # 3. Trigger POI download for city
+        with patch("app.tasks.hydrate_city_pipeline_task.delay") as mock_celery:
+            mock_task = MagicMock()
+            mock_task.id = "mock-task-12345"
+            mock_celery.return_value = mock_task
+
+            resp_dl = await async_client.post(
+                "/api/pois/city/AtlantisGhostCity/download"
+            )
+            assert resp_dl.status_code == 200
+            dl_data = resp_dl.json()
+            assert dl_data["status"] == "initiated"
+            assert dl_data["task_id"] == "mock-task-12345"
+            assert "AtlantisGhostCity" in dl_data["message"]
+
+        # 4. Check status during active hydration
+        resp_hydrating = await async_client.get(
+            "/api/pois/city/AtlantisGhostCity/status"
+        )
+        assert resp_hydrating.status_code == 200
+        assert resp_hydrating.json()["is_hydrating"] is True
+    finally:
+        r.delete("paladio:city_hydration_active:atlantisghostcity")
+        r.delete("paladio:lock:hydrate_city:atlantisghostcity")

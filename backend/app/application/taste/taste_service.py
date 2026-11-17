@@ -168,8 +168,13 @@ class TasteService:
                         pass
 
         repo = SqlTasteRepository(session=session)
-        profiles_map = await repo.get_profiles_for_users(user_ids)
-        profiles = list(profiles_map.values())
+        try:
+            async with session.begin_nested():
+                profiles_map = await repo.get_profiles_for_users(user_ids)
+                profiles = list(profiles_map.values())
+        except Exception as exc:
+            logger.debug("Taste profiles load skipped cleanly: %s", exc)
+            profiles = []
 
         return TripTasteAggregator.merge_profiles(
             profiles=profiles,
@@ -246,6 +251,7 @@ class TasteService:
         after_doc: dict[str, Any],
         changes: list[dict[str, Any]] | None = None,
         actor: str = "user",
+        attribute_to_all_participants: bool = False,
     ) -> UserTasteProfile | None:
         if not user_id or user_id == "default_user":
             return None
@@ -265,6 +271,7 @@ class TasteService:
                 user_id=user_id,
                 events=events,
                 trip_id=trip_id,
+                attribute_to_all_participants=attribute_to_all_participants,
             )
         except Exception as exc:
             logger.warning("TasteService.on_trip_revision failed cleanly: %s", exc)

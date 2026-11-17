@@ -80,6 +80,8 @@ class PoiSearchResponse(BaseModel):
     exact_match: PoiSearchItem | None = None
     results: list[PoiSearchItem] = []
     total: int | None = None
+    city_total_pois: int = 0
+    is_hydrating: bool = False
 
 
 class PoiPhotoItem(BaseModel):
@@ -855,6 +857,45 @@ async def search_pois(
     city_obj = await city_repo.find_by_name_or_alias(city)
     city_name = city_obj.name if city_obj else city.strip()
     city_id = city_obj.id if city_obj else f"{city.strip().lower()}_es"
+    city_clean = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
+
+    # Check total real attractions count for this city in the database
+    city_count_stmt = (
+        select(func.count())
+        .select_from(AttractionModel)
+        .where(
+            or_(
+                func.lower(AttractionModel.city) == city_clean,
+                AttractionModel.city_id == city_id,
+                AttractionModel.city_id == city_clean,
+                AttractionModel.city_id.startswith(f"{city_clean}_"),
+                AttractionModel.city.ilike(city_name),
+            )
+        )
+        .where(~AttractionModel.id.like("custom-%"))
+        .where(~AttractionModel.id.like("OSM-transit-%"))
+    )
+    city_total_pois = (await session.execute(city_count_stmt)).scalar() or 0
+
+    # Check if city hydration is currently active
+    is_hydrating = False
+    try:
+        import os
+        import redis
+
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        r = redis.from_url(redis_url)
+        is_hydrating = bool(
+            r.exists(f"paladio:lock:hydrate_city:{city_clean}")
+            or r.get(f"paladio:city_hydration_active:{city_clean}")
+        )
+    except Exception:
+        pass
+
+    def _make_search_response(**kwargs) -> PoiSearchResponse:
+        kwargs.setdefault("city_total_pois", city_total_pois)
+        kwargs.setdefault("is_hydrating", is_hydrating)
+        return PoiSearchResponse(**kwargs)
 
     # Resolve radial circle parameters
     has_circle = (
@@ -934,7 +975,7 @@ async def search_pois(
                 <= circle_radius
             ]
             results = results[offset : offset + limit]
-        return PoiSearchResponse(
+        return _make_search_response(
             city=city_name,
             query=clean_query,
             search_type="custom",
@@ -1053,7 +1094,7 @@ async def search_pois(
                 "tram",
                 "subway",
             ):
-                return PoiSearchResponse(
+                return _make_search_response(
                     city=city_name,
                     query="",
                     search_type="category_browse",
@@ -1190,7 +1231,7 @@ async def search_pois(
                 results = results[offset : offset + limit]
 
             await _enrich_items_with_photos(results, city_name)
-            return PoiSearchResponse(
+            return _make_search_response(
                 city=city_name,
                 query="",
                 search_type="taste_recommendation"
@@ -1248,7 +1289,6 @@ async def search_pois(
                     )
                     .where(func.lower(AttractionModel.category) != "transit")
                     .where(~AttractionModel.id.like("OSM-transit-%"))
-                    .where(AttractionModel.embedding.isnot(None))
                 )
                 if circle_clause is not None:
                     stmt = stmt.where(circle_clause)
@@ -1276,7 +1316,7 @@ async def search_pois(
                     total_count = len(results)
                     results = results[offset : offset + limit]
                 await _enrich_items_with_photos(results, city_name)
-                return PoiSearchResponse(
+                return _make_search_response(
                     city=city_name,
                     query="",
                     search_type="taste_recommendation",
@@ -1321,7 +1361,7 @@ async def search_pois(
                     total_count = len(results)
                     results = results[offset : offset + limit]
                 await _enrich_items_with_photos(results, city_name)
-                return PoiSearchResponse(
+                return _make_search_response(
                     city=city_name,
                     query="",
                     search_type="recommendations",
@@ -1398,7 +1438,7 @@ async def search_pois(
                         match_type="trip_hotel_base",
                         description=f"Booked Hotel for trip to {city_name}",
                     )
-                    return PoiSearchResponse(
+                    return _make_search_response(
                         city=city_name,
                         query=clean_query,
                         search_type="trip_hotel_base",
@@ -1445,6 +1485,21 @@ async def search_pois(
                                 break
                         if a_name:
                             break
+                if not a_name:
+                    dest_iata = (itin.get("travel_constraints") or {}).get(
+                        "destination_iata"
+                    ) or itin.get("destination_iata")
+                    if dest_iata:
+                        try:
+                            from app.services.airport_service import get_airport_service
+
+                            ap_info = get_airport_service().get_airport(str(dest_iata))
+                            if ap_info:
+                                a_name = f"{ap_info.name} ({ap_info.iata_code})"
+                                a_lat = float(ap_info.latitude)
+                                a_lng = float(ap_info.longitude)
+                        except Exception:
+                            pass
                 if a_name:
                     airport_item = PoiSearchItem(
                         id=f"trip_airport_{trip_id}",
@@ -1458,7 +1513,7 @@ async def search_pois(
                         match_type="trip_airport_gateway",
                         description=f"Airport gateway for {city_name}",
                     )
-                    return PoiSearchResponse(
+                    return _make_search_response(
                         city=city_name,
                         query=clean_query,
                         search_type="trip_airport_gateway",
@@ -1486,22 +1541,26 @@ async def search_pois(
         )
         db_matches = (await session.execute(stmt)).scalars().all()
         if db_matches:
-            match_results = [
-                PoiSearchItem(
-                    id=str(m.id),
-                    name=m.name,
-                    category="HOTEL" if is_hotel_query else "AIRPORT",
-                    lat=float(m.latitude),
-                    lng=float(m.longitude),
-                    duration_mins=30 if is_hotel_query else 60,
-                    cost_eur=0.0,
-                    similarity=1.0,
-                    match_type="exact_name",
-                    description=f"{'Hotel' if is_hotel_query else 'Airport'} in {city_name}",
+            match_results = []
+            for m in db_matches:
+                m_loc = m.location or {}
+                m_lat = float(m_loc.get("latitude") or 0.0)
+                m_lng = float(m_loc.get("longitude") or 0.0)
+                match_results.append(
+                    PoiSearchItem(
+                        id=str(m.id),
+                        name=m.name,
+                        category="HOTEL" if is_hotel_query else "AIRPORT",
+                        lat=m_lat,
+                        lng=m_lng,
+                        duration_mins=30 if is_hotel_query else 60,
+                        cost_eur=0.0,
+                        similarity=1.0,
+                        match_type="exact_name",
+                        description=f"{'Hotel' if is_hotel_query else 'Airport'} in {city_name}",
+                    )
                 )
-                for m in db_matches
-            ]
-            return PoiSearchResponse(
+            return _make_search_response(
                 city=city_name,
                 query=clean_query,
                 search_type="exact_match",
@@ -1653,6 +1712,19 @@ async def search_pois(
                         if len(similar_items) >= limit:
                             break
 
+            if not similar_items:
+                for cand in lexical_candidates:
+                    if str(cand.get("id")) != str(best_match.get("id")):
+                        similar_items.append(
+                            _candidate_to_search_item(
+                                cand,
+                                float(cand.get("trgm_sim") or 0.5),
+                                "fuzzy_name",
+                            )
+                        )
+                    if len(similar_items) >= limit:
+                        break
+
             if has_circle:
                 similar_items = [
                     s
@@ -1661,7 +1733,7 @@ async def search_pois(
                     <= circle_radius
                 ]
 
-            return PoiSearchResponse(
+            return _make_search_response(
                 city=city_name,
                 query=clean_query,
                 search_type=best_match_type or "exact_match",
@@ -1830,7 +1902,7 @@ async def search_pois(
 
     await _enrich_items_with_photos(results, city_name)
 
-    return PoiSearchResponse(
+    return _make_search_response(
         city=city_name,
         query=clean_query,
         search_type="semantic_rag",
@@ -1840,6 +1912,100 @@ async def search_pois(
         results=results,
         total=max(db_total, len(results)),
     )
+
+
+@router.post("/city/{city}/download")
+@router.post("/{city}/download")
+async def download_city_pois(
+    city: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Triggers asynchronous POI download and hydration for the specified city.
+    """
+    city_clean = re.sub(r"[^a-z0-9_-]", "", city.strip().lower())
+    if not city_clean:
+        raise HTTPException(status_code=400, detail="Invalid city name provided")
+
+    task_id = "initiated"
+    try:
+        from app.tasks import hydrate_city_pipeline_task
+
+        task = hydrate_city_pipeline_task.delay(city_name=city.strip(), force=True)
+        task_id = task.id
+    except Exception as e:
+        logger.warning(
+            f"Could not queue Celery hydration task for {city}: {e}. Running in-process fallback."
+        )
+        import asyncio
+        from app.tasks import _run_ingest_city_pois
+
+        asyncio.create_task(_run_ingest_city_pois(city.strip(), force=True))
+        task_id = "in_process"
+
+    # Set active hydration flag in Redis
+    try:
+        import os
+        import redis
+
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        r = redis.from_url(redis_url)
+        r.set(f"paladio:city_hydration_active:{city_clean}", "1", ex=1800)
+    except Exception:
+        pass
+
+    return {
+        "status": "initiated",
+        "city": city.strip(),
+        "task_id": task_id,
+        "message": f"POI database download initiated for {city.strip()}.",
+    }
+
+
+@router.get("/city/{city}/status")
+async def get_city_pois_status(
+    city: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Checks the status and total POIs count for a city database.
+    """
+    city_clean = re.sub(r"[^a-z0-9_-]", "", city.strip().lower())
+    stmt = (
+        select(func.count())
+        .select_from(AttractionModel)
+        .where(
+            or_(
+                func.lower(AttractionModel.city) == city_clean,
+                AttractionModel.city_id == city_clean,
+                AttractionModel.city_id.startswith(f"{city_clean}_"),
+                AttractionModel.city.ilike(city.strip()),
+            )
+        )
+        .where(~AttractionModel.id.like("custom-%"))
+        .where(~AttractionModel.id.like("OSM-transit-%"))
+    )
+    count = (await session.execute(stmt)).scalar() or 0
+
+    is_hydrating = False
+    try:
+        import os
+        import redis
+
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        r = redis.from_url(redis_url)
+        is_hydrating = bool(
+            r.exists(f"paladio:lock:hydrate_city:{city_clean}")
+            or r.get(f"paladio:city_hydration_active:{city_clean}")
+        )
+    except Exception:
+        pass
+
+    return {
+        "city": city.strip(),
+        "poi_count": count,
+        "is_hydrating": is_hydrating,
+    }
 
 
 @router.post("/batch-photos", response_model=BatchPhotoResponse)
