@@ -78,6 +78,11 @@ async def test_madrid_compilation_and_cache_state(db_session, monkeypatch, tmp_p
     from app.tasks import build_city_gtfs_task
 
     monkeypatch.setenv("GTFS_BASE_DIR", str(tmp_path / "gtfs_feeds"))
+    madrid_feed_dir = tmp_path / "gtfs_feeds" / "madrid"
+    madrid_feed_dir.mkdir(parents=True, exist_ok=True)
+    (madrid_feed_dir / "stops.txt").write_text(
+        "stop_id,stop_name,stop_lat,stop_lon\n1,Sol,40.4168,-3.7038\n"
+    )
 
     # Populate cache entry
     await db_session.execute(

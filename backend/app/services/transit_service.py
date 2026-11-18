@@ -205,18 +205,15 @@ async def get_detailed_transit_leg(
             {"lat": orig_lat, "lon": orig_lon},
             {"lat": dest_lat, "lon": dest_lon},
         ],
-        "costing": "multimodal",
-        "date_time": {
-            "type": date_time_type,  # 1 = depart at, 2 = arrive by
-            "value": departure_iso,
-        },
-        "costing_options": {
-            "transit": {
-                "use_bus": 0.8,
-                "use_rail": 1.0,
-                "use_transfers": 0.5,
-            }
-        },
+        "costing": "pedestrian"
+        if (
+            dist_km := calculate_haversine_km(
+                float(orig_lat), float(orig_lon), float(dest_lat), float(dest_lon)
+            )
+        )
+        <= 1.5
+        and not is_airport_leg
+        else "auto",
         "directions_options": {"units": "kilometers"},
     }
 
@@ -230,48 +227,24 @@ async def get_detailed_transit_leg(
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(f"{VALHALLA_URL}/route", json=req_payload)
             if resp.status_code == 400:
-                dist_km = calculate_haversine_km(
-                    float(orig_lat), float(orig_lon), float(dest_lat), float(dest_lon)
+                candidates = (
+                    ["bus", "auto", "pedestrian"]
+                    if is_airport_leg or dist_km > 1.5
+                    else ["pedestrian", "bus", "auto"]
                 )
-                if is_airport_leg:
-                    for candidate in ["bus", "auto", "pedestrian"]:
-                        fb_payload = {
-                            "locations": req_payload["locations"],
-                            "costing": candidate,
-                            "directions_options": {"units": "kilometers"},
-                        }
-                        resp = await client.post(
-                            f"{VALHALLA_URL}/route", json=fb_payload
-                        )
-                        if resp.status_code == 200:
-                            used_fallback_costing = candidate
-                            break
-                elif dist_km <= 1.5:
-                    for candidate in ["pedestrian", "bus", "auto"]:
-                        fb_payload = {
-                            "locations": req_payload["locations"],
-                            "costing": candidate,
-                            "directions_options": {"units": "kilometers"},
-                        }
-                        resp = await client.post(
-                            f"{VALHALLA_URL}/route", json=fb_payload
-                        )
-                        if resp.status_code == 200:
-                            used_fallback_costing = candidate
-                            break
-                else:
-                    for candidate in ["bus", "auto", "pedestrian"]:
-                        fb_payload = {
-                            "locations": req_payload["locations"],
-                            "costing": candidate,
-                            "directions_options": {"units": "kilometers"},
-                        }
-                        resp = await client.post(
-                            f"{VALHALLA_URL}/route", json=fb_payload
-                        )
-                        if resp.status_code == 200:
-                            used_fallback_costing = candidate
-                            break
+                for candidate in candidates:
+                    fb_payload = {
+                        "locations": req_payload["locations"],
+                        "costing": candidate,
+                        "directions_options": {"units": "kilometers"},
+                    }
+                    fb_resp = await client.post(
+                        f"{VALHALLA_URL}/route", json=fb_payload
+                    )
+                    if fb_resp.status_code == 200:
+                        resp = fb_resp
+                        used_fallback_costing = candidate
+                        break
 
             if resp.status_code == 400:
                 city_name = str(
@@ -394,13 +367,7 @@ async def get_detailed_transit_leg(
                                 break
 
                     # Safeguard: prevent vehicle driving instructions from leaking into passenger steps
-                    if step_type == "transit" and instruction.lower().startswith(
-                        "drive "
-                    ):
-                        instruction = f"Take transit towards {headsign or dest_name}"
-                    elif step_type == "walk" and instruction.lower().startswith(
-                        "drive "
-                    ):
+                    if instruction.lower().startswith("drive "):
                         instruction = f"Walk towards {headsign or dest_name}"
 
                     b_idx = m.get("begin_shape_index", 0)

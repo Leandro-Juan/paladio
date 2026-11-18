@@ -19,9 +19,13 @@ class GTFSTranslationHelper:
         self.default_lang = default_lang.lower().strip()
         # Key: (table_name, lookup_type, lookup_key, lang) -> translated text
         self.translations: dict[tuple[str, str, str, str], str] = {}
-        # Legacy fallback compatibility dictionary: (table_name, field_value) -> en_translation
-        self._legacy_map: dict[tuple[str, str], str] = {}
+        # Direct field-value dictionary: (table_name, field_value) -> en_translation
+        self.field_translations: dict[tuple[str, str], str] = {}
         self.load()
+
+    @property
+    def _legacy_map(self) -> dict[tuple[str, str], str]:
+        return self.field_translations
 
     def load(self) -> None:
         trans_file = os.path.join(self.gtfs_dir, "translations.txt")
@@ -55,7 +59,9 @@ class GTFSTranslationHelper:
                             translation
                         )
                         if lang == "en":
-                            self._legacy_map[(table_name, field_value)] = translation
+                            self.field_translations[(table_name, field_value)] = (
+                                translation
+                            )
         except Exception as e:
             logger.debug(f"Could not load translations.txt from {self.gtfs_dir}: {e}")
 
@@ -92,10 +98,10 @@ class GTFSTranslationHelper:
             if t and t != raw_name:
                 return t, raw_name
 
-        # 3. Check legacy map
-        t_leg = self._legacy_map.get(("stops", raw_name))
-        if t_leg and t_leg != raw_name:
-            return t_leg, raw_name
+        # 3. Direct field value lookup
+        t_field = self.field_translations.get(("stops", raw_name))
+        if t_field and t_field != raw_name:
+            return t_field, raw_name
 
         return raw_name, None
 
@@ -126,4 +132,4 @@ class GTFSTranslationHelper:
             if t:
                 return t
 
-        return self._legacy_map.get(("routes", raw_name), raw_name)
+        return self.field_translations.get(("routes", raw_name), raw_name)

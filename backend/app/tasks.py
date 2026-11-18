@@ -1744,9 +1744,8 @@ def cleanup_city_gtfs_task(self, city_name: str):
 )
 def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
     """
-    Downloads GTFS public transit data in the background, sanitizes pathways,
-    compiles Valhalla transit tiles sequentially using a distributed Redis lock,
-    and publishes telemetry notifications to Redis.
+    Downloads GTFS public transit data in the background, sanitizes feed files,
+    dispatches database transit derivation, and publishes telemetry notifications to Redis.
     """
     import redis
 
@@ -2081,8 +2080,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 )
                 return {"status": "unavailable", "city": city_lower}
 
-        # 4a. Queue transit derivation immediately after download and pruning
-        # Runs asynchronously without blocking Valhalla compile
+        # 4a. Queue database transit derivation immediately after download and pruning
         try:
             derive_city_transit_task.delay(city_name=city_lower, trip_id=trip_id)
             logger.info(f"Dispatched derive_city_transit_task for {city_lower}")
@@ -2091,10 +2089,7 @@ def build_city_gtfs_task(self, city_name: str, trip_id: str | None = None):
                 f"Could not dispatch derive_city_transit_task for {city_lower}: {derive_dispatch_err}"
             )
 
-        # 4b. Valhalla transit compilation decommissioned:
-        # Paladio uses Transitous (MOTIS v2) for live multimodal routing with full
-        # intermediate stops, and derive_city_transit_task for local PostgreSQL tables.
-        # Valhalla container compilation, tile tarring, and restarts are completely bypassed.
+        # 4b. Update cache and publish download completion
         logger.info(
             f"GTFS download and sanitization complete for {city_lower}. Updating cache to READY."
         )

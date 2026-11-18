@@ -50,7 +50,7 @@ class GTFSRouteFinder:
         # 1. Translations
         helper = GTFSTranslationHelper(self.gtfs_dir)
         self.translation_helper = helper
-        self.translations = {**helper._legacy_map, **helper.translations}
+        self.translations = {**helper.field_translations, **helper.translations}
 
         # 2. Stops
         stops_file = os.path.join(self.gtfs_dir, "stops.txt")
