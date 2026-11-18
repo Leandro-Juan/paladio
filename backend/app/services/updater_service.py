@@ -215,7 +215,7 @@ class UpdaterService:
 
         close_client = False
         if client is None:
-            client = httpx.AsyncClient(timeout=15.0)
+            client = httpx.AsyncClient(timeout=15.0, follow_redirects=True)
             close_client = True
 
         try:
@@ -368,13 +368,15 @@ class UpdaterService:
 
             headers = {
                 "User-Agent": "Paladio-AutoUpdater/2.0",
-                "Accept": "application/octet-stream",
+                "Accept": "application/vnd.github+json, application/octet-stream, */*",
             }
             gh_token = os.getenv("GITHUB_TOKEN")
             if gh_token:
                 headers["Authorization"] = f"Bearer {gh_token}"
 
-            async with client.stream("GET", target_url, headers=headers) as stream_resp:
+            async with client.stream(
+                "GET", target_url, headers=headers, follow_redirects=True
+            ) as stream_resp:
                 stream_resp.raise_for_status()
                 with open(dest_file, "wb") as f:
                     async for chunk in stream_resp.aiter_bytes(chunk_size=65536):

@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import os
+from pathlib import Path
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -9,16 +10,38 @@ import jwt
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 APP_ENV = os.getenv("APP_ENV", "").lower()
-SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-if not SECRET_KEY:
-    if ENVIRONMENT == "production" or APP_ENV == "production":
-        raise RuntimeError(
-            "JWT_SECRET_KEY must be explicitly configured in production environment."
+
+
+def _load_or_generate_secret_key() -> str:
+    env_secret = os.getenv("JWT_SECRET_KEY")
+    if env_secret and env_secret.strip():
+        return env_secret.strip()
+
+    secret_file = Path(os.getenv("JWT_SECRET_PATH", "data/.jwt_secret"))
+    try:
+        if secret_file.exists():
+            content = secret_file.read_text(encoding="utf-8").strip()
+            if content:
+                return content
+        secret_file.parent.mkdir(parents=True, exist_ok=True)
+        generated = secrets.token_hex(32)
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        mode = 0o600
+        with os.fdopen(os.open(secret_file, flags, mode), "w", encoding="utf-8") as f:
+            f.write(generated)
+        return generated
+    except Exception:
+        if ENVIRONMENT == "production" or APP_ENV == "production":
+            raise RuntimeError(
+                "JWT_SECRET_KEY must be explicitly configured or data volume must be writable."
+            )
+        return os.getenv(
+            "DEV_JWT_SECRET",
+            "paladio-dev-ephemeral-jwt-secret-key-do-not-use-in-production",
         )
-    SECRET_KEY = os.getenv(
-        "DEV_JWT_SECRET",
-        "paladio-dev-ephemeral-jwt-secret-key-do-not-use-in-production",
-    )
+
+
+SECRET_KEY = _load_or_generate_secret_key()
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
