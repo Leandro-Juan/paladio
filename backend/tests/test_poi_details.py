@@ -162,7 +162,7 @@ async def test_create_and_update_poi(async_client: AsyncClient):
         item["name"] == "Custom Matcha Teahouse" for item in search_data["results"]
     )
 
-    # Update in place
+    # Update in place with photo_url
     update_payload = {
         "name": "Custom Ramen Spot Deluxe",
         "category": "cafe",
@@ -170,6 +170,7 @@ async def test_create_and_update_poi(async_client: AsyncClient):
         "cost_eur": 18.0,
         "description": "Upgraded ramen bar & tea lounge.",
         "website": "https://deluxe-ramen.example.com",
+        "photo_url": "https://images.unsplash.com/photo-ramen-test.jpg",
     }
     update_res = await async_client.put(f"/api/pois/{poi_id}", json=update_payload)
     assert update_res.status_code == 200
@@ -180,6 +181,11 @@ async def test_create_and_update_poi(async_client: AsyncClient):
     assert updated["duration_mins"] == 60
     assert updated["cost_eur"] == 18.0
     assert updated["website"] == "https://deluxe-ramen.example.com"
+    assert len(updated["photos"]) == 1
+    assert (
+        updated["photos"][0]["url"]
+        == "https://images.unsplash.com/photo-ramen-test.jpg"
+    )
 
 
 @pytest.mark.asyncio

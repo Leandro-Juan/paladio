@@ -204,6 +204,8 @@ class PoiUpdateRequest(BaseModel):
     phone: str | None = None
     lat: float | None = None
     lng: float | None = None
+    photo_url: str | None = None
+    photos: list[PoiPhotoInput] | None = None
 
 
 def _extract_poi_attributes(
@@ -3225,6 +3227,40 @@ async def update_poi(
             "longitude": float(update_in.lng),
         }
 
+    if update_in.photos is not None:
+        meta = dict(attraction.metadata_field or {})
+        photos_list = [
+            {
+                "url": p.url.strip(),
+                "thumbnail_url": (p.thumbnail_url or p.url).strip(),
+                "caption": p.caption.strip() if p.caption else None,
+            }
+            for p in update_in.photos
+            if p.url and p.url.strip()
+        ]
+        meta["photos"] = photos_list
+        if photos_list:
+            meta["photo_url"] = photos_list[0]["url"]
+            meta["thumbnail_url"] = photos_list[0]["thumbnail_url"]
+        else:
+            meta.pop("photo_url", None)
+            meta.pop("thumbnail_url", None)
+        attraction.metadata_field = meta
+    elif update_in.photo_url is not None:
+        meta = dict(attraction.metadata_field or {})
+        clean_url = update_in.photo_url.strip()
+        if clean_url:
+            meta["photos"] = [
+                {"url": clean_url, "thumbnail_url": clean_url, "caption": None}
+            ]
+            meta["photo_url"] = clean_url
+            meta["thumbnail_url"] = clean_url
+        else:
+            meta["photos"] = []
+            meta.pop("photo_url", None)
+            meta.pop("thumbnail_url", None)
+        attraction.metadata_field = meta
+
     await session.commit()
     await session.refresh(attraction)
 
@@ -3234,6 +3270,12 @@ async def update_poi(
     meta = dict(attraction.metadata_field or {})
     tags = dict(meta.get("tags") or {})
     attrs = _extract_poi_attributes(attraction, meta, tags)
+    photos_data = meta.get("photos") or []
+    photos_res = (
+        [PoiPhotoItem(**p) for p in photos_data]
+        if isinstance(photos_data, list)
+        else []
+    )
 
     return PoiDetailResponse(
         id=attraction.id,
@@ -3260,7 +3302,7 @@ async def update_poi(
         doc_quality=getattr(attraction, "doc_quality", "C") or "C",
         hours_known=bool(getattr(attraction, "hours_known", False)),
         daily_windows=list(getattr(attraction, "daily_windows", []) or []),
-        photos=[],
+        photos=photos_res,
     )
 
 
