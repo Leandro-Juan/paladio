@@ -361,3 +361,96 @@ async def test_standalone_dashboard_collections_lifecycle(async_client: AsyncCli
         headers=headers,
     )
     assert del_col_res.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_duplicate_collection_name_rejection(
+    async_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+):
+    """Verifies that creating or renaming a collection to a duplicate name is rejected with 409."""
+    monkeypatch.setattr(
+        "app.tasks.async_trigger_city_gtfs_download_if_needed",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        "app.engine.city_readiness.ensure_city_ready",
+        AsyncMock(return_value=None),
+    )
+    uid = uuid.uuid4().hex[:8]
+
+    # Register user
+    res_reg = await async_client.post(
+        "/api/auth/register",
+        json={
+            "email": f"dup_col_{uid}@paladio.com",
+            "username": f"dup_col_{uid}",
+            "password": "passwordColl123",
+        },
+    )
+    assert res_reg.status_code == 201
+    token = res_reg.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create trip
+    trip_res = await async_client.post(
+        "/api/trips/",
+        json={
+            "destination": "Paris",
+            "start_date": "2026-11-01",
+            "end_date": "2026-11-05",
+            "itinerary_data": {"days": []},
+        },
+        headers=headers,
+    )
+    assert trip_res.status_code == 201
+    trip_id = trip_res.json()["id"]
+
+    # 1. Create first trip collection
+    c1 = await async_client.post(
+        f"/api/trips/{trip_id}/collections",
+        json={"name": "Parks", "color": "#0F4C5C"},
+        headers=headers,
+    )
+    assert c1.status_code == 201
+
+    # 2. Try creating duplicate trip collection (case-insensitive with whitespace)
+    c1_dup = await async_client.post(
+        f"/api/trips/{trip_id}/collections",
+        json={"name": "  parks  ", "color": "#E36414"},
+        headers=headers,
+    )
+    assert c1_dup.status_code == 409
+    assert "already exists in this trip" in c1_dup.json()["detail"]
+
+    # 3. Create second trip collection
+    c2 = await async_client.post(
+        f"/api/trips/{trip_id}/collections",
+        json={"name": "Museums", "color": "#2A9D8F"},
+        headers=headers,
+    )
+    assert c2.status_code == 201
+    c2_id = c2.json()["id"]
+
+    # 4. Try renaming second collection to first collection's name
+    ren_dup = await async_client.put(
+        f"/api/trips/{trip_id}/collections/{c2_id}",
+        json={"name": "PARKS"},
+        headers=headers,
+    )
+    assert ren_dup.status_code == 409
+
+    # 5. Saved collections duplicate test
+    s1 = await async_client.post(
+        "/api/trips/saved-collections",
+        json={"name": f"Wishlist_{uid}", "color": "#6366F1"},
+        headers=headers,
+    )
+    assert s1.status_code == 201
+
+    s1_dup = await async_client.post(
+        "/api/trips/saved-collections",
+        json={"name": f" wishlist_{uid} "},
+        headers=headers,
+    )
+    assert s1_dup.status_code == 409
+    assert "already exists" in s1_dup.json()["detail"]

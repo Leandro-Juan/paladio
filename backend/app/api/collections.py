@@ -2,8 +2,9 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import delete, select
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pydantic import BaseModel
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -285,7 +286,19 @@ async def _update_collection_record(
         )
 
     if payload.name is not None:
-        col.name = payload.name.strip()
+        clean_name = payload.name.strip()
+        dup_stmt = select(TripCollectionModel).where(
+            TripCollectionModel.trip_id.is_(None),
+            TripCollectionModel.id != collection_id,
+            func.lower(TripCollectionModel.name) == clean_name.lower(),
+        )
+        dup_res = await session.execute(dup_stmt)
+        if dup_res.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"A collection named '{clean_name}' already exists.",
+            )
+        col.name = clean_name
     if payload.description is not None:
         col.description = payload.description.strip() if payload.description else None
     if payload.color is not None:
@@ -489,10 +502,22 @@ async def create_saved_collection(
     session: AsyncSession = Depends(get_db),
     current_user: UserModel | None = Depends(get_optional_user),
 ):
+    clean_name = payload.name.strip()
+    dup_stmt = select(TripCollectionModel).where(
+        TripCollectionModel.trip_id.is_(None),
+        func.lower(TripCollectionModel.name) == clean_name.lower(),
+    )
+    dup_res = await session.execute(dup_stmt)
+    if dup_res.scalars().first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A collection named '{clean_name}' already exists.",
+        )
+
     col = TripCollectionModel(
         id=str(uuid.uuid4()),
         trip_id=None,
-        name=payload.name.strip(),
+        name=clean_name,
         description=payload.description.strip() if payload.description else None,
         color=payload.color or "#0F4C5C",
     )
@@ -574,6 +599,97 @@ async def remove_item_from_saved_collection(
     return None
 
 
+class ImportPlacesResponse(BaseModel):
+    imported_count: int
+    created_pois_count: int
+    matched_existing_count: int
+    poi_ids: list[str]
+
+
+async def _import_into_collection(
+    collection_id: str,
+    file: UploadFile | None,
+    urls: str | None,
+    city: str | None,
+    session: AsyncSession,
+    current_user: UserModel | None,
+) -> ImportPlacesResponse:
+    from app.services.place_import_service import (
+        import_places_to_collection,
+        parse_place_import_payload,
+    )
+
+    col_stmt = (
+        select(TripCollectionModel)
+        .options(selectinload(TripCollectionModel.items))
+        .where(TripCollectionModel.id == collection_id)
+    )
+    col = (await session.execute(col_stmt)).scalar_one_or_none()
+    if not col:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Collection not found",
+        )
+
+    content = await file.read() if file else None
+    filename = file.filename if file else None
+    if not content and not (urls and urls.strip()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide a GPX/KML/KMZ/GeoJSON/CSV file or Google Maps URLs.",
+        )
+
+    try:
+        candidates = parse_place_import_payload(
+            content=content,
+            filename=filename,
+            urls_text=urls,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to parse places file or URLs: {exc}",
+        ) from exc
+
+    if not candidates:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid geolocated places were found in the supplied input.",
+        )
+
+    res = await import_places_to_collection(
+        session=session,
+        collection=col,
+        candidates=candidates,
+        user=current_user,
+        default_city=city,
+    )
+    return ImportPlacesResponse(**res)
+
+
+@router.post(
+    "/saved-collections/{collection_id}/import",
+    response_model=ImportPlacesResponse,
+    summary="Import GPX, KML, KMZ, Google Takeout JSON/CSV, or Google Maps URLs into a saved collection",
+)
+async def import_places_to_saved_collection(
+    collection_id: str,
+    file: UploadFile | None = File(None),
+    urls: str | None = Form(None),
+    city: str | None = Form(None),
+    session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    return await _import_into_collection(
+        collection_id=collection_id,
+        file=file,
+        urls=urls,
+        city=city,
+        session=session,
+        current_user=current_user,
+    )
+
+
 @router.get("/{trip_id}/collections", response_model=list[CollectionResponse])
 async def list_trip_collections(
     trip_id: str,
@@ -629,11 +745,23 @@ async def create_trip_collection(
         trip_id, session, current_user, TripAccessLevel.EDITOR
     )
 
+    clean_name = payload.name.strip()
+    dup_stmt = select(TripCollectionModel).where(
+        TripCollectionModel.trip_id == trip_id,
+        func.lower(TripCollectionModel.name) == clean_name.lower(),
+    )
+    dup_res = await session.execute(dup_stmt)
+    if dup_res.scalars().first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A collection named '{clean_name}' already exists in this trip.",
+        )
+
     collection_id = str(uuid.uuid4())
     col = TripCollectionModel(
         id=collection_id,
         trip_id=trip_id,
-        name=payload.name.strip(),
+        name=clean_name,
         description=payload.description.strip() if payload.description else None,
         color=payload.color or "#0F4C5C",
     )
@@ -677,7 +805,19 @@ async def update_trip_collection(
         )
 
     if payload.name is not None:
-        col.name = payload.name.strip()
+        clean_name = payload.name.strip()
+        dup_stmt = select(TripCollectionModel).where(
+            TripCollectionModel.trip_id == trip_id,
+            TripCollectionModel.id != collection_id,
+            func.lower(TripCollectionModel.name) == clean_name.lower(),
+        )
+        dup_res = await session.execute(dup_stmt)
+        if dup_res.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"A collection named '{clean_name}' already exists in this trip.",
+            )
+        col.name = clean_name
     if payload.description is not None:
         col.description = payload.description.strip() if payload.description else None
     if payload.color is not None:
@@ -808,6 +948,33 @@ async def add_item_to_collection(
             else datetime.now(timezone.utc).isoformat()
         ),
         poi=poi_map.get(item.poi_id),
+    )
+
+
+@router.post(
+    "/{trip_id}/collections/{collection_id}/import",
+    response_model=ImportPlacesResponse,
+    summary="Import GPX, KML, KMZ, Google Takeout JSON/CSV, or Google Maps URLs into a trip collection",
+)
+async def import_places_to_trip_collection(
+    trip_id: str,
+    collection_id: str,
+    file: UploadFile | None = File(None),
+    urls: str | None = Form(None),
+    city: str | None = Form(None),
+    session: AsyncSession = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    trip = await _get_trip_or_404(
+        trip_id, session, current_user, level=TripAccessLevel.EDITOR
+    )
+    return await _import_into_collection(
+        collection_id=collection_id,
+        file=file,
+        urls=urls,
+        city=city or trip.destination,
+        session=session,
+        current_user=current_user,
     )
 
 
