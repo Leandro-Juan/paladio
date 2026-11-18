@@ -683,3 +683,85 @@ async def describe_taste_profile(
         summary=f"Taste profile v{profile.version} ({profile.event_count} events).",
         data=data,
     )
+
+
+async def shift_trip_dates(
+    trip_id: str,
+    new_start_date: str,
+    reanchor_bookings: bool = True,
+    ctx: Context | None = None,
+) -> ToolResult:
+    """Shifts trip dates to a new start date and optionally re-anchors tickets and expenses."""
+    u_ctx = await get_user_context(ctx)
+    await u_ctx.check_access(trip_id, TripAccessLevel.EDIT)
+
+    trip, delta_days = await TripService.shift_trip_dates(
+        trip_id=trip_id,
+        new_start_date=new_start_date,
+        user=u_ctx.user,
+        session=u_ctx.session,
+        reanchor_bookings=reanchor_bookings,
+        actor="agent",
+    )
+
+    await log_agent_action(
+        session=u_ctx.session,
+        tool="shift_trip_dates",
+        outcome="success",
+        user_id=u_ctx.user.id if u_ctx.user else None,
+        trip_id=trip_id,
+        args={"new_start_date": new_start_date, "reanchor_bookings": reanchor_bookings},
+        revision=trip.revision,
+    )
+
+    return ToolResult(
+        ok=True,
+        summary=f"Shifted trip dates by {delta_days:+d} days ({trip.start_date} to {trip.end_date}).",
+        data={
+            "trip_id": trip.id,
+            "start_date": trip.start_date,
+            "end_date": trip.end_date,
+            "delta_days": delta_days,
+            "revision": trip.revision,
+        },
+    )
+
+
+async def duplicate_trip(
+    trip_id: str,
+    new_start_date: str | None = None,
+    title_suffix: str = " (Copy)",
+    ctx: Context | None = None,
+) -> ToolResult:
+    """Duplicates an existing trip into a new standalone expedition."""
+    u_ctx = await get_user_context(ctx)
+    await u_ctx.check_access(trip_id, TripAccessLevel.READ)
+
+    new_trip = await TripService.duplicate_trip(
+        trip_id=trip_id,
+        user=u_ctx.user,
+        session=u_ctx.session,
+        new_start_date=new_start_date,
+        title_suffix=title_suffix,
+    )
+
+    await log_agent_action(
+        session=u_ctx.session,
+        tool="duplicate_trip",
+        outcome="success",
+        user_id=u_ctx.user.id if u_ctx.user else None,
+        trip_id=trip_id,
+        args={"new_start_date": new_start_date, "new_trip_id": new_trip.id},
+    )
+
+    return ToolResult(
+        ok=True,
+        summary=f"Duplicated trip into new trip '{new_trip.id}' ({new_trip.start_date} to {new_trip.end_date}).",
+        data={
+            "source_trip_id": trip_id,
+            "new_trip_id": new_trip.id,
+            "destination": new_trip.destination,
+            "start_date": new_trip.start_date,
+            "end_date": new_trip.end_date,
+        },
+    )

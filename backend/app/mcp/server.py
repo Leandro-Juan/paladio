@@ -61,6 +61,18 @@ mcp.tool(
 )(tools.export_trip_package)
 
 mcp.tool(
+    name="shift_trip_dates",
+    description="Shifts all trip dates to a new start date and optionally re-anchors tickets and expenses.",
+    annotations=make_annotations(read_only=False),
+)(tools.shift_trip_dates)
+
+mcp.tool(
+    name="duplicate_trip",
+    description="Creates a full copy of an existing trip (optionally shifted to a new start date).",
+    annotations=make_annotations(read_only=False),
+)(tools.duplicate_trip)
+
+mcp.tool(
     name="record_taste_preference",
     description="Records an explicit preference or hard dislike from chat into the user's persistent taste profile.",
     annotations=make_annotations(read_only=False),

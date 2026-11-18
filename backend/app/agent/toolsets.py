@@ -107,6 +107,8 @@ DOMAIN_TOOLSETS: dict[str, list[str]] = {
         "remove_day",
         "set_day_bounds",
         "set_pace",
+        "shift_trip_dates",
+        "duplicate_trip",
         "undo_to",
     ],
 }
@@ -233,6 +235,10 @@ INTENT_KEYWORDS: dict[str, list[str]] = {
         "add day",
         "remove day",
         "free time",
+        "shift dates",
+        "move trip",
+        "duplicate",
+        "clone trip",
     ],
 }
 
