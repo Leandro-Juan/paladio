@@ -649,12 +649,13 @@ class TasteService:
         profile.disliked_tags = list(
             dict.fromkeys([t.strip().lower() for t in norm.disliked_tags if t])
         )
-        for cuis in norm.preferred_cuisines:
-            c = str(cuis).strip().lower()
-            if c:
-                profile.cuisine_posteriors[c] = BetaPosterior(alpha=5.0, beta=1.5)
+        raw_cuisines = (preferences or {}).get("preferred_cuisines")
+        if isinstance(raw_cuisines, list):
+            for cuis in raw_cuisines:
+                c = str(cuis).strip().lower()
+                if c:
+                    profile.cuisine_posteriors[c] = BetaPosterior(alpha=5.0, beta=1.5)
         profile.behavioral_params.pace = norm.pace.value
-        profile.behavioral_params.walking_tolerance = norm.walking_tolerance.value
         profile.economic_profile.budget_tier = norm.budget_tier.value
         profile.is_neutral = False
         profile.version += 1
