@@ -10,6 +10,7 @@ import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTripTicket } from '@/components/ActiveTripTicket';
 import { HarmonicRadarWidget } from '@/components/HarmonicRadarWidget';
 import { BestOfferCard } from '@/components/dashboard/BestOfferCard';
+import { SeedTasteCard } from '@/components/dashboard/SeedTasteCard';
 import { RecommendedPoisSection } from '@/components/dashboard/RecommendedPoisSection';
 import { Calendar } from '@/components/Calendar';
 import { UpcomingTripsSection } from '@/components/dashboard/UpcomingTripsSection';
@@ -93,6 +94,7 @@ export default function DashboardPage() {
 
   return (
     <div className={styles.container}>
+      <SeedTasteCard user={user} />
       <div className={styles.cockpitSection}>
         {/* Header Bar */}
         <div className={styles.header}>
