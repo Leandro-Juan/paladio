@@ -256,14 +256,15 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
   };
 
   useEffect(() => {
-    if (!trip.id) return;
+    const tripId = trip.id;
+    if (!tripId) return;
     let cancelled = false;
     Promise.resolve().then(async () => {
       if (cancelled) return;
       setRevisionsLoading(true);
       setRevisionsError(null);
       try {
-        const data = await getTripRevisions(trip.id);
+        const data = await getTripRevisions(tripId);
         if (!cancelled) {
           setRevisions(data.items || []);
           setCurrentRevision(data.current_revision ?? 0);
