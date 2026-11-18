@@ -67,26 +67,37 @@ function PinIcon({ size = 12 }: { size?: number }) {
 }
 
 // Self-contained custom tactical waypoint marker for Paladio
-const waypointIcon = typeof window !== 'undefined' ? L.divIcon({
-  className: 'paladio-map-waypoint paladio-map-marker',
-  html: `
-    <div style="position:relative;width:28px;height:38px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 3px 6px rgba(15,76,92,0.45));cursor:pointer;transition:transform 0.15s ease;">
-      <svg width="28" height="38" viewBox="0 0 28 38" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;width:28px;height:38px;">
-        <!-- Teardrop Pin Body -->
-        <path d="M14 0C6.26801 0 0 6.26801 0 14C0 23.5 12.6 36.5 14 38C15.4 36.5 28 23.5 28 14C28 6.26801 21.732 0 14 0Z" fill="var(--color-accent-primary, #0F4C5C)"/>
-        <!-- Crisp White Outer Contour -->
-        <path d="M14 1C7.04062 1 1.4 6.64062 1.4 14C1.4 22.8 13.2 35.2 14 36.5C14.8 35.2 26.6 22.8 26.6 14C26.6 6.64062 20.9594 1 14 1Z" stroke="#FFFFFF" stroke-width="1.8"/>
-        <!-- Concentric Waypoint Core -->
-        <circle cx="14" cy="13.5" r="7" fill="#FFFFFF"/>
-        <circle cx="14" cy="13.5" r="4.5" fill="var(--color-accent-primary, #0F4C5C)"/>
-        <circle cx="14" cy="13.5" r="1.8" fill="var(--color-accent-teal-soft, #7CC4D1)"/>
-      </svg>
-    </div>
-  `,
-  iconSize: [28, 38],
-  iconAnchor: [14, 38],
-  popupAnchor: [0, -36],
-}) : ({} as L.DivIcon);
+export function createVaultWaypointIcon(cityIndex = 0, totalInCity = 1): L.DivIcon {
+  if (typeof window === 'undefined') return {} as L.DivIcon;
+  const pinNumber = totalInCity > 1 ? `${cityIndex + 1}` : '';
+  const badgeHtml = totalInCity > 1
+    ? `<div style="position:absolute;top:-4px;right:-4px;background:#E36414;color:#FFFFFF;font-family:var(--font-mono);font-size:9px;font-weight:800;width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1.5px solid #FFFFFF;box-shadow:0 2px 4px rgba(0,0,0,0.3);z-index:2;pointer-events:none;">${pinNumber}</div>`
+    : '';
+
+  return L.divIcon({
+    className: 'paladio-map-waypoint paladio-map-marker',
+    html: `
+      <div style="position:relative;width:28px;height:38px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 3px 6px rgba(15,76,92,0.45));cursor:pointer;transition:transform 0.15s ease;">
+        <svg width="28" height="38" viewBox="0 0 28 38" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;width:28px;height:38px;pointer-events:none;">
+          <!-- Teardrop Pin Body -->
+          <path d="M14 0C6.26801 0 0 6.26801 0 14C0 23.5 12.6 36.5 14 38C15.4 36.5 28 23.5 28 14C28 6.26801 21.732 0 14 0Z" fill="var(--color-accent-primary, #0F4C5C)"/>
+          <!-- Crisp White Outer Contour -->
+          <path d="M14 1C7.04062 1 1.4 6.64062 1.4 14C1.4 22.8 13.2 35.2 14 36.5C14.8 35.2 26.6 22.8 26.6 14C26.6 6.64062 20.9594 1 14 1Z" stroke="#FFFFFF" stroke-width="1.8"/>
+          <!-- Concentric Waypoint Core -->
+          <circle cx="14" cy="13.5" r="7" fill="#FFFFFF"/>
+          <circle cx="14" cy="13.5" r="4.5" fill="var(--color-accent-primary, #0F4C5C)"/>
+          <circle cx="14" cy="13.5" r="1.8" fill="var(--color-accent-teal-soft, #7CC4D1)"/>
+        </svg>
+        ${badgeHtml}
+      </div>
+    `,
+    iconSize: [28, 38],
+    iconAnchor: [14, 38],
+    popupAnchor: [0, -36],
+  });
+}
+
+const waypointIcon = typeof window !== 'undefined' ? createVaultWaypointIcon() : ({} as L.DivIcon);
 
 export interface VaultTrip {
   id?: string;
@@ -96,6 +107,52 @@ export interface VaultTrip {
   lat: number;
   lng: number;
   trip?: Trip;
+}
+
+export interface PositionedVaultTrip extends VaultTrip {
+  renderLat: number;
+  renderLng: number;
+  cityIndex: number;
+  totalInCity: number;
+  tripTitle?: string;
+  dateRangeLabel?: string;
+  poiCount: number;
+}
+
+export function formatTripDateRange(trip?: Trip): string | undefined {
+  if (!trip?.start_date) return undefined;
+  try {
+    const s = new Date(trip.start_date);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[s.getUTCMonth()];
+    const year = s.getUTCFullYear();
+    if (trip.end_date) {
+      const e = new Date(trip.end_date);
+      if (s.getUTCFullYear() === e.getUTCFullYear()) {
+        if (s.getUTCMonth() === e.getUTCMonth()) {
+          return `${s.getUTCDate()}–${e.getUTCDate()} ${month} ${year}`;
+        }
+        return `${month}–${months[e.getUTCMonth()]} ${year}`;
+      }
+      return `${month} ${year} – ${months[e.getUTCMonth()]} ${e.getUTCFullYear()}`;
+    }
+    return `${month} ${year}`;
+  } catch {
+    return undefined;
+  }
+}
+
+export function countTripPois(trip?: Trip): number {
+  const itin = trip?.itinerary_data as { days?: Array<{ itinerary?: { path?: Array<unknown> } }> } | null | undefined;
+  let count = 0;
+  if (itin?.days && Array.isArray(itin.days)) {
+    for (const d of itin.days) {
+      if (d.itinerary?.path && Array.isArray(d.itinerary.path)) {
+        count += d.itinerary.path.length;
+      }
+    }
+  }
+  return count;
 }
 
 export interface VaultMapProps {
@@ -490,7 +547,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
     return set;
   }, [trips]);
 
-  const [deployedTrip, setDeployedTrip] = useState<VaultTrip | null>(null);
+  const [deployedTrip, setDeployedTrip] = useState<PositionedVaultTrip | null>(null);
 
   const destinationWatch = useMemo(() => {
     if (!deployedTrip) return [];
@@ -595,27 +652,65 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
     return [38, 5];
   }, [validTrips]);
 
-  // Micro-offset overlapping markers at identical coordinates so each pin is clickable
-  const positionedTrips = useMemo(() => {
-    const coordOccurrences = new Map<string, number>();
-    return validTrips.map((trip) => {
-      const key = `${trip.lat.toFixed(4)},${trip.lng.toFixed(4)}`;
-      const count = coordOccurrences.get(key) || 0;
-      coordOccurrences.set(key, count + 1);
-
-      if (count === 0) {
-        return { ...trip, renderLat: trip.lat, renderLng: trip.lng };
+  // Group trips by destination city and distribute radially when multiple expeditions exist for the same city
+  const positionedTrips: PositionedVaultTrip[] = useMemo(() => {
+    const cityGroups = new Map<string, typeof validTrips>();
+    for (const trip of validTrips) {
+      const dest = (trip.destination || trip.trip?.destination || '').trim().toLowerCase();
+      const key = dest || `${trip.lat.toFixed(2)},${trip.lng.toFixed(2)}`;
+      if (!cityGroups.has(key)) {
+        cityGroups.set(key, []);
       }
+      cityGroups.get(key)!.push(trip);
+    }
 
-      // Micro-jitter (~3km) so overlapping pins are visible side-by-side
-      const angle = (count * 2 * Math.PI) / 4;
-      const offset = 0.04;
-      return {
-        ...trip,
-        renderLat: trip.lat + Math.sin(angle) * offset,
-        renderLng: trip.lng + Math.cos(angle) * offset,
-      };
-    });
+    const result: PositionedVaultTrip[] = [];
+
+    for (const [, group] of cityGroups.entries()) {
+      const totalInCity = group.length;
+      // Sort trips within the city by start_date descending (newest first) or by ID
+      const sortedGroup = group.slice().sort((a, b) => {
+        const da = a.trip?.start_date ? new Date(a.trip.start_date).getTime() : 0;
+        const db = b.trip?.start_date ? new Date(b.trip.start_date).getTime() : 0;
+        return db - da;
+      });
+
+      sortedGroup.forEach((trip, idx) => {
+        const itin = trip.trip?.itinerary_data as { title?: string } | null | undefined;
+        const tripTitle = itin?.title || trip.trip?.destination || trip.destination;
+        const dateRangeLabel = formatTripDateRange(trip.trip);
+        const poiCount = countTripPois(trip.trip);
+
+        if (totalInCity === 1) {
+          result.push({
+            ...trip,
+            renderLat: trip.lat,
+            renderLng: trip.lng,
+            cityIndex: 0,
+            totalInCity: 1,
+            tripTitle,
+            dateRangeLabel,
+            poiCount,
+          });
+        } else {
+          // Radial distribution around the city anchor (~24km radius) with numbered badges
+          const angle = (idx * 2 * Math.PI) / totalInCity - Math.PI / 2;
+          const radius = 0.22;
+          result.push({
+            ...trip,
+            renderLat: trip.lat + Math.sin(angle) * radius,
+            renderLng: trip.lng + Math.cos(angle) * radius,
+            cityIndex: idx,
+            totalInCity,
+            tripTitle,
+            dateRangeLabel,
+            poiCount,
+          });
+        }
+      });
+    }
+
+    return result;
   }, [validTrips]);
 
   // If focusCoords changes from stats tab, automatically deploy that destination's card
@@ -624,11 +719,13 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
   if (normalizedFocusCoords !== prevFocusCoords) {
     setPrevFocusCoords(normalizedFocusCoords);
     if (normalizedFocusCoords) {
-      const match = positionedTrips.find(
-        (t) => Math.abs(t.lat - normalizedFocusCoords[0]) < 0.2 && Math.abs(t.lng - normalizedFocusCoords[1]) < 0.2
+      const matches = positionedTrips.filter(
+        (t) => Math.abs(t.lat - normalizedFocusCoords[0]) < 0.35 && Math.abs(t.lng - normalizedFocusCoords[1]) < 0.35
       );
-      if (match) {
-        setDeployedTrip(match);
+      if (matches.length > 0) {
+        // Pick the richest trip (most waypoints / photos) first so the user sees a complete guide by default
+        const bestMatch = matches.slice().sort((a, b) => b.poiCount - a.poiCount)[0];
+        setDeployedTrip(bestMatch);
       }
     }
   }
@@ -805,6 +902,12 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
     const pace = constraints?.pace || null;
     const travelTastes = Array.isArray(constraints?.travel_tastes) ? constraints.travel_tastes : [];
 
+    const tripTitle =
+      (itin as { title?: string })?.title ||
+      (tripObj as { title?: string })?.title ||
+      deployedTrip.tripTitle ||
+      `${deployedTrip.destination} Travel Guide`;
+
     return {
       daysCount,
       budgetText,
@@ -823,8 +926,17 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
       pace,
       travelTastes,
       tripId: tripObj?.id || deployedTrip.id,
+      tripTitle,
     };
   }, [deployedTrip, getPhoto]);
+
+  const cityTrips = useMemo(() => {
+    if (!deployedTrip) return [];
+    const targetCity = (deployedTrip.destination || '').trim().toLowerCase();
+    return positionedTrips.filter(
+      (t) => (t.destination || '').trim().toLowerCase() === targetCity
+    );
+  }, [deployedTrip, positionedTrips]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
@@ -854,7 +966,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
           <Marker 
             key={trip.id || `${trip.renderLat}-${trip.renderLng}-${idx}`} 
             position={[trip.renderLat, trip.renderLng]} 
-            icon={waypointIcon}
+            icon={trip.totalInCity > 1 ? createVaultWaypointIcon(trip.cityIndex, trip.totalInCity) : waypointIcon}
             eventHandlers={{
               click: () => {
                 setDeployedTrip(trip);
@@ -862,7 +974,17 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
             }}
           >
             <Tooltip direction="top" offset={[0, -36]} opacity={0.95}>
-              <span style={{ fontWeight: 600 }}>{trip.destination}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{trip.destination}</div>
+                {trip.tripTitle && trip.tripTitle.toLowerCase() !== trip.destination.toLowerCase() && (
+                  <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>{trip.tripTitle}</div>
+                )}
+                {trip.totalInCity > 1 && (
+                  <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', opacity: 0.8 }}>
+                    Expedition {trip.cityIndex + 1} of {trip.totalInCity}{trip.dateRangeLabel ? ` • ${trip.dateRangeLabel}` : ''}
+                  </div>
+                )}
+              </div>
             </Tooltip>
           </Marker>
         ))}
@@ -1009,6 +1131,51 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
               </div>
             </div>
 
+            {/* Multi-expedition switcher for multiple trips in same city */}
+            {cityTrips.length > 1 && (
+              <div
+                data-testid="deployed-trip-expedition-switcher"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  overflowX: 'auto',
+                  paddingBottom: '2px',
+                  scrollbarWidth: 'none',
+                }}
+              >
+                {cityTrips.map((ct, idx) => {
+                  const isSelected = (ct.trip?.id || ct.id) === (deployedTrip.trip?.id || deployedTrip.id);
+                  return (
+                    <button
+                      key={ct.id || `${ct.renderLat}-${ct.renderLng}-${idx}`}
+                      type="button"
+                      onClick={() => setDeployedTrip(ct)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '9999px',
+                        fontSize: '0.72rem',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: isSelected ? 700 : 500,
+                        background: isSelected ? 'var(--color-accent-primary, #0F4C5C)' : mapThemeStyles.statPillBg,
+                        color: isSelected ? '#FFFFFF' : mapThemeStyles.cardText,
+                        border: isSelected ? '1px solid var(--color-accent-primary, #0F4C5C)' : '1px solid transparent',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span style={{ opacity: isSelected ? 0.9 : 0.6, fontSize: '0.65rem' }}>#{ct.cityIndex + 1}</span>
+                      <span>{ct.tripTitle || `Expedition ${ct.cityIndex + 1}`}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Title & Country Flag */}
             <div>
               <h3
@@ -1021,7 +1188,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
                   lineHeight: '1.25',
                 }}
               >
-                {deployedTrip.destination} Travel Guide
+                {deployedCardData.tripTitle}
               </h3>
               <div
                 data-testid="deployed-trip-flag-row"

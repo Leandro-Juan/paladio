@@ -18,6 +18,7 @@ import {
 } from '@/utils/calendarUtils';
 import { MissionInspectorModal } from './MissionInspectorModal';
 import { PlaneIcon, UmbrellaIcon, CloseIcon, ChevronRightIcon, RefreshIcon } from '@/components/icons';
+import { downloadWholeCalendarIcs } from '@/utils/exportTrip';
 import { notify } from '@/utils/notify';
 import styles from './Calendar.module.css';
 
@@ -383,8 +384,49 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
             </button>
           </div>
 
-          {/* Control Clusters: View Switcher & Mode Switcher */}
+          {/* Control Clusters: Export, View Switcher & Mode Switcher */}
           <div className={styles.controlsCluster}>
+            <button
+              type="button"
+              onClick={() => {
+                const count = downloadWholeCalendarIcs({
+                  trips,
+                  holidays,
+                  publicHolidays,
+                  monitoredDeals,
+                  calendarName: 'Paladio - Whole Calendar',
+                });
+                if (count === 0) {
+                  notify.info('Calendar Empty', 'No trips, holidays, or deals to export yet.');
+                } else {
+                  notify.success(
+                    'Calendar Exported',
+                    `Exported ${count} calendar event${count === 1 ? '' : 's'} to .ics.`
+                  );
+                }
+              }}
+              className={styles.exportIcsBtn}
+              title="Export whole calendar (trips, holidays, PTO & deals) to .ics"
+              aria-label="Export whole calendar to .ics"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Export .ics
+            </button>
+
             {/* View Mode Toggle: Annual vs Month */}
             <div className={styles.segmentedGroup}>
               <button

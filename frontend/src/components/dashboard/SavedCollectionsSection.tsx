@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -157,6 +157,12 @@ export function SavedCollectionsSection({
   const [newColColor, setNewColColor] = useState(PALADIO_COLORS[0].hex);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const isDuplicateCreateName = useMemo(() => {
+    const trimmed = newColName.trim().toLowerCase();
+    if (!trimmed) return false;
+    return collections.some((c) => c.name.trim().toLowerCase() === trimmed);
+  }, [newColName, collections]);
+
   // Edit collection state
   const [editingColId, setEditingColId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -183,12 +189,18 @@ export function SavedCollectionsSection({
 
   const handleCreateCollection = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newColName.trim() || isSubmitting) return;
+    const trimmed = newColName.trim();
+    if (!trimmed || isSubmitting) return;
+
+    if (collections.some((c) => c.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+      notify.warning('Duplicate Collection Name', `A collection named "${trimmed}" already exists.`);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       const created = await createCollection(
-        newColName.trim(),
+        trimmed,
         newColDesc.trim() || undefined,
         newColColor
       );
@@ -198,21 +210,30 @@ export function SavedCollectionsSection({
         setNewColDesc('');
         setShowCreateForm(false);
       }
-    } catch {
-      notify.error('Error', 'Failed to create collection.');
+    } catch (err: any) {
+      const msg = err?.data?.detail || err?.message || 'Failed to create collection.';
+      notify.warning('Collection Warning', msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleSaveEdit = async (colId: string) => {
-    if (!editName.trim()) return;
+    const trimmed = editName.trim();
+    if (!trimmed) return;
+
+    if (collections.some((c) => c.id !== colId && c.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+      notify.warning('Duplicate Collection Name', `A collection named "${trimmed}" already exists.`);
+      return;
+    }
+
     try {
-      await updateCollection(colId, { name: editName.trim(), color: editColor });
+      await updateCollection(colId, { name: trimmed, color: editColor });
       notify.success('Collection Updated', 'Updated collection details.');
       setEditingColId(null);
-    } catch {
-      notify.error('Error', 'Failed to update collection.');
+    } catch (err: any) {
+      const msg = err?.data?.detail || err?.message || 'Failed to update collection.';
+      notify.warning('Collection Warning', msg);
     }
   };
 
@@ -302,6 +323,23 @@ export function SavedCollectionsSection({
               autoFocus
               className={styles.textInput}
             />
+            {isDuplicateCreateName && (
+              <div
+                role="alert"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '11.5px',
+                  color: 'var(--color-accent-warning, #E2B33C)',
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-code, monospace)',
+                  padding: '2px 4px',
+                }}
+              >
+                <span>⚠ A collection named &quot;{newColName.trim()}&quot; already exists</span>
+              </div>
+            )}
             <input
               type="text"
               data-testid="dashboard-new-collection-desc"

@@ -85,6 +85,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
   const description = itin.description || '';
   const notes = itin.notes || '';
   const photos = itin.photos || [];
+  const heroPhotoUrl = typeof photos[0] === 'string' ? photos[0] : (photos[0] as unknown as { url?: string })?.url;
 
   // Find first POI name for photo resolution
   const firstPoiName = useMemo(() => {
@@ -538,7 +539,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
                 totalCost={totalCost}
                 currency={tripCurrency}
                 settlement={settlement}
-                heroPhotoUrl={photos[0]}
+                heroPhotoUrl={heroPhotoUrl}
                 firstPoiName={firstPoiName}
               />
             </aside>

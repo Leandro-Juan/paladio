@@ -499,13 +499,39 @@ export function PastTripTabs({
 
       {activeTab === 'costs' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <CategoryBreakdownWidget items={expenseItems} currency={currency} />
-          {settlement && participants.length > 1 && (
-            <BalancesWidget
-              balances={settlement.balances}
-              participants={participants}
-              currency={currency}
-            />
+          {expenseItems.length === 0 ? (
+            <div
+              style={{
+                background: 'var(--color-surface-card, #FFFFFF)',
+                border: '1px solid var(--color-border-subtle, #E8E3D9)',
+                borderRadius: '14px',
+                padding: '2.5rem 1.5rem',
+                textAlign: 'center',
+              }}
+            >
+              <p
+                className="font-mono"
+                style={{
+                  margin: 0,
+                  fontSize: '0.82rem',
+                  color: 'var(--color-text-muted, #5C6B73)',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                No costs have been registered for this trip.
+              </p>
+            </div>
+          ) : (
+            <>
+              <CategoryBreakdownWidget items={expenseItems} currency={currency} />
+              {settlement && participants.length > 1 && (
+                <BalancesWidget
+                  balances={settlement.balances}
+                  participants={participants}
+                  currency={currency}
+                />
+              )}
+            </>
           )}
         </div>
       )}
