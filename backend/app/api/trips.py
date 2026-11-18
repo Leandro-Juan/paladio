@@ -15,6 +15,11 @@ from app.api.tickets import router as tickets_router
 from app.api.collections import router as collections_router
 from app.application.trip_editing.expense_service import ExpenseService
 from app.application.trip_editing.participant_service import ParticipantService
+from app.application.trip_editing.revision_diff import (
+    apply_inverse_change,
+    compute_revision_changes,
+    extract_trip_title,
+)
 from app.core.access import TripAccessLevel, assert_trip_access
 from app.db.models import (
     AttractionModel,
@@ -48,7 +53,10 @@ from sqlalchemy import delete, func, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.services.travel_document_scanner import scan_travel_document
+from app.services.travel_document_scanner import (
+    scan_expense_receipt,
+    scan_travel_document,
+)
 from app.services.airport_service import get_airport_service
 from app.services.photo_storage import (
     save_trip_photo,
@@ -196,6 +204,16 @@ class TripExpenseResponse(BaseModel):
     created_at: str
 
 
+class ReceiptScanResponse(BaseModel):
+    description: str
+    amount: float | None = None
+    currency: str = "EUR"
+    category: str = "other"
+    expense_date: str | None = None
+    raw_text_excerpt: str = ""
+    warnings: list[str] = []
+
+
 class SettlementTransfer(BaseModel):
     sender_id: str
     sender_name: str
@@ -290,6 +308,16 @@ class TripUpdate(BaseModel):
     revision: int | None = None
 
 
+class ShiftTripDatesRequest(BaseModel):
+    new_start_date: str
+    reanchor_bookings: bool = True
+
+
+class DuplicateTripRequest(BaseModel):
+    new_start_date: str | None = None
+    title_suffix: str = " (Copy)"
+
+
 class TripResponse(TripCreate):
     id: str
     user_id: str | None = None
@@ -315,6 +343,36 @@ class TripPhotoResponse(BaseModel):
     mime_type: str | None = None
     media_type: str | None = None
     created_at: str | None = None
+
+
+class TripRevisionChangeItem(BaseModel):
+    kind: str
+    verb: str
+    before_label: str | None = None
+    connector: str | None = None
+    after_label: str
+    target_label: str | None = None
+    field: str | None = None
+
+
+class TripRevisionItemResponse(BaseModel):
+    id: str
+    trip_id: str
+    revision: int
+    actor: str
+    actor_name: str
+    kind: str
+    summary: str
+    changes: list[TripRevisionChangeItem] = []
+    created_at: str
+    can_revert: bool = True
+    is_current: bool = False
+
+
+class TripRevisionListResponse(BaseModel):
+    trip_id: str
+    current_revision: int
+    items: list[TripRevisionItemResponse]
 
 
 def _resolve_trip_timezone(trip: TripModel) -> str | None:
@@ -959,6 +1017,41 @@ class BoardingPassScanResponse(BaseModel):
     check_out_hour: str | None = None
     excerpt: str = ""
     drafts: list[dict[str, Any]] = []
+
+
+async def _run_receipt_scan(
+    file: UploadFile, default_currency: str
+) -> ReceiptScanResponse:
+    content = await file.read()
+    filename = file.filename or "receipt.png"
+    try:
+        parsed = scan_expense_receipt(
+            content=content,
+            filename=filename,
+            fallback_currency=default_currency,
+        )
+        return ReceiptScanResponse(**parsed)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error scanning expense receipt: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to scan receipt: {e}",
+        )
+
+
+@router.post(
+    "/expenses/scan-receipt",
+    response_model=ReceiptScanResponse,
+    summary="Scan a receipt image or PDF via OCR to pre-fill an expense",
+)
+async def scan_receipt_generic(
+    file: UploadFile = File(...),
+    default_currency: str = Form("EUR"),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    return await _run_receipt_scan(file, default_currency)
 
 
 @router.post(
@@ -2629,8 +2722,14 @@ async def update_trip(
             detail=f"Conflict: Stale trip revision. Expected revision {current_rev}, got {update_data.revision}.",
         )
 
-    before_itinerary = trip.itinerary_data
+    before_itinerary = copy.deepcopy(trip.itinerary_data)
     before_dest = trip.destination
+    before_meta = {
+        "destination": trip.destination,
+        "start_date": trip.start_date,
+        "end_date": trip.end_date,
+        "status": getattr(trip, "status", "active") or "active",
+    }
 
     if update_data.destination is not None:
         trip.destination = update_data.destination
@@ -2669,6 +2768,19 @@ async def update_trip(
                 f"Could not populate corridor constraints in update_trip: {e}"
             )
 
+    after_meta = {
+        "destination": trip.destination,
+        "start_date": trip.start_date,
+        "end_date": trip.end_date,
+        "status": getattr(trip, "status", "active") or "active",
+    }
+    lead_kind, rev_summary, rev_changes = compute_revision_changes(
+        before_itinerary if isinstance(before_itinerary, dict) else {},
+        trip.itinerary_data if isinstance(trip.itinerary_data, dict) else {},
+        before_meta,
+        after_meta,
+    )
+
     new_rev = current_rev + 1
     trip.revision = new_rev
 
@@ -2678,10 +2790,17 @@ async def update_trip(
         trip_id=trip.id,
         revision=new_rev,
         actor="user" if current_user else "system",
-        actor_detail={"user_id": current_user.id} if current_user else None,
+        actor_detail={
+            "user_id": current_user.id if current_user else None,
+            "username": current_user.username if current_user else None,
+            "kind": lead_kind,
+            "changes": rev_changes,
+            "before_meta": before_meta,
+            "after_meta": after_meta,
+        },
         before=before_itinerary if before_itinerary is not None else {},
         after=trip.itinerary_data if trip.itinerary_data is not None else {},
-        summary="Updated trip via API",
+        summary=rev_summary,
     )
     session.add(rev_record)
 
@@ -2764,13 +2883,64 @@ async def reoptimize_trip_route(
         )
 
     try:
-        prev_itin = trip.itinerary_data if isinstance(trip.itinerary_data, dict) else {}
+        prev_itin = copy.deepcopy(
+            trip.itinerary_data if isinstance(trip.itinerary_data, dict) else {}
+        )
         optimized_itin = await TripReoptimizationService.reoptimize_trip_itinerary(
             itinerary_data=current_itin,
             destination_city=trip.destination or "",
             target_day=day,
         )
+        new_rev = (trip.revision or 0) + 1
+        trip.revision = new_rev
         trip.itinerary_data = optimized_itin
+
+        target_label = (
+            f"Day {day}"
+            if day
+            else extract_trip_title(
+                optimized_itin if isinstance(optimized_itin, dict) else {},
+                {"destination": trip.destination},
+            )
+        )
+        rev_summary = (
+            f"Optimized route for Day {day}" if day else "Optimized expedition routes"
+        )
+        reopt_rev = TripRevisionModel(
+            id=str(uuid.uuid4()),
+            trip_id=trip.id,
+            revision=new_rev,
+            actor="user" if current_user else "system",
+            actor_detail={
+                "user_id": current_user.id if current_user else None,
+                "username": current_user.username if current_user else None,
+                "kind": "reoptimize",
+                "changes": [
+                    {
+                        "kind": "reoptimize",
+                        "verb": "optimized the route for",
+                        "after_label": target_label,
+                        "field": "itinerary",
+                    }
+                ],
+                "before_meta": {
+                    "destination": trip.destination,
+                    "start_date": trip.start_date,
+                    "end_date": trip.end_date,
+                    "status": getattr(trip, "status", "active") or "active",
+                },
+                "after_meta": {
+                    "destination": trip.destination,
+                    "start_date": trip.start_date,
+                    "end_date": trip.end_date,
+                    "status": getattr(trip, "status", "active") or "active",
+                },
+            },
+            before=prev_itin,
+            after=optimized_itin if isinstance(optimized_itin, dict) else {},
+            summary=rev_summary,
+        )
+        session.add(reopt_rev)
         session.add(trip)
         await session.commit()
         await session.refresh(trip)
@@ -2868,6 +3038,53 @@ async def add_trip_participant(
         linked_user_id=participant_in.user_id,
         role=participant_in.role or "traveler",
     )
+    trip = await session.get(TripModel, trip_id)
+    if trip:
+        new_rev = (trip.revision or 0) + 1
+        trip.revision = new_rev
+        meta_snap = {
+            "destination": trip.destination,
+            "start_date": trip.start_date,
+            "end_date": trip.end_date,
+            "status": getattr(trip, "status", "active") or "active",
+        }
+        itin_snap = copy.deepcopy(trip.itinerary_data or {})
+        rev_row = TripRevisionModel(
+            id=str(uuid.uuid4()),
+            trip_id=trip.id,
+            revision=new_rev,
+            actor="user" if current_user else "system",
+            actor_detail={
+                "user_id": current_user.id if current_user else None,
+                "username": current_user.username if current_user else None,
+                "kind": "participant",
+                "participant_op": {
+                    "op": "add",
+                    "name": new_p.name,
+                    "email": new_p.email,
+                    "user_id": new_p.user_id,
+                    "role": new_p.role,
+                },
+                "changes": [
+                    {
+                        "kind": "participant",
+                        "verb": "added",
+                        "after_label": new_p.name,
+                        "connector": "to",
+                        "target_label": "Crew Roster",
+                        "field": "participant",
+                    }
+                ],
+                "before_meta": meta_snap,
+                "after_meta": meta_snap,
+            },
+            before=itin_snap,
+            after=itin_snap,
+            summary=f"Added {new_p.name} to crew roster",
+        )
+        session.add(rev_row)
+        session.add(trip)
+        await session.commit()
     return _participant_to_response(new_p)
 
 
@@ -2878,10 +3095,82 @@ async def remove_trip_participant(
     current_user: UserModel | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ):
+    existing = await ParticipantService.list_participants(
+        trip_id, current_user, session
+    )
+    target_p = next((p for p in existing if p.id == participant_id), None)
+    removed_snapshot = (
+        {
+            "op": "remove",
+            "name": target_p.name,
+            "email": target_p.email,
+            "user_id": target_p.user_id,
+            "role": target_p.role,
+        }
+        if target_p
+        else None
+    )
     res = await ParticipantService.remove_participant(
         trip_id, participant_id, current_user, session
     )
+    trip = await session.get(TripModel, trip_id)
+    if trip and removed_snapshot:
+        new_rev = (trip.revision or 0) + 1
+        trip.revision = new_rev
+        meta_snap = {
+            "destination": trip.destination,
+            "start_date": trip.start_date,
+            "end_date": trip.end_date,
+            "status": getattr(trip, "status", "active") or "active",
+        }
+        itin_snap = copy.deepcopy(trip.itinerary_data or {})
+        rev_row = TripRevisionModel(
+            id=str(uuid.uuid4()),
+            trip_id=trip.id,
+            revision=new_rev,
+            actor="user" if current_user else "system",
+            actor_detail={
+                "user_id": current_user.id if current_user else None,
+                "username": current_user.username if current_user else None,
+                "kind": "participant",
+                "participant_op": removed_snapshot,
+                "changes": [
+                    {
+                        "kind": "participant",
+                        "verb": "removed",
+                        "after_label": removed_snapshot["name"],
+                        "connector": "from",
+                        "target_label": "Crew Roster",
+                        "field": "participant",
+                    }
+                ],
+                "before_meta": meta_snap,
+                "after_meta": meta_snap,
+            },
+            before=itin_snap,
+            after=itin_snap,
+            summary=f"Removed {removed_snapshot['name']} from crew roster",
+        )
+        session.add(rev_row)
+        session.add(trip)
+        await session.commit()
     return res
+
+
+@router.post(
+    "/{trip_id}/expenses/scan-receipt",
+    response_model=ReceiptScanResponse,
+    summary="Scan a receipt image or PDF via OCR to pre-fill an expense for a trip",
+)
+async def scan_trip_expense_receipt(
+    trip_id: str,
+    file: UploadFile = File(...),
+    default_currency: str = Form("EUR"),
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    await assert_trip_access(current_user, trip_id, TripAccessLevel.EDITOR, session)
+    return await _run_receipt_scan(file, default_currency)
 
 
 @router.get("/{trip_id}/expenses", response_model=list[TripExpenseResponse])
@@ -3087,6 +3376,81 @@ async def delete_trip(
     await session.execute(delete(TripModel).where(TripModel.id == trip_id))
     await session.commit()
     return {"status": "success", "message": "Trip deleted"}
+
+
+async def _build_trip_response(trip: TripModel, session: AsyncSession) -> TripResponse:
+    parts_models = await _ensure_trip_participants(trip, session)
+    parts = [_participant_to_response(p) for p in parts_models]
+    t_count = await _get_trip_tickets_count(trip.id, session)
+    orig_iata, dest_iata, corridor = _resolve_trip_corridor(trip)
+    return TripResponse(
+        id=trip.id,
+        user_id=trip.user_id,
+        destination=trip.destination,
+        start_date=trip.start_date,
+        end_date=trip.end_date,
+        itinerary_data=trip.itinerary_data,
+        created_at=trip.created_at.isoformat()
+        if trip.created_at
+        else datetime.now(timezone.utc).isoformat(),
+        participants=parts,
+        tickets_count=t_count,
+        destination_timezone=_resolve_trip_timezone(trip),
+        origin_iata=orig_iata,
+        destination_iata=dest_iata,
+        corridor=corridor,
+        status=getattr(trip, "status", "active") or "active",
+        revision=trip.revision,
+    )
+
+
+@router.post(
+    "/{trip_id}/shift-dates",
+    response_model=TripResponse,
+    summary="Shift trip start/end dates and optionally re-anchor tickets & expenses",
+)
+async def shift_trip_dates_endpoint(
+    trip_id: str,
+    req: ShiftTripDatesRequest,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    from app.application.trip_editing.trip_service import TripService
+
+    trip, _ = await TripService.shift_trip_dates(
+        trip_id=trip_id,
+        new_start_date=req.new_start_date,
+        user=current_user,
+        session=session,
+        reanchor_bookings=req.reanchor_bookings,
+        actor="user" if current_user else "system",
+    )
+    return await _build_trip_response(trip, session)
+
+
+@router.post(
+    "/{trip_id}/duplicate",
+    response_model=TripResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Duplicate an existing trip with optional new start date",
+)
+async def duplicate_trip_endpoint(
+    trip_id: str,
+    req: DuplicateTripRequest | None = None,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    from app.application.trip_editing.trip_service import TripService
+
+    req_data = req or DuplicateTripRequest()
+    new_trip = await TripService.duplicate_trip(
+        trip_id=trip_id,
+        user=current_user,
+        session=session,
+        new_start_date=req_data.new_start_date,
+        title_suffix=req_data.title_suffix or " (Copy)",
+    )
+    return await _build_trip_response(new_trip, session)
 
 
 @router.post("/{trip_id}/upgrade-transit", response_model=TripResponse)
@@ -3532,6 +3896,613 @@ async def import_trip(
             os.unlink(temp_pkg_path)
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def _resolve_revision_actor_name(
+    actor: str,
+    detail: dict[str, Any],
+    user_map: dict[str, str],
+    organizer_name: str | None,
+) -> str:
+    username = detail.get("username")
+    if isinstance(username, str) and username.strip():
+        return username.strip()
+    user_id = detail.get("user_id")
+    if isinstance(user_id, str) and user_id in user_map:
+        return user_map[user_id]
+    if actor == "agent":
+        return "Paladio Agent"
+    if actor == "system":
+        return "System"
+    if organizer_name:
+        return organizer_name
+    return "Traveler"
+
+
+@router.get("/{trip_id}/revisions", response_model=TripRevisionListResponse)
+async def list_trip_revisions(
+    trip_id: str,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    trip = await assert_trip_access(
+        current_user, trip_id, TripAccessLevel.VIEWER, session
+    )
+    current_rev = trip.revision if trip.revision is not None else 0
+
+    stmt = (
+        select(TripRevisionModel)
+        .where(TripRevisionModel.trip_id == trip.id)
+        .order_by(
+            TripRevisionModel.revision.desc(), TripRevisionModel.created_at.desc()
+        )
+    )
+    rev_rows = list((await session.execute(stmt)).scalars().all())
+
+    user_ids: set[str] = set()
+    if trip.user_id:
+        user_ids.add(trip.user_id)
+    for row in rev_rows:
+        detail = row.actor_detail if isinstance(row.actor_detail, dict) else {}
+        uid = detail.get("user_id")
+        if isinstance(uid, str) and uid:
+            user_ids.add(uid)
+
+    user_map: dict[str, str] = {}
+    if user_ids:
+        u_rows = (
+            (
+                await session.execute(
+                    select(UserModel).where(UserModel.id.in_(list(user_ids)))
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for u in u_rows:
+            user_map[u.id] = u.username or u.email or "Traveler"
+
+    p_rows = (
+        (
+            await session.execute(
+                select(TripParticipantModel)
+                .where(TripParticipantModel.trip_id == trip.id)
+                .order_by(TripParticipantModel.created_at.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    organizer_name = next(
+        (p.name for p in p_rows if p.role == "organizer" and p.name),
+        p_rows[0].name if p_rows and p_rows[0].name else None,
+    )
+
+    items: list[TripRevisionItemResponse] = []
+    for row in rev_rows:
+        detail = row.actor_detail if isinstance(row.actor_detail, dict) else {}
+        actor_name = _resolve_revision_actor_name(
+            row.actor, detail, user_map, organizer_name
+        )
+
+        raw_changes = detail.get("changes")
+        parsed_changes: list[TripRevisionChangeItem] = []
+        kind = str(detail.get("kind") or "")
+        if isinstance(raw_changes, list) and raw_changes:
+            for c in raw_changes:
+                if isinstance(c, dict) and c.get("after_label"):
+                    parsed_changes.append(TripRevisionChangeItem(**c))
+            if not kind and parsed_changes:
+                kind = parsed_changes[0].kind
+
+        if not parsed_changes:
+            summary_lower = (row.summary or "").lower()
+            if summary_lower.startswith(("reverted", "undo")):
+                kind = kind or "revert"
+                parsed_changes = [
+                    TripRevisionChangeItem(
+                        kind="revert",
+                        verb="reverted",
+                        after_label=row.summary,
+                        field="revert",
+                    )
+                ]
+            elif summary_lower.startswith("restored"):
+                kind = kind or "restore"
+                parsed_changes = [
+                    TripRevisionChangeItem(
+                        kind="restore",
+                        verb="restored",
+                        after_label=row.summary,
+                        field="restore",
+                    )
+                ]
+            else:
+                computed_kind, _, computed_changes = compute_revision_changes(
+                    row.before if isinstance(row.before, dict) else {},
+                    row.after if isinstance(row.after, dict) else {},
+                    detail.get("before_meta"),
+                    detail.get("after_meta"),
+                )
+                if (
+                    computed_kind == "edit"
+                    and row.summary
+                    and row.summary != "Updated trip via API"
+                ):
+                    kind = kind or "edit"
+                    parsed_changes = [
+                        TripRevisionChangeItem(
+                            kind="edit",
+                            verb="edited",
+                            after_label=row.summary,
+                            field="itinerary_data",
+                        )
+                    ]
+                else:
+                    kind = kind or computed_kind
+                    parsed_changes = [
+                        TripRevisionChangeItem(**c) for c in computed_changes
+                    ]
+
+        items.append(
+            TripRevisionItemResponse(
+                id=row.id,
+                trip_id=row.trip_id,
+                revision=row.revision,
+                actor=row.actor,
+                actor_name=actor_name,
+                kind=kind or "edit",
+                summary=row.summary,
+                changes=parsed_changes,
+                created_at=row.created_at.isoformat()
+                if row.created_at
+                else datetime.now(timezone.utc).isoformat(),
+                can_revert=bool(row.revision >= 1),
+                is_current=(row.revision == current_rev),
+            )
+        )
+
+    if rev_rows:
+        earliest = rev_rows[-1]
+        earliest_detail = (
+            earliest.actor_detail if isinstance(earliest.actor_detail, dict) else {}
+        )
+        initial_title = extract_trip_title(
+            earliest.before if isinstance(earliest.before, dict) else {},
+            earliest_detail.get("before_meta") or {"destination": trip.destination},
+        )
+    else:
+        initial_title = extract_trip_title(
+            trip.itinerary_data if isinstance(trip.itinerary_data, dict) else {},
+            {"destination": trip.destination},
+        )
+
+    creator_name = (
+        user_map.get(trip.user_id)
+        if trip.user_id and trip.user_id in user_map
+        else (organizer_name or "Traveler")
+    )
+    items.append(
+        TripRevisionItemResponse(
+            id=f"{trip.id}-v0",
+            trip_id=trip.id,
+            revision=0,
+            actor="user" if trip.user_id else "system",
+            actor_name=creator_name,
+            kind="created",
+            summary=f"Created {initial_title}",
+            changes=[
+                TripRevisionChangeItem(
+                    kind="created",
+                    verb="created the",
+                    after_label=initial_title,
+                    field="created",
+                )
+            ],
+            created_at=trip.created_at.isoformat()
+            if trip.created_at
+            else datetime.now(timezone.utc).isoformat(),
+            can_revert=False,
+            is_current=(current_rev == 0),
+        )
+    )
+
+    return TripRevisionListResponse(
+        trip_id=trip.id,
+        current_revision=current_rev,
+        items=items,
+    )
+
+
+@router.post("/{trip_id}/revisions/{revision_id}/revert", response_model=TripResponse)
+async def revert_trip_revision(
+    trip_id: str,
+    revision_id: str,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    trip = await assert_trip_access(
+        current_user, trip_id, TripAccessLevel.EDITOR, session
+    )
+    current_rev = trip.revision if trip.revision is not None else 0
+
+    stmt = select(TripRevisionModel).where(
+        TripRevisionModel.trip_id == trip.id,
+        TripRevisionModel.id == revision_id,
+    )
+    target_rev = (await session.execute(stmt)).scalar_one_or_none()
+    if not target_rev and revision_id.isdigit():
+        stmt_by_num = (
+            select(TripRevisionModel)
+            .where(
+                TripRevisionModel.trip_id == trip.id,
+                TripRevisionModel.revision == int(revision_id),
+            )
+            .order_by(TripRevisionModel.created_at.desc())
+            .limit(1)
+        )
+        target_rev = (await session.execute(stmt_by_num)).scalar_one_or_none()
+
+    if not target_rev:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Revision '{revision_id}' not found in trip history.",
+        )
+
+    detail = (
+        target_rev.actor_detail if isinstance(target_rev.actor_detail, dict) else {}
+    )
+    before_itin = copy.deepcopy(
+        trip.itinerary_data if isinstance(trip.itinerary_data, dict) else {}
+    )
+    before_meta = {
+        "destination": trip.destination,
+        "start_date": trip.start_date,
+        "end_date": trip.end_date,
+        "status": getattr(trip, "status", "active") or "active",
+    }
+
+    inverse_participant_op: dict[str, Any] | None = None
+    participant_op = detail.get("participant_op")
+    if isinstance(participant_op, dict) and participant_op.get("op") in (
+        "add",
+        "remove",
+    ):
+        op_type = participant_op.get("op")
+        p_name = str(participant_op.get("name") or "").strip()
+        p_uid = participant_op.get("user_id")
+        existing = await ParticipantService.list_participants(
+            trip_id, current_user, session
+        )
+        if op_type == "add":
+            match = next(
+                (
+                    p
+                    for p in existing
+                    if (p_uid and p.user_id == p_uid)
+                    or (p_name and p.name.strip().lower() == p_name.lower())
+                ),
+                None,
+            )
+            if not match:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Participant '{p_name}' is no longer in the crew roster.",
+                )
+            if len(existing) <= 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot revert adding the last remaining participant.",
+                )
+            await session.delete(match)
+            inverse_participant_op = {
+                "op": "remove",
+                "name": match.name,
+                "email": match.email,
+                "user_id": match.user_id,
+                "role": match.role,
+            }
+        else:
+            already = next(
+                (
+                    p
+                    for p in existing
+                    if (p_uid and p.user_id == p_uid)
+                    or (p_name and p.name.strip().lower() == p_name.lower())
+                ),
+                None,
+            )
+            if not already and p_name:
+                restored_p = TripParticipantModel(
+                    id=str(uuid.uuid4()),
+                    trip_id=trip.id,
+                    user_id=p_uid,
+                    name=p_name,
+                    email=participant_op.get("email"),
+                    role=participant_op.get("role") or "traveler",
+                )
+                session.add(restored_p)
+            inverse_participant_op = {
+                "op": "add",
+                "name": p_name,
+                "email": participant_op.get("email"),
+                "user_id": p_uid,
+                "role": participant_op.get("role") or "traveler",
+            }
+        after_meta = copy.deepcopy(before_meta)
+    else:
+        rev_before_meta = (
+            detail.get("before_meta")
+            if isinstance(detail.get("before_meta"), dict)
+            else {}
+        )
+        rev_after_meta = (
+            detail.get("after_meta")
+            if isinstance(detail.get("after_meta"), dict)
+            else {}
+        )
+        rev_before = target_rev.before if isinstance(target_rev.before, dict) else {}
+        rev_after = target_rev.after if isinstance(target_rev.after, dict) else {}
+
+        if (
+            not rev_before_meta
+            and not rev_after_meta
+            and "days" not in rev_before
+            and "days" in before_itin
+        ):
+            # Legacy compact MCP update_trip_details snapshot
+            patched_itin = copy.deepcopy(before_itin)
+            after_meta = copy.deepcopy(before_meta)
+            for mk in ("destination", "start_date", "end_date", "status"):
+                if (
+                    rev_before.get(mk) != rev_after.get(mk)
+                    and rev_before.get(mk) is not None
+                ):
+                    after_meta[mk] = rev_before.get(mk)
+            if rev_before.get("title") != rev_after.get("title"):
+                if rev_before.get("title") is not None:
+                    patched_itin["title"] = rev_before.get("title")
+                else:
+                    patched_itin.pop("title", None)
+            if rev_before.get("notes") != rev_after.get("notes"):
+                if rev_before.get("notes") is not None:
+                    patched_itin["notes"] = rev_before.get("notes")
+                else:
+                    patched_itin.pop("notes", None)
+        else:
+            patched_itin, after_meta, _ = apply_inverse_change(
+                before_itin,
+                before_meta,
+                rev_before,
+                rev_after,
+                rev_before_meta,
+                rev_after_meta,
+            )
+
+        if after_meta.get("destination"):
+            trip.destination = str(after_meta["destination"])
+        if after_meta.get("start_date"):
+            trip.start_date = str(after_meta["start_date"])
+        if after_meta.get("end_date"):
+            trip.end_date = str(after_meta["end_date"])
+        if after_meta.get("status"):
+            trip.status = str(after_meta["status"])
+        trip.itinerary_data = patched_itin
+
+    new_rev = current_rev + 1
+    trip.revision = new_rev
+
+    revert_detail: dict[str, Any] = {
+        "user_id": current_user.id if current_user else None,
+        "username": current_user.username if current_user else None,
+        "kind": "revert",
+        "reverted_revision_id": target_rev.id,
+        "reverted_revision": target_rev.revision,
+        "before_meta": before_meta,
+        "after_meta": after_meta,
+        "changes": [
+            {
+                "kind": "revert",
+                "verb": "reverted",
+                "after_label": target_rev.summary,
+                "connector": "from",
+                "target_label": f"v{target_rev.revision}",
+                "field": "revert",
+            }
+        ],
+    }
+    if inverse_participant_op is not None:
+        revert_detail["participant_op"] = inverse_participant_op
+
+    revert_row = TripRevisionModel(
+        id=str(uuid.uuid4()),
+        trip_id=trip.id,
+        revision=new_rev,
+        actor="user" if current_user else "system",
+        actor_detail=revert_detail,
+        before=before_itin,
+        after=copy.deepcopy(
+            trip.itinerary_data if isinstance(trip.itinerary_data, dict) else {}
+        ),
+        summary=f"Reverted '{target_rev.summary}' (v{target_rev.revision})",
+    )
+    session.add(revert_row)
+    session.add(trip)
+    await session.commit()
+    await session.refresh(trip)
+
+    return await _build_trip_response(trip, session)
+
+
+@router.post(
+    "/{trip_id}/revisions/{target_revision}/restore", response_model=TripResponse
+)
+async def restore_trip_version(
+    trip_id: str,
+    target_revision: int,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    trip = await assert_trip_access(
+        current_user, trip_id, TripAccessLevel.EDITOR, session
+    )
+    current_rev = trip.revision if trip.revision is not None else 0
+
+    if target_revision < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Target revision must be 0 or greater.",
+        )
+    if target_revision == current_rev:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Trip is already at version v{target_revision}.",
+        )
+
+    before_itin = copy.deepcopy(
+        trip.itinerary_data if isinstance(trip.itinerary_data, dict) else {}
+    )
+    before_meta = {
+        "destination": trip.destination,
+        "start_date": trip.start_date,
+        "end_date": trip.end_date,
+        "status": getattr(trip, "status", "active") or "active",
+    }
+
+    if target_revision == 0:
+        earliest_stmt = (
+            select(TripRevisionModel)
+            .where(TripRevisionModel.trip_id == trip.id)
+            .order_by(
+                TripRevisionModel.revision.asc(), TripRevisionModel.created_at.asc()
+            )
+            .limit(1)
+        )
+        earliest_rev = (await session.execute(earliest_stmt)).scalar_one_or_none()
+        if not earliest_rev:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No revision history available to restore.",
+            )
+        restored_itin = copy.deepcopy(
+            earliest_rev.before if isinstance(earliest_rev.before, dict) else {}
+        )
+        earliest_detail = (
+            earliest_rev.actor_detail
+            if isinstance(earliest_rev.actor_detail, dict)
+            else {}
+        )
+        restored_meta = (
+            copy.deepcopy(earliest_detail.get("before_meta"))
+            if isinstance(earliest_detail.get("before_meta"), dict)
+            else {}
+        )
+    else:
+        matched_stmt = (
+            select(TripRevisionModel)
+            .where(
+                TripRevisionModel.trip_id == trip.id,
+                TripRevisionModel.revision == target_revision,
+            )
+            .order_by(TripRevisionModel.created_at.desc())
+            .limit(1)
+        )
+        matched_rev = (await session.execute(matched_stmt)).scalar_one_or_none()
+        if not matched_rev:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Version v{target_revision} not found in trip history.",
+            )
+        restored_itin = copy.deepcopy(
+            matched_rev.after if isinstance(matched_rev.after, dict) else {}
+        )
+        matched_detail = (
+            matched_rev.actor_detail
+            if isinstance(matched_rev.actor_detail, dict)
+            else {}
+        )
+        restored_meta = (
+            copy.deepcopy(matched_detail.get("after_meta"))
+            if isinstance(matched_detail.get("after_meta"), dict)
+            else {}
+        )
+
+    # Guard against partial non-itinerary snapshots lacking 'days'
+    if "days" not in restored_itin and "days" in before_itin:
+        merged_itin = copy.deepcopy(before_itin)
+        for key in ("title", "notes", "destination"):
+            if key in restored_itin and restored_itin[key] is not None:
+                merged_itin[key] = restored_itin[key]
+        restored_itin = merged_itin
+
+    tc = (
+        restored_itin.get("travel_constraints")
+        if isinstance(restored_itin.get("travel_constraints"), dict)
+        else {}
+    )
+    trip.destination = str(
+        restored_meta.get("destination")
+        or tc.get("destination_city")
+        or restored_itin.get("destination")
+        or trip.destination
+    )
+    trip.start_date = str(
+        restored_meta.get("start_date") or tc.get("start_date") or trip.start_date
+    )
+    trip.end_date = str(
+        restored_meta.get("end_date") or tc.get("end_date") or trip.end_date
+    )
+    trip.status = str(
+        restored_meta.get("status")
+        or restored_itin.get("status")
+        or trip.status
+        or "active"
+    )
+    trip.itinerary_data = restored_itin
+
+    new_rev = current_rev + 1
+    trip.revision = new_rev
+
+    after_meta = {
+        "destination": trip.destination,
+        "start_date": trip.start_date,
+        "end_date": trip.end_date,
+        "status": trip.status,
+    }
+    trip_title = extract_trip_title(restored_itin, after_meta)
+    restore_row = TripRevisionModel(
+        id=str(uuid.uuid4()),
+        trip_id=trip.id,
+        revision=new_rev,
+        actor="user" if current_user else "system",
+        actor_detail={
+            "user_id": current_user.id if current_user else None,
+            "username": current_user.username if current_user else None,
+            "kind": "restore",
+            "restored_to_revision": target_revision,
+            "before_meta": before_meta,
+            "after_meta": after_meta,
+            "changes": [
+                {
+                    "kind": "restore",
+                    "verb": "restored",
+                    "after_label": trip_title,
+                    "connector": "to",
+                    "target_label": f"Version v{target_revision}",
+                    "field": "restore",
+                }
+            ],
+        },
+        before=before_itin,
+        after=restored_itin,
+        summary=f"Restored trip to Version v{target_revision}",
+    )
+    session.add(restore_row)
+    session.add(trip)
+    await session.commit()
+    await session.refresh(trip)
+
+    return await _build_trip_response(trip, session)
 
 
 router.include_router(tickets_router)

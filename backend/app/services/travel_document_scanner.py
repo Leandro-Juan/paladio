@@ -1526,3 +1526,331 @@ async def scan_travel_document(
     draft = classify_text_document(text_str, trip_start_year)
     drafts.append(draft)
     return drafts, text_str[:400]
+
+
+def _extract_receipt_text(content: bytes, filename: str) -> str:
+    """Extracts text from an uploaded receipt image, PDF, or text/EML document."""
+    if len(content) > MAX_FILE_SIZE:
+        raise ValueError("File exceeds maximum size limit of 10 MB.")
+
+    magic = detect_magic_type(content)
+    if not magic:
+        raise ValueError("Unsupported file format or unreadable binary content.")
+
+    if magic == "application/pdf":
+        extracted_text, images = extract_text_from_pdf(content)
+        if len(extracted_text.strip()) < 20 and images:
+            ocr_parts = [run_tesseract_ocr(img).strip() for img in images]
+            ocr_joined = "\n\n".join(p for p in ocr_parts if p)
+            if ocr_joined:
+                return ocr_joined
+        return extracted_text
+
+    if magic.startswith("image/"):
+        return run_tesseract_ocr(content)
+
+    text_str = content.decode("utf-8", errors="replace")
+    if filename.lower().endswith(".eml") or (
+        "from:" in text_str[:200].lower() and "subject:" in text_str[:500].lower()
+    ):
+        try:
+            import email
+            from email import policy
+
+            eml_msg = email.message_from_bytes(content, policy=policy.default)
+            subject = eml_msg.get("subject", "")
+            body = eml_msg.get_body(preferencelist=("plain", "html"))
+            if body:
+                extracted_body = body.get_content()
+                if body.get_content_type() == "text/html":
+                    extracted_body = re.sub(r"<[^>]+>", " ", extracted_body)
+                return f"{subject}\n\n{extracted_body}"
+        except Exception as e:
+            logger.debug(f"EML receipt parsing fallback: {e}")
+    return text_str
+
+
+def _parse_receipt_amount(raw_num: str) -> float | None:
+    """Normalizes localized numeric string (e.g. '1,234.56' or '42,90') to float."""
+    s = raw_num.strip().replace(" ", "")
+    if not s:
+        return None
+    if "," in s and "." in s:
+        if s.rfind(",") > s.rfind("."):
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            s = s.replace(",", "")
+    elif "," in s:
+        parts = s.split(",")
+        if len(parts[-1]) == 2:
+            s = s.replace(",", ".")
+        else:
+            s = s.replace(",", "")
+    try:
+        val = float(s)
+        return round(val, 2) if val > 0 else None
+    except ValueError:
+        return None
+
+
+def _detect_receipt_currency(text: str, fallback_currency: str) -> str:
+    """Detects ISO-4217 currency code from receipt text."""
+    from app.domain.reference.iso_currencies import COUNTRY_TO_CURRENCY
+
+    valid_codes = set(COUNTRY_TO_CURRENCY.values())
+    for code in re.findall(r"\b([A-Z]{3})\b", text.upper()):
+        if code in valid_codes:
+            return code
+
+    symbol_map = [
+        ("€", "EUR"),
+        ("£", "GBP"),
+        ("¥", "JPY"),
+        ("￥", "JPY"),
+        ("₩", "KRW"),
+        ("₹", "INR"),
+        ("$", "USD"),
+    ]
+    for sym, code in symbol_map:
+        if sym in text:
+            return code
+
+    fb = (fallback_currency or "EUR").upper().strip()
+    return fb if fb in valid_codes else "EUR"
+
+
+def _classify_receipt_category(text_lower: str) -> str:
+    """Maps receipt keywords onto Paladio cost categories."""
+    rules: list[tuple[str, tuple[str, ...]]] = [
+        (
+            "flights",
+            (
+                "airline",
+                "boarding",
+                "flight",
+                "airways",
+                "airport",
+                "baggage",
+                "vuelo",
+                "aeropuerto",
+            ),
+        ),
+        (
+            "accommodation",
+            (
+                "hotel",
+                "hostel",
+                "resort",
+                "check-in",
+                "night",
+                "airbnb",
+                "booking.com",
+                "lodging",
+                "alojamiento",
+                "habitacion",
+            ),
+        ),
+        (
+            "transport",
+            (
+                "taxi",
+                "uber",
+                "lyft",
+                "bolt",
+                "metro",
+                "subway",
+                "train",
+                "rail",
+                "bus",
+                "tram",
+                "parking",
+                "toll",
+                "fuel",
+                "petrol",
+                "gasoline",
+                "suica",
+                "pasmo",
+                "tren",
+                "estacion",
+                "billete",
+            ),
+        ),
+        (
+            "groceries",
+            (
+                "supermarket",
+                "grocery",
+                "market",
+                "mart",
+                "bakery",
+                "carrefour",
+                "lidl",
+                "aldi",
+                "tesco",
+                "7-eleven",
+                "lawson",
+                "familymart",
+                "supermercado",
+                "panaderia",
+            ),
+        ),
+        (
+            "food",
+            (
+                "restaurant",
+                "restaurante",
+                "cafe",
+                "cafeteria",
+                "coffee",
+                "bistro",
+                "bar",
+                "pub",
+                "ramen",
+                "sushi",
+                "pizza",
+                "dinner",
+                "lunch",
+                "breakfast",
+                "tip",
+                "gratuity",
+                "subtotal",
+                "comida",
+                "cena",
+            ),
+        ),
+        (
+            "sightseeing",
+            (
+                "museum",
+                "museo",
+                "musée",
+                "gallery",
+                "galeria",
+                "galerie",
+                "cathedral",
+                "catedral",
+                "palace",
+                "palacio",
+                "castle",
+                "castillo",
+                "tower",
+                "monument",
+                "monumento",
+                "temple",
+                "templo",
+                "shrine",
+                "observatory",
+            ),
+        ),
+        (
+            "activities",
+            (
+                "ticket",
+                "entrada",
+                "tour",
+                "admission",
+                "pass",
+                "cinema",
+                "cine",
+                "concert",
+                "spa",
+                "excursion",
+                "park",
+                "parque",
+            ),
+        ),
+    ]
+    for cat, keywords in rules:
+        if any(kw in text_lower for kw in keywords):
+            return cat
+    return "other"
+
+
+def scan_expense_receipt(
+    content: bytes, filename: str, fallback_currency: str = "EUR"
+) -> dict[str, Any]:
+    """
+    Deterministically extracts expense fields (description, amount, currency,
+    category, expense_date) from an uploaded receipt image, PDF, or text file.
+    """
+    raw_text = _extract_receipt_text(content, filename)
+    warnings: list[str] = []
+
+    if not raw_text or len(raw_text.strip()) < 3:
+        warnings.append("No readable text could be extracted from the receipt.")
+        return {
+            "description": Path(filename).stem,
+            "amount": None,
+            "currency": _detect_receipt_currency("", fallback_currency),
+            "category": "other",
+            "expense_date": None,
+            "raw_text_excerpt": "",
+            "warnings": warnings,
+        }
+
+    currency = _detect_receipt_currency(raw_text, fallback_currency)
+    dates = extract_dates_from_text(raw_text, date.today().year)
+    expense_date = dates[0] if dates else None
+
+    amount: float | None = None
+    total_line_pat = re.compile(
+        r"(?:grand\s+total|total\s+due|amount\s+due|amount\s+paid|balance\s+due|total|importe|summe|montant|totale|合計)"
+        r"[^\d\n]{0,20}([0-9][0-9\s.,]*[0-9]|[0-9]+)",
+        re.IGNORECASE,
+    )
+    total_candidates: list[float] = []
+    for line in raw_text.splitlines():
+        if re.search(r"sub\s*-?\s*total", line, re.IGNORECASE):
+            continue
+        m = total_line_pat.search(line)
+        if m:
+            parsed = _parse_receipt_amount(m.group(1))
+            if parsed is not None:
+                total_candidates.append(parsed)
+
+    if total_candidates:
+        amount = total_candidates[-1]
+    else:
+        generic_amounts: list[float] = []
+        for m in re.finditer(
+            r"(?:[€£¥$]\s*|(?:\b[A-Z]{3}\s+))?(\d{1,6}[.,]\d{2})\b", raw_text
+        ):
+            parsed = _parse_receipt_amount(m.group(1))
+            if parsed is not None:
+                generic_amounts.append(parsed)
+        if generic_amounts:
+            amount = max(generic_amounts)
+            warnings.append(
+                "Total label not explicitly matched; used highest amount detected."
+            )
+
+    if amount is None:
+        warnings.append("Could not detect receipt total amount.")
+
+    description = Path(filename).stem
+    for line in raw_text.splitlines():
+        cleaned = re.sub(r"\s+", " ", line).strip(" -_*|:")
+        if len(cleaned) < 3:
+            continue
+        if re.fullmatch(r"[\d\s/.,:$€£¥+-]+", cleaned):
+            continue
+        if re.match(
+            r"^(?:receipt|invoice|tax\s+invoice|order|date|time|tel|phone)\b",
+            cleaned,
+            re.IGNORECASE,
+        ):
+            continue
+        description = cleaned[:80]
+        break
+
+    category = _classify_receipt_category(raw_text.lower())
+
+    return {
+        "description": description,
+        "amount": amount,
+        "currency": currency,
+        "category": category,
+        "expense_date": expense_date,
+        "raw_text_excerpt": raw_text.strip()[:400],
+        "warnings": warnings,
+    }

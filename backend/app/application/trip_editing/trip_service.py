@@ -412,3 +412,266 @@ class TripService:
                 )
             ],
         )
+
+    @classmethod
+    async def shift_trip_dates(
+        cls,
+        trip_id: str,
+        new_start_date: str,
+        user: UserModel | None,
+        session: AsyncSession,
+        reanchor_bookings: bool = True,
+        actor: str = "user",
+    ) -> tuple[TripModel, int]:
+        """Shifts trip itinerary dates and optionally re-anchors tickets and expenses."""
+        from datetime import date, timedelta
+        from app.application.trip_editing.itinerary_editor import ItineraryEditor
+        from app.db.models import TripExpenseModel, TripTicketModel
+        from app.wallet.seeding import sync_trip_tickets
+
+        trip = await assert_trip_access(user, trip_id, TripAccessLevel.EDITOR, session)
+        old_start_str = trip.start_date
+        try:
+            new_start_dt = date.fromisoformat(new_start_date[:10])
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid new_start_date '{new_start_date}': expected YYYY-MM-DD.",
+            ) from exc
+
+        delta_holder: dict[str, int] = {"delta_days": 0}
+
+        def _mutate(doc: ItineraryDocument) -> ChangeSet:
+            cs, delta = ItineraryEditor.shift_trip_dates(
+                doc, new_start_date=new_start_date, old_start_date=old_start_str
+            )
+            delta_holder["delta_days"] = delta
+            return cs
+
+        await cls.apply_mutation(
+            trip_id=trip_id,
+            mutation_fn=_mutate,
+            user=user,
+            session=session,
+            actor=actor,
+            auto_recompute=False,
+        )
+
+        trip = (
+            await session.execute(select(TripModel).where(TripModel.id == trip_id))
+        ).scalar_one()
+        delta_days = delta_holder["delta_days"]
+        num_days = max(1, len((trip.itinerary_data or {}).get("days") or []))
+        trip.start_date = new_start_dt.isoformat()
+        if trip.end_date and old_start_str:
+            try:
+                old_s = date.fromisoformat(old_start_str[:10])
+                old_e = date.fromisoformat(trip.end_date[:10])
+                trip.end_date = (new_start_dt + (old_e - old_s)).isoformat()
+            except ValueError:
+                trip.end_date = (
+                    new_start_dt + timedelta(days=num_days - 1)
+                ).isoformat()
+        else:
+            trip.end_date = (new_start_dt + timedelta(days=num_days - 1)).isoformat()
+
+        itin_copy = copy.deepcopy(trip.itinerary_data or {})
+        if isinstance(itin_copy.get("hotel"), dict):
+            for df in ("check_in_date", "check_out_date"):
+                if isinstance(itin_copy["hotel"].get(df), str):
+                    itin_copy["hotel"][df] = ItineraryEditor._shift_iso_date(
+                        itin_copy["hotel"][df], delta_days
+                    )
+        trip.itinerary_data = itin_copy
+
+        if reanchor_bookings and delta_days != 0:
+            shift_delta = timedelta(days=delta_days)
+            ticket_rows = (
+                (
+                    await session.execute(
+                        select(TripTicketModel).where(
+                            TripTicketModel.trip_id == trip_id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            for t in ticket_rows:
+                if t.start_time is not None:
+                    t.start_time = t.start_time + shift_delta
+                if t.end_time is not None:
+                    t.end_time = t.end_time + shift_delta
+
+            expense_rows = (
+                (
+                    await session.execute(
+                        select(TripExpenseModel).where(
+                            TripExpenseModel.trip_id == trip_id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            for exp in expense_rows:
+                if exp.expense_date:
+                    exp.expense_date = ItineraryEditor._shift_iso_date(
+                        exp.expense_date, delta_days
+                    )
+
+        session.add(trip)
+        await session.commit()
+        await session.refresh(trip)
+
+        if reanchor_bookings and delta_days != 0:
+            await sync_trip_tickets(trip, session)
+            await session.commit()
+            await session.refresh(trip)
+
+        return trip, delta_days
+
+    @classmethod
+    async def duplicate_trip(
+        cls,
+        trip_id: str,
+        user: UserModel | None,
+        session: AsyncSession,
+        new_start_date: Optional[str] = None,
+        title_suffix: str = " (Copy)",
+    ) -> TripModel:
+        """Creates a full copy of an existing trip (days, participants, trip collections)."""
+        from datetime import date
+        from app.application.trip_editing.itinerary_editor import ItineraryEditor
+        from app.db.models import (
+            TripCollectionItemModel,
+            TripCollectionModel,
+            TripParticipantModel,
+        )
+
+        source_trip = await assert_trip_access(
+            user, trip_id, TripAccessLevel.VIEWER, session
+        )
+        raw_itin = copy.deepcopy(source_trip.itinerary_data or {})
+        doc, _ = ItineraryDocument.from_dict(raw_itin)
+        ItineraryEditor.regenerate_stop_ids(doc)
+
+        new_start = source_trip.start_date
+        new_end = source_trip.end_date
+        if new_start_date:
+            try:
+                new_start_dt = date.fromisoformat(new_start_date[:10])
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid new_start_date '{new_start_date}'.",
+                ) from exc
+            ItineraryEditor.shift_trip_dates(
+                doc,
+                new_start_date=new_start_date,
+                old_start_date=source_trip.start_date,
+            )
+            new_start = new_start_dt.isoformat()
+            try:
+                span = date.fromisoformat(
+                    source_trip.end_date[:10]
+                ) - date.fromisoformat(source_trip.start_date[:10])
+                new_end = (new_start_dt + span).isoformat()
+            except ValueError:
+                new_end = new_start
+
+        cloned_itin = doc.to_dict()
+        if title_suffix:
+            base_title = cloned_itin.get("title") or source_trip.destination
+            cloned_itin["title"] = f"{base_title}{title_suffix}"
+            if isinstance(cloned_itin.get("travel_constraints"), dict) and cloned_itin[
+                "travel_constraints"
+            ].get("title"):
+                cloned_itin["travel_constraints"]["title"] = cloned_itin["title"]
+
+        new_trip_id = str(uuid.uuid4())
+        new_trip = TripModel(
+            id=new_trip_id,
+            user_id=user.id if user else source_trip.user_id,
+            destination=source_trip.destination,
+            start_date=new_start,
+            end_date=new_end,
+            itinerary_data=cloned_itin,
+            status="active",
+            revision=0,
+        )
+        session.add(new_trip)
+        await session.flush()
+
+        src_parts = (
+            (
+                await session.execute(
+                    select(TripParticipantModel).where(
+                        TripParticipantModel.trip_id == trip_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for sp in src_parts:
+            session.add(
+                TripParticipantModel(
+                    id=str(uuid.uuid4()),
+                    trip_id=new_trip_id,
+                    user_id=sp.user_id,
+                    name=sp.name,
+                    email=sp.email,
+                    role=sp.role,
+                )
+            )
+
+        src_cols = (
+            (
+                await session.execute(
+                    select(TripCollectionModel).where(
+                        TripCollectionModel.trip_id == trip_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for sc in src_cols:
+            new_col_id = str(uuid.uuid4())
+            session.add(
+                TripCollectionModel(
+                    id=new_col_id,
+                    trip_id=new_trip_id,
+                    name=sc.name,
+                    description=sc.description,
+                    color=sc.color,
+                )
+            )
+            await session.flush()
+            src_items = (
+                (
+                    await session.execute(
+                        select(TripCollectionItemModel).where(
+                            TripCollectionItemModel.collection_id == sc.id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            for si in src_items:
+                session.add(
+                    TripCollectionItemModel(
+                        id=str(uuid.uuid4()),
+                        collection_id=new_col_id,
+                        poi_id=si.poi_id,
+                        notes=si.notes,
+                        visit_status=si.visit_status,
+                        order_index=si.order_index,
+                    )
+                )
+
+        await session.commit()
+        await session.refresh(new_trip)
+        return new_trip

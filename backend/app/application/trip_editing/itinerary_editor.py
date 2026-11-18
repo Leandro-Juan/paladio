@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date, timedelta
 from typing import Any, Optional
 
 from app.application.trip_editing.schemas import Change, ChangeSet
@@ -458,3 +459,93 @@ class ItineraryEditor:
             )
         ]
         return ChangeSet(ok=True, summary=summary, changes=changes)
+
+    @staticmethod
+    def _shift_iso_date(val: Any, delta_days: int) -> Any:
+        if not isinstance(val, str) or len(val) < 10:
+            return val
+        try:
+            parsed = date.fromisoformat(val[:10])
+            shifted = (parsed + timedelta(days=delta_days)).isoformat()
+            return shifted + val[10:]
+        except ValueError:
+            return val
+
+    @classmethod
+    def shift_trip_dates(
+        cls,
+        doc: ItineraryDocument,
+        new_start_date: str,
+        old_start_date: Optional[str] = None,
+    ) -> tuple[ChangeSet, int]:
+        """Shifts all itinerary days, travel constraints, and lodging dates to a new start date."""
+        new_start = date.fromisoformat(new_start_date[:10])
+        base_str: Optional[str] = old_start_date
+        if not base_str and doc.travel_constraints:
+            base_str = doc.travel_constraints.get("start_date")
+        if not base_str and doc.days and doc.days[0].date:
+            base_str = doc.days[0].date
+
+        if base_str:
+            base_start = date.fromisoformat(str(base_str)[:10])
+        else:
+            base_start = new_start
+
+        delta_days = (new_start - base_start).days
+        new_end = new_start + timedelta(days=max(0, len(doc.days) - 1))
+
+        if doc.travel_constraints is None:
+            doc.travel_constraints = {}
+        doc.travel_constraints["start_date"] = new_start.isoformat()
+        doc.travel_constraints["end_date"] = new_end.isoformat()
+
+        for key in ("hotel",):
+            nested = doc.travel_constraints.get(key)
+            if isinstance(nested, dict):
+                for df in ("check_in_date", "check_out_date", "date"):
+                    if df in nested:
+                        nested[df] = cls._shift_iso_date(nested[df], delta_days)
+
+        for idx, day_plan in enumerate(doc.days):
+            day_plan.date = (new_start + timedelta(days=idx)).isoformat()
+            for container_name in ("lodging", "hotel_depot"):
+                container = getattr(day_plan, container_name, None)
+                if isinstance(container, dict):
+                    for df in (
+                        "check_in",
+                        "check_out",
+                        "check_in_date",
+                        "check_out_date",
+                        "date",
+                    ):
+                        if df in container:
+                            container[df] = cls._shift_iso_date(
+                                container[df], delta_days
+                            )
+
+        summary = f"Shifted trip dates by {delta_days:+d} days to start on {new_start.isoformat()}."
+        changes = [
+            Change(
+                kind="shift_trip_dates",
+                day=0,
+                before={"start_date": base_start.isoformat()},
+                after={"start_date": new_start.isoformat(), "delta_days": delta_days},
+            )
+        ]
+        return ChangeSet(ok=True, summary=summary, changes=changes), delta_days
+
+    @classmethod
+    def regenerate_stop_ids(cls, doc: ItineraryDocument) -> None:
+        """Assigns fresh UUIDs to all stops in the document (used when duplicating a trip)."""
+        for day_plan in doc.days:
+            id_map: dict[str, str] = {}
+            for stop in day_plan.itinerary.path:
+                old_id = stop.stop_id
+                new_id = str(uuid.uuid4())
+                stop.stop_id = new_id
+                if old_id:
+                    id_map[old_id] = new_id
+            if day_plan.locked_stops:
+                day_plan.locked_stops = [
+                    id_map.get(s, s) for s in day_plan.locked_stops
+                ]
