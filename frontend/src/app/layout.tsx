@@ -8,6 +8,7 @@ import { AuthGuard } from '@/components/AuthGuard';
 import { SocketProvider } from '@/contexts/SocketContext';
 import { ToastContainer } from '@/components/ToastContainer';
 import { PaladioTooltipProvider } from '@/components/common/PaladioTooltipProvider';
+import { PwaRegistration } from '@/components/PwaRegistration';
 
 const jost = Jost({
   subsets: ['latin'],
@@ -61,6 +62,7 @@ export default function RootLayout({
               </AuthGuard>
               <ToastContainer />
               <PaladioTooltipProvider />
+              <PwaRegistration />
             </SocketProvider>
           </I18nProvider>
         </AuthProvider>
