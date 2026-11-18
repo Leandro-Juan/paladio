@@ -107,11 +107,17 @@ export function SaveToCollectionMenu({
 
   const handleCreateAndSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCollectionName.trim() || isCreating) return;
+    const trimmed = newCollectionName.trim();
+    if (!trimmed || isCreating) return;
+
+    if (collections.some((c) => c.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+      notify.warning('Duplicate Collection Name', `A collection named "${trimmed}" already exists.`);
+      return;
+    }
 
     setIsCreating(true);
     try {
-      const created = await createCollection(newCollectionName.trim(), undefined, selectedColor);
+      const created = await createCollection(trimmed, undefined, selectedColor);
       if (created) {
         const summary: CollectionPoiSummary = {
           id: poi.id,
@@ -129,8 +135,9 @@ export function SaveToCollectionMenu({
         setNewCollectionName('');
         setShowCreateInput(false);
       }
-    } catch {
-      notify.error('Creation Failed', 'Could not create new collection.');
+    } catch (err: any) {
+      const msg = err?.data?.detail || err?.message || 'Could not create new collection.';
+      notify.warning('Collection Warning', msg);
     } finally {
       setIsCreating(false);
     }

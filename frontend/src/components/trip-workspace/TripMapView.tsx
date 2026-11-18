@@ -859,6 +859,47 @@ export function isTransitAnchor(p: { category?: string; name: string }): boolean
   );
 }
 
+export const KNOWN_DESTINATION_COORDS: Record<string, [number, number]> = {
+  tokyo: [35.6762, 139.6503],
+  paris: [48.8566, 2.3522],
+  london: [51.5074, -0.1278],
+  'new york': [40.7128, -74.006],
+  rome: [41.9028, 12.4964],
+  berlin: [52.52, 13.405],
+  madrid: [40.4168, -3.7038],
+  barcelona: [41.3879, 2.1699],
+  porto: [41.1579, -8.6291],
+  sevilla: [37.3891, -5.9845],
+  seville: [37.3891, -5.9845],
+  lisbon: [38.7223, -9.1393],
+  alicante: [38.3452, -0.481],
+  valencia: [39.4699, -0.3763],
+  malaga: [36.7213, -4.4214],
+  amsterdam: [52.3676, 4.9041],
+  vienna: [48.2082, 16.3738],
+  zurich: [47.3769, 8.5417],
+  kyoto: [35.0116, 135.7681],
+  bangkok: [13.7563, 100.5018],
+  singapore: [1.3521, 103.8198],
+  sydney: [-33.8688, 151.2093],
+  'san francisco': [37.7749, -122.4194],
+  hnd: [35.5494, 139.7798],
+  nrt: [35.772, 140.3929],
+  mad: [40.4839, -3.568],
+  cdg: [49.0097, 2.5479],
+};
+
+export function resolveDestinationCoords(city?: string): [number, number] | null {
+  if (!city || !city.trim()) return null;
+  const clean = city.trim().toLowerCase();
+  for (const [k, coords] of Object.entries(KNOWN_DESTINATION_COORDS)) {
+    if (clean === k || clean.includes(k) || k.includes(clean)) {
+      return coords;
+    }
+  }
+  return null;
+}
+
 function createHotelIcon(
   hotel?: { name: string; lat: number; lng: number },
   photoUrl?: string,
@@ -1118,11 +1159,13 @@ function MapViewportController({
   focusedPlace,
   leftPadding = 60,
   readOnly = false,
+  fallbackCenter,
 }: {
   activePoints: LatLngPoint[];
   focusedPlace?: FocusedWaypointPlace | null;
   leftPadding?: number;
   readOnly?: boolean;
+  fallbackCenter?: [number, number];
 }) {
   const map = useMap();
 
@@ -1181,8 +1224,14 @@ function MapViewportController({
           });
         }
       }
+    } else if (fallbackCenter && !isDraggingRef.current) {
+      const centerKey = `${fallbackCenter[0].toFixed(4)},${fallbackCenter[1].toFixed(4)}`;
+      if (centerKey !== lastBoundsKeyRef.current) {
+        lastBoundsKeyRef.current = centerKey;
+        map.setView(fallbackCenter, 13, { animate: true });
+      }
     }
-  }, [map, activePoints, focusedPlace, leftPadding]);
+  }, [map, activePoints, focusedPlace, leftPadding, fallbackCenter]);
 
   useEffect(() => {
     if (!map) return;
@@ -1923,8 +1972,25 @@ export default function TripMapView({
           });
         });
       }
+      // If all POIs were transit anchors (e.g. airport-only trip), include all valid day POIs
+      if (points.length === 0) {
+        days.forEach((d) => {
+          d.pois.forEach((p) => {
+            if (typeof p.lat === 'number' && typeof p.lng === 'number' && !isNaN(p.lat) && !isNaN(p.lng)) {
+              points.push({ lat: p.lat, lng: p.lng });
+            }
+          });
+        });
+      }
       if (points.length === 0 && hotel) {
         points.push(hotel);
+      }
+      if (points.length === 0 && airport) {
+        points.push(airport);
+      }
+      if (points.length === 0 && destinationCity) {
+        const destCoords = resolveDestinationCoords(destinationCity);
+        if (destCoords) points.push({ lat: destCoords[0], lng: destCoords[1] });
       }
     } else if (activeDayData) {
       // Zoom strictly to the active day's convex hull polygon
@@ -1936,8 +2002,26 @@ export default function TripMapView({
         if (cityPoints.length > 0) {
           cityPoints.forEach((p) => points.push({ lat: p.lat, lng: p.lng }));
         } else {
-          // Fallback only if the entire day has no POIs besides hotel
-          points = activeDayData.pois.map((p) => ({ lat: p.lat, lng: p.lng }));
+          // Fallback if day has only transit anchors
+          points = activeDayData.pois
+            .filter((p) => typeof p.lat === 'number' && typeof p.lng === 'number' && !isNaN(p.lat) && !isNaN(p.lng))
+            .map((p) => ({ lat: p.lat, lng: p.lng }));
+        }
+      }
+      // If this specific day has no POIs, fall back to trip-wide points or destinationCity so map does not reset to Porto
+      if (points.length === 0) {
+        days.forEach((d) => {
+          d.pois.forEach((p) => {
+            if (typeof p.lat === 'number' && typeof p.lng === 'number' && !isNaN(p.lat) && !isNaN(p.lng)) {
+              points.push({ lat: p.lat, lng: p.lng });
+            }
+          });
+        });
+        if (points.length === 0 && hotel) points.push(hotel);
+        if (points.length === 0 && airport) points.push(airport);
+        if (points.length === 0 && destinationCity) {
+          const destCoords = resolveDestinationCoords(destinationCity);
+          if (destCoords) points.push({ lat: destCoords[0], lng: destCoords[1] });
         }
       }
     }
@@ -1961,17 +2045,29 @@ export default function TripMapView({
     }
 
     return points;
-  }, [activeDay, days, activeDayData, dayClusters, hotel, activeCategory, categoryPois, activeTransitLine]);
+  }, [activeDay, days, activeDayData, dayClusters, hotel, airport, destinationCity, activeCategory, categoryPois, activeTransitLine]);
 
   // Centroid fallback
-  const centerPosition: [number, number] = useMemo(() => {
+  const centerPosition: [number, number] = (() => {
     if (activeBoundsPoints.length > 0) {
       const c = computeCentroid(activeBoundsPoints);
       return [c.lat, c.lng];
     }
     if (hotel) return [hotel.lat, hotel.lng];
-    return [41.1579, -8.6291]; // Default fallback
-  }, [activeBoundsPoints, hotel]);
+    if (airport) return [airport.lat, airport.lng];
+    for (const d of days) {
+      for (const p of d.pois) {
+        if (typeof p.lat === 'number' && typeof p.lng === 'number' && !isNaN(p.lat) && !isNaN(p.lng)) {
+          return [p.lat, p.lng];
+        }
+      }
+    }
+    if (destinationCity) {
+      const destCoords = resolveDestinationCoords(destinationCity);
+      if (destCoords) return destCoords;
+    }
+    return [41.1579, -8.6291]; // Default fallback only if absolutely nothing known
+  })();
 
   // Active day route geometry (straight lines connecting POIs + dashed commute legs in simple view)
   const activeDayRouteData = useMemo(() => {
@@ -2168,6 +2264,7 @@ export default function TripMapView({
           focusedPlace={focusedPlace}
           leftPadding={effectiveLeftPadding}
           readOnly={readOnly}
+          fallbackCenter={centerPosition}
         />
         <MapFocusDismissHandler
           isFocused={Boolean(focusedPlace)}

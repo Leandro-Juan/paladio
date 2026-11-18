@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { PoiDetail, PoiPhotoItem } from '@/types/domain';
 export type { PoiDetail };
 import { getApiBaseUrl, apiFetch, getAuthToken } from '@/utils/api';
@@ -56,6 +57,7 @@ import {
   LeafIcon,
   NoSmokingIcon,
   RestroomIcon,
+  UploadIcon,
 } from '@/components/icons';
 import { startCustomDragPreview } from '@/utils/dragPreview';
 import { notify } from '@/utils/notify';
@@ -65,6 +67,8 @@ import { formatTicketDateTime, formatTicketTime } from '@/lib/wallet/format';
 import { SaveToCollectionMenu } from '@/components/trip-workspace/SaveToCollectionMenu';
 import { CategoryIcon } from '@/components/PoiCategoryBadge';
 import { classifyPoiCategory, isHotelPoi, isAirportPoi } from '@/utils/poiCategory';
+import { buildStopNavLinks } from '@/utils/navigationLinks';
+import { downloadPoiGpx } from '@/utils/exportTrip';
 
 function PoiCategoryFallbackIllustration({ category, size = 90 }: { category?: string; size?: number }) {
   const cat = (category || '').toLowerCase();
@@ -443,6 +447,9 @@ export function PoiDetailView({
   const [editDescription, setEditDescription] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editPhotoUrl, setEditPhotoUrl] = useState('');
+  const [showPlaceExportMenu, setShowPlaceExportMenu] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const startEditing = useCallback(() => {
     if (!poi) return;
@@ -453,13 +460,69 @@ export function PoiDetailView({
     setEditDescription(poi.description || '');
     setEditWebsite(poi.website || '');
     setEditPhone(poi.phone || '');
+    const currentPhotoUrl = poi.photos?.[0]?.url || (poi as any).photo_url || '';
+    setEditPhotoUrl(currentPhotoUrl);
     setIsEditing(true);
   }, [poi]);
+
+  const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (!file.type.startsWith('image/')) {
+      notify.warning('Invalid File', 'Please select an image file (PNG, JPG, WebP).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      notify.warning('File Too Large', 'Image must be under 10 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      if (typeof dataUrl === 'string') {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1200;
+          const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          if (scale >= 1 && dataUrl.length < 350_000) {
+            setEditPhotoUrl(dataUrl);
+            return;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            setEditPhotoUrl(canvas.toDataURL('image/jpeg', 0.82));
+          } else {
+            setEditPhotoUrl(dataUrl);
+          }
+        };
+        img.onerror = () => setEditPhotoUrl(dataUrl);
+        img.src = dataUrl;
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSaveEdit = useCallback(async () => {
     if (!poi || !editName.trim()) return;
     setIsSavingEdit(true);
     try {
+      const trimmedPhoto = editPhotoUrl.trim();
+      const updatedPhotos: PoiPhotoItem[] = trimmedPhoto
+        ? [
+            {
+              url: trimmedPhoto,
+              thumbnail_url: trimmedPhoto,
+              caption: editName.trim(),
+            },
+            ...(poi.photos || []).filter((p) => p.url !== trimmedPhoto),
+          ]
+        : [];
+
       const updatedPoiData: PoiDetail = {
         ...poi,
         name: editName.trim(),
@@ -469,6 +532,7 @@ export function PoiDetailView({
         description: editDescription.trim(),
         website: editWebsite.trim() || undefined,
         phone: editPhone.trim() || null,
+        photos: updatedPhotos,
       };
 
       const baseUrl = getApiBaseUrl();
@@ -486,6 +550,12 @@ export function PoiDetailView({
             phone: editPhone.trim(),
             lat: updatedPoiData.lat,
             lng: updatedPoiData.lng,
+            photo_url: trimmedPhoto || '',
+            photos: updatedPhotos.map((p) => ({
+              url: p.url,
+              thumbnail_url: p.thumbnail_url || p.url,
+              caption: p.caption,
+            })),
           }),
         });
       } catch (e) {
@@ -493,6 +563,7 @@ export function PoiDetailView({
       }
 
       setPoi(updatedPoiData);
+      setActivePhotoIdx(0);
       if (onUpdatePoi) {
         onUpdatePoi(updatedPoiData);
       }
@@ -505,7 +576,7 @@ export function PoiDetailView({
     } finally {
       setIsSavingEdit(false);
     }
-  }, [poi, editName, editCategory, editDuration, editCost, editDescription, editWebsite, onUpdatePoi]);
+  }, [poi, editName, editCategory, editDuration, editCost, editDescription, editWebsite, editPhone, editPhotoUrl, onUpdatePoi]);
 
   const isCustomPoi = Boolean(
     poi?.id?.startsWith('custom-') ||
@@ -1608,7 +1679,136 @@ export function PoiDetailView({
                 flexShrink: 0,
               }}
             >
-              {photos.length > 0 ? (
+              {isEditing ? (
+                /* Editing Mode: Photo Editor Hero Card */
+                <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Photo Preview */}
+                  <div
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      height: '180px',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      background: editPhotoUrl
+                        ? `url(${editPhotoUrl}) center / cover no-repeat`
+                        : 'var(--color-surface-card)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid var(--color-border)',
+                    }}
+                  >
+                    {!editPhotoUrl && (
+                      <div style={{ textAlign: 'center', padding: '16px' }}>
+                        <PoiCategoryFallbackIllustration category={editCategory || poi.category} size={64} />
+                        <p
+                          style={{
+                            margin: '8px 0 0 0',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-code, monospace)',
+                            color: 'var(--color-text-muted)',
+                          }}
+                        >
+                          {'// NO IMAGE SET'}
+                        </p>
+                      </div>
+                    )}
+                    {editPhotoUrl && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '8px',
+                          left: '8px',
+                          background: 'rgba(15, 23, 42, 0.72)',
+                          backdropFilter: 'blur(8px)',
+                          padding: '3px 8px',
+                          borderRadius: '8px',
+                          fontSize: '10px',
+                          fontFamily: 'var(--font-code, monospace)',
+                          color: '#FFFFFF',
+                        }}
+                      >
+                        PREVIEW
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Image input & upload controls */}
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handlePhotoFileChange}
+                  />
+
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <input
+                      type="url"
+                      data-testid="edit-poi-photo-input"
+                      value={editPhotoUrl}
+                      onChange={(e) => setEditPhotoUrl(e.target.value)}
+                      placeholder="Paste image URL (https://...)"
+                      style={{
+                        flex: '1 1 auto',
+                        minWidth: 0,
+                        padding: '6px 10px',
+                        fontSize: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface-card)',
+                        color: 'var(--color-text-primary)',
+                        outline: 'none',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      data-testid="edit-poi-photo-upload-btn"
+                      onClick={() => photoInputRef.current?.click()}
+                      title="Upload image from device"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-accent-primary)',
+                        background: 'rgba(15, 76, 92, 0.08)',
+                        color: 'var(--color-accent-primary)',
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <UploadIcon size={12} color="currentColor" />
+                      <span>Upload</span>
+                    </button>
+                    {editPhotoUrl && (
+                      <button
+                        type="button"
+                        data-testid="edit-poi-photo-clear-btn"
+                        onClick={() => setEditPhotoUrl('')}
+                        title="Clear image"
+                        style={{
+                          padding: '6px 8px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border)',
+                          background: 'transparent',
+                          color: 'var(--color-text-muted)',
+                          fontSize: '11.5px',
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : photos.length > 0 ? (
                 <div>
                   {/* Main Image Container */}
                   <div
@@ -3518,7 +3718,176 @@ export function PoiDetailView({
                 </div>
               )}
 
-              {/* Technical GPS Metadata */}
+              {/* Technical GPS Metadata & Single Export / Open in Maps Button */}
+              {typeof poi.lat === 'number' && typeof poi.lng === 'number' && (poi.lat !== 0 || poi.lng !== 0) && (
+                <div style={{ paddingTop: '6px' }}>
+                  <button
+                    type="button"
+                    data-testid="poi-export-menu-btn"
+                    onClick={() => setShowPlaceExportMenu(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-surface-raised, #F8FAFC)',
+                      color: 'var(--color-text-primary)',
+                      fontSize: '11.5px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                      <line x1="9" y1="3" x2="9" y2="18" />
+                      <line x1="15" y1="6" x2="15" y2="21" />
+                    </svg>
+                    <span>Export / Open in Maps</span>
+                  </button>
+                </div>
+              )}
+
+              {showPlaceExportMenu && typeof document !== 'undefined' && createPortal(
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  onClick={() => setShowPlaceExportMenu(false)}
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 9999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '16px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+                    backdropFilter: 'blur(3px)',
+                  }}
+                >
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      width: '100%',
+                      maxWidth: '430px',
+                      backgroundColor: 'var(--color-surface-raised, #FFFFFF)',
+                      borderRadius: '24px',
+                      boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.06)',
+                      border: '1px solid var(--color-border, #E5E7EB)',
+                      padding: '24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      color: 'var(--color-text-primary, #111827)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '18px' }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>
+                          Export &amp; Navigate
+                        </h3>
+                        <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--color-text-secondary, #6B7280)' }}>
+                          {poi.name}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowPlaceExportMenu(false)}
+                        aria-label="Close export menu"
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          backgroundColor: 'var(--color-bg-secondary, #F3F4F6)',
+                          color: 'var(--color-text-secondary, #6B7280)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <CloseIcon size={14} />
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {/* GPX Waypoint Export */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 6px', borderRadius: '16px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '14px', backgroundColor: 'var(--color-bg-secondary, #F3F4F6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent-primary, #0F4C5C)', flexShrink: 0, border: '1px solid var(--color-border, #E5E7EB)' }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>GPX Waypoint (.gpx)</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary, #6B7280)' }}>Save coordinate pin for GPS apps</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            downloadPoiGpx({
+                              name: poi.name,
+                              lat: poi.lat,
+                              lng: poi.lng,
+                              description: poi.description,
+                            });
+                            setShowPlaceExportMenu(false);
+                          }}
+                          style={{
+                            padding: '5px 12px',
+                            borderRadius: '10px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            backgroundColor: 'var(--color-accent-primary, #0F4C5C)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Export
+                        </button>
+                      </div>
+
+                      {/* Navigation App Deep Links */}
+                      {buildStopNavLinks(poi.lat, poi.lng, poi.name).map((nav) => (
+                        <div key={nav.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 6px', borderRadius: '16px' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '14px', backgroundColor: 'var(--color-bg-secondary, #F3F4F6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-ocean, #1B8FA6)', flexShrink: 0, border: '1px solid var(--color-border, #E5E7EB)' }}>
+                            <CompassIcon size={18} color="currentColor" />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{nav.label}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary, #6B7280)' }}>Open coordinates &amp; directions</div>
+                          </div>
+                          <a
+                            href={nav.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setShowPlaceExportMenu(false)}
+                            style={{
+                              padding: '5px 12px',
+                              borderRadius: '10px',
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              backgroundColor: 'var(--color-surface-card, #FFFFFF)',
+                              color: 'var(--color-text-primary, #111827)',
+                              border: '1px solid var(--color-border, #E5E7EB)',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            Open ↗
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>,
+                document.body
+              )}
+
               <div
                 style={{
                   paddingTop: '6px',
@@ -3555,28 +3924,38 @@ export function PoiDetailView({
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            padding: '24px',
+            padding: 0,
+            overflow: 'hidden',
             animation: 'fadeIn 0.2s ease-out',
           }}
         >
-          {/* Lightbox Header */}
+          {/* Lightbox Header Banner in Paladio Colors */}
           <div
+            onClick={(e) => e.stopPropagation()}
             style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
               width: '100%',
-              maxWidth: '1200px',
-              margin: '0 auto',
+              padding: '12px 18px',
+              background: 'linear-gradient(135deg, var(--color-deep-sea, #0F4C5C) 0%, var(--color-hero-bg, #0A3642) 100%)',
+              borderBottom: '2px solid var(--color-accent-gold, #E2B33C)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35)',
+              zIndex: 10,
+              flexShrink: 0,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
               <span
                 style={{
-                  fontFamily: 'var(--font-code, monospace)',
-                  fontSize: '12px',
-                  color: 'var(--color-accent-teal-soft, #7CC4D1)',
-                  fontWeight: 600,
+                  fontFamily: 'var(--font-display, inherit)',
+                  fontSize: '13.5px',
+                  color: '#FFFFFF',
+                  fontWeight: 700,
+                  letterSpacing: '0.01em',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
                 {poi?.name}
@@ -3585,7 +3964,13 @@ export function PoiDetailView({
                 style={{
                   fontFamily: 'var(--font-code, monospace)',
                   fontSize: '11px',
-                  color: 'rgba(255, 255, 255, 0.6)',
+                  color: 'var(--color-accent-gold, #E2B33C)',
+                  background: 'rgba(255, 255, 255, 0.12)',
+                  border: '1px solid rgba(226, 179, 60, 0.35)',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  fontWeight: 600,
+                  flexShrink: 0,
                 }}
               >
                 {activePhotoIdx + 1} / {photos.length}
@@ -3595,9 +3980,11 @@ export function PoiDetailView({
             <button
               type="button"
               onClick={() => setLightboxOpen(false)}
+              aria-label="Close photo preview"
+              title="Close"
               style={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                background: 'rgba(255, 255, 255, 0.15)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
                 color: '#FFFFFF',
                 borderRadius: '50%',
                 width: '32px',
@@ -3606,6 +3993,8 @@ export function PoiDetailView({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                transition: 'background 0.15s ease',
+                flexShrink: 0,
               }}
             >
               <CloseIcon size={16} />
@@ -3623,6 +4012,7 @@ export function PoiDetailView({
               maxWidth: '1200px',
               width: '100%',
               margin: '0 auto',
+              padding: '16px',
             }}
           >
             {/* Prev Image */}
@@ -3706,6 +4096,7 @@ export function PoiDetailView({
               maxWidth: '1200px',
               width: '100%',
               margin: '0 auto',
+              padding: '0 20px 14px 20px',
               textAlign: 'center',
               display: 'flex',
               flexDirection: 'column',

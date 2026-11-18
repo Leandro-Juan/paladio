@@ -905,6 +905,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
       {/* Expense Modal */}
       {showExpenseModal && (
         <ExpenseModal
+          tripId={trip.id}
           participants={participants}
           prefill={editingExpense}
           defaultPayerId={currentUserId}

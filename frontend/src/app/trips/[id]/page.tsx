@@ -4,7 +4,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
-import { Trip, getApiBaseUrl } from '@/hooks/useTrips';
+import { Trip } from '@/hooks/useTrips';
+import { apiFetch } from '@/utils/api';
 import { isTripCompleted } from '@/utils/tripParser';
 import { TripWorkspace } from '@/components/trip-workspace/TripWorkspace';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
@@ -25,28 +26,22 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
     let isMounted = true;
     async function fetchTrip() {
       try {
-        const apiUrl = getApiBaseUrl();
-        const res = await fetch(`${apiUrl}/trips/${id}`);
+        const data = await apiFetch<Trip>(`/trips/${id}`);
         if (!isMounted) return;
-        if (!res.ok) {
-          if (res.status === 404) {
-            setTrip(null);
-          } else {
-            throw new Error(`Server returned HTTP ${res.status}`);
-          }
-        } else {
-          const data: Trip = await res.json();
-          // If the trip has already ended, redirect directly to its Vault recap page
-          if (isTripCompleted(data) && !forceWorkspace) {
-            router.replace(`/vault/${data.id}`);
-            return;
-          }
-          setTrip(data);
+        // If the trip has already ended, redirect directly to its Vault recap page
+        if (isTripCompleted(data) && !forceWorkspace) {
+          router.replace(`/vault/${data.id}`);
+          return;
         }
+        setTrip(data);
       } catch (err: unknown) {
         if (!isMounted) return;
         const msg = err instanceof Error ? err.message : 'Failed to connect to backend';
-        setError(msg);
+        if (msg.toLowerCase().includes('not found') || msg.includes('404')) {
+          setTrip(null);
+        } else {
+          setError(msg);
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -60,12 +55,8 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
 
   const loadTrip = useCallback(async () => {
     try {
-      const apiUrl = getApiBaseUrl();
-      const res = await fetch(`${apiUrl}/trips/${id}`);
-      if (res.ok) {
-        const data: Trip = await res.json();
-        setTrip(data);
-      }
+      const data = await apiFetch<Trip>(`/trips/${id}`);
+      setTrip(data);
     } catch (e) {
       console.error('Failed to reload trip in background', e);
     }

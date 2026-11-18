@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
+import { CustomSelect } from './wallet/parts/CustomSelect';
 import {
   useTripCollections,
   TripCollection,
@@ -21,6 +22,7 @@ import {
   isPaladioDropHandled,
 } from '@/utils/dragPreview';
 import { notify } from '@/utils/notify';
+import { getApiBaseUrl, getAuthToken } from '@/utils/api';
 
 interface CollectionsTabProps {
   tripId: string;
@@ -174,6 +176,7 @@ export function CollectionsTab({
     collections,
     loading,
     error,
+    refreshCollections,
     createCollection,
     updateCollection,
     deleteCollection,
@@ -182,12 +185,74 @@ export function CollectionsTab({
     togglePoiInCollection,
   } = useTripCollections(tripId);
 
+  // Import Places Modal state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importTargetColId, setImportTargetColId] = useState<string>('');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importUrls, setImportUrls] = useState('');
+  const [isImportingPlaces, setIsImportingPlaces] = useState(false);
+  const importFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleImportPlaces = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetColId = importTargetColId || collections[0]?.id;
+    if (!targetColId) {
+      notify.error('No Collection', 'Create a collection first before importing places.');
+      return;
+    }
+    if (!importFile && !importUrls.trim()) {
+      notify.error('No Input', 'Select a GPX/KML/KMZ/JSON/CSV file or paste Google Maps URLs.');
+      return;
+    }
+    setIsImportingPlaces(true);
+    try {
+      const formData = new FormData();
+      if (importFile) formData.append('file', importFile);
+      if (importUrls.trim()) formData.append('urls', importUrls.trim());
+      if (destinationCity) formData.append('city', destinationCity);
+
+      const token = getAuthToken();
+      const res = await fetch(`${getApiBaseUrl()}/trips/${tripId}/collections/${targetColId}/import`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || `Import failed (${res.status})`);
+      }
+      const result = (await res.json()) as {
+        imported_count: number;
+        created_pois_count: number;
+        matched_existing_count: number;
+      };
+      await refreshCollections();
+      notify.success(
+        'Places Imported',
+        `Added ${result.imported_count} places (${result.created_pois_count} indexed in pgvector, ${result.matched_existing_count} matched).`
+      );
+      setShowImportModal(false);
+      setImportFile(null);
+      setImportUrls('');
+    } catch (err) {
+      notify.error('Import Failed', err instanceof Error ? err.message : 'Failed to import places.');
+    } finally {
+      setIsImportingPlaces(false);
+    }
+  };
+
   // New Collection Form state
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newColName, setNewColName] = useState('');
   const [newColDesc, setNewColDesc] = useState('');
   const [newColColor, setNewColColor] = useState(PALADIO_COLORS[0].hex);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isDuplicateCreateName = useMemo(() => {
+    const trimmed = newColName.trim().toLowerCase();
+    if (!trimmed) return false;
+    return collections.some((c) => c.name.trim().toLowerCase() === trimmed);
+  }, [newColName, collections]);
 
   // Editing state
   const [editingColId, setEditingColId] = useState<string | null>(null);
@@ -326,11 +391,17 @@ export function CollectionsTab({
 
   const handleCreateCollection = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newColName.trim() || isSubmitting) return;
+    const trimmedName = newColName.trim();
+    if (!trimmedName || isSubmitting) return;
+
+    if (collections.some((c) => c.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
+      notify.warning('Duplicate Collection Name', `A collection named "${trimmedName}" already exists.`);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      const created = await createCollection(newColName.trim(), newColDesc.trim() || undefined, newColColor);
+      const created = await createCollection(trimmedName, newColDesc.trim() || undefined, newColColor);
       if (created) {
         notify.success('Collection Created', `Created collection "${created.name}"`);
         setNewColName('');
@@ -338,8 +409,9 @@ export function CollectionsTab({
         setShowCreateForm(false);
         setToggledColIds((prev) => ({ ...prev, [created.id]: true }));
       }
-    } catch {
-      notify.error('Error', 'Failed to create collection.');
+    } catch (err: any) {
+      const msg = err?.data?.detail || err?.message || 'Failed to create collection.';
+      notify.warning('Collection Warning', msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -364,13 +436,21 @@ export function CollectionsTab({
   };
 
   const handleSaveEdit = async (colId: string) => {
-    if (!editName.trim()) return;
+    const trimmed = editName.trim();
+    if (!trimmed) return;
+
+    if (collections.some((c) => c.id !== colId && c.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+      notify.warning('Duplicate Collection Name', `A collection named "${trimmed}" already exists.`);
+      return;
+    }
+
     try {
-      await updateCollection(colId, { name: editName.trim(), color: editColor });
+      await updateCollection(colId, { name: trimmed, color: editColor });
       notify.success('Collection Updated', 'Updated collection details.');
       setEditingColId(null);
-    } catch {
-      notify.error('Error', 'Failed to update collection.');
+    } catch (err: any) {
+      const msg = err?.data?.detail || err?.message || 'Failed to update collection.';
+      notify.warning('Collection Warning', msg);
     }
   };
 
@@ -404,27 +484,53 @@ export function CollectionsTab({
           </div>
         </div>
 
-        <button
-          type="button"
-          data-testid="create-new-collection-btn"
-          onClick={() => setShowCreateForm((prev) => !prev)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            borderRadius: 'var(--radius-full, 9999px)',
-            background: showCreateForm ? 'var(--color-surface-sunken)' : 'var(--color-accent-primary)',
-            color: showCreateForm ? 'var(--color-text-secondary)' : '#FFFFFF',
-            border: showCreateForm ? '1px solid var(--color-border)' : 'none',
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <span>{showCreateForm ? 'Cancel' : '+ New Collection'}</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {collections.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setImportTargetColId(collections[0]?.id || '');
+                setShowImportModal(true);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '6px 10px',
+                borderRadius: 'var(--radius-full, 9999px)',
+                background: 'var(--color-surface-card)',
+                color: 'var(--color-text-primary)',
+                border: '1px solid var(--color-border)',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <span>Import</span>
+            </button>
+          )}
+          <button
+            type="button"
+            data-testid="create-new-collection-btn"
+            onClick={() => setShowCreateForm((prev) => !prev)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-full, 9999px)',
+              background: showCreateForm ? 'var(--color-surface-sunken)' : 'var(--color-accent-primary)',
+              color: showCreateForm ? 'var(--color-text-secondary)' : '#FFFFFF',
+              border: showCreateForm ? '1px solid var(--color-border)' : 'none',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span>{showCreateForm ? 'Cancel' : '+ New Collection'}</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -466,13 +572,33 @@ export function CollectionsTab({
             style={{
               padding: '8px 12px',
               borderRadius: '8px',
-              border: '1px solid var(--color-border)',
+              border: isDuplicateCreateName
+                ? '1px solid var(--color-accent-warning, #E2B33C)'
+                : '1px solid var(--color-border)',
               background: 'var(--color-surface-raised, #FAFAFA)',
               fontSize: '13px',
               color: 'var(--color-text-primary)',
               outline: 'none',
             }}
           />
+
+          {isDuplicateCreateName && (
+            <div
+              role="alert"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11.5px',
+                color: 'var(--color-accent-warning, #E2B33C)',
+                fontWeight: 600,
+                fontFamily: 'var(--font-code, monospace)',
+                padding: '2px 4px',
+              }}
+            >
+              <span>⚠ A collection named &quot;{newColName.trim()}&quot; already exists</span>
+            </div>
+          )}
 
           <input
             type="text"
@@ -1304,6 +1430,182 @@ export function CollectionsTab({
           </div>,
           document.body
         )}
+      {/* Import Places Modal */}
+      {showImportModal && typeof document !== 'undefined' && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !isImportingPlaces && setShowImportModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <form
+            onSubmit={handleImportPlaces}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '440px',
+              background: 'var(--color-surface-card)',
+              borderRadius: '18px',
+              border: '1px solid var(--color-border)',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              Import Saved Places into Collection
+            </div>
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-muted)' }}>
+              Upload GPX, KML, KMZ, or Google Takeout JSON/CSV files, or paste Google Maps place/directions URLs.
+            </p>
+            <CustomSelect
+              value={importTargetColId || collections[0]?.id || ''}
+              onChange={(val) => setImportTargetColId(val)}
+              label="Target collection"
+              options={collections.map((c) => ({
+                value: c.id,
+                label: `${c.name} (${c.items_count})`,
+                badge: (
+                  <span
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: c.color || '#0F4C5C',
+                      flexShrink: 0,
+                    }}
+                  />
+                ),
+              }))}
+              buttonStyle={{
+                borderRadius: '10px',
+                padding: '9px 12px',
+                fontSize: '12.5px',
+                fontFamily: 'inherit',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-surface-raised, #FAFAFA)',
+              }}
+              menuStyle={{
+                width: '100%',
+                maxWidth: '100%',
+                maxHeight: '220px',
+                overflowY: 'auto',
+              }}
+            />
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+                padding: '10px 12px',
+                borderRadius: '12px',
+                border: '1px dashed var(--color-border)',
+                background: 'var(--color-surface-sunken, rgba(0, 0, 0, 0.02))',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: importFile ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {importFile ? importFile.name : 'Select .gpx, .kml, .kmz, .json, or .csv'}
+              </div>
+              <input
+                ref={importFileInputRef}
+                type="file"
+                accept=".gpx,.kml,.kmz,.json,.geojson,.csv"
+                style={{ display: 'none' }}
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+              />
+              <button
+                type="button"
+                onClick={() => importFileInputRef.current?.click()}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-surface-card)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                {importFile ? 'Change File' : 'Choose File'}
+              </button>
+            </div>
+            <textarea
+              rows={3}
+              value={importUrls}
+              onChange={(e) => setImportUrls(e.target.value)}
+              placeholder="Or paste Google Maps URLs (one per line)..."
+              style={{
+                padding: '8px 10px',
+                borderRadius: '8px',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-surface-raised, #FAFAFA)',
+                color: 'var(--color-text-primary)',
+                fontSize: '12px',
+                resize: 'vertical',
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                disabled={isImportingPlaces}
+                onClick={() => setShowImportModal(false)}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  background: 'transparent',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isImportingPlaces}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'var(--color-accent-primary)',
+                  color: '#FFFFFF',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: isImportingPlaces ? 'wait' : 'pointer',
+                }}
+              >
+                {isImportingPlaces ? 'Importing...' : 'Import Places'}
+              </button>
+            </div>
+          </form>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

@@ -3,8 +3,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useTranslation } from '@/hooks/useTranslation';
-import { ChevronLeftIcon } from '@/components/icons';
+import { ChevronLeftIcon, Spinner, CheckIcon } from '@/components/icons';
 import { TripShareModal } from './TripShareModal';
+import { isTripPinnedOffline, pinTripOffline } from '@/utils/offlineStore';
+import { notify } from '@/utils/notify';
 
 export type WorkspaceTab = 'plan' | 'wallet' | 'costs' | 'photos' | 'config';
 
@@ -46,6 +48,45 @@ export function TripWorkspaceHeader({
 }: TripWorkspaceHeaderProps) {
   const { t } = useTranslation();
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  const [isOfflinePinned, setIsOfflinePinned] = useState(false);
+  const [isPinningOffline, setIsPinningOffline] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!tripId) return;
+    isTripPinnedOffline(tripId).then(setIsOfflinePinned).catch(() => {});
+  }, [tripId]);
+
+  const handlePinOffline = async () => {
+    if (!tripId || isPinningOffline) return;
+    setIsPinningOffline(true);
+    try {
+      const stats = await pinTripOffline(tripId);
+      setIsOfflinePinned(true);
+      notify.success(
+        'Offline Ready',
+        `Cached itinerary, ${stats.ticketsCached} tickets, ${stats.attachmentsCached} attachments, and ${stats.expensesCached} expenses.`
+      );
+    } catch (err) {
+      notify.error('Offline Cache Failed', err instanceof Error ? err.message : 'Could not cache trip offline.');
+    } finally {
+      setIsPinningOffline(false);
+    }
+  };
   const navRef = useRef<HTMLElement | null>(null);
   const tabRefs = useRef<Partial<Record<WorkspaceTab, HTMLButtonElement | null>>>({});
   const [pillStyle, setPillStyle] = useState<{
@@ -299,6 +340,73 @@ export function TripWorkspaceHeader({
 
       {/* Right: Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {!isOnline && (
+          <span
+            style={{
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.7rem',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              background: 'rgba(227, 100, 20, 0.14)',
+              color: '#E36414',
+              border: '1px solid rgba(227, 100, 20, 0.35)',
+            }}
+          >
+            OFFLINE
+          </span>
+        )}
+        {tripId && (
+          <button
+            type="button"
+            disabled={isPinningOffline || !isOnline}
+            onClick={handlePinOffline}
+            title={
+              isPinningOffline
+                ? 'Downloading trip for offline access...'
+                : isOfflinePinned
+                ? 'Trip downloaded for offline access'
+                : 'Download the trip offline'
+            }
+            aria-label={
+              isPinningOffline
+                ? 'Downloading trip for offline access'
+                : isOfflinePinned
+                ? 'Trip downloaded for offline access'
+                : 'Download the trip offline'
+            }
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: isOfflinePinned ? 'rgba(15, 76, 92, 0.12)' : 'var(--color-bg-main)',
+              color: isOfflinePinned ? 'var(--color-accent-primary, #0F4C5C)' : 'var(--color-text-primary)',
+              border: isOfflinePinned
+                ? '1px solid var(--color-accent-primary, #0F4C5C)'
+                : '1px solid var(--color-border)',
+              cursor: isPinningOffline ? 'wait' : !isOnline ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: 'var(--shadow-sm)',
+              flexShrink: 0,
+              padding: 0,
+            }}
+          >
+            {isPinningOffline ? (
+              <Spinner size={14} color="currentColor" />
+            ) : isOfflinePinned ? (
+              <CheckIcon size={14} color="currentColor" />
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            )}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setIsShareModalOpen(true)}

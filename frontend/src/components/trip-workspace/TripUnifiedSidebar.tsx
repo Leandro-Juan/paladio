@@ -17,6 +17,7 @@ import { Modal } from '@/components/Modal';
 import { useTripCollections } from '@/hooks/useTripCollections';
 import { getApiBaseUrl, getAuthToken, downloadCityPoisApi, fetchCityPoisStatusApi } from '@/utils/api';
 import { hydrateDayTransitIndices } from '@/utils/transitFetch';
+import { autoFillDayItineraryHours } from '@/utils/itinerarySchedule';
 import { notify } from '@/utils/notify';
 import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
@@ -2237,15 +2238,20 @@ export function TripUnifiedSidebar({
       if (!movedItem) return;
       path.splice(targetIdx, 0, movedItem);
 
+      autoFillDayItineraryHours(path);
+
       onItineraryUpdate(clonedItin);
       const minIdx = Math.min(sourceIdx, targetIdx);
       const maxIdx = Math.max(sourceIdx, targetIdx);
       void hydrateDayTransitIndices(clonedItin, targetDayNum, [minIdx, maxIdx, maxIdx + 1], destinationCity, tripId).then(
         (hydrated) => {
-          if (hydrated) onItineraryUpdate(hydrated);
+          if (hydrated) {
+            const dayObj = hydrated.days?.find((d) => (d.day ?? 1) === targetDayNum);
+            if (dayObj?.itinerary?.path) autoFillDayItineraryHours(dayObj.itinerary.path);
+            onItineraryUpdate(hydrated);
+          }
         }
       );
-      notify.info('Stop Reordered', `Moved "${movedItem.poi?.name || 'Waypoint'}" to position ${targetIdx + 1}.`);
     },
     [itinerary, onItineraryUpdate, destinationCity, tripId]
   );
@@ -2278,13 +2284,17 @@ export function TripUnifiedSidebar({
       if (removeIdx >= 0 && removeIdx < path.length) {
         const [removedItem] = path.splice(removeIdx, 1);
         if (removedItem) {
+          autoFillDayItineraryHours(path);
           onItineraryUpdate(clonedItin);
           void hydrateDayTransitIndices(clonedItin, targetDayNum, [removeIdx], destinationCity, tripId).then(
             (hydrated) => {
-              if (hydrated) onItineraryUpdate(hydrated);
+              if (hydrated) {
+                const dayObj = hydrated.days?.find((d) => (d.day ?? 1) === targetDayNum);
+                if (dayObj?.itinerary?.path) autoFillDayItineraryHours(dayObj.itinerary.path);
+                onItineraryUpdate(hydrated);
+              }
             }
           );
-          notify.info('Place Removed', `Removed "${removedItem.poi?.name || poiName || 'Waypoint'}" from Day ${targetDayNum}`);
         }
       }
     },
@@ -2334,15 +2344,9 @@ export function TripUnifiedSidebar({
             const safeIdx = Math.max(0, Math.min(adjustedTargetIdx, targetDayObj.itinerary.path.length));
             targetDayObj.itinerary.path.splice(safeIdx, 0, movedItem);
 
-            // If an airport is moved to the start of Day 1 and a redundant Hotel (Start) follows it, drop the redundant hotel depot
-            if (safeIdx === 0 && targetDayNum === 1 && isAirportPoi(movedItem.poi) && targetDayObj.itinerary.path.length >= 3) {
-              const nextStop = targetDayObj.itinerary.path[1];
-              const lastStop = targetDayObj.itinerary.path[targetDayObj.itinerary.path.length - 1];
-              const rawNext = nextStop as unknown as { locked?: boolean; is_fixed?: boolean } | undefined;
-              const isLocked = rawNext?.locked === true || rawNext?.is_fixed === true;
-              if (isHotelPoi(nextStop?.poi) && isHotelPoi(lastStop?.poi) && !isLocked) {
-                targetDayObj.itinerary.path.splice(1, 1);
-              }
+            autoFillDayItineraryHours(targetDayObj.itinerary.path);
+            if (srcDayNum !== targetDayNum && srcDayObj.itinerary.path) {
+              autoFillDayItineraryHours(srcDayObj.itinerary.path);
             }
 
             onItineraryUpdate(clonedItin);
@@ -2352,10 +2356,13 @@ export function TripUnifiedSidebar({
                 : [safeIdx, safeIdx + 1];
             void hydrateDayTransitIndices(clonedItin, targetDayNum, indicesToHydrate, destinationCity, tripId).then(
               (hydrated) => {
-                if (hydrated) onItineraryUpdate(hydrated);
+                if (hydrated) {
+                  const dayObj = hydrated.days?.find((d) => (d.day ?? 1) === targetDayNum);
+                  if (dayObj?.itinerary?.path) autoFillDayItineraryHours(dayObj.itinerary.path);
+                  onItineraryUpdate(hydrated);
+                }
               }
             );
-            notify.success('Waypoint Reordered', `Moved stop to Day ${targetDayNum}`);
           }
         } else if (payload.source === 'search' || payload.source === 'inspector' || payload.source === 'map' || payload.source === 'collection') {
           const poi = payload.poi;
@@ -2378,32 +2385,22 @@ export function TripUnifiedSidebar({
             },
           };
           const safeIdx = Math.max(0, Math.min(targetIdx, targetDayObj.itinerary.path.length));
-          const isDroppingAirportAtStart = safeIdx === 0 && targetDayNum === 1 && isAirportPoi(newScheduled.poi);
           targetDayObj.itinerary.path.splice(safeIdx, 0, newScheduled);
 
-          // If inserting an airport as the first stop on Day 1 and a redundant Hotel (Start) follows it, drop the redundant hotel depot
-          if (isDroppingAirportAtStart && targetDayObj.itinerary.path.length >= 3) {
-            const nextStop = targetDayObj.itinerary.path[1];
-            const lastStop = targetDayObj.itinerary.path[targetDayObj.itinerary.path.length - 1];
-            const rawNext = nextStop as unknown as { locked?: boolean; is_fixed?: boolean } | undefined;
-            const isLocked = rawNext?.locked === true || rawNext?.is_fixed === true;
-            if (isHotelPoi(nextStop?.poi) && isHotelPoi(lastStop?.poi) && !isLocked) {
-              if (nextStop.scheduled_start && !newScheduled.scheduled_start) {
-                newScheduled.scheduled_start = nextStop.scheduled_start;
-              }
-              targetDayObj.itinerary.path.splice(1, 1);
-            }
-          }
+          autoFillDayItineraryHours(targetDayObj.itinerary.path);
 
           onItineraryUpdate(clonedItin);
           void hydrateDayTransitIndices(clonedItin, targetDayNum, [safeIdx, safeIdx + 1], destinationCity, tripId).then(
             (hydrated) => {
-              if (hydrated) onItineraryUpdate(hydrated);
+              if (hydrated) {
+                const dayObj = hydrated.days?.find((d) => (d.day ?? 1) === targetDayNum);
+                if (dayObj?.itinerary?.path) autoFillDayItineraryHours(dayObj.itinerary.path);
+                onItineraryUpdate(hydrated);
+              }
             }
           );
           setJustInserted((prev) => ({ day: targetDayNum, index: safeIdx, key: (prev?.key ?? 0) + 1 }));
           window.setTimeout(() => setJustInserted(null), 800);
-          notify.success('Place Added', `Added ${poiName} to Day ${targetDayNum}`);
         }
       } catch (err) {
         console.error('Failed to execute drop:', err);
@@ -3397,7 +3394,7 @@ export function TripUnifiedSidebar({
                                     isEditMode={isEditMode}
                                     stopNum={stopNum}
                                     anchorInfo={anchorInfo}
-                                    draggable={!anchorInfo.isFixed}
+                                    draggable={true}
                                     isBeingDragged={draggedPoi?.day === dayObj.day && draggedPoi?.index === poiIdx}
                                     isRemoving={removingPoi?.day === dayObj.day && (removingPoi?.id === p?.id || removingPoi?.index === poiIdx)}
                                     onDragOver={(e) => {
@@ -3418,10 +3415,6 @@ export function TripUnifiedSidebar({
                                       handleDrop(e, dayObj.day, targetIdx);
                                     }}
                                     onDragStart={(e) => {
-                                      if (anchorInfo.isFixed) {
-                                        e.preventDefault();
-                                        return;
-                                      }
                                       startCustomDragPreview(e, {
                                         name: p?.name || 'Scheduled Place',
                                         category: p?.category,
@@ -3453,7 +3446,7 @@ export function TripUnifiedSidebar({
                                       const curId = p?.id;
                                       const curName = p?.name;
 
-                                      if (!handled && !anchorInfo.isFixed) {
+                                      if (!handled) {
                                         // Dropped outside itinerary: trigger smooth removal animation
                                         setRemovingPoi({ day: curDay, index: curIdx, id: curId });
                                         window.setTimeout(() => {

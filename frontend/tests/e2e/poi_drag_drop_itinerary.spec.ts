@@ -691,5 +691,236 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
     await expect(inspectorDrawer).toBeVisible();
     await expect(inspectorDrawer.getByRole('heading', { name: 'Meiji Jingu Shrine' })).toBeVisible();
   });
+
+  test('dropping airport as first stop keeps hotel as second stop and auto-fills hours', async ({ page }) => {
+    await mockAuthenticatedUser(page);
+
+    const mockTripId = 'test-trip-airport-hotel-preserve';
+    let savedItinerary: any = null;
+
+    const mockTrip = {
+      id: mockTripId,
+      destination: 'Bangkok',
+      start_date: '2027-05-10',
+      end_date: '2027-05-14',
+      budget_eur: 1500,
+      itinerary_data: {
+        days: [
+          {
+            day: 1,
+            theme: 'Arrival & City Exploration',
+            itinerary: {
+              path: [
+                {
+                  poi: {
+                    id: 'poi-hotel-bkk',
+                    name: 'Centara Grand Hotel',
+                    category: 'hotel',
+                    duration_mins: 30,
+                    cost_eur: 0,
+                    location: { latitude: 13.748, longitude: 100.539 },
+                  },
+                },
+                {
+                  poi: {
+                    id: 'poi-monument-bkk',
+                    name: 'Victory Monument',
+                    category: 'monument',
+                    duration_mins: 60,
+                    cost_eur: 0,
+                    location: { latitude: 13.765, longitude: 100.537 },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+      if (route.request().method() === 'PUT' || route.request().method() === 'PATCH') {
+        const body = JSON.parse(route.request().postData() || '{}');
+        savedItinerary = body.itinerary_data;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ...mockTrip, itinerary_data: savedItinerary }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockTrip),
+      });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/pois\/search.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          results: [
+            {
+              id: 'poi-dmk-airport',
+              name: 'Don Mueang International Airport (DMK)',
+              category: 'airport',
+              lat: 13.9126,
+              lng: 100.6067,
+              duration_mins: 60,
+              cost_eur: 0,
+            },
+          ],
+          total: 1,
+        }),
+      });
+    });
+
+    await page.goto(`/trips/${mockTripId}`);
+    const sidebar = page.getByTestId('trip-unified-sidebar');
+    await expect(sidebar).toBeVisible({ timeout: 10000 });
+
+    // Verify initial stops
+    await expect(sidebar.getByText('Centara Grand Hotel')).toBeVisible();
+    await expect(sidebar.getByText('Victory Monument')).toBeVisible();
+
+    // Verify stops are draggable even when NOT in edit mode
+    const hotelCard = sidebar.getByTestId('poi-stop-card-poi-hotel-bkk');
+    await expect(hotelCard).toHaveAttribute('draggable', 'true');
+
+    // Switch to search and drop airport at top (index 0)
+    await page.getByTestId('tab-search').click();
+    const airportSearchCard = page.getByTestId('poi-card-poi-dmk-airport');
+    await expect(airportSearchCard).toBeVisible({ timeout: 5000 });
+
+    // Initiate drag
+    await airportSearchCard.evaluate((el) => {
+      const dt = new DataTransfer();
+      const ev = new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt });
+      el.dispatchEvent(ev);
+    });
+
+    // Drop onto top of day 1
+    const topCard = sidebar.getByTestId('poi-stop-card-poi-hotel-bkk');
+    await topCard.evaluate((el) => {
+      const payload = JSON.stringify({
+        source: 'search',
+        poi: {
+          id: 'poi-dmk-airport',
+          name: 'Don Mueang International Airport (DMK)',
+          category: 'airport',
+          duration_mins: 60,
+          cost_eur: 0,
+          location: { latitude: 13.9126, longitude: 100.6067 },
+        },
+      });
+      const dt = new DataTransfer();
+      dt.setData('application/paladio-poi', payload);
+      dt.setData('text/plain', payload);
+      const ev = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt });
+      el.dispatchEvent(ev);
+    });
+
+    // Verify modal warning
+    const warningModal = page.getByText('ANCHOR REORDER WARNING');
+    await expect(warningModal).toBeVisible({ timeout: 5000 });
+    const proceedBtn = page.getByRole('button', { name: 'PROCEED' });
+    await proceedBtn.click();
+
+    // Verify hotel was NOT eliminated and is second!
+    await expect(sidebar.getByTestId('poi-stop-card-poi-dmk-airport')).toBeVisible({ timeout: 5000 });
+    await expect(sidebar.getByTestId('poi-stop-card-poi-hotel-bkk')).toBeVisible({ timeout: 5000 });
+    await expect(sidebar.getByTestId('poi-stop-card-poi-monument-bkk')).toBeVisible({ timeout: 5000 });
+
+    const fullText = await sidebar.innerText();
+    const airportIdx = fullText.indexOf('Don Mueang International Airport (DMK)');
+    const hotelIdx = fullText.indexOf('Centara Grand Hotel');
+    const monumentIdx = fullText.indexOf('Victory Monument');
+
+    expect(airportIdx).toBeGreaterThan(-1);
+    expect(hotelIdx).toBeGreaterThan(airportIdx); // Hotel is SECOND (after airport)
+    expect(monumentIdx).toBeGreaterThan(hotelIdx); // Monument is THIRD (after hotel)
+
+    // Verify hours were automatically filled (no longer --:--)
+    expect(fullText.includes('09:00')).toBe(true);
+  });
+
+  test('clicking time selector in edit mode opens custom hour picker modal from trip creation', async ({ page }) => {
+    await mockAuthenticatedUser(page);
+
+    const mockTripId = 'test-trip-custom-time-picker';
+    const mockTrip = {
+      id: mockTripId,
+      destination: 'Bangkok',
+      start_date: '2027-05-10',
+      end_date: '2027-05-14',
+      budget_eur: 1500,
+      itinerary_data: {
+        days: [
+          {
+            day: 1,
+            theme: 'Bangkok Wonders',
+            itinerary: {
+              path: [
+                {
+                  poi: {
+                    id: 'poi-park-bkk',
+                    name: 'Pathumwananurak Park',
+                    category: 'park',
+                    duration_mins: 60,
+                    cost_eur: 0,
+                    location: { latitude: 13.748, longitude: 100.539 },
+                  },
+                  scheduled_start: '16:05',
+                  scheduled_end: '17:05',
+                },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockTrip),
+      });
+    });
+
+    await page.goto(`/trips/${mockTripId}`);
+    const sidebar = page.getByTestId('trip-unified-sidebar');
+    await expect(sidebar).toBeVisible({ timeout: 10000 });
+
+    // Click speed dial trigger then EDIT ROUTE to enter edit mode
+    const speedDialTrigger = page.getByTestId('speed-dial-trigger');
+    await expect(speedDialTrigger).toBeVisible({ timeout: 5000 });
+    await speedDialTrigger.click();
+
+    const editRouteBtn = page.getByTestId('speed-dial-edit-mode');
+    await expect(editRouteBtn).toBeVisible({ timeout: 5000 });
+    await editRouteBtn.click();
+
+    // Verify entry time button exists
+    const entryTimeBtn = page.getByTestId('poi-entry-time-poi-park-bkk');
+    await expect(entryTimeBtn).toBeVisible({ timeout: 5000 });
+    await expect(entryTimeBtn).toContainText('16:05');
+
+    // Click the entry time button
+    await entryTimeBtn.click();
+
+    // Verify CustomHourPickerModal is open (Confirm Time button, cylinder dial)
+    const confirmTimeBtn = page.getByRole('button', { name: 'Confirm Time' });
+    await expect(confirmTimeBtn).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('ENTRY TIME: PATHUMWANANURAK PARK')).toBeVisible();
+
+    // Click Confirm Time
+    await confirmTimeBtn.click();
+
+    // Verify modal closes
+    await expect(confirmTimeBtn).not.toBeVisible();
+  });
 });
 

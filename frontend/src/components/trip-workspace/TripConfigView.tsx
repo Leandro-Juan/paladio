@@ -1,12 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Trip, useTrips } from '@/hooks/useTrips';
+import { Trip, TripRevisionItem, useTrips } from '@/hooks/useTrips';
 import type { RouteItineraryData } from '@/types/domain';
 import { extractTripTitle } from '@/utils/tripParser';
+import { apiFetch } from '@/utils/api';
+import { notify } from '@/utils/notify';
 import { useAuth } from '@/contexts/AuthContext';
 import { PaladioDateRangePicker } from '@/components/trip-creation/PaladioDateRangePicker';
+import { PaladioSingleDatePicker } from '@/components/trip-creation/PaladioSingleDatePicker';
 import { ParticipantsManager, SelectedParticipant } from '@/components/trip-creation/ParticipantsManager';
 import { PhotoUploadModal } from '@/components/trip-creation/PhotoUploadModal';
 import { RouteIntakeBar } from '@/components/trip-creation/RouteIntakeBar';
@@ -14,7 +18,8 @@ import { HotelStayAnchorBar } from '@/components/trip-creation/HotelStayAnchorBa
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
-import { PaperclipIcon, SettingsIcon } from '@/components/icons';
+import { CalendarIcon, PaperclipIcon, SettingsIcon } from '@/components/icons';
+import { TripActivityTimeline } from '@/components/trip-workspace/TripActivityTimeline';
 
 interface TripConfigViewProps {
   trip: Trip;
@@ -42,7 +47,15 @@ function extractPhotoUrl(val: unknown): string {
 
 export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
   const router = useRouter();
-  const { updateTrip, deleteTrip, addParticipant, removeParticipant } = useTrips();
+  const {
+    updateTrip,
+    deleteTrip,
+    addParticipant,
+    removeParticipant,
+    getTripRevisions,
+    revertTripRevision,
+    restoreTripVersion,
+  } = useTrips();
   const { user: currentUser } = useAuth();
 
   // Extract initial values from trip and itinerary_data
@@ -117,6 +130,51 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
   const [isCurrencyWheelOpen, setIsCurrencyWheelOpen] = useState(false);
   const [pace, setPace] = useState(travelConstraints.pace || 'balanced');
   const [status, setStatus] = useState(trip.status || 'active');
+  const [shiftStartDate, setShiftStartDate] = useState(trip.start_date || '');
+  const [isShiftDatePickerOpen, setIsShiftDatePickerOpen] = useState(false);
+  const [reanchorBookings, setReanchorBookings] = useState(true);
+  const [isShiftingDates, setIsShiftingDates] = useState(false);
+  const [isDuplicatingTrip, setIsDuplicatingTrip] = useState(false);
+
+  const handleShiftTripDates = async () => {
+    if (!trip.id || !shiftStartDate) return;
+    setIsShiftingDates(true);
+    try {
+      const updated = await apiFetch<Trip>(`/trips/${trip.id}/shift-dates`, {
+        method: 'POST',
+        body: JSON.stringify({
+          new_start_date: shiftStartDate,
+          reanchor_bookings: reanchorBookings,
+        }),
+      });
+      setStartDate(updated.start_date);
+      setEndDate(updated.end_date);
+      notify.success('Dates Shifted', `Trip moved to ${updated.start_date} – ${updated.end_date}.`);
+      onTripUpdated?.();
+      await loadRevisions();
+    } catch (err) {
+      notify.error('Shift Failed', err instanceof Error ? err.message : 'Could not shift trip dates.');
+    } finally {
+      setIsShiftingDates(false);
+    }
+  };
+
+  const handleDuplicateTrip = async () => {
+    if (!trip.id) return;
+    setIsDuplicatingTrip(true);
+    try {
+      const cloned = await apiFetch<Trip>(`/trips/${trip.id}/duplicate`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      notify.success('Trip Duplicated', 'Opening copied expedition...');
+      router.push(`/trips/${cloned.id}`);
+    } catch (err) {
+      notify.error('Duplicate Failed', err instanceof Error ? err.message : 'Could not duplicate trip.');
+    } finally {
+      setIsDuplicatingTrip(false);
+    }
+  };
 
   // Photo state
   const initialPhoto = useMemo(() => {
@@ -173,6 +231,136 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Activity timeline & revision history state
+  const [revisions, setRevisions] = useState<TripRevisionItem[]>([]);
+  const [currentRevision, setCurrentRevision] = useState<number>(trip.revision ?? 0);
+  const [revisionsLoading, setRevisionsLoading] = useState(false);
+  const [revisionsError, setRevisionsError] = useState<string | null>(null);
+  const [busyRevisionAction, setBusyRevisionAction] = useState<string | null>(null);
+  const [showActivityPanel, setShowActivityPanel] = useState(true);
+
+  const loadRevisions = async () => {
+    if (!trip.id) return;
+    setRevisionsLoading(true);
+    setRevisionsError(null);
+    try {
+      const data = await getTripRevisions(trip.id);
+      setRevisions(data.items || []);
+      setCurrentRevision(data.current_revision ?? 0);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Could not load activity history.';
+      setRevisionsError(msg);
+    } finally {
+      setRevisionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!trip.id) return;
+    let cancelled = false;
+    Promise.resolve().then(async () => {
+      if (cancelled) return;
+      setRevisionsLoading(true);
+      setRevisionsError(null);
+      try {
+        const data = await getTripRevisions(trip.id);
+        if (!cancelled) {
+          setRevisions(data.items || []);
+          setCurrentRevision(data.current_revision ?? 0);
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          const msg = err instanceof Error ? err.message : 'Could not load activity history.';
+          setRevisionsError(msg);
+        }
+      } finally {
+        if (!cancelled) {
+          setRevisionsLoading(false);
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [trip.id, trip.revision, getTripRevisions]);
+
+  // Synchronize configuration form fields whenever trip is updated externally (e.g. revert/restore)
+  const [prevTripSync, setPrevTripSync] = useState(trip);
+  if (trip !== prevTripSync) {
+    setPrevTripSync(trip);
+    setTitle(extractTripTitle(trip));
+    setDestination(trip.destination || '');
+    setOrigin(travelConstraints.origin_city || itin.origin || '');
+    setOriginIata(travelConstraints.origin_iata || itin.origin_iata || '');
+    setDestIata(travelConstraints.destination_iata || itin.destination_iata || '');
+    setDepartureHour(travelConstraints.departure_hour || itin.departure_hour || '10:00');
+    setArrivalHour(travelConstraints.arrival_hour || itin.arrival_hour || '18:00');
+    setHotelArea(travelConstraints.accommodation || itin.accommodation || itin.hotel?.name || '');
+    setHotelAddress(itin.hotel?.address || '');
+    setHotelLat(itin.hotel?.lat);
+    setHotelLng(itin.hotel?.lng);
+    setHotelCheckInDate(itin.hotel?.check_in_date || travelConstraints.hotel?.check_in_date || trip.start_date || '');
+    setHotelCheckOutDate(itin.hotel?.check_out_date || travelConstraints.hotel?.check_out_date || trip.end_date || '');
+    setHotelCheckInHour(itin.hotel?.check_in_time || travelConstraints.hotel?.check_in_time || '15:00');
+    setHotelCheckOutHour(itin.hotel?.check_out_time || travelConstraints.hotel?.check_out_time || '11:00');
+    setStartDate(trip.start_date || '');
+    setEndDate(trip.end_date || '');
+    setShiftStartDate(trip.start_date || '');
+    setDescription(itin.description || '');
+    setNotes(itin.notes || '');
+    setBudget(
+      travelConstraints.budget_usd !== undefined
+        ? String(travelConstraints.budget_usd)
+        : itin.budget !== undefined
+        ? String(itin.budget)
+        : ''
+    );
+    setCurrency(travelConstraints.currency || itin.currency || 'EUR');
+    setPace(travelConstraints.pace || 'balanced');
+    setStatus(trip.status || 'active');
+    setPhotoUrl(initialPhoto);
+    setPhotoPreviewError(false);
+    if (trip.revision !== undefined) {
+      setCurrentRevision(trip.revision);
+    }
+  }
+
+  const handleRevertRevision = async (revisionId: string) => {
+    if (!trip.id) return;
+    setBusyRevisionAction(`revert:${revisionId}`);
+    setRevisionsError(null);
+    try {
+      await revertTripRevision(trip.id, revisionId);
+      notify.success('Change Reverted', 'Reverted the selected change and recorded a new revision.');
+      onTripUpdated?.();
+      await loadRevisions();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to revert change.';
+      setRevisionsError(msg);
+      notify.error('Revert Failed', msg);
+    } finally {
+      setBusyRevisionAction(null);
+    }
+  };
+
+  const handleRestoreVersion = async (targetRevision: number) => {
+    if (!trip.id) return;
+    setBusyRevisionAction(`restore:${targetRevision}`);
+    setRevisionsError(null);
+    try {
+      await restoreTripVersion(trip.id, targetRevision);
+      notify.success('Version Restored', `Expedition restored to Version v${targetRevision}.`);
+      onTripUpdated?.();
+      await loadRevisions();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to restore version.';
+      setRevisionsError(msg);
+      notify.error('Restore Failed', msg);
+    } finally {
+      setBusyRevisionAction(null);
+    }
+  };
+
   // Integrants / Participants state from trip
   const [participantsList, setParticipantsList] = useState<SelectedParticipant[]>(() => {
     return (trip.participants || []).map((p) => ({
@@ -223,6 +411,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
       });
     }
     onTripUpdated?.();
+    await loadRevisions();
   };
 
   // Delete modal state
@@ -310,6 +499,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
       if (res) {
         setSaveSuccess(true);
         onTripUpdated?.();
+        await loadRevisions();
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
         setSaveError('Failed to save trip configuration. Please check your network connection.');
@@ -337,62 +527,106 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
   return (
     <div
       style={{
-        padding: '2rem',
-        maxWidth: '1000px',
+        padding: '1.75rem 2rem',
+        maxWidth: '1460px',
         margin: '0 auto',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '2.5rem',
+        alignItems: 'flex-start',
+        gap: '2rem',
+        flexWrap: 'wrap',
       }}
     >
-      {/* View Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 className="font-display" style={{ margin: 0, fontSize: '1.6rem', color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>
-            TRIP CONFIGURATION
-          </h2>
-        </div>
+      {/* Left Column: Shifted Trip Configuration Controls */}
+      <div
+        style={{
+          flex: '1 1 600px',
+          minWidth: 0,
+          maxWidth: showActivityPanel ? '920px' : '1040px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2.5rem',
+        }}
+      >
+        {/* View Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h2 className="font-display" style={{ margin: 0, fontSize: '1.6rem', color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>
+              TRIP CONFIGURATION
+            </h2>
+          </div>
 
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 22px',
-            background: saveSuccess ? 'var(--color-accent-teal)' : 'var(--color-accent-primary)',
-            color: 'var(--color-btn-primary-text, #fff)',
-            border: 'none',
-            borderRadius: '8px',
-            fontFamily: 'var(--font-display, inherit)',
-            fontWeight: 700,
-            fontSize: '0.9rem',
-            cursor: isSaving ? 'wait' : 'pointer',
-            boxShadow: 'var(--shadow-sm)',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          {isSaving ? (
-            <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
-                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-              </svg>
-              SAVING...
-            </>
-          ) : saveSuccess ? (
-            <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              SAVED!
-            </>
-          ) : (
-            'SAVE CHANGES'
-          )}
-        </button>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {!showActivityPanel && (
+              <button
+                type="button"
+                onClick={() => setShowActivityPanel(true)}
+                data-testid="open-activity-panel-btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  padding: '10px 16px',
+                  background: 'var(--color-surface-card)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '8px',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                  <path d="M3 3v5h5" />
+                  <path d="M12 7v5l4 2" />
+                </svg>
+                ACTIVITY HISTORY
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 22px',
+                background: saveSuccess ? 'var(--color-accent-teal)' : 'var(--color-accent-primary)',
+                color: 'var(--color-btn-primary-text, #fff)',
+                border: 'none',
+                borderRadius: '8px',
+                fontFamily: 'var(--font-display, inherit)',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                cursor: isSaving ? 'wait' : 'pointer',
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {isSaving ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                    <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+                  </svg>
+                  SAVING...
+                </>
+              ) : saveSuccess ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  SAVED!
+                </>
+              ) : (
+                'SAVE CHANGES'
+              )}
+            </button>
+          </div>
+        </div>
 
       {saveSuccess && (
         <div
@@ -1018,6 +1252,141 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         </div>
       </section>
 
+      {/* Section 7.5: Shift Dates & Duplicate */}
+      <section
+        style={{
+          background: 'var(--color-surface-card)',
+          border: '1px solid var(--color-border-subtle)',
+          borderRadius: '14px',
+          padding: '1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem',
+          boxShadow: 'var(--shadow-card)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
+              Shift Trip Dates &amp; Re-anchor Bookings
+            </h4>
+            <p className="font-mono text-muted text-xs" style={{ margin: '4px 0 0' }}>
+              Move your entire schedule to a new start date and automatically shift days, hotel stays, tickets, and expenses.
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              data-testid="shift-start-date-btn"
+              onClick={() => setIsShiftDatePickerOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '7px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border-subtle)',
+                background: 'var(--color-bg-main)',
+                color: 'var(--color-text-primary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <CalendarIcon size={14} color="var(--color-text-muted)" />
+              <span>{shiftStartDate || 'Select start date'}</span>
+            </button>
+            {isShiftDatePickerOpen && typeof document !== 'undefined' && createPortal(
+              <div
+                onClick={() => setIsShiftDatePickerOpen(false)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 10050,
+                  background: 'rgba(0, 0, 0, 0.28)',
+                  backdropFilter: 'blur(3px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '16px',
+                }}
+              >
+                <div onClick={(e) => e.stopPropagation()}>
+                  <PaladioSingleDatePicker
+                    title="NEW START DATE"
+                    selectedDate={shiftStartDate}
+                    onChange={(d) => {
+                      if (d) setShiftStartDate(d);
+                      setIsShiftDatePickerOpen(false);
+                    }}
+                    onClose={() => setIsShiftDatePickerOpen(false)}
+                  />
+                </div>
+              </div>,
+              document.body
+            )}
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={reanchorBookings}
+                onChange={(e) => setReanchorBookings(e.target.checked)}
+              />
+              Re-anchor tickets &amp; expenses
+            </label>
+            <button
+              type="button"
+              disabled={isShiftingDates || !shiftStartDate}
+              onClick={handleShiftTripDates}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-accent-primary, #0F4C5C)',
+                background: 'var(--color-accent-primary, #0F4C5C)',
+                color: '#fff',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: isShiftingDates ? 'wait' : 'pointer',
+              }}
+            >
+              {isShiftingDates ? 'SHIFTING...' : 'SHIFT DATES'}
+            </button>
+          </div>
+        </div>
+
+        <div style={{ height: '1px', background: 'var(--color-border-subtle)' }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
+              Duplicate Expedition
+            </h4>
+            <p className="font-mono text-muted text-xs" style={{ margin: '4px 0 0' }}>
+              Clone days, stops, participants, and saved collections into a new independent trip.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={isDuplicatingTrip}
+            onClick={handleDuplicateTrip}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: '1px solid var(--color-border-subtle)',
+              background: 'var(--color-bg-main)',
+              color: 'var(--color-text-primary)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: isDuplicatingTrip ? 'wait' : 'pointer',
+            }}
+          >
+            {isDuplicatingTrip ? 'DUPLICATING...' : 'DUPLICATE TRIP'}
+          </button>
+        </div>
+      </section>
+
       {/* Section 8: Danger Zone */}
       <section
         style={{
@@ -1061,6 +1430,31 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           DELETE EXPEDITION
         </button>
       </section>
+      </div>
+
+      {/* Right Column: Activity Timeline & Version Control */}
+      {showActivityPanel && (
+        <div
+          style={{
+            width: 'min(390px, 100%)',
+            flex: '0 0 auto',
+            position: 'sticky',
+            top: '1.5rem',
+          }}
+        >
+          <TripActivityTimeline
+            items={revisions}
+            currentRevision={currentRevision}
+            loading={revisionsLoading}
+            error={revisionsError}
+            busyActionKey={busyRevisionAction}
+            onRevertRevision={handleRevertRevision}
+            onRestoreVersion={handleRestoreVersion}
+            onRefresh={loadRevisions}
+            onClose={() => setShowActivityPanel(false)}
+          />
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (

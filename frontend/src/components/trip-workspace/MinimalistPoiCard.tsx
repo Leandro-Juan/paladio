@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { PoiCategoryIcon } from '@/components/PoiCategoryBadge';
 import { isHotelPoi, isAirportPoi } from '@/utils/poiCategory';
-import { GripVerticalIcon, LockIcon, UnlockIcon, ChevronUpIcon, ChevronDownIcon } from '@/components/icons';
+import { GripVerticalIcon, LockIcon, UnlockIcon, ChevronUpIcon, ChevronDownIcon, ClockIcon } from '@/components/icons';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
+import { CustomHourPickerModal } from '@/components/trip-creation/CustomHourPickerModal';
 
 export interface MinimalistPoiCardProps {
   id?: string;
@@ -85,6 +86,7 @@ export function MinimalistPoiCard({
 }: MinimalistPoiCardProps) {
   const { getPhoto, requestPhoto } = usePoiPhotos();
   const [imgFailed, setImgFailed] = useState(false);
+  const [activeHourPicker, setActiveHourPicker] = useState<'entry' | 'exit' | null>(null);
 
   // Determine photo URL
   const resolvedPhoto = photoUrl || getPhoto(id) || getPhoto(name);
@@ -388,41 +390,61 @@ export function MinimalistPoiCard({
                 flexWrap: 'wrap',
               }}
             >
-              <input
-                type="time"
+              <button
+                type="button"
                 data-testid={`poi-entry-time-${id || stopNum || name}`}
                 aria-label={`Entry time for ${name}`}
-                value={entryVal}
-                onChange={(e) => onUpdateTimes(e.target.value, exitVal || e.target.value)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveHourPicker('entry');
+                }}
                 style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: '10.5px',
-                  padding: '1px 4px',
+                  padding: '1px 6px',
                   borderRadius: '4px',
                   border: `1px solid ${timeConflict ? '#DC2626' : 'var(--color-border)'}`,
                   background: 'var(--color-surface-subtle, rgba(0,0,0,0.03))',
                   color: 'var(--color-text-primary)',
                   height: '20px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontWeight: 600,
                 }}
-              />
-              <span>–</span>
-              <input
-                type="time"
+              >
+                <ClockIcon size={10} color="var(--color-accent-teal, #0F4C5C)" />
+                <span>{entryVal || '--:--'}</span>
+              </button>
+              <span style={{ color: 'var(--color-text-muted)', userSelect: 'none' }}>–</span>
+              <button
+                type="button"
                 data-testid={`poi-exit-time-${id || stopNum || name}`}
                 aria-label={`Exit time for ${name}`}
-                value={exitVal}
-                onChange={(e) => onUpdateTimes(entryVal || e.target.value, e.target.value)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveHourPicker('exit');
+                }}
                 style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: '10.5px',
-                  padding: '1px 4px',
+                  padding: '1px 6px',
                   borderRadius: '4px',
                   border: `1px solid ${timeConflict ? '#DC2626' : 'var(--color-border)'}`,
                   background: 'var(--color-surface-subtle, rgba(0,0,0,0.03))',
                   color: 'var(--color-text-primary)',
                   height: '20px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontWeight: 600,
                 }}
-              />
+              >
+                <ClockIcon size={10} color="var(--color-accent-teal, #0F4C5C)" />
+                <span>{exitVal || '--:--'}</span>
+              </button>
               {typeof costEur === 'number' && costEur > 0 && (
                 <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
                   • {costEur.toFixed(1)}€
@@ -510,6 +532,23 @@ export function MinimalistPoiCard({
           <PoiCategoryIcon category={category} name={name} size={20} color="var(--color-text-muted)" />
         )}
       </div>
+
+      {activeHourPicker !== null && (
+        <CustomHourPickerModal
+          isOpen={activeHourPicker !== null}
+          onClose={() => setActiveHourPicker(null)}
+          value={activeHourPicker === 'entry' ? (entryVal || '09:00') : (exitVal || '10:00')}
+          onChange={(newVal) => {
+            if (activeHourPicker === 'entry') {
+              onUpdateTimes?.(newVal, exitVal || newVal);
+            } else {
+              onUpdateTimes?.(entryVal || newVal, newVal);
+            }
+          }}
+          anchorLabel={activeHourPicker === 'entry' ? `Entry Time: ${name}` : `Exit Time: ${name}`}
+          zIndex={1000}
+        />
+      )}
     </div>
   );
 }

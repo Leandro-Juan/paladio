@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
 import { CloseIcon } from '@/components/icons';
@@ -8,6 +8,7 @@ import {
   downloadTripPackage,
   downloadItineraryJson,
   downloadItineraryIcs,
+  downloadGpxTrack,
   TripExportData,
 } from '@/utils/exportTrip';
 
@@ -35,6 +36,32 @@ export function TripShareModal({
   const [isExportingTrip, setIsExportingTrip] = useState(false);
   const [tripError, setTripError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [exportAllDays, setExportAllDays] = useState(true);
+  const [selectedExportDays, setSelectedExportDays] = useState<number[]>([]);
+
+  const itineraryDayNumbers = useMemo(() => {
+    const itin = (itineraryData || {}) as { days?: Array<Record<string, unknown>> };
+    const rawDays = Array.isArray(itin?.days) ? itin.days : [];
+    return rawDays.map((d, idx) =>
+      typeof d?.day === 'number'
+        ? d.day
+        : typeof d?.day_number === 'number'
+        ? d.day_number
+        : idx + 1
+    );
+  }, [itineraryData]);
+
+  const toggleExportDay = (dayNum: number) => {
+    setExportAllDays(false);
+    setSelectedExportDays((prev) =>
+      prev.includes(dayNum)
+        ? prev.filter((d) => d !== dayNum)
+        : [...prev, dayNum].sort((a, b) => a - b)
+    );
+  };
+
+  const activeDayFilter: number[] | undefined =
+    exportAllDays || selectedExportDays.length === 0 ? undefined : selectedExportDays;
 
   const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
@@ -87,7 +114,7 @@ export function TripShareModal({
       end_date: endDate,
       itinerary_data: itineraryData,
     };
-    downloadItineraryJson(tripData);
+    downloadItineraryJson(tripData, activeDayFilter);
   };
 
   const handleExportIcs = () => {
@@ -98,7 +125,18 @@ export function TripShareModal({
       end_date: endDate,
       itinerary_data: itineraryData,
     };
-    downloadItineraryIcs(tripData);
+    downloadItineraryIcs(tripData, activeDayFilter);
+  };
+
+  const handleExportGpx = () => {
+    const tripData: TripExportData = {
+      id: tripId,
+      destination,
+      start_date: startDate,
+      end_date: endDate,
+      itinerary_data: itineraryData,
+    };
+    downloadGpxTrack(tripData, activeDayFilter);
   };
 
   const handlePrintPdf = () => {
@@ -220,6 +258,70 @@ export function TripShareModal({
           >
             Export Formats
           </div>
+
+          {itineraryDayNumbers.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '6px',
+                marginBottom: '10px',
+                paddingLeft: '2px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setExportAllDays(true);
+                  setSelectedExportDays([]);
+                }}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '9999px',
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: exportAllDays
+                    ? '1px solid var(--color-accent-primary, #0F4C5C)'
+                    : '1px solid var(--color-border, #E5E7EB)',
+                  backgroundColor: exportAllDays
+                    ? 'var(--color-accent-primary, #0F4C5C)'
+                    : 'var(--color-bg-secondary, #F3F4F6)',
+                  color: exportAllDays ? '#FFFFFF' : 'var(--color-text-secondary, #6B7280)',
+                }}
+              >
+                All Days ({itineraryDayNumbers.length})
+              </button>
+              {itineraryDayNumbers.map((dNum) => {
+                const isSelected = !exportAllDays && selectedExportDays.includes(dNum);
+                return (
+                  <button
+                    type="button"
+                    key={dNum}
+                    onClick={() => toggleExportDay(dNum)}
+                    style={{
+                      padding: '4px 9px',
+                      borderRadius: '9999px',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: isSelected
+                        ? '1px solid var(--color-accent-primary, #0F4C5C)'
+                        : '1px solid var(--color-border, #E5E7EB)',
+                      backgroundColor: isSelected
+                        ? 'rgba(15, 76, 92, 0.14)'
+                        : 'var(--color-bg-secondary, #F3F4F6)',
+                      color: isSelected
+                        ? 'var(--color-accent-primary, #0F4C5C)'
+                        : 'var(--color-text-secondary, #6B7280)',
+                    }}
+                  >
+                    Day {dNum}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {/* Row 1: Paladio Archive (.trip) */}
@@ -591,6 +693,83 @@ export function TripShareModal({
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'var(--color-bg-secondary, #F3F4F6)';
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Export</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Row 5: GPX Route & Waypoints (.gpx) */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '8px 6px',
+                borderRadius: '16px',
+              }}
+            >
+              <div
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--color-bg-secondary, #F3F4F6)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--color-accent-primary, #0F4C5C)',
+                  flexShrink: 0,
+                  border: '1px solid var(--color-border, #E5E7EB)',
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                  <line x1="9" y1="3" x2="9" y2="18" />
+                  <line x1="15" y1="6" x2="15" y2="21" />
+                </svg>
+              </div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary, #111827)' }}>
+                  GPS Route &amp; Waypoints (.gpx)
+                </div>
+                <div
+                  style={{
+                    fontSize: '0.72rem',
+                    color: 'var(--color-text-secondary, #6B7280)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  Organic Maps, OsmAnd, CoMaps &amp; Garmin
+                </div>
+              </div>
+
+              <div style={{ flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={handleExportGpx}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '10px',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    backgroundColor: 'var(--color-bg-secondary, #F3F4F6)',
+                    color: 'var(--color-text-primary, #374151)',
+                    border: '1px solid var(--color-border, #E5E7EB)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { apiFetch, getApiBaseUrl, getAuthToken } from '@/utils/api';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { TicketType, TicketStatus } from '@/lib/wallet/ticketTypeConfig';
+import { getOfflineTickets, saveOfflineTickets } from '@/utils/offlineStore';
 export type { TicketType, TicketStatus };
 
 export interface TicketAttachment {
@@ -117,7 +118,10 @@ export function useTripTickets(tripId: string) {
 
   const fetchTickets = useCallback(
     async (signal?: AbortSignal) => {
-      if (!tripId) return;
+      if (!tripId) {
+        setLoading(false);
+        return;
+      }
       try {
         const res = await apiFetch<TripTicket[] | { tickets: TripTicket[]; suggestions: AttractionSuggestion[]; has_drift: boolean }>(
           `/trips/${tripId}/tickets?include=suggestions`,
@@ -125,12 +129,16 @@ export function useTripTickets(tripId: string) {
         );
         if (Array.isArray(res)) {
           setTickets(res);
+          void saveOfflineTickets(tripId, res, [], false);
         } else if (res && Array.isArray(res.tickets)) {
           setTickets(res.tickets);
+          const suggs = Array.isArray(res.suggestions) ? res.suggestions : [];
           if (Array.isArray(res.suggestions)) {
-            setSuggestions(res.suggestions);
+            setSuggestions(suggs);
           }
-          setHasDrift(Boolean(res.has_drift));
+          const drift = Boolean(res.has_drift);
+          setHasDrift(drift);
+          void saveOfflineTickets(tripId, res.tickets, suggs, drift);
         }
         setLoading(false);
       } catch (err: unknown) {
@@ -139,6 +147,14 @@ export function useTripTickets(tripId: string) {
           (err instanceof Error && err.message.toLowerCase().includes('not a collaborator')) ||
           (err as { status?: number })?.status === 403;
         if (!isForbidden) {
+          const cached = await getOfflineTickets(tripId);
+          if (cached) {
+            setTickets(cached.tickets);
+            setSuggestions(cached.suggestions);
+            setHasDrift(cached.has_drift);
+            setLoading(false);
+            return;
+          }
           console.error('Failed to load trip tickets:', err);
         }
         setTickets([]);
@@ -150,41 +166,13 @@ export function useTripTickets(tripId: string) {
 
   useEffect(() => {
     const controller = new AbortController();
-    async function load() {
-      if (!tripId) {
-        setLoading(false);
-        return;
+    Promise.resolve().then(() => {
+      if (!controller.signal.aborted) {
+        void fetchTickets(controller.signal);
       }
-      try {
-        const res = await apiFetch<TripTicket[] | { tickets: TripTicket[]; suggestions: AttractionSuggestion[]; has_drift: boolean }>(
-          `/trips/${tripId}/tickets?include=suggestions`,
-          { signal: controller.signal }
-        );
-        if (Array.isArray(res)) {
-          setTickets(res);
-        } else if (res && Array.isArray(res.tickets)) {
-          setTickets(res.tickets);
-          if (Array.isArray(res.suggestions)) {
-            setSuggestions(res.suggestions);
-          }
-          setHasDrift(Boolean(res.has_drift));
-        }
-        setLoading(false);
-      } catch (err: unknown) {
-        if (controller.signal.aborted) return;
-        const isForbidden =
-          (err instanceof Error && err.message.toLowerCase().includes('not a collaborator')) ||
-          (err as { status?: number })?.status === 403;
-        if (!isForbidden) {
-          console.error('Failed to load trip tickets:', err);
-        }
-        setTickets([]);
-        setLoading(false);
-      }
-    }
-    load();
+    });
     return () => controller.abort();
-  }, [tripId]);
+  }, [fetchTickets]);
 
   const createTicket = useCallback(
     async (data: TripTicketCreateInput): Promise<TripTicket | null> => {

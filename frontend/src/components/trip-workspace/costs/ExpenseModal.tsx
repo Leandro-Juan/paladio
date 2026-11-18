@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
 import { TripParticipant, TripExpense, ExpenseSplit } from '@/hooks/useTrips';
@@ -9,11 +9,13 @@ import { DisplayExpenseItem } from './ExpenseRow';
 import { CurrencyWheelPicker } from './CurrencyWheelPicker';
 import { FlagIcon } from './FlagIcon';
 import { getCurrencyInfo, fetchLiveExchangeRate } from '@/utils/currencyResolver';
+import { getApiBaseUrl, getAuthToken } from '@/utils/api';
 import { CalendarIcon, CloseIcon } from '@/components/icons';
 import { PaladioSingleDatePicker } from '@/components/trip-creation/PaladioSingleDatePicker';
 import { CustomSelect } from '../wallet/parts/CustomSelect';
 
 interface ExpenseModalProps {
+  tripId?: string;
   participants: TripParticipant[];
   prefill?: DisplayExpenseItem | null;
   defaultPayerId?: string;
@@ -33,6 +35,7 @@ interface ExpenseModalProps {
 }
 
 export function ExpenseModal({
+  tripId,
   participants,
   prefill,
   defaultPayerId,
@@ -100,7 +103,58 @@ export function ExpenseModal({
   );
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const receiptInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleScanReceiptFile = async (file: File) => {
+    setError(null);
+    setScanNotice(null);
+    setIsScanning(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('default_currency', currency || resolvedDefaultCurrency);
+      const token = getAuthToken();
+      const endpoint = tripId
+        ? `${getApiBaseUrl()}/trips/${tripId}/expenses/scan-receipt`
+        : `${getApiBaseUrl()}/trips/expenses/scan-receipt`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || `Receipt scan failed (${res.status})`);
+      }
+      const data = (await res.json()) as {
+        description?: string;
+        amount?: number | null;
+        currency?: string;
+        category?: string;
+        expense_date?: string | null;
+        warnings?: string[];
+      };
+      if (data.description) setDescription(data.description);
+      if (typeof data.amount === 'number' && data.amount > 0) {
+        setAmount(String(data.amount));
+      }
+      if (data.currency) setCurrency(data.currency);
+      if (data.category) setCategory(getCostCategoryMeta(data.category).key);
+      if (data.expense_date) setExpenseDate(data.expense_date);
+      if (data.warnings && data.warnings.length > 0) {
+        setScanNotice(data.warnings[0]);
+      } else {
+        setScanNotice('Receipt scanned — verify fields before saving.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to scan receipt.');
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   const curInfo = getCurrencyInfo(currency);
   const defaultCurInfo = getCurrencyInfo(resolvedDefaultCurrency);
@@ -285,6 +339,55 @@ export function ExpenseModal({
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Receipt Photo / PDF OCR Scan */}
+            {!prefill && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: '1px dashed var(--color-border-subtle)',
+                  background: 'var(--color-surface-subtle, rgba(0, 0, 0, 0.02))',
+                }}
+              >
+                <div style={{ fontSize: '0.76rem', color: 'var(--color-text-muted)' }}>
+                  {scanNotice || 'Auto-fill from a receipt photo or PDF'}
+                </div>
+                <input
+                  ref={receiptInputRef}
+                  type="file"
+                  accept="image/*,application/pdf,.txt,.eml"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleScanReceiptFile(f);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={isScanning}
+                  onClick={() => receiptInputRef.current?.click()}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--color-border-subtle)',
+                    background: 'var(--color-surface-card)',
+                    color: 'var(--color-text-main)',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    cursor: isScanning ? 'wait' : 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  {isScanning ? 'Scanning…' : 'Scan Receipt'}
+                </button>
+              </div>
+            )}
+
             {/* Description */}
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>

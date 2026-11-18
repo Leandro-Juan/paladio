@@ -8,6 +8,7 @@ import { PoiCategoryType } from '@/utils/poiCategory';
 import { getScheduledPoiTimes } from '@/utils/date';
 import { apiFetch } from '@/utils/api';
 import { hydrateDayTransitIndices } from '@/utils/transitFetch';
+import { autoFillDayItineraryHours } from '@/utils/itinerarySchedule';
 import { notify } from '@/utils/notify';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 
@@ -834,6 +835,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           ? pathArr.length - 1
           : pathArr.length;
       pathArr.splice(insertIdx, 0, newStop);
+      autoFillDayItineraryHours(pathArr);
       setCurrentItinerary(cloned);
       if (trip.id) {
         updateTrip(trip.id, { itinerary_data: cloned as unknown as Record<string, unknown> });
@@ -841,15 +843,13 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       void hydrateDayTransitIndices(cloned, dayNum, [insertIdx, insertIdx + 1], trip.destination || '', trip.id).then(
         (hydrated) => {
           if (!hydrated) return;
+          const dayObj = hydrated.days?.find((d) => (d.day ?? 1) === dayNum);
+          if (dayObj?.itinerary?.path) autoFillDayItineraryHours(dayObj.itinerary.path);
           setCurrentItinerary(hydrated);
           if (trip.id) {
             updateTrip(trip.id, { itinerary_data: hydrated as unknown as Record<string, unknown> });
           }
         }
-      );
-      notify.success(
-        'Place Added to Itinerary',
-        `Added "${poi.name}" to Day ${dayNum}. Fetching transit route...`
       );
     },
     [currentItinerary, trip.destination, trip.id, updateTrip]
@@ -885,6 +885,11 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                 stop.poi.category = updatedPoi.category;
                 if (updatedPoi.duration_mins) stop.poi.duration_mins = updatedPoi.duration_mins;
                 if (typeof updatedPoi.cost_eur === 'number') stop.poi.cost_eur = updatedPoi.cost_eur;
+                if (updatedPoi.photos && updatedPoi.photos.length > 0) {
+                  stop.poi.photo_url = updatedPoi.photos[0].url;
+                } else if (updatedPoi.photos && updatedPoi.photos.length === 0) {
+                  delete stop.poi.photo_url;
+                }
                 changed = true;
               }
             }

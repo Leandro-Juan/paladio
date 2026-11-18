@@ -2,6 +2,13 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch, getApiBaseUrl } from '@/utils/api';
 import { isTripCompleted } from '@/utils/tripParser';
 import { TripPhotoItem } from '@/types/domain';
+import {
+  getOfflineExpenses,
+  getOfflineTrip,
+  listOfflineTrips,
+  saveOfflineExpenses,
+  saveOfflineTrip,
+} from '@/utils/offlineStore';
 
 export { getApiBaseUrl };
 
@@ -66,6 +73,36 @@ export interface CollaboratorOption {
   email: string;
 }
 
+export interface TripRevisionChangeItem {
+  kind: string;
+  verb: string;
+  before_label?: string | null;
+  connector?: string | null;
+  after_label: string;
+  target_label?: string | null;
+  field?: string | null;
+}
+
+export interface TripRevisionItem {
+  id: string;
+  trip_id: string;
+  revision: number;
+  actor: string;
+  actor_name: string;
+  kind: string;
+  summary: string;
+  changes: TripRevisionChangeItem[];
+  created_at: string;
+  can_revert: boolean;
+  is_current: boolean;
+}
+
+export interface TripRevisionListResponse {
+  trip_id: string;
+  current_revision: number;
+  items: TripRevisionItem[];
+}
+
 export interface Trip {
   id?: string;
   destination: string;
@@ -80,6 +117,7 @@ export interface Trip {
   destination_iata?: string | null;
   corridor?: string | null;
   status?: string;
+  revision?: number;
 }
 
 export function useTrips() {
@@ -92,10 +130,18 @@ export function useTrips() {
       try {
         const data = await apiFetch<Trip[]>('/trips/', { signal: controller.signal });
         setTrips(data);
+        data.forEach((t) => {
+          void saveOfflineTrip(t);
+        });
         setLoading(false);
       } catch (e: unknown) {
         if (controller.signal.aborted) return;
-        console.error("Failed to fetch trips", e);
+        const cached = await listOfflineTrips();
+        if (cached.length > 0) {
+          setTrips(cached);
+        } else {
+          console.error("Failed to fetch trips", e);
+        }
         setLoading(false);
       }
     }
@@ -109,9 +155,17 @@ export function useTrips() {
     try {
       const data = await apiFetch<Trip[]>('/trips/', { signal });
       setTrips(data);
+      data.forEach((t) => {
+        void saveOfflineTrip(t);
+      });
     } catch (e: unknown) {
       if (signal?.aborted) return;
-      console.error("Failed to fetch trips", e);
+      const cached = await listOfflineTrips();
+      if (cached.length > 0) {
+        setTrips(cached);
+      } else {
+        console.error("Failed to fetch trips", e);
+      }
     } finally {
       if (!signal?.aborted) {
         setLoading(false);
@@ -121,9 +175,13 @@ export function useTrips() {
 
   const getTrip = useCallback(async (id: string, signal?: AbortSignal): Promise<Trip | null> => {
     try {
-      return await apiFetch<Trip>(`/trips/${id}`, { signal });
+      const trip = await apiFetch<Trip>(`/trips/${id}`, { signal });
+      void saveOfflineTrip(trip);
+      return trip;
     } catch (e: unknown) {
       if (signal?.aborted) return null;
+      const cached = await getOfflineTrip(id);
+      if (cached) return cached;
       console.error("Failed to fetch trip", e);
     }
     return null;
@@ -230,8 +288,12 @@ export function useTrips() {
 
   const getTripExpenses = useCallback(async (tripId: string) => {
     try {
-      return await apiFetch<TripExpense[]>(`/trips/${tripId}/expenses`);
+      const expenses = await apiFetch<TripExpense[]>(`/trips/${tripId}/expenses`);
+      void saveOfflineExpenses(tripId, expenses);
+      return expenses;
     } catch (e) {
+      const cached = await getOfflineExpenses(tripId);
+      if (cached) return cached.expenses;
       console.error("Failed to get expenses", e);
       return [];
     }
@@ -291,8 +353,13 @@ export function useTrips() {
   const getTripSettlement = useCallback(async (tripId: string, simplify: boolean = false) => {
     try {
       const q = simplify ? '?simplify=true' : '?simplify=false';
-      return await apiFetch<TripSettlement>(`/trips/${tripId}/settlement${q}`);
+      const settlement = await apiFetch<TripSettlement>(`/trips/${tripId}/settlement${q}`);
+      const existing = await getOfflineExpenses(tripId);
+      void saveOfflineExpenses(tripId, existing?.expenses || [], settlement);
+      return settlement;
     } catch (e) {
+      const cached = await getOfflineExpenses(tripId);
+      if (cached?.settlement) return cached.settlement;
       console.error("Failed to get settlement", e);
       return null;
     }
@@ -333,6 +400,26 @@ export function useTrips() {
     }
   };
 
+  const getTripRevisions = useCallback(async (tripId: string): Promise<TripRevisionListResponse> => {
+    return await apiFetch<TripRevisionListResponse>(`/trips/${tripId}/revisions`);
+  }, []);
+
+  const revertTripRevision = useCallback(async (tripId: string, revisionId: string): Promise<Trip> => {
+    const updated = await apiFetch<Trip>(`/trips/${tripId}/revisions/${encodeURIComponent(revisionId)}/revert`, {
+      method: 'POST',
+    });
+    setTrips(prev => prev.map(t => t.id === tripId ? updated : t));
+    return updated;
+  }, []);
+
+  const restoreTripVersion = useCallback(async (tripId: string, targetRevision: number): Promise<Trip> => {
+    const updated = await apiFetch<Trip>(`/trips/${tripId}/revisions/${targetRevision}/restore`, {
+      method: 'POST',
+    });
+    setTrips(prev => prev.map(t => t.id === tripId ? updated : t));
+    return updated;
+  }, []);
+
   const scheduledTrips = useMemo(
     () => trips.filter(t => t.status !== 'deal_proposal' && t.status !== 'superseded' && t.status !== 'discarded'),
     [trips]
@@ -361,5 +448,8 @@ export function useTrips() {
     getCollaboratorOptions,
     uploadTripPhotos,
     deleteTripPhoto,
+    getTripRevisions,
+    revertTripRevision,
+    restoreTripVersion,
   };
 }
