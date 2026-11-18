@@ -5,7 +5,7 @@ services:
       dockerfile: backend/Dockerfile
       target: dev
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     volumes:
       - ./backend:/app
       - /app/.venv
@@ -13,17 +13,16 @@ services:
       - gtfsdata:/gtfs_feeds
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-paladio}
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - FASTEMBED_CACHE_PATH=/opt/models/fastembed
       - FASTEMBED_THREADS=2
       - VALHALLA_URL=http://valhalla:8002
       - NODE_ENV=development
-      - AVIASALES_TOKEN=${AVIASALES_TOKEN:-}
-      - TRAVELPAYOUTS_TOKEN=${TRAVELPAYOUTS_TOKEN:-${AVIASALES_TOKEN:-}}
     env_file:
-      - .env
+      - path: .env
+        required: false
     depends_on:
       db:
         condition: service_healthy
@@ -40,7 +39,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
       api:
         condition: service_started
@@ -52,9 +51,9 @@ services:
     ports:
       - "127.0.0.1:5432:5432" # Exposed only to localhost for admin, tailscale
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: paladio
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-paladio}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -108,16 +107,15 @@ services:
       - gtfsdata:/gtfs_feeds
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-paladio}
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - FASTEMBED_CACHE_PATH=/opt/models/fastembed
       - FASTEMBED_THREADS=2
       - NODE_ENV=development
-      - AVIASALES_TOKEN=${AVIASALES_TOKEN:-}
-      - TRAVELPAYOUTS_TOKEN=${TRAVELPAYOUTS_TOKEN:-${AVIASALES_TOKEN:-}}
     env_file:
-      - .env
+      - path: .env
+        required: false
     depends_on:
       db:
         condition: service_healthy
@@ -138,14 +136,13 @@ services:
       - ./backend:/app
       - /app/.venv
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/paladio
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-paladio}
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - NODE_ENV=development
-      - AVIASALES_TOKEN=${AVIASALES_TOKEN:-}
-      - TRAVELPAYOUTS_TOKEN=${TRAVELPAYOUTS_TOKEN:-${AVIASALES_TOKEN:-}}
     env_file:
-      - .env
+      - path: .env
+        required: false
     depends_on:
       db:
         condition: service_healthy
