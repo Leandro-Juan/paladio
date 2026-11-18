@@ -21,7 +21,7 @@ import { notify } from '@/utils/notify';
 
 interface InfrastructureSectionProps {
   onBackToOverview: () => void;
-  subTab?: 'users' | 'updates' | 'telemetry' | 'vault' | 'notifications';
+  subTab?: 'users' | 'updates' | 'vault' | 'notifications';
   initialSubTab?: string;
   isAdmin: boolean;
 
@@ -216,8 +216,8 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
         />
       )}
 
-      {/* 2. System Updates & Container Telemetry */}
-      {(subTab === 'updates' || subTab === 'telemetry') && (
+      {/* 2. System Updates */}
+      {subTab === 'updates' && (
         <SystemSection
           onBackToOverview={onBackToOverview}
           subTab={subTab}

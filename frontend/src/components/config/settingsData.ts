@@ -13,15 +13,11 @@ export type SettingsTabId =
   // 3. Travel Engine & Optimization
   | 'solver'
   | 'transit'
-  | 'deals'
   // 4. AI & Swarm Intelligence
   | 'llm'
-  | 'swarm'
-  | 'memory'
   // 5. Sovereign Infrastructure & Admin
   | 'users'
   | 'updates'
-  | 'telemetry'
   | 'vault'
   | 'notifications'
   | 'secrets';
@@ -154,6 +150,7 @@ export const SETTINGS_CATEGORIES: SettingCategoryGroup[] = [
         iconName: 'sliders',
         iconTone: 'coral',
         keywords: ['solver', 'constraints', 'walking', 'pace', 'tempo', 'meals', 'fatigue', 'burnout', 'cpp'],
+        requiresAdmin: true,
         statusBadge: 'Balanced',
       },
       {
@@ -164,24 +161,15 @@ export const SETTINGS_CATEGORIES: SettingCategoryGroup[] = [
         iconName: 'transit',
         iconTone: 'teal',
         keywords: ['city', 'data', 'storage', 'gtfs', 'transit', 'valhalla', 'metro', 'subway', 'bus', 'train', 'schedules', 'tiles', 'pois'],
+        requiresAdmin: true,
         statusBadge: 'Storage Vault',
-      },
-      {
-        id: 'deals',
-        title: 'Deal Engine & Scraping',
-        description: 'Flight and hotel scraper frequency, ticket parser triggers, and price drop alerts',
-        category: 'engine',
-        iconName: 'tag',
-        iconTone: 'gold',
-        keywords: ['deals', 'scraper', 'flights', 'hotels', 'tickets', 'alerts', 'prices'],
-        statusBadge: 'Cadence: 24h',
       },
     ],
   },
   {
     id: 'intelligence',
     title: 'AI & Swarm Intelligence',
-    subtitle: 'Manage multi-provider LLM models, LangGraph swarm agent behaviors, and continuous ML taste learning',
+    subtitle: 'Manage multi-provider LLM models and AI engine endpoints',
     items: [
       {
         id: 'llm',
@@ -191,27 +179,8 @@ export const SETTINGS_CATEGORIES: SettingCategoryGroup[] = [
         iconName: 'sparkles',
         iconTone: 'coral',
         keywords: ['llm', 'ai', 'gemini', 'claude', 'openai', 'groq', 'ollama', 'provider', 'api key', 'model', 'deepseek', 'vllm'],
+        requiresAdmin: true,
         statusBadge: 'Multi-Provider',
-      },
-      {
-        id: 'swarm',
-        title: 'Agent Swarms & Critic',
-        description: 'LangGraph critic evaluation threshold, thinking token budget, and approval checkpoints',
-        category: 'intelligence',
-        iconName: 'brain',
-        iconTone: 'teal',
-        keywords: ['swarm', 'langgraph', 'critic', 'agent', 'tokens', 'thinking', 'approval', 'reasoning'],
-        statusBadge: 'Strictness: 0.75',
-      },
-      {
-        id: 'memory',
-        title: 'ML Taste Learning & RAG',
-        description: 'Continuous 16-D POI feature tensor weight learning and semantic vector memory',
-        category: 'intelligence',
-        iconName: 'database',
-        iconTone: 'gold',
-        keywords: ['memory', 'taste', 'tensor', 'poi encoder', 'learning', 'rag', 'embeddings', 'preferences'],
-        statusBadge: '16-D Active',
       },
     ],
   },
@@ -241,17 +210,6 @@ export const SETTINGS_CATEGORIES: SettingCategoryGroup[] = [
         keywords: ['updates', 'updater', 'github', 'release', 'changelog', 'version', 'branch'],
         requiresAdmin: true,
         statusBadge: 'Up to Date',
-      },
-      {
-        id: 'telemetry',
-        title: 'Container Telemetry',
-        description: 'Live status and port telemetry for FastAPI, TimescaleDB, Redis, and Valhalla',
-        category: 'infrastructure',
-        iconName: 'server',
-        iconTone: 'teal',
-        keywords: ['telemetry', 'docker', 'containers', 'fastapi', 'timescaledb', 'redis', 'valhalla', 'ports'],
-        requiresAdmin: true,
-        statusBadge: 'Healthy',
       },
       {
         id: 'vault',

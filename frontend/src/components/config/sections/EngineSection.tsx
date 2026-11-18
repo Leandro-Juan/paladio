@@ -6,7 +6,6 @@ import {
   CityGtfsItem,
   fetchDomainSettingsApi,
   updateDomainSettingsApi,
-  triggerDealSweepApi,
   EngineConfigData,
 } from '@/utils/api';
 import { SettingsHeader } from '../SettingsHeader';
@@ -16,7 +15,7 @@ import { notify } from '@/utils/notify';
 
 interface EngineSectionProps {
   onBackToOverview: () => void;
-  subTab?: 'solver' | 'transit' | 'deals';
+  subTab?: 'solver' | 'transit';
   isAdmin?: boolean;
   gtfsTelemetry: GtfsRegistryResponse | null;
   gtfsMessage: { type: 'success' | 'error'; text: string } | null;
@@ -87,20 +86,6 @@ export function EngineSection({
     } catch {
       setEngineConfig(previous);
       notify.error('Persistence Error', 'Failed to persist engine settings to backend');
-    }
-  };
-
-  const handleTriggerDealSweep = async () => {
-    if (!isAdmin) {
-      notify.error('Admin Required', 'Administrator privileges are required to trigger a deal sweep.');
-      return;
-    }
-    try {
-      const res = await triggerDealSweepApi();
-      notify.success('Scraper Dispatched', res.message || 'Background deal scraper sweep dispatched.');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to trigger deal sweep';
-      notify.error('Deal Sweep Failed', msg);
     }
   };
 
@@ -332,85 +317,6 @@ export function EngineSection({
                     </div>
                   </label>
                 ))}
-              </div>
-            </div>
-          </div>
-        </SettingsCardFrame>
-      )}
-
-      {/* 2. Deal Hunter & Scraper Cadence */}
-      {subTab === 'deals' && (
-        <SettingsCardFrame
-          title="Deal Engine & Background Scrapers"
-          subtitle="Configure flight and lodging scrapers, price drop alerts, and automatic ticket ingestion"
-          badge={`Cadence: ${engineConfig.deal_scraper_cadence_hours}h`}
-          badgeTone="gold"
-          innerTitle="Active Scraping Schedule"
-          innerBadge={`${engineConfig.price_alert_threshold_pct}% drop alert`}
-          menuItems={[
-            {
-              id: 'trigger_scrape',
-              label: 'Trigger Immediate Deal Sweep',
-              onClick: handleTriggerDealSweep,
-            },
-          ]}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
-              <div>
-                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  Scraping Interval: Every {engineConfig.deal_scraper_cadence_hours} Hours
-                </span>
-                <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
-                  Cadence for polling sovereign flight providers and lodging registries
-                </p>
-              </div>
-              <select
-                disabled={!isAdmin}
-                value={engineConfig.deal_scraper_cadence_hours}
-                onChange={(e) => handleSaveEngineConfig({ deal_scraper_cadence_hours: parseInt(e.target.value, 10) })}
-                aria-label="Scraping interval"
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-border)',
-                  backgroundColor: 'var(--color-surface-card)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                }}
-              >
-                <option value={6}>Every 6 hours</option>
-                <option value={12}>Every 12 hours</option>
-                <option value={24}>Every 24 hours (Daily)</option>
-                <option value={48}>Every 48 hours</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
-              <div>
-                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  Price Drop Notification Threshold: {engineConfig.price_alert_threshold_pct}%
-                </span>
-                <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
-                  Minimum discount required to notify travelers of route bargains
-                </p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  type="range"
-                  min="1"
-                  max="90"
-                  step="1"
-                  disabled={!isAdmin}
-                  value={engineConfig.price_alert_threshold_pct}
-                  onChange={(e) => handleSaveEngineConfig({ price_alert_threshold_pct: parseFloat(e.target.value) })}
-                  aria-label="Price drop notification threshold"
-                  style={{ width: '160px', accentColor: 'var(--color-accent-gold, #E2B33C)' }}
-                />
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, minWidth: '42px', textAlign: 'right' }}>
-                  {engineConfig.price_alert_threshold_pct}%
-                </span>
               </div>
             </div>
           </div>

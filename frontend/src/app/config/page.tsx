@@ -24,9 +24,7 @@ import {
   updatePreferencesApi,
   fetchDomainSettingsApi,
   fetchLlmConfigApi,
-  fetchTasteProfileApi,
   EngineConfigData,
-  SwarmConfigData,
   VaultConfigData,
 } from '@/utils/api';
 import { useThemeStore } from '@/stores/themeStore';
@@ -68,19 +66,52 @@ function getSafeAvatarUrl(url: unknown): string | null {
   return null;
 }
 
+const NON_ADMIN_TABS = new Set<SettingsTabId>([
+  'overview',
+  'profile',
+  'language',
+  'currency',
+  'units',
+  'appearance',
+  'typography',
+  'navigation',
+  'maps',
+]);
+
+const VALID_TABS = new Set<SettingsTabId>([
+  ...NON_ADMIN_TABS,
+  'solver',
+  'transit',
+  'llm',
+  'users',
+  'updates',
+  'vault',
+  'notifications',
+  'secrets',
+]);
+
 function ConfigPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user: currentUser, refreshUser } = useAuth();
+  const { user: currentUser, isLoading: authLoading, refreshUser } = useAuth();
   const { setLocale, locale } = useTranslation();
   const { theme } = useThemeStore();
   const { typography } = useTypographyStore();
 
   const isAdmin = currentUser?.role === 'admin';
 
-  // Active Tab from URL query param
-  const activeTabParam = searchParams?.get('tab') as SettingsTabId | null;
-  const activeTab: SettingsTabId = activeTabParam || 'overview';
+  // Active Tab from URL query param (strictly enforce admin-only access for non-personal/appearance tabs)
+  const rawTabParam = searchParams?.get('tab') as SettingsTabId | null;
+  const isKnownTab = rawTabParam ? VALID_TABS.has(rawTabParam) : true;
+  const requestedTab: SettingsTabId = rawTabParam && isKnownTab ? rawTabParam : 'overview';
+  const isRestrictedTab = !NON_ADMIN_TABS.has(requestedTab);
+  const activeTab: SettingsTabId = isRestrictedTab && !isAdmin ? 'overview' : requestedTab;
+
+  useEffect(() => {
+    if (rawTabParam && (!isKnownTab || (!authLoading && isRestrictedTab && !isAdmin))) {
+      router.replace('/config', { scroll: false });
+    }
+  }, [rawTabParam, isKnownTab, authLoading, isRestrictedTab, isAdmin, router]);
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -133,17 +164,15 @@ function ConfigPageInner() {
 
   // Live Domain Telemetry Summary State
   const [engineSummary, setEngineSummary] = useState<EngineConfigData | null>(null);
-  const [swarmSummary, setSwarmSummary] = useState<SwarmConfigData | null>(null);
   const [vaultSummary, setVaultSummary] = useState<VaultConfigData | null>(null);
   const [llmProviderName, setLlmProviderName] = useState<string | undefined>(undefined);
-  const [tasteStatus, setTasteStatus] = useState<{ active: boolean; dimensions: number } | null>(null);
   const [localPrefsTick, setLocalPrefsTick] = useState(0);
 
   // Tab Selection Handler
   const handleSelectTab = (tab: SettingsTabId, subTab?: string) => {
     setActionError(null);
     setActionSuccess(null);
-    if (tab === 'overview') {
+    if (tab === 'overview' || (!isAdmin && !NON_ADMIN_TABS.has(tab))) {
       router.push('/config', { scroll: false });
     } else {
       const url = subTab ? `/config?tab=${tab}&subtab=${subTab}` : `/config?tab=${tab}`;
@@ -190,31 +219,19 @@ function ConfigPageInner() {
   useEffect(() => {
     let ignore = false;
 
-    fetchDomainSettingsApi<EngineConfigData>('engine')
-      .then((res) => {
-        if (!ignore && res.config) setEngineSummary(res.config);
-      })
-      .catch(() => {});
-
-    fetchDomainSettingsApi<SwarmConfigData>('swarm')
-      .then((res) => {
-        if (!ignore && res.config) setSwarmSummary(res.config);
-      })
-      .catch(() => {});
-
-    fetchLlmConfigApi()
-      .then((res) => {
-        if (!ignore && res?.provider) setLlmProviderName(res.provider);
-      })
-      .catch(() => {});
-
-    fetchTasteProfileApi()
-      .then((res) => {
-        if (!ignore) setTasteStatus({ active: Boolean(res.active), dimensions: res.dimensions || 0 });
-      })
-      .catch(() => {});
-
     if (isAdmin) {
+      fetchDomainSettingsApi<EngineConfigData>('engine')
+        .then((res) => {
+          if (!ignore && res.config) setEngineSummary(res.config);
+        })
+        .catch(() => {});
+
+      fetchLlmConfigApi()
+        .then((res) => {
+          if (!ignore && res?.provider) setLlmProviderName(res.provider);
+        })
+        .catch(() => {});
+
       fetchDomainSettingsApi<VaultConfigData>('vault')
         .then((res) => {
           if (!ignore && res.config) setVaultSummary(res.config);
@@ -714,9 +731,6 @@ function ConfigPageInner() {
       unitSummary,
       maxWalkingKm: engineSummary?.default_max_walking_km,
       dealCadenceHours: engineSummary?.deal_scraper_cadence_hours,
-      criticStrictnessPct: swarmSummary ? Math.round(swarmSummary.critic_strictness * 100) : undefined,
-      tasteActive: tasteStatus?.active,
-      tasteDimensions: tasteStatus?.dimensions,
       autoSnapshotsEnabled: vaultSummary?.auto_snapshot_enabled,
     };
   }, [
@@ -729,9 +743,7 @@ function ConfigPageInner() {
     updaterStatus,
     llmProviderName,
     engineSummary,
-    swarmSummary,
     vaultSummary,
-    tasteStatus,
     localPrefsTick,
   ]);
 
@@ -873,7 +885,7 @@ function ConfigPageInner() {
           />
         )}
 
-        {(activeTab === 'solver' || activeTab === 'transit' || activeTab === 'deals') && (
+        {isAdmin && (activeTab === 'solver' || activeTab === 'transit') && (
           <EngineSection
             onBackToOverview={() => handleSelectTab('overview')}
             subTab={activeTab}
@@ -891,7 +903,7 @@ function ConfigPageInner() {
           />
         )}
 
-        {(activeTab === 'llm' || activeTab === 'swarm' || activeTab === 'memory') && (
+        {isAdmin && activeTab === 'llm' && (
           <IntelligenceSection
             onBackToOverview={() => handleSelectTab('overview')}
             subTab={activeTab}
@@ -899,7 +911,7 @@ function ConfigPageInner() {
           />
         )}
 
-        {(activeTab === 'users' || activeTab === 'updates' || activeTab === 'telemetry' || activeTab === 'vault' || activeTab === 'notifications') && (
+        {isAdmin && (activeTab === 'users' || activeTab === 'updates' || activeTab === 'vault' || activeTab === 'notifications') && (
           <InfrastructureSection
             onBackToOverview={() => handleSelectTab('overview')}
             subTab={activeTab}
@@ -965,7 +977,7 @@ function ConfigPageInner() {
           />
         )}
 
-        {activeTab === 'secrets' && (
+        {isAdmin && activeTab === 'secrets' && (
           <SecretsSection
             onBackToOverview={() => handleSelectTab('overview')}
           />

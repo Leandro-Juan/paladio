@@ -607,51 +607,78 @@ export function LlmConfigCard() {
 
           {/* API Key Input */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <div style={{ marginBottom: '6px' }}>
               <label className="font-mono text-xs text-muted" style={{ fontWeight: 600 }}>
                 API KEY {requiresKey ? '(REQUIRED)' : '(OPTIONAL)'}:
               </label>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type={showApiKey ? 'text' : 'password'}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={
+                  activeConfig?.configured_providers?.[selectedProvider]?.masked_key
+                    ? `Keeping saved key (${activeConfig.configured_providers[selectedProvider].masked_key})`
+                    : activeConfig?.has_api_key && activeConfig.provider === selectedProvider
+                    ? `Keeping current key (${activeConfig.masked_api_key})`
+                    : requiresKey
+                    ? 'Enter your provider API key (e.g. sk-...)'
+                    : 'Optional for local / non-authenticated endpoints'
+                }
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--color-border-subtle)',
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text-primary)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '13px',
+                }}
+              />
               <button
                 type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--color-text-muted)',
-                  fontSize: '10px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--color-border-subtle)',
+                  backgroundColor: 'var(--color-surface-hover)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '11px',
                   fontFamily: 'var(--font-mono)',
                   cursor: 'pointer',
-                  textDecoration: 'underline',
+                  fontWeight: 600,
                 }}
               >
                 {showApiKey ? 'HIDE' : 'SHOW'}
               </button>
+              <button
+                type="button"
+                onClick={() => void handleAutoSaveUnconfigured(apiKey, undefined, baseUrl)}
+                disabled={saving || !apiKey.trim()}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'var(--color-accent-teal, #0D9488)',
+                  color: '#FFFFFF',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: saving || !apiKey.trim() ? 'not-allowed' : 'pointer',
+                  opacity: saving || !apiKey.trim() ? 0.6 : 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {saving && <Spinner size={12} color="#FFFFFF" />}
+                <span>SAVE KEY</span>
+              </button>
             </div>
-            <input
-              type={showApiKey ? 'text' : 'password'}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              onBlur={() => void handleAutoSaveUnconfigured(apiKey, undefined, baseUrl)}
-              placeholder={
-                activeConfig?.configured_providers?.[selectedProvider]?.masked_key
-                  ? `Keeping saved key (${activeConfig.configured_providers[selectedProvider].masked_key})`
-                  : activeConfig?.has_api_key && activeConfig.provider === selectedProvider
-                  ? `Keeping current key (${activeConfig.masked_api_key})`
-                  : requiresKey
-                  ? 'Enter your provider API key (e.g. sk-...)'
-                  : 'Optional for local / non-authenticated endpoints'
-              }
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                border: '1px solid var(--color-border-subtle)',
-                background: 'var(--color-surface)',
-                color: 'var(--color-text-primary)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '13px',
-              }}
-            />
             <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
               Stored locally in your private database. Never exported or shared.
             </span>

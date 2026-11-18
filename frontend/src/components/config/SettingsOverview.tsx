@@ -26,9 +26,6 @@ interface SettingsOverviewProps {
     unitSummary?: string;
     maxWalkingKm?: number;
     dealCadenceHours?: number;
-    criticStrictnessPct?: number;
-    tasteActive?: boolean;
-    tasteDimensions?: number;
     autoSnapshotsEnabled?: boolean;
   };
 }
@@ -93,10 +90,6 @@ export function SettingsOverview({
         return telemetrySummary.updateAvailable
           ? { text: 'UPDATE READY', active: true }
           : { text: 'UP TO DATE' };
-      case 'telemetry':
-        return typeof telemetrySummary.containerOnlineCount === 'number'
-          ? { text: `${telemetrySummary.containerOnlineCount}/5 ONLINE`, active: true }
-          : null;
       case 'maps':
         return telemetrySummary.mapLayerName ? { text: telemetrySummary.mapLayerName } : null;
       case 'units':
@@ -104,20 +97,6 @@ export function SettingsOverview({
       case 'solver':
         return typeof telemetrySummary.maxWalkingKm === 'number'
           ? { text: `${telemetrySummary.maxWalkingKm} KM/DAY`, active: true }
-          : null;
-      case 'deals':
-        return typeof telemetrySummary.dealCadenceHours === 'number'
-          ? { text: `CADENCE: ${telemetrySummary.dealCadenceHours}H` }
-          : null;
-      case 'swarm':
-        return typeof telemetrySummary.criticStrictnessPct === 'number'
-          ? { text: `STRICT: ${telemetrySummary.criticStrictnessPct}%`, active: true }
-          : null;
-      case 'memory':
-        return typeof telemetrySummary.tasteActive === 'boolean'
-          ? telemetrySummary.tasteActive
-            ? { text: `${telemetrySummary.tasteDimensions || 768}-D ACTIVE`, active: true }
-            : { text: 'NEUTRAL PRIOR', active: false }
           : null;
       case 'vault':
         return typeof telemetrySummary.autoSnapshotsEnabled === 'boolean'

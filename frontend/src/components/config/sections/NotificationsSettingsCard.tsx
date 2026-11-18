@@ -69,6 +69,12 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
     notify_on_photo_sync: false,
   });
 
+  const [pushifyDraft, setPushifyDraft] = useState(config.pushify);
+  const [pushoverDraft, setPushoverDraft] = useState(config.pushover);
+  const [ntfyDraft, setNtfyDraft] = useState(config.ntfy);
+  const [webhookDraft, setWebhookDraft] = useState(config.webhook);
+  const [savingRelay, setSavingRelay] = useState<Record<string, boolean>>({});
+
   const [testingRelay, setTestingRelay] = useState<Record<string, boolean>>({});
   const [testStatus, setTestStatus] = useState<Record<string, { success: boolean; text: string }>>({});
   const [showPushifyKey, setShowPushifyKey] = useState(false);
@@ -81,6 +87,10 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
       .then((res) => {
         if (mounted && res.config) {
           setConfig(res.config);
+          setPushifyDraft(res.config.pushify);
+          setPushoverDraft(res.config.pushover);
+          setNtfyDraft(res.config.ntfy);
+          setWebhookDraft(res.config.webhook);
         }
       })
       .catch((err) => {
@@ -94,15 +104,37 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
     };
   }, [isAdmin]);
 
-
   const handleUpdate = async (patch: Partial<NotificationsConfigData>) => {
     const updated = { ...config, ...patch };
     setConfig(updated);
+    if (patch.pushify) setPushifyDraft(patch.pushify);
+    if (patch.pushover) setPushoverDraft(patch.pushover);
+    if (patch.ntfy) setNtfyDraft(patch.ntfy);
+    if (patch.webhook) setWebhookDraft(patch.webhook);
     try {
       await updateDomainSettingsApi<NotificationsConfigData>('notifications', patch);
       notify.success('Relays Saved', 'Notification configuration updated');
     } catch {
       notify.error('Update Failed', 'Failed to persist notification settings');
+    }
+  };
+
+  const handleSaveProvider = async (provider: 'pushify' | 'pushover' | 'ntfy' | 'webhook') => {
+    setSavingRelay((prev) => ({ ...prev, [provider]: true }));
+    let patch: Partial<NotificationsConfigData> = {};
+    if (provider === 'pushify') patch = { pushify: pushifyDraft };
+    else if (provider === 'pushover') patch = { pushover: pushoverDraft };
+    else if (provider === 'ntfy') patch = { ntfy: ntfyDraft };
+    else if (provider === 'webhook') patch = { webhook: webhookDraft };
+
+    try {
+      await updateDomainSettingsApi<NotificationsConfigData>('notifications', patch);
+      setConfig((prev) => ({ ...prev, ...patch }));
+      notify.success('Relays Saved', `${provider.toUpperCase()} configuration saved successfully`);
+    } catch {
+      notify.error('Update Failed', `Failed to save ${provider} settings`);
+    } finally {
+      setSavingRelay((prev) => ({ ...prev, [provider]: false }));
     }
   };
 
@@ -209,10 +241,12 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                   </p>
                 </div>
                 <TacticalToggle
-                  checked={config.pushify.enabled}
-                  onChange={(checked) =>
-                    handleUpdate({ pushify: { ...config.pushify, enabled: checked } })
-                  }
+                  checked={pushifyDraft.enabled}
+                  onChange={(checked) => {
+                    const updated = { ...pushifyDraft, enabled: checked };
+                    setPushifyDraft(updated);
+                    handleUpdate({ pushify: updated });
+                  }}
                   tone="teal"
                   ariaLabel="Toggle Pushify relay"
                 />
@@ -225,9 +259,9 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                   </label>
                   <input
                     type="text"
-                    value={config.pushify.endpoint_url || 'https://api.pushify.net/api/v1/send'}
+                    value={pushifyDraft.endpoint_url || 'https://api.pushify.net/api/v1/send'}
                     onChange={(e) =>
-                      handleUpdate({ pushify: { ...config.pushify, endpoint_url: e.target.value } })
+                      setPushifyDraft((prev) => ({ ...prev, endpoint_url: e.target.value }))
                     }
                     style={{
                       width: '100%',
@@ -249,9 +283,9 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                   <input
                     type="text"
                     placeholder="e.g. travel-alerts"
-                    value={config.pushify.channel || ''}
+                    value={pushifyDraft.channel || ''}
                     onChange={(e) =>
-                      handleUpdate({ pushify: { ...config.pushify, channel: e.target.value } })
+                      setPushifyDraft((prev) => ({ ...prev, channel: e.target.value }))
                     }
                     style={{
                       width: '100%',
@@ -273,9 +307,9 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     <input
                       type={showPushifyKey ? 'text' : 'password'}
                       placeholder="Enter Pushify secret API token"
-                      value={config.pushify.api_key || ''}
+                      value={pushifyDraft.api_key || ''}
                       onChange={(e) =>
-                        handleUpdate({ pushify: { ...config.pushify, api_key: e.target.value } })
+                        setPushifyDraft((prev) => ({ ...prev, api_key: e.target.value }))
                       }
                       style={{
                         flex: 1,
@@ -304,6 +338,30 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     >
                       {showPushifyKey ? 'Hide' : 'Reveal'}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveProvider('pushify')}
+                      disabled={savingRelay['pushify']}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: 'var(--color-accent-teal, #0D9488)',
+                        color: '#FFFFFF',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: savingRelay['pushify'] ? 'not-allowed' : 'pointer',
+                        opacity: savingRelay['pushify'] ? 0.6 : 1,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {savingRelay['pushify'] && <Spinner size={12} color="#FFFFFF" />}
+                      <span>SAVE KEY</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -323,8 +381,8 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                 </span>
                 <button
                   type="button"
-                  onClick={() => handleTest('pushify', config.pushify as unknown as Record<string, unknown>)}
-                  disabled={testingRelay.pushify || !config.pushify.api_key}
+                  onClick={() => handleTest('pushify', pushifyDraft as unknown as Record<string, unknown>)}
+                  disabled={testingRelay.pushify || !pushifyDraft.api_key}
 
                   style={{
                     display: 'inline-flex',
@@ -337,8 +395,8 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     color: 'var(--color-text-primary)',
                     fontSize: '12px',
                     fontWeight: 600,
-                    cursor: testingRelay.pushify || !config.pushify.api_key ? 'not-allowed' : 'pointer',
-                    opacity: testingRelay.pushify || !config.pushify.api_key ? 0.6 : 1,
+                    cursor: testingRelay.pushify || !pushifyDraft.api_key ? 'not-allowed' : 'pointer',
+                    opacity: testingRelay.pushify || !pushifyDraft.api_key ? 0.6 : 1,
                   }}
                 >
                   {testingRelay.pushify && <Spinner size={12} />}
@@ -363,10 +421,12 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     </p>
                   </div>
                   <TacticalToggle
-                    checked={config.pushover.enabled}
-                    onChange={(checked) =>
-                      handleUpdate({ pushover: { ...config.pushover, enabled: checked } })
-                    }
+                    checked={pushoverDraft.enabled}
+                    onChange={(checked) => {
+                      const updated = { ...pushoverDraft, enabled: checked };
+                      setPushoverDraft(updated);
+                      handleUpdate({ pushover: updated });
+                    }}
                     tone="teal"
                     ariaLabel="Toggle Pushover relay"
                   />
@@ -380,9 +440,9 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     <input
                       type="text"
                       placeholder="Your 30-character User Key"
-                      value={config.pushover.user_key || ''}
+                      value={pushoverDraft.user_key || ''}
                       onChange={(e) =>
-                        handleUpdate({ pushover: { ...config.pushover, user_key: e.target.value } })
+                        setPushoverDraft((prev) => ({ ...prev, user_key: e.target.value }))
                       }
                       style={{
                         width: '100%',
@@ -405,9 +465,9 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                       <input
                         type={showPushoverToken ? 'text' : 'password'}
                         placeholder="Application API Token"
-                        value={config.pushover.app_token || ''}
+                        value={pushoverDraft.app_token || ''}
                         onChange={(e) =>
-                          handleUpdate({ pushover: { ...config.pushover, app_token: e.target.value } })
+                          setPushoverDraft((prev) => ({ ...prev, app_token: e.target.value }))
                         }
                         style={{
                           flex: 1,
@@ -436,6 +496,30 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                       >
                         {showPushoverToken ? 'Hide' : 'Reveal'}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveProvider('pushover')}
+                        disabled={savingRelay['pushover']}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: 'var(--color-accent-teal, #0D9488)',
+                          color: '#FFFFFF',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: savingRelay['pushover'] ? 'not-allowed' : 'pointer',
+                          opacity: savingRelay['pushover'] ? 0.6 : 1,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {savingRelay['pushover'] && <Spinner size={12} color="#FFFFFF" />}
+                        <span>SAVE KEY</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -455,8 +539,8 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleTest('pushover', config.pushover as unknown as Record<string, unknown>)}
-                    disabled={testingRelay.pushover || !config.pushover.user_key || !config.pushover.app_token}
+                    onClick={() => handleTest('pushover', pushoverDraft as unknown as Record<string, unknown>)}
+                    disabled={testingRelay.pushover || !pushoverDraft.user_key || !pushoverDraft.app_token}
 
                     style={{
                       display: 'inline-flex',
@@ -469,8 +553,8 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                       color: 'var(--color-text-primary)',
                       fontSize: '12px',
                       fontWeight: 600,
-                      cursor: testingRelay.pushover || !config.pushover.user_key ? 'not-allowed' : 'pointer',
-                      opacity: testingRelay.pushover || !config.pushover.user_key ? 0.6 : 1,
+                      cursor: testingRelay.pushover || !pushoverDraft.user_key ? 'not-allowed' : 'pointer',
+                      opacity: testingRelay.pushover || !pushoverDraft.user_key ? 0.6 : 1,
                     }}
                   >
                     {testingRelay.pushover && <Spinner size={12} />}
@@ -491,10 +575,12 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     </p>
                   </div>
                   <TacticalToggle
-                    checked={config.ntfy.enabled}
-                    onChange={(checked) =>
-                      handleUpdate({ ntfy: { ...config.ntfy, enabled: checked } })
-                    }
+                    checked={ntfyDraft.enabled}
+                    onChange={(checked) => {
+                      const updated = { ...ntfyDraft, enabled: checked };
+                      setNtfyDraft(updated);
+                      handleUpdate({ ntfy: updated });
+                    }}
                     tone="gold"
                     ariaLabel="Toggle Ntfy relay"
                   />
@@ -508,9 +594,9 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     <input
                       type="text"
                       placeholder="https://ntfy.sh"
-                      value={config.ntfy.server_url || 'https://ntfy.sh'}
+                      value={ntfyDraft.server_url || 'https://ntfy.sh'}
                       onChange={(e) =>
-                        handleUpdate({ ntfy: { ...config.ntfy, server_url: e.target.value } })
+                        setNtfyDraft((prev) => ({ ...prev, server_url: e.target.value }))
                       }
                       style={{
                         width: '100%',
@@ -529,23 +615,49 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
                       Topic Name
                     </label>
-                    <input
-                      type="text"
-                      placeholder="paladio-trip-updates"
-                      value={config.ntfy.topic || ''}
-                      onChange={(e) =>
-                        handleUpdate({ ntfy: { ...config.ntfy, topic: e.target.value } })
-                      }
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--color-border)',
-                        backgroundColor: 'var(--color-bg-main)',
-                        color: 'var(--color-text-primary)',
-                        fontSize: '13px',
-                      }}
-                    />
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="paladio-trip-updates"
+                        value={ntfyDraft.topic || ''}
+                        onChange={(e) =>
+                          setNtfyDraft((prev) => ({ ...prev, topic: e.target.value }))
+                        }
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border)',
+                          backgroundColor: 'var(--color-bg-main)',
+                          color: 'var(--color-text-primary)',
+                          fontSize: '13px',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveProvider('ntfy')}
+                        disabled={savingRelay['ntfy']}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: 'var(--color-accent-teal, #0D9488)',
+                          color: '#FFFFFF',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: savingRelay['ntfy'] ? 'not-allowed' : 'pointer',
+                          opacity: savingRelay['ntfy'] ? 0.6 : 1,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {savingRelay['ntfy'] && <Spinner size={12} color="#FFFFFF" />}
+                        <span>SAVE CONFIG</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -564,8 +676,8 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleTest('ntfy', config.ntfy as unknown as Record<string, unknown>)}
-                    disabled={testingRelay.ntfy || !config.ntfy.topic}
+                    onClick={() => handleTest('ntfy', ntfyDraft as unknown as Record<string, unknown>)}
+                    disabled={testingRelay.ntfy || !ntfyDraft.topic}
 
                     style={{
                       display: 'inline-flex',
@@ -578,8 +690,8 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                       color: 'var(--color-text-primary)',
                       fontSize: '12px',
                       fontWeight: 600,
-                      cursor: testingRelay.ntfy || !config.ntfy.topic ? 'not-allowed' : 'pointer',
-                      opacity: testingRelay.ntfy || !config.ntfy.topic ? 0.6 : 1,
+                      cursor: testingRelay.ntfy || !ntfyDraft.topic ? 'not-allowed' : 'pointer',
+                      opacity: testingRelay.ntfy || !ntfyDraft.topic ? 0.6 : 1,
                     }}
                   >
                     {testingRelay.ntfy && <Spinner size={12} />}
@@ -603,10 +715,12 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                   </p>
                 </div>
                 <TacticalToggle
-                  checked={config.webhook.enabled}
-                  onChange={(checked) =>
-                    handleUpdate({ webhook: { ...config.webhook, enabled: checked } })
-                  }
+                  checked={webhookDraft.enabled}
+                  onChange={(checked) => {
+                    const updated = { ...webhookDraft, enabled: checked };
+                    setWebhookDraft(updated);
+                    handleUpdate({ webhook: updated });
+                  }}
                   tone="coral"
                   ariaLabel="Toggle custom webhook relay"
                 />
@@ -620,9 +734,9 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                   <input
                     type="text"
                     placeholder="https://discord.com/api/webhooks/... or https://hooks.slack.com/services/..."
-                    value={config.webhook.url || ''}
+                    value={webhookDraft.url || ''}
                     onChange={(e) =>
-                      handleUpdate({ webhook: { ...config.webhook, url: e.target.value } })
+                      setWebhookDraft((prev) => ({ ...prev, url: e.target.value }))
                     }
                     style={{
                       width: '100%',
@@ -641,24 +755,50 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
                     X-Webhook-Secret Header (Optional)
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Optional secret token sent in X-Webhook-Secret header"
-                    value={config.webhook.secret_header || ''}
-                    onChange={(e) =>
-                      handleUpdate({ webhook: { ...config.webhook, secret_header: e.target.value } })
-                    }
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--color-border)',
-                      backgroundColor: 'var(--color-bg-main)',
-                      color: 'var(--color-text-primary)',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '13px',
-                    }}
-                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="Optional secret token sent in X-Webhook-Secret header"
+                      value={webhookDraft.secret_header || ''}
+                      onChange={(e) =>
+                        setWebhookDraft((prev) => ({ ...prev, secret_header: e.target.value }))
+                      }
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--color-border)',
+                        backgroundColor: 'var(--color-bg-main)',
+                        color: 'var(--color-text-primary)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '13px',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveProvider('webhook')}
+                      disabled={savingRelay['webhook']}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: 'var(--color-accent-teal, #0D9488)',
+                        color: '#FFFFFF',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: savingRelay['webhook'] ? 'not-allowed' : 'pointer',
+                        opacity: savingRelay['webhook'] ? 0.6 : 1,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {savingRelay['webhook'] && <Spinner size={12} color="#FFFFFF" />}
+                      <span>SAVE SECRET</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -677,8 +817,8 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                 </span>
                 <button
                   type="button"
-                  onClick={() => handleTest('webhook', config.webhook as unknown as Record<string, unknown>)}
-                  disabled={testingRelay.webhook || !config.webhook.url}
+                  onClick={() => handleTest('webhook', webhookDraft as unknown as Record<string, unknown>)}
+                  disabled={testingRelay.webhook || !webhookDraft.url}
 
                   style={{
                     display: 'inline-flex',
@@ -691,8 +831,8 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     color: 'var(--color-text-primary)',
                     fontSize: '12px',
                     fontWeight: 600,
-                    cursor: testingRelay.webhook || !config.webhook.url ? 'not-allowed' : 'pointer',
-                    opacity: testingRelay.webhook || !config.webhook.url ? 0.6 : 1,
+                    cursor: testingRelay.webhook || !webhookDraft.url ? 'not-allowed' : 'pointer',
+                    opacity: testingRelay.webhook || !webhookDraft.url ? 0.6 : 1,
                   }}
                 >
                   {testingRelay.webhook && <Spinner size={12} />}

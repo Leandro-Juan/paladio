@@ -97,11 +97,11 @@ test.describe('Settings Renovation & Consolidation', () => {
     await expect(page.getByText('Meal Allocation Windows (Minutes)')).toBeVisible();
     await expect(page.getByText('Deal Engine & Background Scrapers')).toHaveCount(0);
 
-    // AI & Swarm tab (isolated to Swarm card + human repair toggle)
-    await page.goto('/config?tab=swarm');
-    await expect(page.getByText('LangGraph Multi-Agent Swarm & Critic')).toBeVisible();
-    await expect(page.getByText('Require Human Approval on Swarm Repair')).toBeVisible();
-    await expect(page.getByText('Continuous ML Taste Learning & RAG')).toHaveCount(0);
+    // AI & LLM Engine tab (Agent Swarms & Critic and ML Taste Learning & RAG removed)
+    await page.goto('/config?tab=llm');
+    await expect(page.getByText('AI & Multi-Provider LLM Engine')).toBeVisible();
+    await expect(page.getByText('Agent Swarms & Critic')).toHaveCount(0);
+    await expect(page.getByText('ML Taste Learning & RAG')).toHaveCount(0);
 
     // Infrastructure Vault tab
     await page.goto('/config?tab=vault');

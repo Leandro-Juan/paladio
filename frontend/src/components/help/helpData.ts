@@ -146,7 +146,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
               'Set your Hotel / Stay Anchor by searching an address/property or clicking Locate on Map.',
               'Set your Budget Envelope amount and tap the currency pill to select currency from the 3D Currency Spin Dial, then add companions under Travelers.',
               'Select your departure and return dates in Travel Window & Calendar on the right.',
-              'In Personalized Trip mode, optionally write requests or tap preset chips inside INTENT, CONSTRAINTS & PREFERENCES (LLM SWARM SOLVER), then click Generate Sovereign Trip Plan (or Create Blank Canvas Trip in Blank mode).',
+              'In Personalized Trip mode, optionally write requests or tap preset chips inside Describe your ideal trip, then click Generate Sovereign Trip Plan (or Create Blank Canvas Trip in Blank mode).',
             ],
             callout: {
               type: 'important',
@@ -157,7 +157,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
             heading: 'Deterministic Planning vs. Optional AI Prompts',
             content: [
               'Paladio generates, clusters, and optimizes day-by-day schedules deterministically using its C++20 TSPTW core and local POI database—without requiring a generative LLM API key.',
-              'When you configure a provider under Settings → AI & LLM Engine, the optional INTENT, CONSTRAINTS & PREFERENCES box in Personalized Trip mode enriches candidate weighting and constraints from natural language.',
+              'The Describe your ideal trip box in Personalized Trip mode enriches candidate weighting and constraints from natural language.',
             ],
           },
         ],

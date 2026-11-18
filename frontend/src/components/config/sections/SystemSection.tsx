@@ -23,6 +23,183 @@ interface SystemSectionProps {
   handleToggleAutoUpdate: () => Promise<void>;
 }
 
+function parseInlineMarkdown(text: string): React.ReactNode[] {
+  const LINK_OR_TOKEN_REGEX = /(\[[^\]]+\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_)/g;
+  const parts = text.split(LINK_OR_TOKEN_REGEX);
+  return parts.map((part, idx) => {
+    if (!part) return null;
+    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (linkMatch) {
+      return (
+        <a
+          key={idx}
+          href={linkMatch[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--color-gold, #E2B33C)', textDecoration: 'underline' }}
+        >
+          {linkMatch[1]}
+        </a>
+      );
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+      return (
+        <code
+          key={idx}
+          style={{
+            background: 'var(--color-surface-hover, rgba(255,255,255,0.06))',
+            padding: '2px 5px',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontFamily: 'var(--font-mono)',
+            border: '1px solid var(--color-border-subtle)',
+          }}
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    if (
+      (part.startsWith('**') && part.endsWith('**') && part.length >= 4) ||
+      (part.startsWith('__') && part.endsWith('__') && part.length >= 4)
+    ) {
+      return (
+        <strong key={idx} style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (
+      (part.startsWith('*') && part.endsWith('*') && part.length >= 2) ||
+      (part.startsWith('_') && part.endsWith('_') && part.length >= 2)
+    ) {
+      return (
+        <em key={idx} style={{ fontStyle: 'italic', color: 'var(--color-text-secondary)' }}>
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
+    return <React.Fragment key={idx}>{part}</React.Fragment>;
+  });
+}
+
+function renderReleaseNotes(markdown: string | null | undefined): React.ReactNode {
+  if (!markdown) {
+    return (
+      <p className="text-muted font-mono" style={{ margin: 0, fontSize: '11px' }}>
+        No release notes provided.
+      </p>
+    );
+  }
+
+  const lines = markdown.split('\n');
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', lineHeight: 1.6 }}>
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={idx} style={{ height: '4px' }} />;
+        }
+        if (line.startsWith('# ')) {
+          return (
+            <h4
+              key={idx}
+              className="font-display"
+              style={{ fontSize: '15px', margin: '8px 0 2px 0', color: 'var(--color-text-primary)', fontWeight: 700 }}
+            >
+              {parseInlineMarkdown(line.slice(2))}
+            </h4>
+          );
+        }
+        if (line.startsWith('## ')) {
+          return (
+            <h5
+              key={idx}
+              className="font-display"
+              style={{ fontSize: '13.5px', margin: '6px 0 2px 0', color: 'var(--color-gold, #E2B33C)', fontWeight: 600 }}
+            >
+              {parseInlineMarkdown(line.slice(3))}
+            </h5>
+          );
+        }
+        if (line.startsWith('### ') || line.startsWith('#### ')) {
+          const depth = line.startsWith('#### ') ? 5 : 4;
+          return (
+            <h6
+              key={idx}
+              className="font-display"
+              style={{ fontSize: '12.5px', margin: '4px 0 2px 0', color: 'var(--color-text-primary)', fontWeight: 600 }}
+            >
+              {parseInlineMarkdown(line.slice(depth))}
+            </h6>
+          );
+        }
+        if (line.startsWith('> ')) {
+          return (
+            <blockquote
+              key={idx}
+              style={{
+                margin: '2px 0',
+                paddingLeft: '10px',
+                borderLeft: '2px solid var(--color-gold, #E2B33C)',
+                color: 'var(--color-text-muted)',
+                fontStyle: 'italic',
+                fontSize: '11px',
+              }}
+            >
+              {parseInlineMarkdown(line.slice(2))}
+            </blockquote>
+          );
+        }
+        const bulletMatch = line.match(/^(\s*)[*\-•+]\s+(.*)$/);
+        if (bulletMatch) {
+          const indent = bulletMatch[1].length > 0 ? '16px' : '6px';
+          return (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: '8px',
+                marginLeft: indent,
+                color: 'var(--color-text-primary)',
+              }}
+            >
+              <span style={{ color: 'var(--color-gold, #E2B33C)', fontSize: '10px', lineHeight: 1 }}>•</span>
+              <div style={{ flex: 1 }}>{parseInlineMarkdown(bulletMatch[2])}</div>
+            </div>
+          );
+        }
+        const numMatch = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+        if (numMatch) {
+          return (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: '6px',
+                marginLeft: '6px',
+                color: 'var(--color-text-primary)',
+              }}
+            >
+              <span className="font-mono text-muted" style={{ fontSize: '11px', minWidth: '16px' }}>
+                {numMatch[2]}.
+              </span>
+              <div style={{ flex: 1 }}>{parseInlineMarkdown(numMatch[3])}</div>
+            </div>
+          );
+        }
+        return (
+          <p key={idx} style={{ margin: 0, color: 'var(--color-text-primary)' }}>
+            {parseInlineMarkdown(line)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export function SystemSection({
   onBackToOverview,
   subTab = 'updates',
@@ -266,19 +443,7 @@ export function SystemSection({
                   overflowY: 'auto',
                 }}
               >
-                <pre
-                  className="font-mono"
-                  style={{
-                    margin: 0,
-                    fontSize: '11px',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    color: 'var(--color-text-primary)',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {updaterStatus.release_notes || 'No patch notes provided.'}
-                </pre>
+                {renderReleaseNotes(updaterStatus.release_notes)}
               </div>
               <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '8px', marginBottom: 0 }}>
                 Would you like to install this update? Click &quot;INSTALL UPDATE NOW&quot; to download and apply the latest release.
@@ -493,19 +658,7 @@ export function SystemSection({
                   overflowY: 'auto',
                 }}
               >
-                <pre
-                  className="font-mono"
-                  style={{
-                    margin: 0,
-                    fontSize: '11px',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    color: 'var(--color-text-primary)',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {updaterStatus.release_notes}
-                </pre>
+                {renderReleaseNotes(updaterStatus.release_notes)}
               </div>
             )}
           </div>

@@ -11,7 +11,6 @@ import { SettingsHeader } from '../SettingsHeader';
 import { SettingsCardFrame } from '../SettingsCardFrame';
 import { Spinner } from '@/components/icons';
 import { notify } from '@/utils/notify';
-import Link from 'next/link';
 
 interface SecretsSectionProps {
   onBackToOverview: () => void;
@@ -323,117 +322,6 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
             )}
           </div>
         )}
-      </SettingsCardFrame>
-
-      {/* 2. Overview of Connected API Services */}
-      <SettingsCardFrame
-        title="Connected Provider Ecosystem"
-        subtitle="Status of all flight, routing, and intelligence service connections"
-        badge="Zero Synthetic Data"
-        badgeTone="teal"
-      >
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-          {/* Card 1: Aviasales */}
-          <div
-            style={{
-              padding: '14px',
-              borderRadius: '8px',
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-border-subtle)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-text-primary)' }}>
-                Aviasales Global Aggregator
-              </span>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  background: isConfigured ? 'rgba(13, 148, 136, 0.15)' : 'rgba(200, 109, 81, 0.15)',
-                  color: isConfigured ? 'var(--color-accent-teal, #0D9488)' : 'var(--color-accent-coral, #C86D51)',
-                }}
-              >
-                {isConfigured ? 'CONNECTED' : 'UNCONFIGURED'}
-              </span>
-            </div>
-            <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: 0 }}>
-              Official Travelpayouts v2/v3 REST API for global flight price calendar matrices and live verification.
-            </p>
-          </div>
-
-          {/* Card 2: Ryanair */}
-          <div
-            style={{
-              padding: '14px',
-              borderRadius: '8px',
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-border-subtle)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-text-primary)' }}>
-                Ryanair Direct Carrier
-              </span>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  background: 'rgba(13, 148, 136, 0.15)',
-                  color: 'var(--color-accent-teal, #0D9488)',
-                }}
-              >
-                READY (NO KEY)
-              </span>
-            </div>
-            <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: 0 }}>
-              Direct carrier JSON API for European point-to-point flights without intermediary markups.
-            </p>
-          </div>
-
-          {/* Card 3: AI Engine */}
-          <div
-            style={{
-              padding: '14px',
-              borderRadius: '8px',
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-border-subtle)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--color-text-primary)' }}>
-                LLM & AI Providers
-              </span>
-              <Link
-                href="/config?tab=llm"
-                style={{
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  color: 'var(--color-accent-teal, #0D9488)',
-                  textDecoration: 'underline',
-                }}
-              >
-                CONFIGURE →
-              </Link>
-            </div>
-            <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: 0 }}>
-              Google Gemini, Anthropic Claude, OpenAI, Groq, DeepSeek, and local Ollama keys configured in the AI tab.
-            </p>
-          </div>
-        </div>
       </SettingsCardFrame>
     </div>
   );

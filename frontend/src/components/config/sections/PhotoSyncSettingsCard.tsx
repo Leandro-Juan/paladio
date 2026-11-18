@@ -23,8 +23,59 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
   const [showImmichKey, setShowImmichKey] = useState(false);
   const [showSynoPass, setShowSynoPass] = useState(false);
 
+  const [immichUrlDraft, setImmichUrlDraft] = useState(config.immich_url || '');
+  const [immichKeyDraft, setImmichKeyDraft] = useState(config.immich_api_key || '');
+  const [immichAlbumDraft, setImmichAlbumDraft] = useState(config.immich_album_name || 'Paladio Vault');
+  const [savingImmich, setSavingImmich] = useState(false);
+
+  const [synologyUrlDraft, setSynologyUrlDraft] = useState(config.synology_url || '');
+  const [synologyDestDraft, setSynologyDestDraft] = useState(config.synology_destination_path || '/photo/Paladio');
+  const [synologyUserDraft, setSynologyUserDraft] = useState(config.synology_username || '');
+  const [synologyPassDraft, setSynologyPassDraft] = useState(config.synology_password || '');
+  const [savingSynology, setSavingSynology] = useState(false);
+
+  const [prevConfig, setPrevConfig] = useState(config);
+  if (config !== prevConfig) {
+    setPrevConfig(config);
+    setImmichUrlDraft(config.immich_url || '');
+    setImmichKeyDraft(config.immich_api_key || '');
+    setImmichAlbumDraft(config.immich_album_name || 'Paladio Vault');
+    setSynologyUrlDraft(config.synology_url || '');
+    setSynologyDestDraft(config.synology_destination_path || '/photo/Paladio');
+    setSynologyUserDraft(config.synology_username || '');
+    setSynologyPassDraft(config.synology_password || '');
+  }
+
+  const handleSaveImmich = async () => {
+    setSavingImmich(true);
+    try {
+      await onChange({
+        immich_url: immichUrlDraft,
+        immich_api_key: immichKeyDraft,
+        immich_album_name: immichAlbumDraft,
+      });
+    } finally {
+      setSavingImmich(false);
+    }
+  };
+
+  const handleSaveSynology = async () => {
+    setSavingSynology(true);
+    try {
+      await onChange({
+        synology_url: synologyUrlDraft,
+        synology_destination_path: synologyDestDraft,
+        synology_username: synologyUserDraft,
+        synology_password: synologyPassDraft,
+      });
+    } finally {
+      setSavingSynology(false);
+    }
+  };
+
   const handleTestImmich = async () => {
-    if (!config.immich_url) {
+    const targetUrl = immichUrlDraft || config.immich_url;
+    if (!targetUrl) {
       notify.warning('Missing URL', 'Please specify the Immich instance URL first');
       return;
     }
@@ -33,8 +84,8 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
     try {
       const res = await testPhotoSyncApi({
         provider: 'immich',
-        url: config.immich_url,
-        api_key: config.immich_api_key,
+        url: targetUrl,
+        api_key: immichKeyDraft || config.immich_api_key,
       });
       if (res.success) {
         setImmichMessage({ success: true, text: res.message || 'Connected successfully' });
@@ -53,7 +104,8 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
   };
 
   const handleTestSynology = async () => {
-    if (!config.synology_url) {
+    const targetUrl = synologyUrlDraft || config.synology_url;
+    if (!targetUrl) {
       notify.warning('Missing URL', 'Please specify the Synology endpoint URL first');
       return;
     }
@@ -62,10 +114,10 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
     try {
       const res = await testPhotoSyncApi({
         provider: 'synology',
-        url: config.synology_url,
-        username: config.synology_username,
-        password: config.synology_password,
-        destination_path: config.synology_destination_path,
+        url: targetUrl,
+        username: synologyUserDraft || config.synology_username,
+        password: synologyPassDraft || config.synology_password,
+        destination_path: synologyDestDraft || config.synology_destination_path,
       });
       if (res.success) {
         setSynologyMessage({ success: true, text: res.message || 'Connected successfully' });
@@ -206,8 +258,8 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
             <input
               type="text"
               placeholder="https://immich.home.arpa or http://192.168.1.50:2283"
-              value={config.immich_url || ''}
-              onChange={(e) => onChange({ immich_url: e.target.value })}
+              value={immichUrlDraft}
+              onChange={(e) => setImmichUrlDraft(e.target.value)}
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -228,8 +280,8 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
             <input
               type="text"
               placeholder="Paladio Vault"
-              value={config.immich_album_name || 'Paladio Vault'}
-              onChange={(e) => onChange({ immich_album_name: e.target.value })}
+              value={immichAlbumDraft}
+              onChange={(e) => setImmichAlbumDraft(e.target.value)}
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -250,8 +302,8 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
               <input
                 type={showImmichKey ? 'text' : 'password'}
                 placeholder="Paste Immich API key generated from Account Settings"
-                value={config.immich_api_key || ''}
-                onChange={(e) => onChange({ immich_api_key: e.target.value })}
+                value={immichKeyDraft}
+                onChange={(e) => setImmichKeyDraft(e.target.value)}
                 style={{
                   flex: 1,
                   padding: '8px 12px',
@@ -278,6 +330,30 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
                 }}
               >
                 {showImmichKey ? 'Hide' : 'Reveal'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveImmich}
+                disabled={savingImmich}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'var(--color-accent-teal, #0D9488)',
+                  color: '#FFFFFF',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: savingImmich ? 'not-allowed' : 'pointer',
+                  opacity: savingImmich ? 0.6 : 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {savingImmich && <Spinner size={12} color="#FFFFFF" />}
+                <span>SAVE KEY</span>
               </button>
             </div>
           </div>
@@ -363,8 +439,8 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
             <input
               type="text"
               placeholder="https://nas.local:5006 or https://nas.quickconnect.to"
-              value={config.synology_url || ''}
-              onChange={(e) => onChange({ synology_url: e.target.value })}
+              value={synologyUrlDraft}
+              onChange={(e) => setSynologyUrlDraft(e.target.value)}
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -385,8 +461,8 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
             <input
               type="text"
               placeholder="/photo/Paladio"
-              value={config.synology_destination_path || '/photo/Paladio'}
-              onChange={(e) => onChange({ synology_destination_path: e.target.value })}
+              value={synologyDestDraft}
+              onChange={(e) => setSynologyDestDraft(e.target.value)}
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -407,8 +483,8 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
             <input
               type="text"
               placeholder="admin"
-              value={config.synology_username || ''}
-              onChange={(e) => onChange({ synology_username: e.target.value })}
+              value={synologyUserDraft}
+              onChange={(e) => setSynologyUserDraft(e.target.value)}
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -429,8 +505,8 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
               <input
                 type={showSynoPass ? 'text' : 'password'}
                 placeholder="Password"
-                value={config.synology_password || ''}
-                onChange={(e) => onChange({ synology_password: e.target.value })}
+                value={synologyPassDraft}
+                onChange={(e) => setSynologyPassDraft(e.target.value)}
                 style={{
                   flex: 1,
                   padding: '8px 12px',
@@ -456,6 +532,30 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
                 }}
               >
                 {showSynoPass ? 'Hide' : 'Reveal'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSynology}
+                disabled={savingSynology}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'var(--color-accent-teal, #0D9488)',
+                  color: '#FFFFFF',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: savingSynology ? 'not-allowed' : 'pointer',
+                  opacity: savingSynology ? 0.6 : 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {savingSynology && <Spinner size={12} color="#FFFFFF" />}
+                <span>SAVE CREDENTIALS</span>
               </button>
             </div>
           </div>
