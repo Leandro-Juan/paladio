@@ -564,69 +564,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const connect = useCallback(() => {
-    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
-      return;
-    }
-
     clearReconnectTimer();
-
-    const wsBase = getWsBaseUrl();
-    const token = getAuthToken();
-    const authQuery = token ? `?token=${encodeURIComponent(token)}` : '';
-    const wsUrl = `${wsBase}/api/ws/stream${authQuery}`;
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      if (wsRef.current !== ws) return;
-      clearReconnectTimer();
-      setStatus(prev => (prev === 'awaiting_input' && verificationPayloadRef.current) ? 'awaiting_input' : (prev === 'inferencing' ? 'inferencing' : 'connected'));
-      addLog('> [NETWORK] UPLINK ESTABLISHED WITH PALADIO GATEWAY.');
-      
-      ws.send(JSON.stringify({
-        action: 'attach',
-        thread_id: threadIdRef.current
-      }));
-    };
-
-    ws.onmessage = (event) => {
-      if (wsRef.current !== ws) return;
-      try {
-        const payload: PaladioEvent = JSON.parse(event.data);
-        handleEvent(payload);
-      } catch {
-        addLog(`> [ERROR] FAILED TO PARSE INCOMING TELEMETRY.`);
-      }
-    };
-
-    ws.onclose = (event) => {
-      if (wsRef.current !== ws) return;
-      wsRef.current = null;
-      setStatus(prev => (prev === 'awaiting_input' || prev === 'inferencing') ? prev : 'disconnected');
-      if (event.code !== 1000) {
-        addLog(`> [NETWORK] UPLINK LOST. (CODE: ${event.code})`);
-        // Auto-reconnect with 2.5s delay
-        clearReconnectTimer();
-        reconnectTimerRef.current = setTimeout(() => {
-          reconnectTimerRef.current = null;
-          connectRef.current();
-        }, 2500);
-      }
-    };
-
-    ws.onerror = () => {
-      if (wsRef.current !== ws) return;
-      setStatus('error');
-      addLog('> [ERROR] WEBSOCKET CONNECTION FAILED.');
-      // Auto-reconnect with 2.5s delay
-      clearReconnectTimer();
-      reconnectTimerRef.current = setTimeout(() => {
-        reconnectTimerRef.current = null;
-        connectRef.current();
-      }, 2500);
-    };
-  }, [addLog, handleEvent, clearReconnectTimer]);
+    reconnectTimerRef.current = setTimeout(() => {
+      reconnectTimerRef.current = null;
+      setStatus('connected');
+      addLog('> [NETWORK] DEMO SANDBOX UPLINK READY.');
+    }, 0);
+  }, [addLog, clearReconnectTimer]);
 
   useEffect(() => {
     connectRef.current = connect;

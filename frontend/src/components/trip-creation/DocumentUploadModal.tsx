@@ -11,6 +11,7 @@ import {
 import { CloseIcon, PlusIcon, Spinner, CheckIcon, PlaneIcon, ChevronRightIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
 import { TravelDocumentDraft } from '@/hooks/useTripTickets';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 export interface ExtractedTravelDocData {
   document_type?: 'flight' | 'hotel' | 'other';
@@ -434,6 +435,10 @@ export function DocumentUploadModal({
         </div>
 
         {/* ================= CONTENT BODY ================= */}
+        <DemoFeatureGate
+          message={t('demo.locked_document_import')}
+          borderRadius="0 0 24px 24px"
+        >
         <div style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Scanning Progress HUD */}
           {isScanning && (
@@ -1167,6 +1172,7 @@ export function DocumentUploadModal({
             </div>
           </div>
         </div>
+        </DemoFeatureGate>
       </div>
     </div>
   );

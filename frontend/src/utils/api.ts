@@ -1,15 +1,7 @@
 import { AuthTokenResponse, CreateUserData, SetupStatusResponse, UpdateProfileData, UpdateUserData, User } from '@/types/auth';
 
 export const getApiBaseUrl = (): string => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  if (typeof window !== 'undefined') {
-    const protocol = window.location.protocol;
-    const host = window.location.hostname;
-    return `${protocol}//${host}:8000/api`;
-  }
-  return 'http://localhost:8000/api';
+  return '/api';
 };
 
 export const getWsBaseUrl = (): string => {

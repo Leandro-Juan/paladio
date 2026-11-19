@@ -12,6 +12,7 @@ import { SettingsHeader } from '../SettingsHeader';
 import { SettingsCardFrame } from '../SettingsCardFrame';
 import { Spinner } from '@/components/icons';
 import { notify } from '@/utils/notify';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 interface SecretsSectionProps {
   onBackToOverview: () => void;
@@ -113,6 +114,7 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
       />
 
       {/* 1. Aviasales / Travelpayouts Card */}
+      <DemoFeatureGate message={t('demo.locked_secrets')} borderRadius="14px">
       <SettingsCardFrame
         title={t('config.aviasales_card_title')}
         subtitle={t('config.aviasales_card_subtitle')}
@@ -356,6 +358,7 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
           </div>
         )}
       </SettingsCardFrame>
+      </DemoFeatureGate>
     </div>
   );
 }

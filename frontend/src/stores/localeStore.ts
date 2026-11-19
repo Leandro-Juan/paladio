@@ -1,8 +1,43 @@
 import { create } from 'zustand';
 import { DEFAULT_LOCALE, getLocaleInfo, isRTL } from '@/utils/locales';
 import enDict from '../../public/locales/en.json';
+import demoDicts from '../../public/locales/demo.json';
 
 export type TranslationDictionary = Record<string, unknown>;
+
+function deepMergeDict(
+  base: TranslationDictionary,
+  overlay: TranslationDictionary
+): TranslationDictionary {
+  const result: TranslationDictionary = { ...base };
+  for (const [k, v] of Object.entries(overlay)) {
+    const existing = result[k];
+    if (
+      v &&
+      typeof v === 'object' &&
+      !Array.isArray(v) &&
+      existing &&
+      typeof existing === 'object' &&
+      !Array.isArray(existing)
+    ) {
+      result[k] = deepMergeDict(
+        existing as TranslationDictionary,
+        v as TranslationDictionary
+      );
+    } else {
+      result[k] = v;
+    }
+  }
+  return result;
+}
+
+function mergeDemoOverlay(code: string, dict: TranslationDictionary): TranslationDictionary {
+  const overlays = demoDicts as Record<string, TranslationDictionary>;
+  const normalized = getLocaleInfo(code).code;
+  const baseCode = code.includes('-') ? code.split('-')[0] : code;
+  const overlay = overlays[code] ?? overlays[normalized] ?? overlays[baseCode];
+  return overlay ? deepMergeDict(dict, overlay) : dict;
+}
 
 export function resolveKey(dict: TranslationDictionary | undefined, path: string): string | undefined {
   if (!dict) return undefined;
@@ -43,7 +78,7 @@ export function buildEnglishToKeyMap(
   return map;
 }
 
-const DEFAULT_DICTIONARY = enDict as TranslationDictionary;
+const DEFAULT_DICTIONARY = mergeDemoOverlay(DEFAULT_LOCALE, enDict as TranslationDictionary);
 const DEFAULT_ENGLISH_TO_KEY_MAP = buildEnglishToKeyMap(DEFAULT_DICTIONARY);
 
 export function translateFromDictionaries(
@@ -117,7 +152,7 @@ export const useLocaleStore = create<LocaleState>((set, get) => ({
           const base = code.split('-')[0];
           const baseRes = await fetch(`/locales/${base}.json`);
           if (baseRes.ok) {
-            const data = await baseRes.json();
+            const data = mergeDemoOverlay(code, await baseRes.json());
             set((state) => ({
               dictionaries: { ...state.dictionaries, [code]: data, [base]: data },
             }));
@@ -126,7 +161,7 @@ export const useLocaleStore = create<LocaleState>((set, get) => ({
         }
         throw new Error(`Locale dictionary for ${code} not found`);
       }
-      const data = await res.json();
+      const data = mergeDemoOverlay(code, await res.json());
       set((state) => ({
         dictionaries: { ...state.dictionaries, [code]: data },
       }));

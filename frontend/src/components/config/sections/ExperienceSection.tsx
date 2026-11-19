@@ -7,6 +7,7 @@ import { useNavigationStore } from '@/stores/navigationStore';
 import { SettingsHeader } from '../SettingsHeader';
 import { SettingsCardFrame } from '../SettingsCardFrame';
 import { TacticalToggle } from '../TacticalToggle';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 interface ExperienceSectionProps {
   onBackToOverview: () => void;
@@ -297,6 +298,7 @@ export function ExperienceSection({
 
       {/* 2. Interface Typography */}
       {activeSubTab === 'typography' && (
+      <DemoFeatureGate message={t('demo.locked_typography')} borderRadius="14px">
       <SettingsCardFrame
         title={t('config.typography_card_title')}
         subtitle={t('config.typography_card_subtitle')}
@@ -391,10 +393,12 @@ export function ExperienceSection({
           </button>
         </div>
       </SettingsCardFrame>
+      </DemoFeatureGate>
       )}
 
       {/* 3. Navigation Presentation */}
       {activeSubTab === 'navigation' && (
+      <DemoFeatureGate message={t('demo.locked_navigation')} borderRadius="14px">
       <SettingsCardFrame
         title={t('config.nav_card_title')}
         subtitle={t('config.nav_card_subtitle')}
@@ -465,10 +469,12 @@ export function ExperienceSection({
           </button>
         </div>
       </SettingsCardFrame>
+      </DemoFeatureGate>
       )}
 
       {/* 4. Cartography & Map Layers */}
       {activeSubTab === 'maps' && (
+      <DemoFeatureGate message={t('demo.locked_cartography')} borderRadius="14px">
       <SettingsCardFrame
         title={t('config.maps_card_title')}
         subtitle={t('config.maps_card_subtitle')}
@@ -541,6 +547,7 @@ export function ExperienceSection({
           </div>
         </div>
       </SettingsCardFrame>
+      </DemoFeatureGate>
       )}
     </div>
   );

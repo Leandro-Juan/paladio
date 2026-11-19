@@ -6,6 +6,7 @@ import { SHIPPED_LOCALES } from '@/utils/locales';
 import { SUPPORTED_CURRENCY_LIST } from '@/utils/currencyResolver';
 import { useTranslation } from '@/hooks/useTranslation';
 import { SettingsHeader } from '../SettingsHeader';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 interface UsersSectionProps {
   onBackToOverview: () => void;
@@ -123,32 +124,10 @@ export function UsersSection({
       <SettingsHeader
         title={subTab === 'profile' ? t('config.personal_account_profile') : t('config.authorized_users_access_control')}
         onBackToOverview={onBackToOverview}
-        actions={
-          isAdmin && subTab !== 'profile' ? (
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="font-display"
-              style={{
-                padding: '8px 16px',
-                background: 'var(--color-accent-primary)',
-                color: 'var(--color-btn-primary-text)',
-                border: 'none',
-                borderRadius: '6px',
-                fontWeight: 600,
-                fontSize: '12px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <span>+</span> {t('config.provision_new_user_btn')}
-            </button>
-          ) : undefined
-        }
       />
 
       {/* User Management Section */}
+      <DemoFeatureGate message={t('demo.locked_users')} borderRadius="10px">
       <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div>
@@ -449,6 +428,7 @@ export function UsersSection({
           </div>
         )}
       </div>
+      </DemoFeatureGate>
 
       {/* Provision User Modal */}
       {isModalOpen && (

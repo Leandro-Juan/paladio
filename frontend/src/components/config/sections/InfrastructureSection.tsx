@@ -19,6 +19,7 @@ import { SystemSection } from './SystemSection';
 import { PhotoSyncSettingsCard } from './PhotoSyncSettingsCard';
 import { NotificationsSettingsCard } from './NotificationsSettingsCard';
 import { notify } from '@/utils/notify';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 interface InfrastructureSectionProps {
   onBackToOverview: () => void;
@@ -247,6 +248,7 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
             subtitle={t('config.vault_header_subtitle')}
             onBackToOverview={onBackToOverview}
           />
+          <DemoFeatureGate message={t('demo.locked_vault_photo')} borderRadius="14px">
           <SettingsCardFrame
             title={t('config.vault_card_title')}
             subtitle={t('config.vault_card_subtitle')}
@@ -377,6 +379,7 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
               />
             )}
           </SettingsCardFrame>
+          </DemoFeatureGate>
         </>
       )}
 
@@ -388,7 +391,9 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
             subtitle={t('config.notifications_header_subtitle')}
             onBackToOverview={onBackToOverview}
           />
-          <NotificationsSettingsCard isAdmin={isAdmin} initialSubTab={initialSubTab} />
+          <DemoFeatureGate message={t('demo.locked_notifications')} borderRadius="14px">
+            <NotificationsSettingsCard isAdmin={isAdmin} initialSubTab={initialSubTab} />
+          </DemoFeatureGate>
         </>
       )}
     </div>

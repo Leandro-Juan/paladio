@@ -1,0 +1,103 @@
+.gateContainer {
+  position: relative;
+  border-radius: var(--demo-gate-radius, 12px);
+  overflow: hidden;
+  width: 100%;
+}
+
+.gateContent {
+  opacity: 0.36;
+  pointer-events: none;
+  user-select: none;
+  filter: grayscale(0.2);
+}
+
+.gateOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  border-radius: inherit;
+  cursor: not-allowed;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(15, 76, 92, 0.055),
+    rgba(15, 76, 92, 0.055) 10px,
+    rgba(250, 246, 240, 0.52) 10px,
+    rgba(250, 246, 240, 0.52) 20px
+  );
+  backdrop-filter: blur(1px);
+  border: 1px solid rgba(15, 76, 92, 0.14);
+}
+
+:global([data-theme="dark"]) .gateOverlay {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(124, 196, 209, 0.085),
+    rgba(124, 196, 209, 0.085) 10px,
+    rgba(8, 28, 36, 0.62) 10px,
+    rgba(8, 28, 36, 0.62) 20px
+  );
+  border-color: rgba(124, 196, 209, 0.18);
+}
+
+:global([data-theme="silent-waters"]) .gateOverlay {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(15, 76, 92, 0.07),
+    rgba(15, 76, 92, 0.07) 10px,
+    rgba(241, 246, 247, 0.56) 10px,
+    rgba(241, 246, 247, 0.56) 20px
+  );
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 6px 15px 6px 7px;
+  border-radius: 9999px;
+  background: var(--color-surface-raised, #ffffff);
+  border: 1px solid var(--color-border-bold, rgba(15, 76, 92, 0.2));
+  box-shadow:
+    0 8px 24px -4px rgba(10, 42, 53, 0.16),
+    0 2px 6px rgba(10, 42, 53, 0.08);
+}
+
+.pillCompact {
+  gap: 8px;
+  padding: 5px 12px 5px 6px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: var(--color-accent-teal-deep, #0a3642);
+  color: #ffffff;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.message {
+  font-family: var(--font-body, sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--color-text-primary, #1a2b32);
+}
+
+.pillCompact .message {
+  font-size: 12px;
+}

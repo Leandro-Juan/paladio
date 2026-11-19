@@ -881,7 +881,6 @@ function ConfigPageInner() {
             isAdmin={isAdmin}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            onRestoreDefaults={handleRestoreDefaults}
             telemetrySummary={telemetrySummary}
           />
         )}

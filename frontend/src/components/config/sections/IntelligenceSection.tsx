@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { LlmConfigCard } from '../LlmConfigCard';
 import { SettingsHeader } from '../SettingsHeader';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 interface IntelligenceSectionProps {
   onBackToOverview: () => void;
@@ -27,7 +28,11 @@ export function IntelligenceSection({
         onBackToOverview={onBackToOverview}
       />
 
-      {subTab === 'llm' && <LlmConfigCard />}
+      {subTab === 'llm' && (
+        <DemoFeatureGate message={t('demo.locked_llm')} borderRadius="14px">
+          <LlmConfigCard />
+        </DemoFeatureGate>
+      )}
     </div>
   );
 }

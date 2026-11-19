@@ -275,77 +275,10 @@ export function useTripAgent({ tripId, uiContext, onTripUpdated }: UseTripAgentP
     [onTripUpdated]
   );
 
-  // Connect WebSocket
+  // Demo Mode: AI Travel Agent WebSocket is disabled; keep clean disconnected state without opening WS sockets
   const connectWs = useCallback(() => {
-    if (!tripId || isUnmountedRef.current) return;
-
-    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
-      return;
-    }
-
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        return;
-      }
-      const wsBase = getWsBaseUrl();
-      const wsUrl = `${wsBase}/api/ws/trip-agent/${tripId}?token=${encodeURIComponent(token)}`;
-
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setIsConnected(true);
-        reconnectAttemptsRef.current = 0;
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data: AgentServerEvent = JSON.parse(event.data);
-          handleServerEvent(data);
-        } catch (e) {
-          console.error('[TripAgent WS] Failed to parse event', e);
-        }
-      };
-
-      ws.onerror = (e) => {
-        console.warn('[TripAgent WS] Error:', e);
-      };
-
-      ws.onclose = () => {
-        setIsConnected(false);
-        setIsWorking(false);
-
-        // Mark any hanging streaming message as interrupted rather than stuck streaming
-        setMessages((prev) => {
-          if (prev.length === 0) return prev;
-          const last = prev[prev.length - 1];
-          if (last.role === 'assistant' && last.isStreaming) {
-            return [
-              ...prev.slice(0, -1),
-              {
-                ...last,
-                content: last.content || translate('trip_agent.connection_interrupted_reconnecting'),
-                isStreaming: false,
-              },
-            ];
-          }
-          return prev;
-        });
-
-        // Exponential backoff reconnect
-        if (!isUnmountedRef.current) {
-          const timeout = Math.min(1000 * Math.pow(1.5, reconnectAttemptsRef.current), 10000);
-          reconnectAttemptsRef.current += 1;
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connectWsRef.current();
-          }, timeout);
-        }
-      };
-    } catch (e) {
-      console.error('[TripAgent WS] Connection attempt error', e);
-    }
-  }, [tripId, handleServerEvent]);
+    // No-op in Demo Mode (isConnected initializes as false)
+  }, []);
 
   // Keep ref up to date for reconnect timeouts
   useEffect(() => {

@@ -5,6 +5,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { SystemUpdateStatus } from '@/utils/api';
 import { Spinner, RefreshIcon, LightningIcon } from '@/components/icons';
 import { SettingsHeader } from '../SettingsHeader';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 interface SystemSectionProps {
   onBackToOverview: () => void;
@@ -236,36 +237,11 @@ export function SystemSection({
       <SettingsHeader
         title={subTab === 'telemetry' ? t('config.telemetry_header_title') : t('config.updates_header_title')}
         onBackToOverview={onBackToOverview}
-        actions={
-          subTab !== 'telemetry' ? (
-            <button
-              type="button"
-              onClick={handleCheckForUpdates}
-              disabled={updaterChecking || updaterDownloading}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                borderRadius: '6px',
-                border: '1px solid var(--color-border-subtle)',
-                background: 'var(--color-surface-card)',
-                color: 'var(--color-text-primary)',
-                fontSize: '12px',
-                fontFamily: 'var(--font-mono)',
-                cursor: updaterChecking ? 'not-allowed' : 'pointer',
-                opacity: updaterChecking ? 0.7 : 1,
-                fontWeight: 600,
-              }}
-            >
-              {updaterChecking ? <Spinner size={12} /> : <RefreshIcon size={12} />}
-              {updaterChecking ? t('config.checking_upper') : t('config.check_for_updates_upper')}
-            </button>
-          ) : undefined
-        }
       />
 
       {/* System Updates & Auto-Updater Section */}
+      <DemoFeatureGate message={t('demo.locked_system')} borderRadius="10px">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <section
         id="system-updates"
         className="bg-surface border-subtle"
@@ -736,6 +712,8 @@ export function SystemSection({
           ))}
         </div>
       </section>
+      </div>
+      </DemoFeatureGate>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { SettingsHeader } from '../SettingsHeader';
 import { SettingsCardFrame } from '../SettingsCardFrame';
 import { notify } from '@/utils/notify';
 import { EyeIcon, EyeOffIcon } from '@/components/icons';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 interface SegmentedPillOption<T extends string> {
   value: T;
@@ -423,6 +424,11 @@ export function PersonalAccountSection({
         onBackToOverview={onBackToOverview}
       />
 
+      <DemoFeatureGate
+        message={t('demo.locked_account_profile')}
+        borderRadius="14px"
+      >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       {/* 1. Active Account Identity Card */}
       <SettingsCardFrame
         title={t('config.personal_profile_card_title')}
@@ -1154,6 +1160,8 @@ export function PersonalAccountSection({
           </div>
         </div>
       </SettingsCardFrame>
+      </div>
+      </DemoFeatureGate>
 
       {/* Language Picker Modal */}
       {isLanguagePickerOpen && (

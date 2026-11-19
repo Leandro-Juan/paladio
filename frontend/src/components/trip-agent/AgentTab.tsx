@@ -12,6 +12,7 @@ import { AgentPoiItem } from './AgentPoiCards';
 import { ModelSelectorPopover } from './ModelSelectorPopover';
 import { fetchLlmConfigApi, updateLlmConfigApi, LLMConfigResponse } from '@/utils/api';
 import { notify } from '@/utils/notify';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 import styles from './AgentTab.module.css';
 
 export interface AgentTabProps {
@@ -96,7 +97,12 @@ export function AgentTab({ tripId, uiContext, onTripUpdated, onInspectPoi }: Age
   };
 
   return (
-    <div className={styles.agentTabContainer}>
+    <DemoFeatureGate
+      message={t('demo.locked_trip_agent')}
+      borderRadius="12px"
+      style={{ height: '100%' }}
+    >
+      <div className={styles.agentTabContainer}>
       {/* Top Status & Controls Bar */}
       <div className={styles.agentTabBar}>
         <div className={styles.agentTitleGroup}>
@@ -205,5 +211,6 @@ export function AgentTab({ tripId, uiContext, onTripUpdated, onInspectPoi }: Age
         />
       </div>
     </div>
+    </DemoFeatureGate>
   );
 }

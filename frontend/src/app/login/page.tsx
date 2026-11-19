@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { WaveAndSunIllustration, SunMark } from '@/components/auth/AuthIllustration';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 import { isNetworkOrServerDownError } from '@/utils/api';
 
 export default function LoginPage() {
@@ -13,8 +14,8 @@ export default function LoginPage() {
   const { t } = useTranslation();
   const router = useRouter();
 
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
+  const identifier = 'demo@paladio.app';
+  const password = 'paladio-demo';
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [isWaitingForBackend, setIsWaitingForBackend] = useState(false);
@@ -185,62 +186,71 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div>
-              <label
-                htmlFor="identifier-input"
-                className="font-mono text-muted"
-                style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}
-              >
-                {t('auth.username_or_email_label')}
-              </label>
-              <input
-                id="identifier-input"
-                type="text"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder={t('auth.username_or_email_placeholder')}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-border-input)',
-                  background: 'var(--color-surface-card)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '14px',
-                  outline: 'none',
-                  fontFamily: 'var(--font-body)',
-                }}
-                autoFocus
-              />
-            </div>
+            <DemoFeatureGate
+              message={t('demo.locked_login_credentials')}
+              compact
+              borderRadius="10px"
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem', padding: '12px' }}>
+                <div>
+                  <label
+                    htmlFor="identifier-input"
+                    className="font-mono text-muted"
+                    style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}
+                  >
+                    {t('auth.username_or_email_label')}
+                  </label>
+                  <input
+                    id="identifier-input"
+                    type="text"
+                    value={identifier}
+                    readOnly
+                    tabIndex={-1}
+                    placeholder={t('auth.username_or_email_placeholder')}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--color-border-input)',
+                      background: 'var(--color-surface-card)',
+                      color: 'var(--color-text-primary)',
+                      fontSize: '14px',
+                      outline: 'none',
+                      fontFamily: 'var(--font-body)',
+                    }}
+                  />
+                </div>
 
-            <div>
-              <label
-                htmlFor="password-input"
-                className="font-mono text-muted"
-                style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}
-              >
-                {t('auth.password_label')}
-              </label>
-              <input
-                id="password-input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-border-input)',
-                  background: 'var(--color-surface-card)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '14px',
-                  outline: 'none',
-                  fontFamily: 'var(--font-body)',
-                }}
-              />
-            </div>
+                <div>
+                  <label
+                    htmlFor="password-input"
+                    className="font-mono text-muted"
+                    style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}
+                  >
+                    {t('auth.password_label')}
+                  </label>
+                  <input
+                    id="password-input"
+                    type="password"
+                    value={password}
+                    readOnly
+                    tabIndex={-1}
+                    placeholder="••••••••••••"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--color-border-input)',
+                      background: 'var(--color-surface-card)',
+                      color: 'var(--color-text-primary)',
+                      fontSize: '14px',
+                      outline: 'none',
+                      fontFamily: 'var(--font-body)',
+                    }}
+                  />
+                </div>
+              </div>
+            </DemoFeatureGate>
 
             <button
               type="submit"
@@ -261,7 +271,7 @@ export default function LoginPage() {
                 transition: 'opacity 0.2s',
               }}
             >
-              {submitting ? t('auth.authenticating') : t('auth.authenticate')}
+              {submitting ? t('auth.entering_demo') : t('auth.try_the_demo')}
             </button>
           </form>
         </div>

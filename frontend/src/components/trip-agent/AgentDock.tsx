@@ -11,6 +11,7 @@ import { AgentMessageList } from './AgentMessageList';
 import { ModelSelectorPopover } from './ModelSelectorPopover';
 import { fetchLlmConfigApi, updateLlmConfigApi, LLMConfigResponse } from '@/utils/api';
 import { notify } from '@/utils/notify';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 import styles from './AgentDock.module.css';
 
 interface AgentDockProps {
@@ -206,6 +207,12 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
             </div>
           </div>
 
+          <DemoFeatureGate
+            message={t('demo.locked_trip_agent')}
+            borderRadius="0 0 16px 16px"
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+          >
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           {/* Modern Model Selector Popover */}
           <ModelSelectorPopover
             isOpen={isSwitcherOpen}
@@ -247,6 +254,8 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
             isWorking={isWorking}
             disabled={!isConnected}
           />
+          </div>
+          </DemoFeatureGate>
         </div>
       )}
     </>

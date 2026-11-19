@@ -10,6 +10,7 @@ import { TripCreationBoxes } from '@/components/trip-creation/TripCreationBoxes'
 import { useTripDraftStore } from '@/stores/tripDraftStore';
 import { useLogStore } from '@/contexts/SocketContext';
 import { ThinkingScreen } from '@/components/trip-creation/ThinkingScreen';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 function getThinkingMessage(
   lastLog: string | undefined,
@@ -289,30 +290,35 @@ export default function EnginePage() {
         </h2>
       </div>
 
-      <TripCreationBoxes
-        key={queryPrefillKey || 'default'}
-        onPersonalizedSubmit={handlePrepSubmit}
-        onBlankSubmitStart={(msg) => setBlankCreationStatus(msg || t('engine.creating_blank_workspace'))}
-        disabled={false}
-        initialDestination={queryDest || 'Paris'}
-        initialOrigin={queryOrigin || 'Madrid'}
-        initialOriginIata={queryOriginIata}
-        initialDestIata={queryDestIata}
-        initialStartDate={queryStart}
-        initialEndDate={queryEnd}
-        initialBudget={queryBudget ? Number(queryBudget) : 1500}
-        initialCurrency={queryCurrency}
-        initialDepartureHour={queryDepartureHour}
-        initialArrivalHour={queryArrivalHour}
-        initialHotelArea={queryHotelName}
-        initialHotelAddress={queryHotelAddress}
-        initialTravelers={queryTravelers}
-        hasQueryPrefill={hasQueryPrefill}
-        querySource={querySource}
-        queryPrefillKey={queryPrefillKey}
-        status={status}
-        onReconnect={connect}
-      />
+      <DemoFeatureGate
+        message={t('demo.locked_engine_create')}
+        borderRadius="18px"
+      >
+        <TripCreationBoxes
+          key={queryPrefillKey || 'default'}
+          onPersonalizedSubmit={handlePrepSubmit}
+          onBlankSubmitStart={(msg) => setBlankCreationStatus(msg || t('engine.creating_blank_workspace'))}
+          disabled={true}
+          initialDestination={queryDest || 'Paris'}
+          initialOrigin={queryOrigin || 'Madrid'}
+          initialOriginIata={queryOriginIata}
+          initialDestIata={queryDestIata}
+          initialStartDate={queryStart}
+          initialEndDate={queryEnd}
+          initialBudget={queryBudget ? Number(queryBudget) : 1500}
+          initialCurrency={queryCurrency}
+          initialDepartureHour={queryDepartureHour}
+          initialArrivalHour={queryArrivalHour}
+          initialHotelArea={queryHotelName}
+          initialHotelAddress={queryHotelAddress}
+          initialTravelers={queryTravelers}
+          hasQueryPrefill={hasQueryPrefill}
+          querySource={querySource}
+          queryPrefillKey={queryPrefillKey}
+          status={status}
+          onReconnect={connect}
+        />
+      </DemoFeatureGate>
 
       <Modal 
         isOpen={Boolean(verificationPayload)}

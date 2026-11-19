@@ -6,6 +6,7 @@ import { GtfsRegistryResponse, CityGtfsItem } from '@/utils/api';
 import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon } from '@/components/icons';
 import { SyncGtfsTripsModal } from '@/components/SyncGtfsTripsModal';
 import { SettingsHeader } from '../SettingsHeader';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 interface TransitSectionProps {
   onBackToOverview: () => void;
@@ -64,30 +65,9 @@ export function TransitSection({
       <SettingsHeader
         title={t('config.transit_header_title')}
         onBackToOverview={onBackToOverview}
-        actions={
-          <button
-            data-testid="sync-gtfs-trips-btn"
-            onClick={() => setSyncTripsModalOpen(true)}
-            className="font-mono"
-            style={{
-              padding: '8px 14px',
-              fontSize: '12px',
-              borderRadius: '6px',
-              border: '1px solid var(--color-border-subtle)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-primary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontWeight: 600,
-            }}
-          >
-            <RefreshIcon size={13} /> {t('config.sync_planned_trips_upper')}
-          </button>
-        }
       />
 
+      <DemoFeatureGate message={t('demo.locked_transit')} borderRadius="10px">
       <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem' }}>
         {/* Action feedback message */}
         {gtfsMessage && (
@@ -506,6 +486,7 @@ export function TransitSection({
           </table>
         </div>
       </div>
+      </DemoFeatureGate>
 
       {/* Confirm GTFS Delete / Stop Dialog */}
       {deleteGtfsCandidate && (

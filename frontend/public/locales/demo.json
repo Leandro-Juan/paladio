@@ -1,0 +1,392 @@
+{
+  "en": {
+    "auth": {
+      "entering_demo": "ENTERING DEMO...",
+      "try_the_demo": "TRY THE DEMO"
+    },
+    "demo": {
+      "badge_label": "DEMO MODE",
+      "badge_short": "DEMO",
+      "gate_aria": "Demo Mode: {message}",
+      "hourly_reset_title": "Hourly Demo Reset",
+      "locked_account_profile": "Account profile, language, currency, and unit settings are locked in Demo Mode. The demo always runs in English.",
+      "locked_cartography": "Cartography defaults are locked in Demo Mode.",
+      "locked_document_import": "Importing external trips and boarding passes is disabled in Demo Mode.",
+      "locked_engine_create": "Creating new trips is disabled in Demo Mode. Explore and edit the 3 active trips or 2 vault trips!",
+      "locked_llm": "AI & LLM provider configuration is locked in Demo Mode.",
+      "locked_login_credentials": "Pre-configured sandbox credentials are locked in Demo Mode.",
+      "locked_monitoring_new_route": "Monitoring new routes is disabled in Demo Mode. Inspect the 3 pre-configured flight & hotel routes!",
+      "locked_navigation": "Navigation layout defaults are locked in Demo Mode.",
+      "locked_notifications": "Notification relays and webhook settings are locked in Demo Mode.",
+      "locked_secrets": "API secrets and credential storage are locked in Demo Mode.",
+      "locked_solver": "C++20 Solver parameters are locked in Demo Mode.",
+      "locked_system": "System updates and host telemetry controls are locked in Demo Mode.",
+      "locked_transit": "GTFS transit database administration is locked in Demo Mode.",
+      "locked_trip_agent": "The interactive AI Travel Agent is disabled in Demo Mode.",
+      "locked_typography": "Typography defaults are locked in Demo Mode.",
+      "locked_users": "User and role provisioning is locked in Demo Mode.",
+      "locked_vault_photo": "Data vault backups and photo sync settings are locked in Demo Mode.",
+      "reset_now_aria": "Reset demo sandbox now",
+      "reset_sandbox_msg": "Demo sandbox has been restored to its initial state.",
+      "reset_title": "Demo Reset",
+      "resets_in": "RESETS IN {time}"
+    },
+    "share": {
+      "demo_export_disabled": "Exporting trip packages and files is disabled in Demo Mode."
+    },
+    "trip_config": {
+      "demo_duplicate_disabled": "Duplicating trips is disabled in Demo Mode."
+    }
+  },
+  "es": {
+    "auth": {
+      "entering_demo": "ENTRANDO EN LA DEMO...",
+      "try_the_demo": "PROBAR LA DEMO"
+    },
+    "demo": {
+      "badge_label": "MODO DEMO",
+      "badge_short": "DEMO",
+      "gate_aria": "Modo Demo: {message}",
+      "hourly_reset_title": "Reinicio Horario de Demo",
+      "locked_account_profile": "Los ajustes de perfil de cuenta, idioma, moneda y unidades están bloqueados en el Modo Demo. La demo siempre se ejecuta en inglés.",
+      "locked_cartography": "Los valores predeterminados de cartografía están bloqueados en el Modo Demo.",
+      "locked_document_import": "La importación de viajes externos y tarjetas de embarque está desactivada en el Modo Demo.",
+      "locked_engine_create": "La creación de nuevos viajes está desactivada en el Modo Demo. ¡Explora y edita los 3 viajes activos o 2 viajes archivados!",
+      "locked_llm": "La configuración de proveedores de IA y LLM está bloqueada en el Modo Demo.",
+      "locked_login_credentials": "Las credenciales preconfiguradas del entorno de pruebas están bloqueadas en el Modo Demo.",
+      "locked_monitoring_new_route": "El monitoreo de nuevas rutas está desactivado en el Modo Demo. ¡Inspecciona las 3 rutas de vuelo y hotel preconfiguradas!",
+      "locked_navigation": "Los valores predeterminados de diseño de navegación están bloqueados en el Modo Demo.",
+      "locked_notifications": "Los canales de notificación y ajustes de webhooks están bloqueados en el Modo Demo.",
+      "locked_secrets": "Los secretos de API y el almacenamiento de credenciales están bloqueados en el Modo Demo.",
+      "locked_solver": "Los parámetros del Optimizador C++20 están bloqueados en el Modo Demo.",
+      "locked_system": "Las actualizaciones del sistema y los controles de telemetría del host están bloqueados en el Modo Demo.",
+      "locked_transit": "La administración de la base de datos de tránsito GTFS está bloqueada en el Modo Demo.",
+      "locked_trip_agent": "El Agente de Viajes IA interactivo está desactivado en el Modo Demo.",
+      "locked_typography": "Los valores predeterminados de tipografía están bloqueados en el Modo Demo.",
+      "locked_users": "El aprovisionamiento de usuarios y roles está bloqueado en el Modo Demo.",
+      "locked_vault_photo": "Las copias de seguridad de la bóveda y los ajustes de sincronización de fotos están bloqueados en el Modo Demo.",
+      "reset_now_aria": "Restablecer entorno de demo ahora",
+      "reset_sandbox_msg": "El entorno de demo se ha restaurado a su estado inicial.",
+      "reset_title": "Reinicio de Demo",
+      "resets_in": "REINICIO EN {time}"
+    },
+    "share": {
+      "demo_export_disabled": "La exportación de paquetes y archivos de viaje está desactivada en el Modo Demo."
+    },
+    "trip_config": {
+      "demo_duplicate_disabled": "La duplicación de viajes está desactivada en el Modo Demo."
+    }
+  },
+  "de": {
+    "auth": {
+      "entering_demo": "DEMO WIRD GESTARTET...",
+      "try_the_demo": "DEMO TESTEN"
+    },
+    "demo": {
+      "badge_label": "DEMO-MODUS",
+      "badge_short": "DEMO",
+      "gate_aria": "Demo-Modus: {message}",
+      "hourly_reset_title": "Stündlicher Demo-Reset",
+      "locked_account_profile": "Kontoprofil-, Sprach-, Währungs- und Einheiteneinstellungen sind im Demo-Modus gesperrt. Die Demo läuft immer auf Englisch.",
+      "locked_cartography": "Kartografie-Standardeinstellungen sind im Demo-Modus gesperrt.",
+      "locked_document_import": "Der Import externer Reisen und Bordkarten ist im Demo-Modus deaktiviert.",
+      "locked_engine_create": "Das Erstellen neuer Reisen ist im Demo-Modus deaktiviert. Erkunden und bearbeiten Sie die 3 aktiven oder 2 archivierten Reisen!",
+      "locked_llm": "Die Konfiguration von KI- & LLM-Anbietern ist im Demo-Modus gesperrt.",
+      "locked_login_credentials": "Vorkonfigurierte Sandbox-Zugangsdaten sind im Demo-Modus gesperrt.",
+      "locked_monitoring_new_route": "Das Überwachen neuer Routen ist im Demo-Modus deaktiviert. Prüfen Sie die 3 vorkonfigurierten Flug- & Hotelrouten!",
+      "locked_navigation": "Navigationslayout-Standards sind im Demo-Modus gesperrt.",
+      "locked_notifications": "Benachrichtigungs-Relays und Webhook-Einstellungen sind im Demo-Modus gesperrt.",
+      "locked_secrets": "API-Geheimnisse und Zugangsdatenspeicher sind im Demo-Modus gesperrt.",
+      "locked_solver": "Parameter des C++20-Solvers sind im Demo-Modus gesperrt.",
+      "locked_system": "Systemupdates und Host-Telemetrie-Steuerungen sind im Demo-Modus gesperrt.",
+      "locked_transit": "Die Verwaltung der GTFS-ÖPNV-Datenbank ist im Demo-Modus gesperrt.",
+      "locked_trip_agent": "Der interaktive KI-Reiseagent ist im Demo-Modus deaktiviert.",
+      "locked_typography": "Typografie-Standards sind im Demo-Modus gesperrt.",
+      "locked_users": "Die Benutzer- und Rollenverwaltung ist im Demo-Modus gesperrt.",
+      "locked_vault_photo": "Datentresor-Backups und Fotosync-Einstellungen sind im Demo-Modus gesperrt.",
+      "reset_now_aria": "Demo-Sandbox jetzt zurücksetzen",
+      "reset_sandbox_msg": "Die Demo-Sandbox wurde auf den Ausgangszustand zurückgesetzt.",
+      "reset_title": "Demo zurückgesetzt",
+      "resets_in": "RESET IN {time}"
+    },
+    "share": {
+      "demo_export_disabled": "Das Exportieren von Reisepaketen und Dateien ist im Demo-Modus deaktiviert."
+    },
+    "trip_config": {
+      "demo_duplicate_disabled": "Das Duplizieren von Reisen ist im Demo-Modus deaktiviert."
+    }
+  },
+  "fr": {
+    "auth": {
+      "entering_demo": "ACCÈS À LA DÉMO...",
+      "try_the_demo": "ESSAYER LA DÉMO"
+    },
+    "demo": {
+      "badge_label": "MODE DÉMO",
+      "badge_short": "DÉMO",
+      "gate_aria": "Mode Démo : {message}",
+      "hourly_reset_title": "Réinitialisation Horaire de la Démo",
+      "locked_account_profile": "Les paramètres du profil de compte, de langue, de devise et d'unités sont verrouillés en Mode Démo. La démo s'exécute toujours en anglais.",
+      "locked_cartography": "Les paramètres par défaut de cartographie sont verrouillés en Mode Démo.",
+      "locked_document_import": "L'importation de voyages externes et de cartes d'embarquement est désactivée en Mode Démo.",
+      "locked_engine_create": "La création de nouveaux voyages est désactivée en Mode Démo. Explorez et modifiez les 3 voyages actifs ou les 2 voyages archivés !",
+      "locked_llm": "La configuration des fournisseurs IA & LLM est verrouillée en Mode Démo.",
+      "locked_login_credentials": "Les identifiants de test préconfigurés sont verrouillés en Mode Démo.",
+      "locked_monitoring_new_route": "La surveillance de nouveaux itinéraires est désactivée en Mode Démo. Inspectez les 3 itinéraires vol & hôtel préconfigurés !",
+      "locked_navigation": "La disposition de navigation par défaut est verrouillée en Mode Démo.",
+      "locked_notifications": "Les relais de notification et paramètres webhook sont verrouillés en Mode Démo.",
+      "locked_secrets": "Les secrets API et le stockage d'identifiants sont verrouillés en Mode Démo.",
+      "locked_solver": "Les paramètres du Solveur C++20 sont verrouillés en Mode Démo.",
+      "locked_system": "Les mises à jour système et contrôles de télémétrie hôte sont verrouillés en Mode Démo.",
+      "locked_transit": "L'administration de la base de transit GTFS est verrouillée en Mode Démo.",
+      "locked_trip_agent": "L'Agent de Voyage IA interactif est désactivé en Mode Démo.",
+      "locked_typography": "Les paramètres de typographie par défaut sont verrouillés en Mode Démo.",
+      "locked_users": "Le provisionnement d'utilisateurs et de rôles est verrouillé en Mode Démo.",
+      "locked_vault_photo": "Les sauvegardes du coffre de données et les paramètres de synchro photo sont verrouillés en Mode Démo.",
+      "reset_now_aria": "Réinitialiser le bac à sable de démo maintenant",
+      "reset_sandbox_msg": "Le bac à sable de démo a été restauré à son état initial.",
+      "reset_title": "Réinitialisation Démo",
+      "resets_in": "RÉINITIALISATION DANS {time}"
+    },
+    "share": {
+      "demo_export_disabled": "L'exportation de paquets et fichiers de voyage est désactivée en Mode Démo."
+    },
+    "trip_config": {
+      "demo_duplicate_disabled": "La duplication de voyages est désactivée en Mode Démo."
+    }
+  },
+  "it": {
+    "auth": {
+      "entering_demo": "ACCESSO ALLA DEMO...",
+      "try_the_demo": "PROVA LA DEMO"
+    },
+    "demo": {
+      "badge_label": "MODALITÀ DEMO",
+      "badge_short": "DEMO",
+      "gate_aria": "Modalità Demo: {message}",
+      "hourly_reset_title": "Ripristino orario della demo",
+      "locked_account_profile": "Le impostazioni di profilo account, lingua, valuta e unità sono bloccate in Modalità Demo. La demo viene sempre eseguita in inglese.",
+      "locked_cartography": "Le impostazioni predefinite di cartografia sono bloccate in Modalità Demo.",
+      "locked_document_import": "L'importazione di viaggi esterni e carte d'imbarco è disabilitata in Modalità Demo.",
+      "locked_engine_create": "La creazione di nuovi viaggi è disabilitata in Modalità Demo. Esplora e modifica i 3 viaggi attivi o i 2 viaggi in archivio!",
+      "locked_llm": "La configurazione dei provider IA e LLM è bloccata in Modalità Demo.",
+      "locked_login_credentials": "Le credenziali preconfigurate della sandbox sono bloccate in Modalità Demo.",
+      "locked_monitoring_new_route": "Il monitoraggio di nuovi percorsi è disabilitato in Modalità Demo. Ispeziona i 3 percorsi volo e hotel preconfigurati!",
+      "locked_navigation": "Le impostazioni predefinite del layout di navigazione sono bloccate in Modalità Demo.",
+      "locked_notifications": "I relay di notifica e le impostazioni webhook sono bloccati in Modalità Demo.",
+      "locked_secrets": "I segreti API e l'archiviazione delle credenziali sono bloccati in Modalità Demo.",
+      "locked_solver": "I parametri del risolutore C++20 sono bloccati in Modalità Demo.",
+      "locked_system": "Gli aggiornamenti di sistema e i controlli di telemetria host sono bloccati in Modalità Demo.",
+      "locked_transit": "L'amministrazione del database di trasporto GTFS è bloccata in Modalità Demo.",
+      "locked_trip_agent": "L'Agente di Viaggio IA interattivo è disabilitato in Modalità Demo.",
+      "locked_typography": "Le impostazioni predefinite di tipografia sono bloccate in Modalità Demo.",
+      "locked_users": "Il provisioning di utenti e ruoli è bloccato in Modalità Demo.",
+      "locked_vault_photo": "I backup del caveau dati e le impostazioni di sincronizzazione foto sono bloccati in Modalità Demo.",
+      "reset_now_aria": "Ripristina ora la sandbox demo",
+      "reset_sandbox_msg": "La sandbox demo è stata ripristinata allo stato iniziale.",
+      "reset_title": "Ripristino demo",
+      "resets_in": "RIPRISTINO TRA {time}"
+    },
+    "share": {
+      "demo_export_disabled": "L'esportazione di pacchetti e file di viaggio è disabilitata in Modalità Demo."
+    },
+    "trip_config": {
+      "demo_duplicate_disabled": "La duplicazione dei viaggi è disabilitata in Modalità Demo."
+    }
+  },
+  "pt": {
+    "auth": {
+      "entering_demo": "ENTRANDO NA DEMO...",
+      "try_the_demo": "TESTAR A DEMO"
+    },
+    "demo": {
+      "badge_label": "MODO DEMO",
+      "badge_short": "DEMO",
+      "gate_aria": "Modo Demo: {message}",
+      "hourly_reset_title": "Reinício por Hora da Demo",
+      "locked_account_profile": "As configurações de perfil da conta, idioma, moeda e unidades estão bloqueadas no Modo Demo. A demo sempre é executada em inglês.",
+      "locked_cartography": "Os padrões de cartografia estão bloqueados no Modo Demo.",
+      "locked_document_import": "A importação de viagens externas e cartões de embarque está desativada no Modo Demo.",
+      "locked_engine_create": "A criação de novas viagens está desativada no Modo Demo. Explore e edite as 3 viagens ativas ou as 2 viagens arquivadas!",
+      "locked_llm": "A configuração de provedores de IA e LLM está bloqueada no Modo Demo.",
+      "locked_login_credentials": "As credenciais pré-configuradas do ambiente de testes estão bloqueadas no Modo Demo.",
+      "locked_monitoring_new_route": "O monitoramento de novas rotas está desativado no Modo Demo. Inspecione as 3 rotas de voo e hotel pré-configuradas!",
+      "locked_navigation": "Os padrões de layout de navegação estão bloqueados no Modo Demo.",
+      "locked_notifications": "Os relays de notificação e configurações de webhook estão bloqueados no Modo Demo.",
+      "locked_secrets": "Os segredos de API e o armazenamento de credenciais estão bloqueados no Modo Demo.",
+      "locked_solver": "Os parâmetros do otimizador C++20 estão bloqueados no Modo Demo.",
+      "locked_system": "As atualizações do sistema e os controles de telemetria do host estão bloqueados no Modo Demo.",
+      "locked_transit": "A administração do banco de dados de transporte GTFS está bloqueada no Modo Demo.",
+      "locked_trip_agent": "O Agente de Viagens IA interativo está desativado no Modo Demo.",
+      "locked_typography": "Os padrões de tipografia estão bloqueados no Modo Demo.",
+      "locked_users": "O provisionamento de usuários e funções está bloqueado no Modo Demo.",
+      "locked_vault_photo": "Os backups do cofre de dados e as configurações de sincronização de fotos estão bloqueados no Modo Demo.",
+      "reset_now_aria": "Redefinir ambiente demo agora",
+      "reset_sandbox_msg": "O ambiente demo foi restaurado ao seu estado inicial.",
+      "reset_title": "Redefinição da Demo",
+      "resets_in": "REINICIA EM {time}"
+    },
+    "share": {
+      "demo_export_disabled": "A exportação de pacotes e arquivos de viagem está desativada no Modo Demo."
+    },
+    "trip_config": {
+      "demo_duplicate_disabled": "A duplicação de viagens está desativada no Modo Demo."
+    }
+  },
+  "ja": {
+    "auth": {
+      "entering_demo": "デモを起動中...",
+      "try_the_demo": "デモを試す"
+    },
+    "demo": {
+      "badge_label": "デモモード",
+      "badge_short": "デモ",
+      "gate_aria": "デモモード: {message}",
+      "hourly_reset_title": "1時間ごとのデモリセット",
+      "locked_account_profile": "アカウントプロフィール、言語、通貨、単位の設定はデモモードではロックされています。デモは常に英語で動作します。",
+      "locked_cartography": "地図のデフォルト設定はデモモードではロックされています。",
+      "locked_document_import": "外部の旅行や搭乗券のインポートはデモモードでは無効です。",
+      "locked_engine_create": "新しい旅行の作成はデモモードでは無効です。進行中の3件の旅行やアーカイブ済みの2件の旅行を自由に探索・編集できます！",
+      "locked_llm": "AI・LLMプロバイダー設定はデモモードではロックされています。",
+      "locked_login_credentials": "事前設定されたサンドボックス認証情報はデモモードではロックされています。",
+      "locked_monitoring_new_route": "新しいルートの監視はデモモードでは無効です。事前設定された3件のフライト＆ホテルルートを確認できます！",
+      "locked_navigation": "ナビゲーションレイアウトのデフォルト設定はデモモードではロックされています。",
+      "locked_notifications": "通知リレーおよびWebhook設定はデモモードではロックされています。",
+      "locked_secrets": "APIシークレットおよび認証情報ストレージはデモモードではロックされています。",
+      "locked_solver": "C++20ソルバーのパラメーターはデモモードではロックされています。",
+      "locked_system": "システムアップデートおよびホストテレメトリ制御はデモモードではロックされています。",
+      "locked_transit": "GTFS交通データベースの管理はデモモードではロックされています。",
+      "locked_trip_agent": "対話型AI旅行エージェントはデモモードでは無効です。",
+      "locked_typography": "タイポグラフィのデフォルト設定はデモモードではロックされています。",
+      "locked_users": "ユーザーおよびロールのプロビジョニングはデモモードではロックされています。",
+      "locked_vault_photo": "データ保管庫のバックアップおよび写真同期設定はデモモードではロックされています。",
+      "reset_now_aria": "今すぐデモサンドボックスをリセット",
+      "reset_sandbox_msg": "デモサンドボックスは初期状態に復元されました。",
+      "reset_title": "デモリセット",
+      "resets_in": "リセットまで {time}"
+    },
+    "share": {
+      "demo_export_disabled": "旅行パッケージおよびファイルのエクスポートはデモモードでは無効です。"
+    },
+    "trip_config": {
+      "demo_duplicate_disabled": "旅行の複製はデモモードでは無効です。"
+    }
+  },
+  "zh-CN": {
+    "auth": {
+      "entering_demo": "正在进入演示...",
+      "try_the_demo": "体验演示"
+    },
+    "demo": {
+      "badge_label": "演示模式",
+      "badge_short": "演示",
+      "gate_aria": "演示模式：{message}",
+      "hourly_reset_title": "每小时演示重置",
+      "locked_account_profile": "演示模式下已锁定账户资料、语言、货币和单位设置。演示环境始终以英语运行。",
+      "locked_cartography": "演示模式下已锁定地图默认设置。",
+      "locked_document_import": "演示模式下已禁用外部行程与登机牌导入功能。",
+      "locked_engine_create": "演示模式下已禁用创建新行程。欢迎探索和编辑 3 个进行中的行程或 2 个归档行程！",
+      "locked_llm": "演示模式下已锁定 AI 与 LLM 提供商配置。",
+      "locked_login_credentials": "演示模式下已锁定预配置的沙盒凭据。",
+      "locked_monitoring_new_route": "演示模式下已禁用监控新航线。欢迎查看 3 条预配置的机票与酒店航线！",
+      "locked_navigation": "演示模式下已锁定导航布局默认设置。",
+      "locked_notifications": "演示模式下已锁定通知中继与 Webhook 设置。",
+      "locked_secrets": "演示模式下已锁定 API 密钥与凭据存储。",
+      "locked_solver": "演示模式下已锁定 C++20 求解器参数。",
+      "locked_system": "演示模式下已锁定系统更新与主机遥测控制。",
+      "locked_transit": "演示模式下已锁定 GTFS 公共交通数据库管理。",
+      "locked_trip_agent": "演示模式下已禁用交互式 AI 旅行助手。",
+      "locked_typography": "演示模式下已锁定字体排版默认设置。",
+      "locked_users": "演示模式下已锁定用户与角色配置。",
+      "locked_vault_photo": "演示模式下已锁定数据保险库备份与照片同步设置。",
+      "reset_now_aria": "立即重置演示沙盒",
+      "reset_sandbox_msg": "演示沙盒已恢复至初始状态。",
+      "reset_title": "演示重置",
+      "resets_in": "{time} 后重置"
+    },
+    "share": {
+      "demo_export_disabled": "演示模式下已禁用导出行程包和文件。"
+    },
+    "trip_config": {
+      "demo_duplicate_disabled": "演示模式下已禁用复制行程。"
+    }
+  },
+  "ko": {
+    "auth": {
+      "entering_demo": "데모 시작 중...",
+      "try_the_demo": "데모 체험하기"
+    },
+    "demo": {
+      "badge_label": "데모 모드",
+      "badge_short": "데모",
+      "gate_aria": "데모 모드: {message}",
+      "hourly_reset_title": "매시간 데모 초기화",
+      "locked_account_profile": "데모 모드에서는 계정 프로필, 언어, 통화 및 단위 설정이 잠겨 있습니다. 데모는 항상 영어로 실행됩니다.",
+      "locked_cartography": "데모 모드에서는 지도 기본 설정이 잠겨 있습니다.",
+      "locked_document_import": "데모 모드에서는 외부 여행 및 탑승권 가져오기가 비활성화되어 있습니다.",
+      "locked_engine_create": "데모 모드에서는 새 여행 만들기가 비활성화되어 있습니다. 진행 중인 여행 3개와 보관된 여행 2개를 자유롭게 탐색하고 편집해 보세요!",
+      "locked_llm": "데모 모드에서는 AI 및 LLM 공급자 구성이 잠겨 있습니다.",
+      "locked_login_credentials": "데모 모드에서는 미리 구성된 샌드박스 자격 증명이 잠겨 있습니다.",
+      "locked_monitoring_new_route": "데모 모드에서는 새 경로 모니터링이 비활성화되어 있습니다. 미리 구성된 항공 및 호텔 경로 3개를 확인해 보세요!",
+      "locked_navigation": "데모 모드에서는 탐색 레이아웃 기본 설정이 잠겨 있습니다.",
+      "locked_notifications": "데모 모드에서는 알림 릴레이 및 웹훅 설정이 잠겨 있습니다.",
+      "locked_secrets": "데모 모드에서는 API 시크릿 및 자격 증명 저장소가 잠겨 있습니다.",
+      "locked_solver": "데모 모드에서는 C++20 솔버 매개변수가 잠겨 있습니다.",
+      "locked_system": "데모 모드에서는 시스템 업데이트 및 호스트 텔레메트리 제어가 잠겨 있습니다.",
+      "locked_transit": "데모 모드에서는 GTFS 대중교통 데이터베이스 관리가 잠겨 있습니다.",
+      "locked_trip_agent": "데모 모드에서는 대화형 AI 여행 에이전트가 비활성화되어 있습니다.",
+      "locked_typography": "데모 모드에서는 타이포그래피 기본 설정이 잠겨 있습니다.",
+      "locked_users": "데모 모드에서는 사용자 및 역할 프로비저닝이 잠겨 있습니다.",
+      "locked_vault_photo": "데모 모드에서는 데이터 보관소 백업 및 사진 동기화 설정이 잠겨 있습니다.",
+      "reset_now_aria": "지금 데모 샌드박스 초기화",
+      "reset_sandbox_msg": "데모 샌드박스가 초기 상태로 복원되었습니다.",
+      "reset_title": "데모 초기화",
+      "resets_in": "{time} 후 초기화"
+    },
+    "share": {
+      "demo_export_disabled": "데모 모드에서는 여행 패키지 및 파일 내보내기가 비활성화되어 있습니다."
+    },
+    "trip_config": {
+      "demo_duplicate_disabled": "데모 모드에서는 여행 복제가 비활성화되어 있습니다."
+    }
+  },
+  "ar": {
+    "auth": {
+      "entering_demo": "جارٍ الدخول إلى العرض التجريبي...",
+      "try_the_demo": "جرّب العرض التجريبي"
+    },
+    "demo": {
+      "badge_label": "وضع العرض التجريبي",
+      "badge_short": "تجريبي",
+      "gate_aria": "وضع العرض التجريبي: {message}",
+      "hourly_reset_title": "إعادة التعيين الساعية للعرض التجريبي",
+      "locked_account_profile": "إعدادات الملف الشخصي واللغة والعملة والوحدات مقفلة في وضع العرض التجريبي. يعمل العرض التجريبي دائمًا باللغة الإنجليزية.",
+      "locked_cartography": "الإعدادات الافتراضية للخرائط مقفلة في وضع العرض التجريبي.",
+      "locked_document_import": "استيراد الرحلات الخارجية وبطاقات الصعود معطّل في وضع العرض التجريبي.",
+      "locked_engine_create": "إنشاء رحلات جديدة معطّل في وضع العرض التجريبي. استكشف وعدّل الرحلات الثلاث النشطة أو الرحلتين المؤرشفتين!",
+      "locked_llm": "إعداد مزوّدي الذكاء الاصطناعي والنماذج اللغوية مقفل في وضع العرض التجريبي.",
+      "locked_login_credentials": "بيانات الاعتماد المُعدّة مسبقًا لبيئة التجربة مقفلة في وضع العرض التجريبي.",
+      "locked_monitoring_new_route": "مراقبة المسارات الجديدة معطّلة في وضع العرض التجريبي. استعرض مسارات الطيران والفنادق الثلاثة المُعدّة مسبقًا!",
+      "locked_navigation": "الإعدادات الافتراضية لتخطيط التنقل مقفلة في وضع العرض التجريبي.",
+      "locked_notifications": "مرحّلات الإشعارات وإعدادات Webhook مقفلة في وضع العرض التجريبي.",
+      "locked_secrets": "أسرار واجهة برمجة التطبيقات وتخزين بيانات الاعتماد مقفلة في وضع العرض التجريبي.",
+      "locked_solver": "معاملات مُحسِّن C++20 مقفلة في وضع العرض التجريبي.",
+      "locked_system": "تحديثات النظام وعناصر التحكم في قياس المضيف مقفلة في وضع العرض التجريبي.",
+      "locked_transit": "إدارة قاعدة بيانات النقل العام GTFS مقفلة في وضع العرض التجريبي.",
+      "locked_trip_agent": "وكيل السفر التفاعلي بالذكاء الاصطناعي معطّل في وضع العرض التجريبي.",
+      "locked_typography": "الإعدادات الافتراضية للطباعة والخطوط مقفلة في وضع العرض التجريبي.",
+      "locked_users": "إدارة المستخدمين والأدوار مقفلة في وضع العرض التجريبي.",
+      "locked_vault_photo": "النسخ الاحتياطي لخزنة البيانات وإعدادات مزامنة الصور مقفلة في وضع العرض التجريبي.",
+      "reset_now_aria": "إعادة تعيين بيئة العرض التجريبي الآن",
+      "reset_sandbox_msg": "تمت استعادة بيئة العرض التجريبي إلى حالتها الأولية.",
+      "reset_title": "إعادة تعيين العرض التجريبي",
+      "resets_in": "إعادة التعيين خلال {time}"
+    },
+    "share": {
+      "demo_export_disabled": "تصدير حزم الرحلات والملفات معطّل في وضع العرض التجريبي."
+    },
+    "trip_config": {
+      "demo_duplicate_disabled": "تكرار الرحلات معطّل في وضع العرض التجريبي."
+    }
+  }
+}

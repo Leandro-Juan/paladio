@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
 import { useTranslation } from '@/hooks/useTranslation';
 import { CloseIcon } from '@/components/icons';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 import {
   downloadTripPackage,
   downloadItineraryJson,
@@ -246,6 +247,11 @@ export function TripShareModal({
         </div>
 
         {/* Section: General Access & Export Formats */}
+        <DemoFeatureGate
+          message={t('share.demo_export_disabled')}
+          compact
+          borderRadius="14px"
+        >
         <div style={{ marginBottom: '16px' }}>
           <div
             style={{
@@ -785,6 +791,7 @@ export function TripShareModal({
             </div>
           </div>
         </div>
+        </DemoFeatureGate>
 
         {/* Bottom Bar: Link input & Copy link button matching reference image */}
         <div

@@ -11,6 +11,7 @@ import { ParticipantsManager, SelectedParticipant } from '@/components/trip-crea
 import { PaladioSingleDatePicker } from '@/components/trip-creation/PaladioSingleDatePicker';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 import styles from './NewRouteModal.module.css';
 
 interface NewRouteModalProps {
@@ -235,6 +236,10 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
           </button>
         </div>
 
+        <DemoFeatureGate
+          message={t('demo.locked_monitoring_new_route')}
+          borderRadius="14px"
+        >
         <form onSubmit={handleSubmit} noValidate className={styles.form}>
           {error && (
             <div className={styles.errorMessage} role="alert" aria-live="assertive">
@@ -641,6 +646,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
             )}
           </div>
         </form>
+        </DemoFeatureGate>
 
         {/* Currency Wheel Picker Modal from Trip Workspace */}
         <CurrencyWheelPicker

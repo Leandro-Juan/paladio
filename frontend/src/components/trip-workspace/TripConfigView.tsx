@@ -22,6 +22,7 @@ import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
 import { CalendarIcon, PaperclipIcon, SettingsIcon } from '@/components/icons';
 import { TripActivityTimeline } from '@/components/trip-workspace/TripActivityTimeline';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 interface TripConfigViewProps {
   trip: Trip;
@@ -1379,34 +1380,40 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
 
         <div style={{ height: '1px', background: 'var(--color-border-subtle)' }} />
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
-              {t('trip_config.duplicate_title')}
-            </h4>
-            <p className="font-mono text-muted text-xs" style={{ margin: '4px 0 0' }}>
-              {t('trip_config.duplicate_desc')}
-            </p>
+        <DemoFeatureGate
+          message={t('trip_config.demo_duplicate_disabled')}
+          compact
+          borderRadius="10px"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', padding: '10px 6px' }}>
+            <div>
+              <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
+                {t('trip_config.duplicate_title')}
+              </h4>
+              <p className="font-mono text-muted text-xs" style={{ margin: '4px 0 0' }}>
+                {t('trip_config.duplicate_desc')}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={true}
+              onClick={handleDuplicateTrip}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border-subtle)',
+                background: 'var(--color-bg-main)',
+                color: 'var(--color-text-primary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'not-allowed',
+              }}
+            >
+              {t('trip_config.duplicate_btn')}
+            </button>
           </div>
-          <button
-            type="button"
-            disabled={isDuplicatingTrip}
-            onClick={handleDuplicateTrip}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: '1px solid var(--color-border-subtle)',
-              background: 'var(--color-bg-main)',
-              color: 'var(--color-text-primary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: isDuplicatingTrip ? 'wait' : 'pointer',
-            }}
-          >
-            {isDuplicatingTrip ? t('trip_config.duplicating_btn') : t('trip_config.duplicate_btn')}
-          </button>
-        </div>
+        </DemoFeatureGate>
       </section>
 
       {/* Section 8: Danger Zone */}

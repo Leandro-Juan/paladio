@@ -13,6 +13,7 @@ import { SettingsHeader } from '../SettingsHeader';
 import { SettingsCardFrame } from '../SettingsCardFrame';
 import { TransitSection } from './TransitSection';
 import { notify } from '@/utils/notify';
+import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 interface EngineSectionProps {
   onBackToOverview: () => void;
@@ -147,6 +148,7 @@ export function EngineSection({
 
       {/* 1. Solver Constraints & Pacing Card */}
       {subTab === 'solver' && (
+        <DemoFeatureGate message={t('demo.locked_solver')} borderRadius="14px">
         <SettingsCardFrame
           title={t('config.solver_card_title')}
           subtitle={t('config.solver_card_subtitle')}
@@ -331,6 +333,7 @@ export function EngineSection({
             </div>
           </div>
         </SettingsCardFrame>
+        </DemoFeatureGate>
       )}
     </div>
   );

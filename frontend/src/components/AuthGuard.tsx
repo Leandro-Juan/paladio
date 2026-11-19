@@ -11,6 +11,7 @@ import { AppSidebar } from './AppSidebar';
 import { FloatingDock } from './FloatingDock';
 import { NotificationBell } from './NotificationBell';
 import { PaladioLoader } from './common/PaladioLoader';
+import { DemoResetTimer } from './common/DemoResetTimer';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, setupRequired, isLoading, reconnectAttempts } = useAuth();
@@ -78,6 +79,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (isStandalonePage) {
     return (
       <main className="trip-details-layout" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        <DemoResetTimer />
         {children}
       </main>
     );
@@ -85,6 +87,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="layout-container">
+      <DemoResetTimer />
       {/* Mobile Top App Bar (visible on <= 768px via CSS) */}
       <header className="mobile-app-header" aria-label={t('nav.mobile_nav_bar')}>
         <button
