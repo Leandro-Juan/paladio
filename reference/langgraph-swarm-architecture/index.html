@@ -1713,10 +1713,10 @@
 <h2 id="3-node-specifications">3. Node Specifications<a class="headerlink" href="#3-node-specifications" title="Permanent link">&para;</a></h2>
 <h3 id="31-ticket_parser_node-backendappswarmagentsticket_parserpy">3.1. <code>ticket_parser_node</code> (<code>backend/app/swarm/agents/ticket_parser.py</code>)<a class="headerlink" href="#31-ticket_parser_node-backendappswarmagentsticket_parserpy" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Agent Type:</strong> Pydantic AI <code>Agent</code> backed by local quantized Ollama model (<code>qwen2.5</code>).</li>
+<li><strong>Node Type:</strong> Pure deterministic booking parser (<code>parse_booking_text</code> using IATA lookup, regex, and <code>dateparser</code> with zero LLM calls).</li>
 <li><strong>Input:</strong> <code>state["booking_text"]</code>.</li>
 <li><strong>Output:</strong> Mutates <code>state["booking_anchors"]</code> with a typed <code>BookingAnchors</code> instance.</li>
-<li><strong>Error Boundary:</strong> Retries up to 3 times on schema failure. Strips dummy placeholder codes (e.g. <code>'XXX'</code>).</li>
+<li><strong>Error Boundary:</strong> Fails fast with <code>BookingParseError</code> (<code>status_code = 422</code>) listing missing fields if non-empty <code>booking_text</code> cannot be parsed and no prior anchors exist.</li>
 </ul>
 <h3 id="32-assemble_constraints_node-backendappswarmnodesconstraint_builderpy">3.2. <code>assemble_constraints_node</code> (<code>backend/app/swarm/nodes/constraint_builder.py</code>)<a class="headerlink" href="#32-assemble_constraints_node-backendappswarmnodesconstraint_builderpy" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1742,7 +1742,7 @@
 </ul>
 <h3 id="35-prompt_analyzer_node-backendappswarmagentsprompt_analyzerpy">3.5. <code>prompt_analyzer_node</code> (<code>backend/app/swarm/agents/prompt_analyzer.py</code>)<a class="headerlink" href="#35-prompt_analyzer_node-backendappswarmagentsprompt_analyzerpy" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Agent Type:</strong> Pydantic AI <code>Agent</code> running <code>RAGPromptAnalysis</code>.</li>
+<li><strong>Node Type:</strong> Deterministic intent analyzer (<code>PromptIntentExtractor</code> using DB/candidate <code>rapidfuzz</code> POI matching, dynamic cuisine lookup, ONNX 768D <code>CATEGORY_ANCHORS</code> projection, and <code>QueryRewriter.rewrite_query</code>).</li>
 <li><strong>Functionality:</strong> Extracts mandatory POIs (e.g., <em>"El Prado"</em>), preferred cuisines, trip pacing, and 8 standard tag affinities:
   <code>['art_culture', 'history_heritage', 'nature_outdoors', 'architecture', 'food_culinary', 'nightlife', 'shopping', 'scenic_views']</code>.</li>
 <li><strong>Output:</strong> Enriches <code>state["validated_itinerary"]</code> and outputs <code>state["prompt_analysis"]</code>.</li>

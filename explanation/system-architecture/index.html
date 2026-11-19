@@ -1223,10 +1223,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-the-multi-agent-swarm-langgraph" class="md-nav__link">
+  <a href="#3-the-orchestration-graph-langgraph" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. The Multi-Agent Swarm (LangGraph)
+        3. The Orchestration Graph (LangGraph)
       
     </span>
   </a>
@@ -1482,10 +1482,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-the-multi-agent-swarm-langgraph" class="md-nav__link">
+  <a href="#3-the-orchestration-graph-langgraph" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. The Multi-Agent Swarm (LangGraph)
+        3. The Orchestration Graph (LangGraph)
       
     </span>
   </a>
@@ -1567,22 +1567,21 @@
 <h2 id="1-the-sovereign-mandate">1. The Sovereign Mandate<a class="headerlink" href="#1-the-sovereign-mandate" title="Permanent link">&para;</a></h2>
 <p>A core architectural principle of Paladio is that it must be capable of running entirely offline, isolated from the public internet. This "sovereign" mandate was chosen to guarantee privacy, eliminate cloud API subscription costs, and ensure absolute resilience regardless of network availability.</p>
 <p>To achieve this without compromising capability, the entire intelligence stack is localized:
-- <strong>Language Comprehension:</strong> Powered by local quantization via Ollama (e.g., <code>llama3.1</code>), avoiding external API round-trips.
-- <strong>Semantic Search:</strong> Achieved using <code>pgvector</code> alongside local embeddings (<code>nomic-embed-text</code>).
+- <strong>Language Comprehension:</strong> Deterministic NLP extractors (<code>PromptIntentExtractor</code>, <code>parse_booking_text</code>, JSON-LD/regex scrapers) handle trip generation with zero LLM calls, while optional user-configured LLMs (<code>LLMService</code>) power only the interactive chat agent (<code>TripAgentRunner</code>).
+- <strong>Semantic Search:</strong> Achieved using <code>pgvector</code> alongside in-process CPU ONNX embeddings (<code>fastembed</code> <code>nomic-ai/nomic-embed-text-v1.5-Q</code>).
 - <strong>Geospatial Routing:</strong> Handled by an offline Valhalla instance packed with OpenStreetMap data, calculating transit matrices without pinging Google Maps or Mapbox.</p>
 <h2 id="2-the-semantic-gateway-websockets">2. The Semantic Gateway (WebSockets)<a class="headerlink" href="#2-the-semantic-gateway-websockets" title="Permanent link">&para;</a></h2>
 <p>Traditional web applications rely on stateless HTTP requests (REST/GraphQL). However, the Paladio inference pipeline requires chaining LLM generation, database retrieval, constraint validation, and complex C++ mathematical optimization. This process is highly variable in time and computationally expensive.</p>
 <p>If Paladio relied on standard HTTP requests, the connection would frequently timeout before the itinerary could be calculated. </p>
 <p>To solve this, the API layer is designed as a <strong>Semantic Gateway</strong> using WebSockets. When a user submits a natural language request, the gateway holds a persistent, bi-directional connection open. As the internal system works, it streams granular state events (<code>ROUTING_INTENT</code>, <code>EXTRACTING_CONSTRAINTS</code>, <code>EVALUATING_ROUTES</code>) back to the client. This architectural choice dramatically improves the perceived performance of the system by providing immediate and continuous feedback, even when the underlying math takes several seconds to converge.</p>
-<h2 id="3-the-multi-agent-swarm-langgraph">3. The Multi-Agent Swarm (LangGraph)<a class="headerlink" href="#3-the-multi-agent-swarm-langgraph" title="Permanent link">&para;</a></h2>
-<p>Instead of relying on a single, monolithic LLM prompt to solve the entire problem—a strategy prone to hallucinations and failure—Paladio orchestrates multiple specialized AI agents using a directed state graph (<strong>LangGraph</strong>).</p>
-<p>Why a cyclic state graph instead of a linear chain?
-- <strong>Cyclic Retries:</strong> LLMs frequently fail to adhere to strict JSON schemas. Because LangGraph supports cycles, if an agent hallucinates invalid JSON, the system can automatically route backward, feeding the error back to the LLM to correct itself.
-- <strong>Human-in-the-loop:</strong> The state graph can be paused mid-execution. If a user asks for a route that exceeds their budget, the graph can pause, emit an event over the WebSocket, and wait for the user to confirm a budget increase before resuming.
-- <strong>Isolated Responsibilities:</strong> The <strong>Router</strong> determines intent, the <strong>RAG Node</strong> fetches context, and the <strong>Validator</strong> parses data. Fencing these responsibilities significantly increases the reliability of smaller, locally hosted models.</p>
+<h2 id="3-the-orchestration-graph-langgraph">3. The Orchestration Graph (LangGraph)<a class="headerlink" href="#3-the-orchestration-graph-langgraph" title="Permanent link">&para;</a></h2>
+<p>Instead of relying on a single monolithic prompt to plan routes, Paladio orchestrates deterministic ingestion, validation, intent extraction, and C++ optimization nodes using a directed state graph (<strong>LangGraph</strong>).</p>
+<p>Why a directed state graph with human-in-the-loop checkpoints?
+- <strong>Human-in-the-loop:</strong> The state graph can be paused mid-execution (<code>verify_constraints</code>, <code>guardrails</code>). If a schedule overlaps or extracted constraints need confirmation, the graph pauses, emits an event over the WebSocket, and waits for user confirmation before resuming.
+- <strong>Isolated Responsibilities:</strong> The <strong>Ticket Parser</strong> handles free-text confirmations deterministically, the <strong>Prompt Analyzer</strong> (<code>PromptIntentExtractor</code>) projects intent into <code>RAGPromptAnalysis</code> + 768-D taste vectors, and the <strong>C++ Core</strong> handles combinatorial optimization.</p>
 <h2 id="4-the-pydantic-guardrail">4. The Pydantic Guardrail<a class="headerlink" href="#4-the-pydantic-guardrail" title="Permanent link">&para;</a></h2>
-<p>The most critical boundary in the Paladio architecture is the bridge between the AI and the C++ engine. The C++ solver expects rigid, typed integers and floats (e.g., <code>budget = 500.0</code>, <code>duration_mins = 120</code>). If the LLM produces unstructured or conflicting data, the C++ engine will crash or produce invalid routes.</p>
-<p>Paladio uses <strong>Pydantic AI</strong> as a non-negotiable guardrail. The Validator agent is forced to map the LLM's natural language understanding into a strict <code>TravelConstraints</code> Pydantic model. The stochastic, creative nature of the AI is securely fenced off from the deterministic math engine. If the data doesn't pass Pydantic validation, it never reaches C++.</p>
+<p>The most critical boundary in the Paladio architecture is the bridge between extracted constraints and the C++ engine. The C++ solver expects rigid, typed integers and floats (e.g., <code>budget = 500.0</code>, <code>duration_mins = 120</code>).</p>
+<p>Paladio enforces <strong>Pydantic</strong> validation (<code>TravelConstraints</code>, <code>RAGPromptAnalysis</code>, <code>BookingAnchors</code>) as a non-negotiable guardrail before any data reaches the deterministic C++ math engine.</p>
 <h2 id="5-reactive-vs-proactive-orchestration">5. Reactive vs. Proactive Orchestration<a class="headerlink" href="#5-reactive-vs-proactive-orchestration" title="Permanent link">&para;</a></h2>
 <p>The system does not just plan trips; it monitors the travel market. The architecture supports two distinct execution paths, dynamically chosen by the Router agent based on user intent:</p>
 <ul>
@@ -1593,7 +1592,7 @@
 <p>While Python is exceptional at orchestrating networks, async websockets, and LLMs, it is notoriously slow for NP-Hard combinatorics. </p>
 <p>Paladio offloads the computationally intensive Time-Constrained Orienteering Problem with Time Windows (TCOPTW) to an optimized, compiled C++20 core (<a href="https://github.com/Leandro-Juan/paladio-core"><code>paladio-core</code></a>). By exposing this C++ logic via <code>pybind11</code> and explicitly releasing the Python Global Interpreter Lock (<code>pybind11::gil_scoped_release</code>), the Python Gateway concurrently handles thousands of WebSocket connections while C++ threads execute Branch and Bound DFS and Fractional Knapsack heuristics.</p>
 <h2 id="7-continuous-differentiable-taste-learning">7. Continuous Differentiable Taste Learning<a class="headerlink" href="#7-continuous-differentiable-taste-learning" title="Permanent link">&para;</a></h2>
-<p>Recommendation in Paladio avoids heavy fine-tuning of neural networks. Instead, the system maintains a 768-dimensional continuous vector space mapped by local Ollama embeddings (<code>nomic-embed-text</code>) and stored in PostgreSQL with <code>pgvector</code>.</p>
+<p>Recommendation in Paladio avoids heavy fine-tuning of neural networks. Instead, the system maintains a 768-dimensional continuous vector space mapped in-process via quantized ONNX embeddings (<code>fastembed</code> <code>nomic-ai/nomic-embed-text-v1.5-Q</code>) and stored in PostgreSQL with <code>pgvector</code>.</p>
 <p>On every conversational turn, the user's permanent latent taste vector is updated via an Exponential Moving Average (EMA):</p>
 <div class="arithmatex">\[\mathbf{v}_{\text{new}} = \text{Normalize}\Big((1 - \gamma)\,\mathbf{v}_{\text{hist}} + \gamma\,\mathbf{v}_{\text{prompt}}\Big)\]</div>
 <p>This continuous hypersphere is then harmonically projected onto 8 canonical categories, driving real-time SVG Radar telemetry on the Next.js frontend and feeding calibrated scores into the C++ combinatorial solver.</p>

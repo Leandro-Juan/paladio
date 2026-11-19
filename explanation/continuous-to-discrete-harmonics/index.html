@@ -1531,7 +1531,7 @@
 <h2 id="4-driving-real-time-ui-radar-telemetry">4. Driving Real-Time UI Radar Telemetry<a class="headerlink" href="#4-driving-real-time-ui-radar-telemetry" title="Permanent link">&para;</a></h2>
 <p>The resulting vector <span class="arithmatex">\(\mathbf{a} \in [0, 1]^8\)</span> is transmitted directly over WebSockets to the Next.js frontend:</p>
 <pre class="mermaid"><code>graph LR
-    P[User Prompt] --&gt;|Ollama nomic-embed-text| V[768-D Vector]
+    P[User Prompt] --&gt;|OnnxEmbeddingProvider fastembed| V[768-D Vector]
     V --&gt;|EMA Update| U[Permanent User Vector]
     U --&gt;|Harmonic Projection| A[8-D Vector]
     A --&gt;|WebSocket /ws/stream| R[SVG PreferenceRadar Component]</code></pre>

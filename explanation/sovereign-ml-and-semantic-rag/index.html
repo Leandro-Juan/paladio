@@ -1522,7 +1522,7 @@
 <hr />
 <h2 id="2-the-local-768-d-semantic-hypersphere">2. The Local 768-D Semantic Hypersphere<a class="headerlink" href="#2-the-local-768-d-semantic-hypersphere" title="Permanent link">&para;</a></h2>
 <p>Paladio standardizes on local dense vector representations:
-- <strong>Embedding Model:</strong> <code>nomic-embed-text</code> (768 dimensions), quantized and executed locally via Ollama.
+- <strong>Embedding Model:</strong> <code>nomic-ai/nomic-embed-text-v1.5-Q</code> (768 dimensions), quantized and executed in-process on CPU via <code>fastembed</code> (ONNX Runtime).
 - <strong>Vector Database:</strong> PostgreSQL 16 equipped with <code>pgvector</code>, utilizing HNSW (Hierarchical Navigable Small World) indexing for sub-millisecond approximate nearest neighbor searches.</p>
 <h3 id="why-768-dimensions">Why 768 Dimensions?<a class="headerlink" href="#why-768-dimensions" title="Permanent link">&para;</a></h3>
 <p>768-dimensional embeddings strike the optimal balance for consumer hardware:
@@ -1532,8 +1532,7 @@
 <h2 id="3-pure-numpy-deterministic-scorer-vs-heavy-frameworks">3. Pure NumPy &amp; Deterministic Scorer vs. Heavy Frameworks<a class="headerlink" href="#3-pure-numpy-deterministic-scorer-vs-heavy-frameworks" title="Permanent link">&para;</a></h2>
 <p>Early prototypes explored training lightweight Multi-Layer Perceptrons (MLPs) using PyTorch or JAX to calculate POI scores. However, introducing PyTorch to the backend:
 - Bloated Docker image sizes by over 2.5 GB.
-- Introduced non-deterministic GPU memory spikes that competed with local Ollama inference.
-- Created cold-start latency during worker initialization.</p>
+- Created cold-start latency and high memory pressure during worker initialization.</p>
 <p>Paladio replaced the neural network with <strong><code>HybridSovereignScorer</code></strong>, implemented entirely in <strong>pure NumPy</strong>:
 - <strong>Bayesian Rating Smoothing:</strong> Eliminates rating bias on venues with few reviews.
 - <strong>Multi-Attribute Utility:</strong> Linearly combines quality, affinity dot products, pacing penalties, and budget fit.

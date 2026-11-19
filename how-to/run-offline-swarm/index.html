@@ -1578,7 +1578,7 @@
 <p>By the end of this guide, you will have a fully functional, 100% offline travel optimization engine running on your machine.</p>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <p>Before starting, ensure you have the following installed:
-- <strong>Docker &amp; Docker Compose</strong>: Required for running the Valhalla, PostgreSQL, Ollama, and Redis containers.
+- <strong>Docker &amp; Docker Compose</strong>: Required for running the Valhalla, PostgreSQL, and Redis containers.
 - <strong>Python 3.10+</strong>: Required for running the FastAPI backend.
 - <strong>CMake &amp; a C++20 Compiler</strong> (Optional, but recommended): Required if you need to recompile the <code>paladio_core</code> Python bindings.</p>
 <hr />
@@ -1594,7 +1594,7 @@
 <li>Verify that the services are running:
    <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>docker-compose<span class="w"> </span>ps
 </span></code></pre></div>
-   You should see <code>db</code>, <code>redis</code>, <code>valhalla</code>, and <code>llm</code> (Ollama) running. The <code>init-llm</code> service will run once and exit gracefully after pulling the <code>llama3.1</code> and <code>nomic-embed-text</code> models.</li>
+   You should see <code>db</code>, <code>redis</code>, <code>valhalla</code>, <code>api</code>, <code>worker</code>, and <code>beat</code> running (embeddings run in-process inside the backend image with no external LLM container required).</li>
 </ol>
 <hr />
 <h2 id="2-seed-the-local-database">2. Seed the Local Database<a class="headerlink" href="#2-seed-the-local-database" title="Permanent link">&para;</a></h2>
@@ -1607,7 +1607,7 @@
 <li>Run the seed script:
    <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python<span class="w"> </span>scripts/seed_pois.py
 </span></code></pre></div>
-   You should see output indicating a successful connection to Postgres, Ollama, and the successful insertion of 17 Madrid POIs into the <code>madrid_pois</code> collection.</li>
+   You should see output indicating a successful connection to Postgres and the insertion/hydration of seeded POIs with in-process ONNX embeddings.</li>
 </ol>
 <hr />
 <h2 id="3-run-the-fastapi-backend">3. Run the FastAPI Backend<a class="headerlink" href="#3-run-the-fastapi-backend" title="Permanent link">&para;</a></h2>

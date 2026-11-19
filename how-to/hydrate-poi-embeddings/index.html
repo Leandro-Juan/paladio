@@ -1530,13 +1530,13 @@
 
 
 <h1 id="how-to-hydrate-poi-vector-embeddings-with-cli">How-To: Hydrate POI Vector Embeddings with CLI<a class="headerlink" href="#how-to-hydrate-poi-vector-embeddings-with-cli" title="Permanent link">&para;</a></h1>
-<p>Paladio stores attractions in PostgreSQL with <strong>768-dimensional dense semantic embeddings</strong> managed by <code>pgvector</code>. When new cities or OpenStreetMap venues are ingested, their vector representations must be generated locally via Ollama.</p>
+<p>Paladio stores attractions in PostgreSQL with <strong>768-dimensional dense semantic embeddings</strong> managed by <code>pgvector</code>. When new cities or OpenStreetMap venues are ingested, their vector representations are generated deterministically in-process via CPU ONNX (<code>OnnxEmbeddingProvider</code> / <code>fastembed</code> <code>nomic-ai/nomic-embed-text-v1.5-Q</code>).</p>
 <p>This guide explains how to run the automated batch hydration CLI tool.</p>
 <hr />
 <h2 id="1-prerequisites">1. Prerequisites<a class="headerlink" href="#1-prerequisites" title="Permanent link">&para;</a></h2>
-<p>Ensure your local Ollama service is active and has pulled the default embedding model:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Pull the 768-D embedding model inside the Ollama container or local host</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>ollama<span class="w"> </span>pull<span class="w"> </span>nomic-embed-text
+<p>Ensure the quantized ONNX embedding model cache is available (pre-baked at <code>/opt/models/fastembed</code> in the Docker image, or downloaded automatically on first local run when <code>FASTEMBED_CACHE_PATH</code> is writable):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Pre-warm or verify the 768-D quantized ONNX model locally</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"from fastembed import TextEmbedding; TextEmbedding(model_name='nomic-ai/nomic-embed-text-v1.5-Q')"</span>
 </span></code></pre></div>
 <hr />
 <h2 id="2-running-the-batch-hydration-cli">2. Running the Batch Hydration CLI<a class="headerlink" href="#2-running-the-batch-hydration-cli" title="Permanent link">&para;</a></h2>
@@ -1557,14 +1557,14 @@
 </span></code></pre></div>
 <hr />
 <h2 id="3-what-the-hydration-pipeline-does">3. What the Hydration Pipeline Does<a class="headerlink" href="#3-what-the-hydration-pipeline-does" title="Permanent link">&para;</a></h2>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Attraction Model (SQL) ──&gt; PoiNaturalLanguageSynthesizer ──&gt; Ollama nomic-embed-text ──&gt; pgvector Update
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Attraction Model (SQL) ──&gt; PoiNaturalLanguageSynthesizer ──&gt; OnnxEmbeddingProvider (nomic-ai/nomic-embed-text-v1.5-Q) ──&gt; pgvector Update
 </span></code></pre></div>
 <ol>
 <li><strong>Natural Language Synthesis:</strong> Converts disparate database columns (name, category, opening hours, estimated cost, OSM tags) into a rich descriptive paragraph:<blockquote>
 <p><em>"Museo Nacional del Prado is a world-class art museum located in Madrid. Open from 10:00 to 20:00. General admission is €15.00. Key highlights include masterpieces by Velázquez, Goya, and El Greco. Recommended duration is 150 minutes."</em></p>
 </blockquote>
 </li>
-<li><strong>Batch Embedding:</strong> Dispatches chunks of 24 syntheses to Ollama concurrently, maximizing CPU/GPU throughput.</li>
+<li><strong>Batch Embedding:</strong> Encodes batches of syntheses in-process via <code>OnnxEmbeddingProvider</code> using quantized ONNX Runtime on CPU.</li>
 <li><strong>Database Upsert:</strong> Writes the resulting 768-D float arrays directly to <code>attractions.embedding</code> using <code>SqlPoiRepository.update_poi_embeddings()</code>.</li>
 </ol>
 <hr />

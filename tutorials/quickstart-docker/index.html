@@ -1562,7 +1562,7 @@
 <p>The default <code>.env</code> is pre-configured to communicate seamlessly across the Docker network:
 - <code>POSTGRES_HOST=postgres</code>
 - <code>REDIS_URL=redis://redis:6379/0</code>
-- <code>OLLAMA_BASE_URL=http://ollama:11434/v1</code></p>
+- <code>FASTEMBED_CACHE_PATH=/opt/models/fastembed</code></p>
 <hr />
 <h2 id="4-spin-up-the-stack">4. Spin Up the Stack<a class="headerlink" href="#4-spin-up-the-stack" title="Permanent link">&para;</a></h2>
 <p>Launch the container cluster in detached mode:</p>
@@ -1571,9 +1571,8 @@
 <p>Docker will start the following coordinated services:
 1. <strong><code>postgres</code>:</strong> PostgreSQL 16 with <code>pgvector</code> and <code>TimescaleDB</code> extensions.
 2. <strong><code>redis</code>:</strong> Redis 7 for task queuing, caching, and LangGraph checkpointer persistence.
-3. <strong><code>ollama</code>:</strong> Local LLM runtime hosting quantized models (<code>qwen2.5</code> / <code>llama3.1</code>).
-4. <strong><code>backend</code>:</strong> FastAPI Semantic Gateway and Celery worker threads.
-5. <strong><code>frontend</code>:</strong> Next.js 15 web client with interactive maps and telemetry.</p>
+3. <strong><code>backend</code>:</strong> FastAPI Semantic Gateway, Celery worker threads, and in-process CPU ONNX embeddings (<code>fastembed</code> <code>nomic-ai/nomic-embed-text-v1.5-Q</code> baked into the image).
+4. <strong><code>frontend</code>:</strong> Next.js web client with interactive maps and telemetry.</p>
 <p>Verify that all containers are healthy:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>ps
 </span></code></pre></div>
