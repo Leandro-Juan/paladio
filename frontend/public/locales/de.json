@@ -1114,7 +1114,11 @@
     "webhook_url_label": "HTTP-POST Webhook-URL",
     "webhook_url_placeholder": "https://discord.com/api/webhooks/... oder https://hooks.slack.com/services/...",
     "wheel_subtitle": "Ziehen, scrollen oder suchen zum Drehen des Rads",
-    "zero_pois_label": "0 POIs"
+    "zero_pois_label": "0 POIs",
+    "checking_upper": "PRÜFUNG...",
+    "check_for_updates_upper": "NACH UPDATES SUCHEN",
+    "sync_planned_trips_upper": "MIT GEPLANTEN REISEN SYNCHRONISIEREN",
+    "provision_new_user_btn": "NEUEN BENUTZER ANLEGEN"
   },
   "config_data": {
     "cat_engine_subtitle": "Kombinatorische C++20-Solver-Grenzen, kompilierte GTFS-Fahrpläne und Deal-Scraper konfigurieren",
@@ -3012,7 +3016,7 @@
     "close_photo_preview": "Fotovorschau schließen",
     "closed": "Geschlossen",
     "closed_all_day": "Ganztägig geschlossen",
-    "closed_on_day": "GEÖFFNET AN TAG {day}",
+    "closed_on_day": "GESCHLOSSEN AN TAG {day}",
     "conf_prefix": "BEST.: {ref}",
     "day_friday": "Freitag",
     "day_monday": "Montag",

@@ -1114,7 +1114,11 @@
     "webhook_url_label": "HTTP POST Webhook URL",
     "webhook_url_placeholder": "https://discord.com/api/webhooks/... or https://hooks.slack.com/services/...",
     "wheel_subtitle": "Drag, scroll, or search to spin wheel",
-    "zero_pois_label": "0 POIs"
+    "zero_pois_label": "0 POIs",
+    "checking_upper": "CHECKING...",
+    "check_for_updates_upper": "CHECK FOR UPDATES",
+    "sync_planned_trips_upper": "SYNC WITH PLANNED TRIPS",
+    "provision_new_user_btn": "PROVISION NEW USER"
   },
   "config_data": {
     "cat_engine_subtitle": "Configure C++20 combinatorial solver constraints, compiled GTFS transit schedules, and deal scrapers",
@@ -3701,7 +3705,7 @@
     "loading_nearby_stations": "Loading nearby stations...",
     "loading_network_lines": "Loading network lines...",
     "min_upper": "{count} MIN",
-    "mins_upper": "{count} MIN",
+    "mins_upper": "{count} MINS",
     "mode_bus": "Bus",
     "mode_metro": "Metro",
     "mode_rail": "Rail",

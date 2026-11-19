@@ -1114,7 +1114,11 @@
     "webhook_url_label": "URL Webhook HTTP POST",
     "webhook_url_placeholder": "https://discord.com/api/webhooks/... ou https://hooks.slack.com/services/...",
     "wheel_subtitle": "Glissez, faites défiler ou recherchez pour tourner la roue",
-    "zero_pois_label": "0 POI"
+    "zero_pois_label": "0 POI",
+    "checking_upper": "VÉRIFICATION...",
+    "check_for_updates_upper": "VÉRIFIER LES MISES À JOUR",
+    "sync_planned_trips_upper": "SYNCHRONISER AVEC LES VOYAGES PLANIFIÉS",
+    "provision_new_user_btn": "CRÉER UN NOUVEL UTILISATEUR"
   },
   "config_data": {
     "cat_engine_subtitle": "Configurez les contraintes du solveur combinatoire C++20, les horaires de transit GTFS compilés et les collecteurs d'offres",

@@ -55,7 +55,10 @@ export function RecommendedPoiCard({
     return null;
   }
 
-  const localizedCategoryLabel = t(`dashboard.poi_cat_${categoryMeta.type}`);
+  const localizedCategoryLabel =
+    categoryMeta.type === 'general' && categoryMeta.label !== 'WAYPOINT'
+      ? categoryMeta.label
+      : t(`dashboard.poi_cat_${categoryMeta.type}`);
   const defaultDesc = t('dashboard.poi_default_desc', { city });
   const displayDesc = description && description.trim().length > 0 ? description : defaultDesc;
 

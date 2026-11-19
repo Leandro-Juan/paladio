@@ -1114,7 +1114,11 @@
     "webhook_url_label": "URL de Webhook HTTP POST",
     "webhook_url_placeholder": "https://discord.com/api/webhooks/... o https://hooks.slack.com/services/...",
     "wheel_subtitle": "Arrastra, desplaza o busca para girar la rueda",
-    "zero_pois_label": "0 POIs"
+    "zero_pois_label": "0 POIs",
+    "checking_upper": "COMPROBANDO...",
+    "check_for_updates_upper": "BUSCAR ACTUALIZACIONES",
+    "sync_planned_trips_upper": "SINCRONIZAR CON VIAJES PLANIFICADOS",
+    "provision_new_user_btn": "APROVISIONAR NUEVO USUARIO"
   },
   "config_data": {
     "cat_engine_subtitle": "Configura restricciones del optimizador combinatorio C++20, horarios de tránsito GTFS compilados y rastreadores de ofertas",

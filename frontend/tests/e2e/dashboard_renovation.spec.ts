@@ -116,9 +116,19 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
 
     // Mock upcoming trip with itinerary POIs
     await page.route(/.*\/api(\/v1)?\/trips\/?(\?.*)?$/, async (route) => {
-      if (route.request().method() === 'GET') {
+      if (route.request().method() === 'OPTIONS') {
         await route.fulfill({
           status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': '*',
+            'Access-Control-Allow-Headers': '*',
+          },
+        });
+      } else if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          headers: { 'Access-Control-Allow-Origin': '*' },
           contentType: 'application/json',
           body: JSON.stringify([mockTripSwissAlps]),
         });
@@ -548,9 +558,19 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     ];
 
     await page.route(/.*\/api(\/v1)?\/trips\/?(\?.*)?$/, async (route) => {
-      if (route.request().method() === 'GET') {
+      if (route.request().method() === 'OPTIONS') {
         await route.fulfill({
           status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': '*',
+            'Access-Control-Allow-Headers': '*',
+          },
+        });
+      } else if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          headers: { 'Access-Control-Allow-Origin': '*' },
           contentType: 'application/json',
           body: JSON.stringify([mockTripSwissAlps]),
         });
@@ -560,27 +580,63 @@ test.describe('Dashboard Renovation 4-Quadrant Operational Cockpit', () => {
     });
 
     await page.route(/.*\/api(\/v1)?\/trips\/saved-collections/, async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(mockCollections),
-      });
+      if (route.request().method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': '*',
+            'Access-Control-Allow-Headers': '*',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          contentType: 'application/json',
+          body: JSON.stringify(mockCollections),
+        });
+      }
     });
 
     await page.route(/.*\/api(\/v1)?\/trips\/trip-swiss-alps(\?.*)?$/, async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(mockTripSwissAlps),
-      });
+      if (route.request().method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': '*',
+            'Access-Control-Allow-Headers': '*',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          contentType: 'application/json',
+          body: JSON.stringify(mockTripSwissAlps),
+        });
+      }
     });
 
     await page.route(/.*\/api(\/v1)?\/trips\/trip-swiss-alps\/collections/, async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(mockCollections),
-      });
+      if (route.request().method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': '*',
+            'Access-Control-Allow-Headers': '*',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          contentType: 'application/json',
+          body: JSON.stringify(mockCollections),
+        });
+      }
     });
 
     await page.route(/.*\/api(\/v1)?\/market\/.*/, async (route) => {
