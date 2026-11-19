@@ -9,6 +9,7 @@ import { getTripDayDate } from '@/utils/date';
 import { getTransitLineTheme, ActiveTransitLineData, registerTransitLineColor, getRegisteredTransitLineColor } from '@/utils/transitColors';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 import { useDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
 import {
   IzakayaLanternIllustration,
@@ -68,7 +69,7 @@ import { useTripTickets } from '@/hooks/useTripTickets';
 import { formatTicketDateTime, formatTicketTime } from '@/lib/wallet/format';
 import { SaveToCollectionMenu } from '@/components/trip-workspace/SaveToCollectionMenu';
 import { CategoryIcon } from '@/components/PoiCategoryBadge';
-import { classifyPoiCategory, isHotelPoi, isAirportPoi } from '@/utils/poiCategory';
+import { classifyPoiCategory, getPoiCategoryLabel, isHotelPoi, isAirportPoi } from '@/utils/poiCategory';
 import { buildStopNavLinks } from '@/utils/navigationLinks';
 import { downloadPoiGpx } from '@/utils/exportTrip';
 
@@ -160,7 +161,7 @@ function formatDepartureSeconds(seconds: number): string {
   const isNextDay = h >= 24;
   const displayH = String(h % 24).padStart(2, '0');
   const displayM = String(m).padStart(2, '0');
-  return `${displayH}:${displayM}${isNextDay ? ' (+1)' : ''}`;
+  return `${displayH}:${displayM}${isNextDay ? translate('poi_detail.next_day_suffix') : ''}`;
 }
 
 const TRANSIT_CATEGORIES = new Set([
@@ -186,8 +187,12 @@ export function isTransitPoi(p?: Partial<PoiDetail> | null): boolean {
   return false;
 }
 
-export function getTransitStationLabel(p?: Partial<PoiDetail> | null): string | null {
+export function getTransitStationLabel(
+  p?: Partial<PoiDetail> | null,
+  tFn?: (key: string) => string
+): string | null {
   if (!p || !isTransitPoi(p)) return null;
+  const tr = tFn || translate;
 
   const cat = (p.category || '').toLowerCase().trim();
   const type = (p.transit_info?.type || '').toLowerCase().trim();
@@ -201,7 +206,7 @@ export function getTransitStationLabel(p?: Partial<PoiDetail> | null): string | 
     stationType.includes('train') ||
     stationType.includes('rail')
   ) {
-    return 'Train Station';
+    return tr('poi_detail.station_train');
   }
   if (
     cat === 'metro' ||
@@ -212,14 +217,14 @@ export function getTransitStationLabel(p?: Partial<PoiDetail> | null): string | 
     stationType.includes('subway') ||
     stationType.includes('underground')
   ) {
-    return 'Metro Station';
+    return tr('poi_detail.station_metro');
   }
   if (
     cat === 'tram' ||
     type === 'tram' ||
     stationType.includes('tram')
   ) {
-    return 'Tram Stop';
+    return tr('poi_detail.station_tram');
   }
   if (
     cat === 'bus_stop' ||
@@ -228,15 +233,15 @@ export function getTransitStationLabel(p?: Partial<PoiDetail> | null): string | 
     type === 'bus_stop' ||
     stationType.includes('bus')
   ) {
-    return 'Bus Stop';
+    return tr('poi_detail.station_bus');
   }
   if (cat === 'ferry' || type === 'ferry' || stationType.includes('ferry')) {
-    return 'Ferry Terminal';
+    return tr('poi_detail.station_ferry');
   }
   if (stationType.includes('station') || cat.includes('station')) {
-    return 'Transit Station';
+    return tr('poi_detail.station_transit');
   }
-  return 'Transit Stop';
+  return tr('poi_detail.station_stop');
 }
 
 export interface InspectPoiFallback extends Partial<PoiDetail> {
@@ -279,7 +284,15 @@ interface PoiDetailViewProps {
   onPoiLoaded?: (poi: PoiDetail) => void;
 }
 
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_NAME_KEYS = [
+  'poi_detail.day_monday',
+  'poi_detail.day_tuesday',
+  'poi_detail.day_wednesday',
+  'poi_detail.day_thursday',
+  'poi_detail.day_friday',
+  'poi_detail.day_saturday',
+  'poi_detail.day_sunday',
+];
 
 /**
  * Defensive parser for opening hours window.
@@ -359,7 +372,7 @@ function formatWindow(parsed: ParsedWindow): string {
     return `${sH}:${sM} – ${eH}`;
   } else if (rawEndHours >= 24) {
     eH = String(rawEndHours % 24).padStart(2, '0');
-    suffix = ' (+1)';
+    suffix = translate('poi_detail.next_day_suffix');
   } else {
     eH = String(rawEndHours).padStart(2, '0');
   }
@@ -410,7 +423,7 @@ export function PoiDetailView({
     if (fallbackPoi && (fallbackPoi.name || fallbackPoi.id)) {
       return {
         id: fallbackPoi.id || poiId || '',
-        name: fallbackPoi.name || 'Waypoint',
+        name: fallbackPoi.name || t('poi_detail.waypoint_fallback'),
         category: fallbackPoi.category || 'attraction',
         city: fallbackPoi.city || city || '',
         lat: fallbackPoi.lat ?? 0,
@@ -436,7 +449,7 @@ export function PoiDetailView({
   const isTransit = useMemo(() => isTransitPoi(poi || fallbackPoi), [poi, fallbackPoi]);
   const isHotel = useMemo(() => isHotelPoi(poi || fallbackPoi), [poi, fallbackPoi]);
   const isAirport = useMemo(() => isAirportPoi(poi || fallbackPoi), [poi, fallbackPoi]);
-  const transitStationLabel = useMemo(() => getTransitStationLabel(poi || fallbackPoi), [poi, fallbackPoi]);
+  const transitStationLabel = useMemo(() => getTransitStationLabel(poi || fallbackPoi, t), [poi, fallbackPoi, t]);
   const [stationDetail, setStationDetail] = useState<StationDetailData | null>(null);
 
   // In-Place POI Editing State
@@ -480,11 +493,11 @@ export function PoiDetailView({
     if (!files || files.length === 0) return;
     const file = files[0];
     if (!file.type.startsWith('image/')) {
-      notify.warning('Invalid File', 'Please select an image file (PNG, JPG, WebP).');
+      notify.warning(t('poi_detail.invalid_file_title'), t('poi_detail.invalid_file_desc'));
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      notify.warning('File Too Large', 'Image must be under 10 MB.');
+      notify.warning(t('poi_detail.file_too_large_title'), t('poi_detail.file_too_large_desc'));
       return;
     }
     const reader = new FileReader();
@@ -587,15 +600,15 @@ export function PoiDetailView({
         onUpdatePoi(finalPoiData);
       }
       window.dispatchEvent(new CustomEvent('paladio:poi-updated', { detail: finalPoiData }));
-      notify.success('Place Updated', `Updated "${finalPoiData.name}"`);
+      notify.success(t('poi_detail.place_updated_title'), t('poi_detail.place_updated_desc', { name: finalPoiData.name }));
       setIsEditing(false);
     } catch (err) {
       console.error('Error saving POI:', err);
-      notify.error('Update Failed', 'Could not save updates.');
+      notify.error(t('poi_detail.update_failed_title'), t('poi_detail.update_failed_desc'));
     } finally {
       setIsSavingEdit(false);
     }
-  }, [poi, editName, editCategory, editDuration, editCost, editDescription, editWebsite, editPhone, editPhotoUrl, onUpdatePoi]);
+  }, [poi, editName, editCategory, editDuration, editCost, editDescription, editWebsite, editPhone, editPhotoUrl, onUpdatePoi, t]);
 
   const isCustomPoi = Boolean(
     poi?.id?.startsWith('custom-') ||
@@ -608,7 +621,7 @@ export function PoiDetailView({
 
   const handleDeleteCustomPoi = useCallback(async () => {
     if (!poi) return;
-    if (!window.confirm(`Are you sure you want to delete "${poi.name}"?`)) return;
+    if (!window.confirm(t('poi_detail.delete_confirm', { name: poi.name }))) return;
     setIsDeletingCustom(true);
     try {
       const baseUrl = getApiBaseUrl();
@@ -622,18 +635,18 @@ export function PoiDetailView({
         headers,
       });
       if (!res.ok && res.status !== 404) {
-        throw new Error(`Failed to delete POI (HTTP ${res.status})`);
+        throw new Error(t('poi_detail.delete_error_status', { status: res.status }));
       }
-      notify.success('Place Deleted', `Deleted "${poi.name}"`);
+      notify.success(t('poi_detail.place_deleted_title'), t('poi_detail.place_deleted_desc', { name: poi.name }));
       window.dispatchEvent(new CustomEvent('paladio:poi-deleted', { detail: { id: poi.id } }));
       onClose();
     } catch (err) {
       console.error('Error deleting custom POI:', err);
-      notify.error('Delete Failed', 'Could not delete custom place. Please try again.');
+      notify.error(t('poi_detail.delete_failed_title'), t('poi_detail.delete_failed_desc'));
     } finally {
       setIsDeletingCustom(false);
     }
-  }, [poi, onClose]);
+  }, [poi, onClose, t]);
 
   const [stationDepartures, setStationDepartures] = useState<StationDepartureItem[]>([]);
   const [departureTimeSeconds, setDepartureTimeSeconds] = useState<number>(32400); // 09:00 AM default
@@ -753,7 +766,10 @@ export function PoiDetailView({
             padding: '8px 10px',
             minWidth: 0,
           }}
-          title={`Check-in: ${checkInStr || '--'}, Check-out: ${checkOutStr || '--'}`}
+          title={t('poi_detail.hotel_checkin_out_title', {
+            checkIn: checkInStr || '--',
+            checkOut: checkOutStr || '--',
+          })}
         >
           <ClockIcon size={14} color="var(--color-accent-primary)" />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -765,7 +781,11 @@ export function PoiDetailView({
                 textTransform: 'uppercase',
               }}
             >
-              {checkInStr && checkOutStr ? 'Check-In / Out' : checkInStr ? 'Check-In' : 'Check-Out'}
+              {checkInStr && checkOutStr
+                ? t('poi_detail.check_in_out')
+                : checkInStr
+                ? t('poi_detail.check_in')
+                : t('poi_detail.check_out')}
             </span>
             <span
               style={{
@@ -799,7 +819,7 @@ export function PoiDetailView({
             padding: '8px 10px',
             minWidth: 0,
           }}
-          title={`Room ${room}`}
+          title={t('poi_detail.room_title', { room })}
         >
           <KeyIcon size={14} color="#10B981" />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -811,7 +831,7 @@ export function PoiDetailView({
                 textTransform: 'uppercase',
               }}
             >
-              Room
+              {t('poi_detail.room_label')}
             </span>
             <span
               style={{
@@ -845,7 +865,7 @@ export function PoiDetailView({
             padding: '8px 10px',
             minWidth: 0,
           }}
-          title={`Booking Reference: ${refCode}`}
+          title={t('poi_detail.booking_ref_title', { ref: refCode })}
         >
           <BookmarkIcon size={14} color="var(--color-accent-teal-mid, #14788D)" />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -857,7 +877,7 @@ export function PoiDetailView({
                 textTransform: 'uppercase',
               }}
             >
-              Booking Ref
+              {t('poi_detail.booking_ref_label')}
             </span>
             <span
               style={{
@@ -877,7 +897,7 @@ export function PoiDetailView({
       );
     }
     return chips;
-  }, [isHotel, hotelTicket]);
+  }, [isHotel, hotelTicket, t]);
 
   const airportChips = useMemo(() => {
     if (!isAirport || !flightTicket) return [];
@@ -897,7 +917,7 @@ export function PoiDetailView({
             padding: '8px 10px',
             minWidth: 0,
           }}
-          title={`Flight: ${flightNum}`}
+          title={t('poi_detail.flight_title', { flight: flightNum })}
         >
           <PlaneIcon size={14} color="var(--color-accent-teal-mid, #14788D)" />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -909,7 +929,7 @@ export function PoiDetailView({
                 textTransform: 'uppercase',
               }}
             >
-              Flight
+              {t('poi_detail.flight_label')}
             </span>
             <span
               style={{
@@ -944,7 +964,7 @@ export function PoiDetailView({
             padding: '8px 10px',
             minWidth: 0,
           }}
-          title={`Departure: ${depStr || '--'}, Arrival: ${arrStr || '--'}`}
+          title={t('poi_detail.dep_arr_title', { dep: depStr || '--', arr: arrStr || '--' })}
         >
           <ClockIcon size={14} color="var(--color-accent-primary)" />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -956,7 +976,11 @@ export function PoiDetailView({
                 textTransform: 'uppercase',
               }}
             >
-              {depStr && arrStr ? 'Dep / Arr' : depStr ? 'Departure' : 'Arrival'}
+              {depStr && arrStr
+                ? t('poi_detail.dep_arr_short')
+                : depStr
+                ? t('poi_detail.departure_label')
+                : t('poi_detail.arrival_label')}
             </span>
             <span
               style={{
@@ -991,7 +1015,12 @@ export function PoiDetailView({
             padding: '8px 10px',
             minWidth: 0,
           }}
-          title={[terminal ? `Terminal ${terminal}` : '', gate ? `Gate ${gate}` : ''].filter(Boolean).join(', ')}
+          title={[
+            terminal ? t('poi_detail.terminal_title', { terminal }) : '',
+            gate ? t('poi_detail.gate_title', { gate }) : '',
+          ]
+            .filter(Boolean)
+            .join(', ')}
         >
           <CompassIcon size={14} color="var(--color-accent-primary)" />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -1003,7 +1032,11 @@ export function PoiDetailView({
                 textTransform: 'uppercase',
               }}
             >
-              {terminal && gate ? 'Terminal / Gate' : terminal ? 'Terminal' : 'Gate'}
+              {terminal && gate
+                ? t('poi_detail.terminal_gate_label')
+                : terminal
+                ? t('poi_detail.terminal_label')
+                : t('poi_detail.gate_label')}
             </span>
             <span
               style={{
@@ -1016,14 +1049,16 @@ export function PoiDetailView({
                 textOverflow: 'ellipsis',
               }}
             >
-              {[terminal ? `T${terminal}` : '', gate ? `Gate ${gate}` : ''].filter(Boolean).join(' · ')}
+              {[terminal ? `T${terminal}` : '', gate ? t('poi_detail.gate_title', { gate }) : '']
+                .filter(Boolean)
+                .join(' · ')}
             </span>
           </div>
         </div>
       );
     }
     return chips;
-  }, [isAirport, flightTicket]);
+  }, [isAirport, flightTicket, t]);
 
   const lineColorsMap = useMemo(() => {
     const map: Record<string, { color: string; textColor?: string }> = {};
@@ -1183,19 +1218,26 @@ export function PoiDetailView({
     const rawDescLang = poiDesc ? (poi?.description_lang ?? null) : (fallbackPoi?.description_lang ?? null);
     const loc = poi?.city || fallbackPoi?.city || city;
 
+    const hotelName = poi?.name || fallbackPoi?.name || t('poi_detail.hotel_fallback');
+    const airportName = poi?.name || fallbackPoi?.name || t('poi_detail.airport_fallback');
+
     if (isHotel) {
       if (!rawDesc || rawDesc.includes('is a notable attraction') || rawDesc.includes('entry is free of charge') || rawDesc.includes('Recommended visit duration')) {
         return {
-          text: `${poi?.name || fallbackPoi?.name || 'Hotel'} provides lodging accommodations and base camp facilities${loc ? ` for your stay in ${loc}` : ''}.`,
-          lang: 'en',
+          text: loc
+            ? t('poi_detail.hotel_auto_desc_loc', { name: hotelName, city: loc })
+            : t('poi_detail.hotel_auto_desc', { name: hotelName }),
+          lang: locale,
         };
       }
     }
     if (isAirport) {
       if (!rawDesc || rawDesc.includes('is a notable attraction') || rawDesc.includes('entry is free of charge') || rawDesc.includes('Recommended visit duration')) {
         return {
-          text: `${poi?.name || fallbackPoi?.name || 'Airport'} serves as an aviation hub and flight transport gateway${loc ? ` for ${loc}` : ''}.`,
-          lang: 'en',
+          text: loc
+            ? t('poi_detail.airport_auto_desc_loc', { name: airportName, city: loc })
+            : t('poi_detail.airport_auto_desc', { name: airportName }),
+          lang: locale,
         };
       }
     }
@@ -1210,14 +1252,20 @@ export function PoiDetailView({
       return { text: '', lang: null };
     }
     if (poi?.name) {
-      const cat = (poi.category || fallbackPoi?.category || 'waypoint').toLowerCase();
+      const classified = classifyPoiCategory(poi.category || fallbackPoi?.category || undefined, poi.name);
+      const cat =
+        locale !== 'en' && classified.type !== 'general'
+          ? getPoiCategoryLabel(classified, t).toLowerCase()
+          : (poi.category || fallbackPoi?.category || t('poi_detail.waypoint_lower')).toLowerCase();
       return {
-        text: `${poi.name} is a notable ${cat}${loc ? ` located in ${loc}` : ''}.`,
-        lang: 'en',
+        text: loc
+          ? t('poi_detail.generic_auto_desc_loc', { name: poi.name, category: cat, city: loc })
+          : t('poi_detail.generic_auto_desc', { name: poi.name, category: cat }),
+        lang: locale,
       };
     }
     return { text: '', lang: null };
-  }, [poi, fallbackPoi, city, isTransit, isHotel, isAirport]);
+  }, [poi, fallbackPoi, city, isTransit, isHotel, isAirport, locale, t]);
 
   const isDescriptionInUserLang = useMemo(
     () => isDescriptionInLocale(overviewDescription, locale, overviewDescriptionLang),
@@ -1254,7 +1302,7 @@ export function PoiDetailView({
       });
       if (!res.ok) {
         const errPayload = await res.json().catch(() => null);
-        throw new Error(errPayload?.detail || `Translation failed (${res.status})`);
+        throw new Error(errPayload?.detail || translate('poi_detail.translation_failed_status', { status: res.status }));
       }
       const data = await res.json();
       if (data?.translated_text) {
@@ -1264,10 +1312,10 @@ export function PoiDetailView({
           showingTranslated: true,
         });
       } else {
-        throw new Error('Empty translation response');
+        throw new Error(translate('poi_detail.empty_translation_response'));
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unable to translate description.';
+      const msg = err instanceof Error ? err.message : translate('poi_detail.unable_to_translate');
       notify.error(t('workspace.translation_error'), msg);
     } finally {
       setIsTranslating(false);
@@ -1291,7 +1339,7 @@ export function PoiDetailView({
       if (fallbackPoi && (fallbackPoi.name || fallbackPoi.id)) {
         setPoi({
           id: fallbackPoi.id || poiId || '',
-          name: fallbackPoi.name || 'Waypoint',
+          name: fallbackPoi.name || t('poi_detail.waypoint_fallback'),
           category: fallbackPoi.category || 'attraction',
           city: fallbackPoi.city || city || '',
           lat: fallbackPoi.lat ?? 0,
@@ -1418,7 +1466,7 @@ export function PoiDetailView({
               description:
                 (fallbackPoi as any)?.instruction ||
                 (fallbackServingLines.length > 0
-                  ? `Serving: ${fallbackServingLines.map((l) => l.short_name).join(', ')}`
+                  ? t('poi_detail.serving_lines_desc', { lines: fallbackServingLines.map((l) => l.short_name).join(', ') })
                   : ''),
               photos: fallbackPoi?.photos || initialPhotos,
               scoring: {},
@@ -1432,7 +1480,7 @@ export function PoiDetailView({
               setStationDepartures([
                 {
                   line_id: fallbackServingLines[0]?.line_id || 'Transit',
-                  line_short_name: fallbackServingLines[0]?.short_name || 'Transit',
+                  line_short_name: fallbackServingLines[0]?.short_name || t('poi_detail.transit_fallback'),
                   mode: 'transit',
                   color: fallbackServingLines[0]?.color || '#007AFF',
                   text_color: '#FFFFFF',
@@ -1471,7 +1519,7 @@ export function PoiDetailView({
             if (isMounted) setLoading(false);
             return;
           }
-          throw new Error(`Failed to load place details (status ${res.status})`);
+          throw new Error(translate('poi_detail.error_load_status', { status: res.status }));
         }
         const data: PoiDetail = await res.json();
         if (isMounted) {
@@ -1509,7 +1557,7 @@ export function PoiDetailView({
       } catch (err: unknown) {
         if (isMounted) {
           if (!fallbackPoi) {
-            setError(err instanceof Error ? err.message : 'Error fetching POI details');
+            setError(err instanceof Error ? err.message : translate('poi_detail.error_fetch_details'));
           }
           setLoading(false);
         }
@@ -1602,7 +1650,7 @@ export function PoiDetailView({
     return (effectiveDayNumber - 1) % 7;
   }, [tripStartDate, effectiveDayNumber]);
 
-  const targetDayName = DAY_NAMES[targetDayOfWeekIdx];
+  const targetDayName = t(DAY_NAME_KEYS[targetDayOfWeekIdx]);
 
   // User taste vector affinity percentage (strictly dynamic; omitted for hotels, airports, or unrated)
   const tasteMatchPct = useMemo(() => {
@@ -1647,7 +1695,7 @@ export function PoiDetailView({
 
   // Evaluate opening hours for targetDayOfWeekIdx
   let isOpenOnTargetDay = false;
-  let targetDayHoursLabel = 'Hours not listed';
+  let targetDayHoursLabel = t('poi_detail.hours_not_listed');
   const hasDailyWindows = Boolean(poi?.daily_windows && poi.daily_windows.length === 7);
   const targetWindows = hasDailyWindows ? poi?.daily_windows?.[targetDayOfWeekIdx] : null;
 
@@ -1660,7 +1708,7 @@ export function PoiDetailView({
       isOpenOnTargetDay = true;
     }
   } else if (poi?.hours_known) {
-    targetDayHoursLabel = 'Closed';
+    targetDayHoursLabel = t('poi_detail.closed');
     isOpenOnTargetDay = false;
   }
 
@@ -1716,7 +1764,7 @@ export function PoiDetailView({
                 margin: 0,
               }}
             >
-              {'// RESOLVING PLACE DETAILS...'}
+              {t('poi_detail.loading_comment')}
             </p>
           </div>
         )}
@@ -1798,7 +1846,7 @@ export function PoiDetailView({
                             color: 'var(--color-text-muted)',
                           }}
                         >
-                          {'// NO IMAGE SET'}
+                          {t('poi_detail.no_image_set')}
                         </p>
                       </div>
                     )}
@@ -1817,7 +1865,7 @@ export function PoiDetailView({
                           color: '#FFFFFF',
                         }}
                       >
-                        PREVIEW
+                        {t('poi_detail.preview_upper')}
                       </div>
                     )}
                   </div>
@@ -1837,7 +1885,7 @@ export function PoiDetailView({
                       data-testid="edit-poi-photo-input"
                       value={editPhotoUrl}
                       onChange={(e) => setEditPhotoUrl(e.target.value)}
-                      placeholder="Paste image URL (https://...)"
+                      placeholder={t('poi_detail.paste_image_url_placeholder')}
                       style={{
                         flex: '1 1 auto',
                         minWidth: 0,
@@ -1854,7 +1902,7 @@ export function PoiDetailView({
                       type="button"
                       data-testid="edit-poi-photo-upload-btn"
                       onClick={() => photoInputRef.current?.click()}
-                      title="Upload image from device"
+                      title={t('poi_detail.upload_image_title')}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -1871,14 +1919,14 @@ export function PoiDetailView({
                       }}
                     >
                       <UploadIcon size={12} color="currentColor" />
-                      <span>Upload</span>
+                      <span>{t('common.upload')}</span>
                     </button>
                     {editPhotoUrl && (
                       <button
                         type="button"
                         data-testid="edit-poi-photo-clear-btn"
                         onClick={() => setEditPhotoUrl('')}
-                        title="Clear image"
+                        title={t('poi_detail.clear_image_title')}
                         style={{
                           padding: '6px 8px',
                           borderRadius: '8px',
@@ -1890,7 +1938,7 @@ export function PoiDetailView({
                           flexShrink: 0,
                         }}
                       >
-                        Clear
+                        {t('common.clear')}
                       </button>
                     )}
                   </div>
@@ -1957,11 +2005,11 @@ export function PoiDetailView({
                         zIndex: 2,
                         transition: 'transform 0.15s ease, background 0.15s ease',
                       }}
-                      title="View full uncropped photo"
-                      aria-label="View full uncropped photo"
+                      title={t('poi_detail.view_full_photo')}
+                      aria-label={t('poi_detail.view_full_photo')}
                     >
                       <ExpandIcon size={12} color="#FFFFFF" />
-                      <span>View</span>
+                      <span>{t('common.view')}</span>
                     </button>
 
                     {/* Top-right Photo Counter Pill if multiple photos */}
@@ -2012,7 +2060,7 @@ export function PoiDetailView({
                             justifyContent: 'center',
                             backdropFilter: 'blur(6px)',
                           }}
-                          aria-label="Previous photo"
+                          aria-label={t('poi_detail.previous_photo')}
                         >
                           <ChevronLeftIcon size={14} color="#FFFFFF" />
                         </button>
@@ -2039,7 +2087,7 @@ export function PoiDetailView({
                             justifyContent: 'center',
                             backdropFilter: 'blur(6px)',
                           }}
-                          aria-label="Next photo"
+                          aria-label={t('poi_detail.next_photo')}
                         >
                           <ChevronRightIcon size={14} color="#FFFFFF" />
                         </button>
@@ -2106,8 +2154,8 @@ export function PoiDetailView({
                           cursor: 'pointer',
                           transition: 'all 0.15s ease',
                         }}
-                        title={isSaved ? 'Manage Collections (Saved)' : 'Save to Collections'}
-                        aria-label={isSaved ? 'Manage Collections (Saved)' : 'Save to Collections'}
+                        title={isSaved ? t('poi_detail.manage_collections_saved') : t('poi_detail.save_to_collections')}
+                        aria-label={isSaved ? t('poi_detail.manage_collections_saved') : t('poi_detail.save_to_collections')}
                       >
                         <BookmarkIcon
                           size={15}
@@ -2151,7 +2199,7 @@ export function PoiDetailView({
                               opacity: isActive ? 1 : 0.65,
                               transition: 'all 0.15s ease',
                             }}
-                            aria-label={`Select photo ${idx + 1}`}
+                            aria-label={t('poi_detail.select_photo_aria', { num: idx + 1 })}
                           />
                         );
                       })}
@@ -2183,7 +2231,13 @@ export function PoiDetailView({
                       textTransform: 'uppercase',
                     }}
                   >
-                    {`// ${poi.category || 'ATTRACTION'} ARCHIVE`}
+                    {t('poi_detail.category_archive_label', {
+                      category: poi.category
+                        ? locale !== 'en' && classifyPoiCategory(poi.category, poi.name).type !== 'general'
+                          ? getPoiCategoryLabel(classifyPoiCategory(poi.category, poi.name), t)
+                          : poi.category
+                        : t('poi_detail.attraction_upper'),
+                    })}
                   </span>
 
                   {/* Circular Action Buttons (Map Focus & Bookmark) */}
@@ -2244,8 +2298,8 @@ export function PoiDetailView({
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                       }}
-                      title={isSaved ? 'Manage Collections (Saved)' : 'Save to Collections'}
-                      aria-label={isSaved ? 'Manage Collections (Saved)' : 'Save to Collections'}
+                      title={isSaved ? t('poi_detail.manage_collections_saved') : t('poi_detail.save_to_collections')}
+                      aria-label={isSaved ? t('poi_detail.manage_collections_saved') : t('poi_detail.save_to_collections')}
                     >
                       <BookmarkIcon
                         size={15}
@@ -2318,7 +2372,7 @@ export function PoiDetailView({
                             fontFamily: 'var(--font-code, monospace)',
                           }}
                         >
-                          {isHotel ? '/ night' : t('workspace.per_person')}
+                          {isHotel ? t('poi_detail.per_night') : t('workspace.per_person')}
                         </span>
                       </div>
                     ) : isHotel ? (
@@ -2342,7 +2396,7 @@ export function PoiDetailView({
                               fontFamily: 'var(--font-code, monospace)',
                             }}
                           >
-                            / night
+                            {t('poi_detail.per_night')}
                           </span>
                         </div>
                       ) : null
@@ -2440,7 +2494,7 @@ export function PoiDetailView({
                       data-testid="edit-poi-name-input"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      placeholder="Place name"
+                      placeholder={t('poi_detail.place_name_placeholder')}
                       style={{
                         flex: '1 1 auto',
                         minWidth: '140px',
@@ -2475,7 +2529,7 @@ export function PoiDetailView({
                   <button
                     type="button"
                     onClick={isEditing ? () => setIsEditing(false) : startEditing}
-                    title={isEditing ? 'Close Editor' : 'Edit POI Information'}
+                    title={isEditing ? t('poi_detail.close_editor') : t('poi_detail.edit_poi_info')}
                     aria-label={t('workspace.edit_poi')}
                     data-testid="edit-poi-btn"
                     style={{
@@ -2501,8 +2555,8 @@ export function PoiDetailView({
                       type="button"
                       onClick={handleDeleteCustomPoi}
                       disabled={isDeletingCustom}
-                      title="Delete manual POI"
-                      aria-label="Delete manual POI"
+                      title={t('poi_detail.delete_manual_poi')}
+                      aria-label={t('poi_detail.delete_manual_poi')}
                       data-testid="delete-custom-poi-btn"
                       style={{
                         display: 'inline-flex',
@@ -2575,7 +2629,7 @@ export function PoiDetailView({
                               key={line}
                               type="button"
                               onClick={() => handleTransitLineClick(line)}
-                              title={`Click to show full line ${line} route and stations on map`}
+                              title={t('poi_detail.show_line_route_title', { line })}
                               data-testid={`transit-line-badge-${line}`}
                               style={{
                                 display: 'inline-flex',
@@ -2625,12 +2679,12 @@ export function PoiDetailView({
                   }}
                 >
                   <PinIcon size={13} color="var(--color-text-muted)" />
-                  <span>{poi.city || 'Destination'}</span>
+                  <span>{poi.city || t('poi_detail.destination_fallback')}</span>
                   {isEditing ? (
                     <input
                       type="url"
                       data-testid="edit-poi-website-input"
-                      placeholder="Website (https://...)"
+                      placeholder={t('poi_detail.website_placeholder')}
                       value={editWebsite}
                       onChange={(e) => setEditWebsite(e.target.value)}
                       style={{
@@ -2680,7 +2734,7 @@ export function PoiDetailView({
                       <input
                         type="tel"
                         data-testid="edit-poi-phone-input"
-                        placeholder="Phone (+34 913 ...)"
+                        placeholder={t('poi_detail.phone_placeholder')}
                         value={editPhone}
                         onChange={(e) => setEditPhone(e.target.value)}
                         style={{
@@ -2706,7 +2760,7 @@ export function PoiDetailView({
                           textDecoration: 'none',
                           fontWeight: 500,
                         }}
-                        title={`Call ${poi.phone}`}
+                        title={t('poi_detail.call_phone_title', { phone: poi.phone || '' })}
                       >
                         {poi.phone}
                       </a>
@@ -2773,7 +2827,14 @@ export function PoiDetailView({
                                 padding: '8px 10px',
                                 minWidth: 0,
                               }}
-                              title={reviewCount ? `${ratingNum.toFixed(1)} / 5.0 (${reviewCount.toLocaleString()} reviews)` : `${ratingNum.toFixed(1)} / 5.0`}
+                              title={
+                                reviewCount
+                                  ? t('poi_detail.rating_with_reviews_title', {
+                                      rating: ratingNum.toFixed(1),
+                                      reviews: reviewCount.toLocaleString(locale === 'en' ? undefined : locale),
+                                    })
+                                  : `${ratingNum.toFixed(1)} / 5.0`
+                              }
                             >
                               <StarIcon
                                 size={14}
@@ -2789,7 +2850,11 @@ export function PoiDetailView({
                                     textTransform: 'uppercase',
                                   }}
                                 >
-                                  {reviewCount ? t('workspace.reviews_count', { count: reviewCount.toLocaleString() }) : t('workspace.rating')}
+                                  {reviewCount
+                                    ? t('workspace.reviews_count', {
+                                        count: reviewCount.toLocaleString(locale === 'en' ? undefined : locale),
+                                      })
+                                    : t('workspace.rating')}
                                 </span>
                                 <span
                                   style={{
@@ -2823,7 +2888,7 @@ export function PoiDetailView({
                                 padding: '8px 10px',
                                 minWidth: 0,
                               }}
-                              title={`District: ${poi.neighborhood}`}
+                              title={t('poi_detail.district_title', { district: poi.neighborhood })}
                             >
                               <PinIcon size={14} color="var(--color-accent-teal-mid, #14788D)" />
                               <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -2835,7 +2900,7 @@ export function PoiDetailView({
                                     textTransform: 'uppercase',
                                   }}
                                 >
-                                  District
+                                  {t('poi_detail.district_label')}
                                 </span>
                                 <span
                                   style={{
@@ -2986,17 +3051,17 @@ export function PoiDetailView({
                                 cursor: 'pointer',
                               }}
                             >
-                              <option value="attraction">attraction</option>
-                              <option value="monument">monument</option>
-                              <option value="museum">museum</option>
-                              <option value="restaurant">restaurant</option>
-                              <option value="cafe">café</option>
-                              <option value="park">park</option>
-                              <option value="shopping">shopping</option>
-                              <option value="viewpoint">viewpoint</option>
-                              <option value="hotel">hotel</option>
-                              <option value="airport">airport</option>
-                              <option value="transit">transit</option>
+                              <option value="attraction">{t('poi_detail.opt_attraction')}</option>
+                              <option value="monument">{t('poi_detail.opt_monument')}</option>
+                              <option value="museum">{t('poi_detail.opt_museum')}</option>
+                              <option value="restaurant">{t('poi_detail.opt_restaurant')}</option>
+                              <option value="cafe">{t('poi_detail.opt_cafe')}</option>
+                              <option value="park">{t('poi_detail.opt_park')}</option>
+                              <option value="shopping">{t('poi_detail.opt_shopping')}</option>
+                              <option value="viewpoint">{t('poi_detail.opt_viewpoint')}</option>
+                              <option value="hotel">{t('poi_detail.opt_hotel')}</option>
+                              <option value="airport">{t('poi_detail.opt_airport')}</option>
+                              <option value="transit">{t('poi_detail.opt_transit')}</option>
                             </select>
                           ) : (
                             <span
@@ -3010,7 +3075,9 @@ export function PoiDetailView({
                                 whiteSpace: 'nowrap',
                               }}
                             >
-                              {classifyPoiCategory(poi.category, poi.name).label || poi.category || 'Sight'}
+                              {getPoiCategoryLabel(classifyPoiCategory(poi.category, poi.name), t) ||
+                                poi.category ||
+                                t('poi_detail.sight_fallback')}
                             </span>
                           )}
                         </div>
@@ -3022,36 +3089,36 @@ export function PoiDetailView({
 
               {/* Amenity / Info Icon Pills Row (matching HotelTicketCard pill style) */}
               {!isTransit && ((poi.amenities && poi.amenities.length > 0) || Boolean(poi.cuisine)) && (() => {
-                const AMENITY_META: Record<string, { label: string; icon: React.ReactNode }> = {
-                  wheelchair: { label: 'Wheelchair Accessible', icon: <WheelchairIcon size={12} /> },
-                  wifi: { label: 'Wi-Fi Available', icon: <WifiIcon size={12} /> },
-                  outdoor_seating: { label: 'Outdoor Seating', icon: <SunIcon size={12} /> },
-                  takeaway: { label: 'Takeaway Available', icon: <TakeawayIcon size={12} /> },
-                  delivery: { label: 'Delivery Available', icon: <DeliveryIcon size={12} /> },
-                  reservation: { label: 'Reservations Accepted', icon: <CalendarIcon size={12} /> },
-                  air_conditioning: { label: 'Air Conditioning', icon: <AcIcon size={12} /> },
-                  toilets: { label: 'Restrooms Available', icon: <RestroomIcon size={12} /> },
-                  cards: { label: 'Cards Accepted', icon: <CreditCardIcon size={12} /> },
-                  vegetarian: { label: 'Vegetarian Options', icon: <LeafIcon size={12} /> },
-                  vegan: { label: 'Vegan Options', icon: <LeafIcon size={12} /> },
-                  pets: { label: 'Pet-Friendly', icon: <PawIcon size={12} /> },
-                  parking: { label: 'Parking Available', icon: <ParkingIcon size={12} /> },
-                  non_smoking: { label: 'Non-Smoking', icon: <NoSmokingIcon size={12} /> },
-                  heritage: { label: 'Heritage / Historic Site', icon: <MuseumIcon size={12} /> },
-                  free_entry: { label: 'Free Entry', icon: <TicketIcon size={12} /> },
+                const AMENITY_META: Record<string, { labelKey: string; icon: React.ReactNode }> = {
+                  wheelchair: { labelKey: 'poi_detail.amenity_wheelchair', icon: <WheelchairIcon size={12} /> },
+                  wifi: { labelKey: 'poi_detail.amenity_wifi', icon: <WifiIcon size={12} /> },
+                  outdoor_seating: { labelKey: 'poi_detail.amenity_outdoor_seating', icon: <SunIcon size={12} /> },
+                  takeaway: { labelKey: 'poi_detail.amenity_takeaway', icon: <TakeawayIcon size={12} /> },
+                  delivery: { labelKey: 'poi_detail.amenity_delivery', icon: <DeliveryIcon size={12} /> },
+                  reservation: { labelKey: 'poi_detail.amenity_reservation', icon: <CalendarIcon size={12} /> },
+                  air_conditioning: { labelKey: 'poi_detail.amenity_air_conditioning', icon: <AcIcon size={12} /> },
+                  toilets: { labelKey: 'poi_detail.amenity_toilets', icon: <RestroomIcon size={12} /> },
+                  cards: { labelKey: 'poi_detail.amenity_cards', icon: <CreditCardIcon size={12} /> },
+                  vegetarian: { labelKey: 'poi_detail.amenity_vegetarian', icon: <LeafIcon size={12} /> },
+                  vegan: { labelKey: 'poi_detail.amenity_vegan', icon: <LeafIcon size={12} /> },
+                  pets: { labelKey: 'poi_detail.amenity_pets', icon: <PawIcon size={12} /> },
+                  parking: { labelKey: 'poi_detail.amenity_parking', icon: <ParkingIcon size={12} /> },
+                  non_smoking: { labelKey: 'poi_detail.amenity_non_smoking', icon: <NoSmokingIcon size={12} /> },
+                  heritage: { labelKey: 'poi_detail.amenity_heritage', icon: <MuseumIcon size={12} /> },
+                  free_entry: { labelKey: 'poi_detail.amenity_free_entry', icon: <TicketIcon size={12} /> },
                 };
                 const items: Array<{ key: string; label: string; icon: React.ReactNode }> = [];
                 if (poi.cuisine) {
                   items.push({
                     key: 'cuisine',
-                    label: `Cuisine: ${poi.cuisine}`,
+                    label: t('poi_detail.amenity_cuisine', { cuisine: poi.cuisine }),
                     icon: <UtensilsIcon size={12} />,
                   });
                 }
                 for (const key of poi.amenities || []) {
                   const meta = AMENITY_META[key];
                   if (meta) {
-                    items.push({ key, label: meta.label, icon: meta.icon });
+                    items.push({ key, label: t(meta.labelKey), icon: meta.icon });
                   }
                 }
                 if (items.length === 0) return null;
@@ -3167,7 +3234,7 @@ export function PoiDetailView({
                       data-testid="edit-poi-description-input"
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
-                      placeholder="Add overview description or notes..."
+                      placeholder={t('poi_detail.description_placeholder')}
                       style={{
                         width: '100%',
                         padding: '8px 10px',
@@ -3225,10 +3292,10 @@ export function PoiDetailView({
                     >
                       <span style={{ fontWeight: 700 }}>
                         {stationDetail.wheelchair_boarding === 1
-                          ? '✓ Wheelchair Accessible Platform'
+                          ? t('poi_detail.wheelchair_platform_yes')
                           : stationDetail.wheelchair_boarding === 2
-                          ? '✗ Not Wheelchair Accessible'
-                          : 'Wheelchair Accessibility Unspecified'}
+                          ? t('poi_detail.wheelchair_platform_no')
+                          : t('poi_detail.wheelchair_unspecified')}
                       </span>
                     </div>
                   )}
@@ -3256,7 +3323,7 @@ export function PoiDetailView({
                           fontWeight: 700,
                         }}
                       >
-                        Serving Lines & Directions
+                        {t('poi_detail.serving_lines_directions')}
                       </span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {stationDetail.serving_lines.map((l, idx) => {
@@ -3278,7 +3345,7 @@ export function PoiDetailView({
                                 border: `1px solid ${isLineActive ? theme.solid : 'var(--color-border)'}`,
                                 cursor: 'pointer',
                               }}
-                              title="Click to view full line route on map"
+                              title={t('poi_detail.view_line_on_map')}
                             >
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <span
@@ -3295,7 +3362,7 @@ export function PoiDetailView({
                                   {lineKey}
                                 </span>
                                 <span style={{ fontSize: '11px', color: 'var(--color-text-primary)' }}>
-                                  {l.headsign ? `towards ${l.headsign}` : (l.long_name || l.mode)}
+                                  {l.headsign ? t('poi_detail.towards_space_lower', { headsign: l.headsign }) : (l.long_name || l.mode)}
                                 </span>
                               </div>
                               <span style={{ fontSize: '9px', fontFamily: 'var(--font-code, monospace)', color: 'var(--color-text-muted)' }}>
@@ -3331,7 +3398,9 @@ export function PoiDetailView({
                           fontWeight: 700,
                         }}
                       >
-                        {selectedDay === 'all' && !isScheduledInRoute ? 'All Days' : `Day ${effectiveDayNumber}`} Scheduled Departures
+                        {selectedDay === 'all' && !isScheduledInRoute
+                          ? t('poi_detail.all_days_scheduled_departures')
+                          : t('poi_detail.day_scheduled_departures', { day: effectiveDayNumber })}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                         {[
@@ -3387,11 +3456,13 @@ export function PoiDetailView({
                         }}
                       >
                         <Spinner size={14} color="var(--color-accent-primary)" />
-                        <span>Loading scheduled departures...</span>
+                        <span>{t('poi_detail.loading_departures')}</span>
                       </div>
                     ) : stationDepartures.length === 0 ? (
                       <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                        No upcoming scheduled departures in timetable for {selectedDay === 'all' && !isScheduledInRoute ? 'all days' : `Day ${effectiveDayNumber}`}.
+                        {selectedDay === 'all' && !isScheduledInRoute
+                          ? t('poi_detail.no_departures_all_days')
+                          : t('poi_detail.no_departures_day', { day: effectiveDayNumber })}
                       </span>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -3426,7 +3497,7 @@ export function PoiDetailView({
                                   {lineKey}
                                 </span>
                                 <span style={{ color: 'var(--color-text-primary)' }}>
-                                  {dep.headsign ? `to ${dep.headsign}` : dep.mode}
+                                  {dep.headsign ? t('poi_detail.to_headsign', { headsign: dep.headsign }) : dep.mode}
                                 </span>
                               </div>
                             <span style={{ fontWeight: 700, fontFamily: 'var(--font-code, monospace)', color: 'var(--color-accent-primary)' }}>
@@ -3470,7 +3541,7 @@ export function PoiDetailView({
                           textTransform: 'uppercase',
                         }}
                       >
-                        {hotelTicket.provider || hotelTicket.title || 'Reservation'}
+                        {hotelTicket.provider || hotelTicket.title || t('poi_detail.reservation_fallback')}
                       </span>
                     </div>
                     {hotelTicket.reference_code && (
@@ -3482,7 +3553,7 @@ export function PoiDetailView({
                           fontWeight: 600,
                         }}
                       >
-                        CONF: {hotelTicket.reference_code}
+                        {t('poi_detail.conf_prefix', { ref: hotelTicket.reference_code })}
                       </span>
                     )}
                   </div>
@@ -3500,7 +3571,7 @@ export function PoiDetailView({
                   >
                     {hotelTicket.start_time && (
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Check-in:</span>
+                        <span>{t('poi_detail.checkin_colon')}</span>
                         <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
                           {formatTicketDateTime(hotelTicket.start_time, hotelTicket.start_tz)}
                         </span>
@@ -3508,7 +3579,7 @@ export function PoiDetailView({
                     )}
                     {hotelTicket.end_time && (
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Check-out:</span>
+                        <span>{t('poi_detail.checkout_colon')}</span>
                         <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
                           {formatTicketDateTime(hotelTicket.end_time, hotelTicket.end_tz)}
                         </span>
@@ -3516,7 +3587,7 @@ export function PoiDetailView({
                     )}
                     {hotelTicket.seat_or_room && (
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Room:</span>
+                        <span>{t('poi_detail.room_colon')}</span>
                         <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
                           {hotelTicket.seat_or_room}
                         </span>
@@ -3551,7 +3622,7 @@ export function PoiDetailView({
                           textTransform: 'uppercase',
                         }}
                       >
-                        {(flightTicket.metadata?.flight_number as string) || flightTicket.provider || flightTicket.title || 'Flight'}
+                        {(flightTicket.metadata?.flight_number as string) || flightTicket.provider || flightTicket.title || t('poi_detail.flight_label')}
                       </span>
                     </div>
                     {flightTicket.reference_code && (
@@ -3563,7 +3634,7 @@ export function PoiDetailView({
                           fontWeight: 600,
                         }}
                       >
-                        PNR: {flightTicket.reference_code}
+                        {t('poi_detail.pnr_prefix', { ref: flightTicket.reference_code })}
                       </span>
                     )}
                   </div>
@@ -3581,7 +3652,7 @@ export function PoiDetailView({
                   >
                     {flightTicket.start_time && (
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Departure:</span>
+                        <span>{t('poi_detail.departure_colon')}</span>
                         <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
                           {formatTicketDateTime(flightTicket.start_time, flightTicket.start_tz || flightTicket.departure_tz)}
                         </span>
@@ -3589,7 +3660,7 @@ export function PoiDetailView({
                     )}
                     {flightTicket.end_time && (
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Arrival:</span>
+                        <span>{t('poi_detail.arrival_colon')}</span>
                         <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
                           {formatTicketDateTime(flightTicket.end_time, flightTicket.end_tz || flightTicket.arrival_tz)}
                         </span>
@@ -3597,9 +3668,14 @@ export function PoiDetailView({
                     )}
                     {(Boolean(flightTicket.metadata?.terminal) || Boolean(flightTicket.metadata?.gate)) && (
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Terminal / Gate:</span>
+                        <span>{t('poi_detail.terminal_gate_colon')}</span>
                         <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
-                          {[flightTicket.metadata?.terminal ? `T${flightTicket.metadata.terminal}` : '', flightTicket.metadata?.gate ? `Gate ${flightTicket.metadata.gate}` : ''].filter(Boolean).join(' · ')}
+                          {[
+                            flightTicket.metadata?.terminal ? `T${flightTicket.metadata.terminal}` : '',
+                            flightTicket.metadata?.gate ? t('poi_detail.gate_title', { gate: String(flightTicket.metadata.gate) }) : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
                         </span>
                       </div>
                     )}
@@ -3647,10 +3723,10 @@ export function PoiDetailView({
                         }}
                       >
                         {isOpenOnTargetDay
-                          ? `OPEN ON DAY ${effectiveDayNumber}`
+                          ? t('poi_detail.open_on_day', { day: effectiveDayNumber })
                           : poi?.hours_known
-                          ? `CLOSED ON DAY ${effectiveDayNumber}`
-                          : 'HOURS UNLISTED'}
+                          ? t('poi_detail.closed_on_day', { day: effectiveDayNumber })
+                          : t('poi_detail.hours_unlisted_upper')}
                       </span>
                       <span
                         style={{
@@ -3659,7 +3735,13 @@ export function PoiDetailView({
                           color: 'var(--color-text-muted)',
                         }}
                       >
-                        ({isOpenOnTargetDay ? targetDayHoursLabel : poi?.hours_known ? 'Closed all day' : 'Check website'})
+                        (
+                        {isOpenOnTargetDay
+                          ? targetDayHoursLabel
+                          : poi?.hours_known
+                          ? t('poi_detail.closed_all_day')
+                          : t('poi_detail.check_website')}
+                        )
                       </span>
                     </div>
 
@@ -3681,7 +3763,7 @@ export function PoiDetailView({
                           gap: '2px',
                         }}
                       >
-                        <span>All Days</span>
+                        <span>{t('poi_detail.all_days_label')}</span>
                         {showHoursGrid ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
                       </button>
                     )}
@@ -3707,7 +3789,7 @@ export function PoiDetailView({
                           flexShrink: 0,
                         }}
                       >
-                        Preview:
+                        {t('poi_detail.preview_label')}
                       </span>
                       {(availableDays || [1, 2, 3]).map((d) => (
                         <button
@@ -3727,7 +3809,7 @@ export function PoiDetailView({
                             flexShrink: 0,
                           }}
                         >
-                          Day {d}
+                          {t('trips.day_label', { number: d })}
                         </button>
                       ))}
                     </div>
@@ -3744,10 +3826,10 @@ export function PoiDetailView({
                         gap: '4px',
                       }}
                     >
-                      {DAY_NAMES.map((dName, dayIdx) => {
+                      {DAY_NAME_KEYS.map((dayKey, dayIdx) => {
                         const win = poi.daily_windows?.[dayIdx];
                         const isTarget = dayIdx === targetDayOfWeekIdx;
-                        let hoursStr = poi?.hours_known ? 'Closed' : 'Not listed';
+                        let hoursStr = poi?.hours_known ? t('poi_detail.closed') : t('poi_detail.not_listed');
 
                         if (Array.isArray(win) && win.length > 0) {
                           const mergedWindows = parseAndMergeWindows(win);
@@ -3760,7 +3842,7 @@ export function PoiDetailView({
 
                         return (
                           <div
-                            key={dName}
+                            key={dayKey}
                             style={{
                               display: 'flex',
                               justifyContent: 'space-between',
@@ -3776,7 +3858,7 @@ export function PoiDetailView({
                             }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                              <span style={{ minWidth: '65px' }}>{dName}:</span>
+                              <span style={{ minWidth: '65px' }}>{t(dayKey)}:</span>
                               {isTarget && (
                                 <span
                                   style={{
@@ -3792,7 +3874,7 @@ export function PoiDetailView({
                                     flexShrink: 0,
                                   }}
                                 >
-                                  DAY {effectiveDayNumber}
+                                  {t('map.day_upper', { day: effectiveDayNumber })}
                                 </span>
                               )}
                             </div>
@@ -3835,7 +3917,7 @@ export function PoiDetailView({
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="button"
@@ -3856,7 +3938,7 @@ export function PoiDetailView({
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    {isSavingEdit ? 'Saving...' : 'Save Changes'}
+                    {isSavingEdit ? t('add_poi.saving') : t('workspace.save_changes')}
                   </button>
                 </div>
               )}
@@ -3888,7 +3970,7 @@ export function PoiDetailView({
                       <line x1="9" y1="3" x2="9" y2="18" />
                       <line x1="15" y1="6" x2="15" y2="21" />
                     </svg>
-                    <span>Export / Open in Maps</span>
+                    <span>{t('poi_detail.export_open_maps_btn')}</span>
                   </button>
                 </div>
               )}
@@ -3928,7 +4010,7 @@ export function PoiDetailView({
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '18px' }}>
                       <div>
                         <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>
-                          Export &amp; Navigate
+                          {t('poi_detail.export_navigate_title')}
                         </h3>
                         <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--color-text-secondary, #6B7280)' }}>
                           {poi.name}
@@ -3937,7 +4019,7 @@ export function PoiDetailView({
                       <button
                         type="button"
                         onClick={() => setShowPlaceExportMenu(false)}
-                        aria-label="Close export menu"
+                        aria-label={t('poi_detail.close_export_menu')}
                         style={{
                           width: '28px',
                           height: '28px',
@@ -3966,8 +4048,8 @@ export function PoiDetailView({
                           </svg>
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>GPX Waypoint (.gpx)</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary, #6B7280)' }}>Save coordinate pin for GPS apps</div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{t('poi_detail.gpx_waypoint_title')}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary, #6B7280)' }}>{t('poi_detail.gpx_waypoint_desc')}</div>
                         </div>
                         <button
                           type="button"
@@ -3991,7 +4073,7 @@ export function PoiDetailView({
                             cursor: 'pointer',
                           }}
                         >
-                          Export
+                          {t('poi_detail.export_btn')}
                         </button>
                       </div>
 
@@ -4003,7 +4085,7 @@ export function PoiDetailView({
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{nav.label}</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary, #6B7280)' }}>Open coordinates &amp; directions</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary, #6B7280)' }}>{t('poi_detail.open_coords_directions')}</div>
                           </div>
                           <a
                             href={nav.url}
@@ -4021,7 +4103,7 @@ export function PoiDetailView({
                               textDecoration: 'none',
                             }}
                           >
-                            Open ↗
+                            {t('poi_detail.open_arrow_btn')}
                           </a>
                         </div>
                       ))}
@@ -4043,9 +4125,9 @@ export function PoiDetailView({
                 }}
               >
                 <span>
-                  GPS: {poi.lat.toFixed(4)}° N, {poi.lng.toFixed(4)}° E
+                  {t('poi_detail.gps_coords', { lat: poi.lat.toFixed(4), lng: poi.lng.toFixed(4) })}
                 </span>
-                <span>ID: {poi.id ? poi.id.slice(0, 14) + '...' : 'LOCAL'}</span>
+                <span>{t('poi_detail.id_label', { id: poi.id ? poi.id.slice(0, 14) + '...' : t('poi_detail.local_id') })}</span>
               </div>
             </div>
           </>
@@ -4123,8 +4205,8 @@ export function PoiDetailView({
             <button
               type="button"
               onClick={() => setLightboxOpen(false)}
-              aria-label="Close photo preview"
-              title="Close"
+              aria-label={t('poi_detail.close_photo_preview')}
+              title={t('common.close')}
               style={{
                 background: 'rgba(255, 255, 255, 0.15)',
                 border: '1px solid rgba(255, 255, 255, 0.25)',
@@ -4182,7 +4264,7 @@ export function PoiDetailView({
                   justifyContent: 'center',
                   zIndex: 2,
                 }}
-                aria-label="Previous photo"
+                aria-label={t('poi_detail.previous_photo')}
               >
                 &#9664;
               </button>
@@ -4191,7 +4273,7 @@ export function PoiDetailView({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={currentPhoto.url}
-              alt={currentPhoto.caption || poi?.name || 'POI photo'}
+              alt={currentPhoto.caption || poi?.name || t('poi_detail.poi_photo_alt')}
               style={{
                 maxHeight: '75vh',
                 maxWidth: '90vw',
@@ -4226,7 +4308,7 @@ export function PoiDetailView({
                   justifyContent: 'center',
                   zIndex: 2,
                 }}
-                aria-label="Next photo"
+                aria-label={t('poi_detail.next_photo')}
               >
                 &#9654;
               </button>
@@ -4267,9 +4349,9 @@ export function PoiDetailView({
                 fontFamily: 'var(--font-code, monospace)',
               }}
             >
-              {currentPhoto.author && <span>Author: {currentPhoto.author}</span>}
+              {currentPhoto.author && <span>{t('poi_detail.author_label', { author: currentPhoto.author })}</span>}
               {currentPhoto.license_name && (
-                <span>License: {currentPhoto.license_name}</span>
+                <span>{t('poi_detail.license_label', { license: currentPhoto.license_name })}</span>
               )}
               {currentPhoto.license_url && (
                 <a
@@ -4278,7 +4360,7 @@ export function PoiDetailView({
                   rel="noopener noreferrer"
                   style={{ color: 'var(--color-accent-teal-soft, #7CC4D1)', textDecoration: 'underline' }}
                 >
-                  License Details
+                  {t('poi_detail.license_details')}
                 </a>
               )}
             </div>
@@ -4298,7 +4380,7 @@ export function PoiDetailView({
           align="right"
           poi={{
             id: effectivePoiId,
-            name: poi?.name || fallbackPoi?.name || 'Place',
+            name: poi?.name || fallbackPoi?.name || t('collections.place_fallback'),
             category: poi?.category || fallbackPoi?.category,
             cost_eur: poi?.cost_eur ?? fallbackPoi?.cost_eur ?? 0,
             duration_mins: poi?.duration_mins || fallbackPoi?.duration_mins || 60,

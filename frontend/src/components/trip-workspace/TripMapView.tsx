@@ -15,6 +15,8 @@ import { createRouteCardDragImage, startCustomDragPreview, cleanupCustomDragPrev
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTransitLineData } from '@/utils/transitColors';
 import { apiFetch, getApiBaseUrl } from '@/utils/api';
+import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 
 export interface MapPoi {
   id?: string;
@@ -224,7 +226,7 @@ function DirectionsMapEventsHandler({
     click: async (e) => {
       if (!activeMapPickField) return;
       const { lat, lng } = e.latlng;
-      let placeName = `Pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+      let placeName = translate('map.pin_fallback', { lat: lat.toFixed(4), lng: lng.toFixed(4) });
       let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 
       try {
@@ -415,6 +417,7 @@ function InteractiveSpatialCircleLayer({
   onSpatialCircleChange?: (circle: SpatialCircleFilter) => void;
   onClearSpatialCircle?: () => void;
 }) {
+  const { t } = useTranslation();
   const map = useMap();
   const circleRef = useRef<L.Circle | null>(null);
   const handleMarkerRef = useRef<L.Marker | null>(null);
@@ -558,10 +561,10 @@ function InteractiveSpatialCircleLayer({
         <Popup>
           <div style={{ padding: '6px', minWidth: '140px', fontFamily: 'var(--font-sans, sans-serif)' }}>
             <div style={{ fontSize: '12px', fontWeight: 700, color: '#0F4C5C' }}>
-              Area Search Waypoint
+              {t('map.area_search_waypoint')}
             </div>
             <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
-              Radius: {spatialCircle.radiusMeters}m
+              {t('map.radius_value', { meters: spatialCircle.radiusMeters })}
             </div>
             {onClearSpatialCircle && (
               <button
@@ -584,14 +587,14 @@ function InteractiveSpatialCircleLayer({
                   cursor: 'pointer',
                 }}
               >
-                Clear Area Filter
+                {t('map.clear_area_filter')}
               </button>
             )}
           </div>
         </Popup>
         <Tooltip direction="top" offset={[0, -16]} opacity={0.95}>
           <div style={{ fontSize: '11px', fontWeight: 600 }}>
-            Center Waypoint ({spatialCircle.radiusMeters}m) &bull; Drag to move
+            {t('map.center_waypoint_tooltip', { meters: spatialCircle.radiusMeters })}
           </div>
         </Tooltip>
       </Marker>
@@ -926,7 +929,7 @@ function createHotelIcon(
     className: 'paladio-hotel-icon',
     html: renderTeardropPinHtml({
       categoryType: 'hotel',
-      name: hotel?.name || 'Hotel Base Camp',
+      name: hotel?.name || translate('map.hotel_base_camp_fallback'),
       photoUrl,
       dayNumber,
       isFocused,
@@ -967,7 +970,7 @@ function createAirportIcon(
     className: 'paladio-airport-icon',
     html: renderTeardropPinHtml({
       categoryType: 'airport',
-      name: airport?.name || 'Airport Gateway',
+      name: airport?.name || translate('map.airport_gateway_fallback'),
       photoUrl,
       dayNumber,
       isFocused,
@@ -987,7 +990,7 @@ function createFocusedWaypointIcon(place: FocusedWaypointPlace, photoUrl?: strin
   const cat = (place.category || 'attraction').toLowerCase() as PoiCategoryType;
   const poiPayload = JSON.stringify({
     id: place.id || place.name || 'waypoint',
-    name: place.name || 'Target Waypoint',
+    name: place.name || translate('map.target_waypoint_fallback'),
     category: place.category || 'attraction',
     lat: place.lat,
     lng: place.lng,
@@ -1440,6 +1443,7 @@ export default function TripMapView({
   onClearSpatialCircle,
   readOnly = false,
 }: TripMapViewProps) {
+  const { t } = useTranslation();
   const [internalDirectionsRoute, setInternalDirectionsRoute] = useState<{
     activeLeg: TransitLeg;
     primary_leg?: TransitLeg;
@@ -1772,7 +1776,7 @@ export default function TripMapView({
                   color: style.color,
                   isDashed: style.isDashed,
                   weight: style.weight,
-                  instruction: step.instruction || 'Transit maneuver',
+                  instruction: step.instruction || t('map.transit_maneuver'),
                   type: step.type || 'transit',
                   transitLine: step.transit_line,
                   durationMins: step.duration_mins,
@@ -1792,7 +1796,7 @@ export default function TripMapView({
                   position: nodePos,
                   stationName: step.station_name,
                   line: step.transit_line,
-                  instruction: step.instruction || 'Station stop',
+                  instruction: step.instruction || t('map.station_stop'),
                   color: style.color,
                   role: 'station',
                 });
@@ -1806,7 +1810,9 @@ export default function TripMapView({
                       position: [isd.lat, isd.lon],
                       stationName: isd.name,
                       line: step.transit_line,
-                      instruction: `Intermediate Stop on ${step.transit_line || 'transit line'}`,
+                      instruction: t('map.intermediate_stop_on', {
+                        line: step.transit_line || t('map.transit_line_fallback'),
+                      }),
                       color: style.color,
                       role: 'intermediate',
                     });
@@ -1826,7 +1832,9 @@ export default function TripMapView({
               color: style.color,
               isDashed: style.isDashed,
               weight: style.weight,
-              instruction: isWalk ? `Walk (~${leg.duration_mins || 0}m)` : `Transit (~${leg.duration_mins || 0}m)`,
+              instruction: isWalk
+                ? t('map.walk_approx_mins', { mins: leg.duration_mins || 0 })
+                : t('map.transit_approx_mins', { mins: leg.duration_mins || 0 }),
               type: leg.mode || 'transit',
               durationMins: leg.duration_mins,
               distanceKm: 0,
@@ -1859,7 +1867,7 @@ export default function TripMapView({
                 color: style.color,
                 isDashed: style.isDashed,
                 weight: style.weight,
-                instruction: step.instruction || 'Transit maneuver',
+                instruction: step.instruction || t('map.transit_maneuver'),
                 type: step.type || 'transit',
                 transitLine: step.transit_line,
                 durationMins: step.duration_mins,
@@ -1873,7 +1881,7 @@ export default function TripMapView({
                   position: [sLat, sLng],
                   stationName: step.station_name,
                   line: step.transit_line,
-                  instruction: step.instruction || 'Station stop',
+                  instruction: step.instruction || t('map.station_stop'),
                   role: 'station',
                 });
               }
@@ -1897,7 +1905,9 @@ export default function TripMapView({
             color: style.color,
             isDashed: style.isDashed,
             weight: style.weight,
-            instruction: isWalk ? `Walk (~${leg.duration_mins || 0}m)` : `Transit (~${leg.duration_mins || 0}m)`,
+            instruction: isWalk
+              ? t('map.walk_approx_mins', { mins: leg.duration_mins || 0 })
+              : t('map.transit_approx_mins', { mins: leg.duration_mins || 0 }),
             type: leg.mode || 'transit',
             durationMins: leg.duration_mins,
             distanceKm: 0,
@@ -1917,7 +1927,7 @@ export default function TripMapView({
     });
 
     return { detailedSegments: segments, stationNodes: nodes };
-  }, [transitMode, activeDay, days, activeDayData, effectiveDisplayedHoveredDay]);
+  }, [transitMode, activeDay, days, activeDayData, effectiveDisplayedHoveredDay, t]);
 
   // Compute cluster polygons for each day (excluding transit hubs and accommodation depots so territory is not warped)
   const dayClusters = useMemo(() => {
@@ -2166,7 +2176,11 @@ export default function TripMapView({
           }}
         >
           <CrosshairIcon size={14} color="#FFFFFF" />
-          <span>Click on the map to set {activeMapPickField === 'origin' ? 'Origin (A)' : 'Destination (B)'}</span>
+          <span>
+            {t('map.click_to_set_location', {
+              field: activeMapPickField === 'origin' ? t('map.origin_a') : t('map.destination_b'),
+            })}
+          </span>
           <button
             type="button"
             onClick={onCancelMapPick}
@@ -2213,7 +2227,7 @@ export default function TripMapView({
           }}
         >
           <RadarIcon size={14} color="#FFFFFF" />
-          <span>Click anywhere on the map to place search waypoint center (Esc to cancel)</span>
+          <span>{t('map.click_drop_waypoint')}</span>
           <button
             type="button"
             onClick={onCancelDropWaypoint}
@@ -2230,7 +2244,7 @@ export default function TripMapView({
               cursor: 'pointer',
               marginLeft: '4px',
             }}
-            title="Cancel (Esc)"
+            title={t('map.cancel_esc_title')}
           >
             <CloseIcon size={10} />
           </button>
@@ -2389,7 +2403,7 @@ export default function TripMapView({
                         textTransform: 'uppercase',
                       }}
                     >
-                      DAY {cluster.dayNumber}
+                      {t('map.day_upper', { day: cluster.dayNumber })}
                     </span>
                     {dayGroup?.theme && (
                       <span
@@ -2441,12 +2455,14 @@ export default function TripMapView({
               >
                 <Tooltip sticky direction="top" opacity={0.95}>
                   <span className="font-mono" style={{ fontSize: '11px', fontWeight: 600 }}>
-                    {seg.transitLine ? `[LINE ${seg.transitLine}] ` : ''}
+                    {seg.transitLine ? `${t('map.line_bracket', { line: seg.transitLine })} ` : ''}
                     {seg.instruction}
-                    {typeof seg.durationMins === 'number' && seg.durationMins > 0 ? ` · ${seg.durationMins}m` : ''}
+                    {typeof seg.durationMins === 'number' && seg.durationMins > 0
+                      ? ` · ${t('collections.duration_short', { mins: seg.durationMins })}`
+                      : ''}
                     {seg.transitLine ? (
                       <span style={{ display: 'block', fontSize: '9px', color: '#64748B', marginTop: '2px' }}>
-                        Click to view line & schedule
+                        {t('map.click_view_line_schedule')}
                       </span>
                     ) : null}
                   </span>
@@ -2464,19 +2480,21 @@ export default function TripMapView({
                           fontSize: '10px',
                         }}
                       >
-                        {seg.transitLine ? `LINE ${seg.transitLine}` : seg.type.toUpperCase()}
+                        {seg.transitLine ? t('map.line_upper', { line: seg.transitLine }) : seg.type.toUpperCase()}
                       </span>
                       {typeof seg.durationMins === 'number' && seg.durationMins > 0 && (
-                        <span style={{ color: '#64748B' }}>{seg.durationMins} MINS</span>
+                        <span style={{ color: '#64748B' }}>{t('map.mins_upper', { count: seg.durationMins })}</span>
                       )}
                     </div>
                     <div style={{ color: '#0F172A', fontWeight: 600 }}>{seg.instruction}</div>
                     {seg.stationName && (
-                      <div style={{ color: '#64748B', marginTop: '3px' }}>Station: {seg.stationName}</div>
+                      <div style={{ color: '#64748B', marginTop: '3px' }}>
+                        {t('map.station_prefix', { name: seg.stationName })}
+                      </div>
                     )}
                     {typeof seg.distanceKm === 'number' && seg.distanceKm > 0 && (
                       <div style={{ color: '#94A3B8', marginTop: '2px', fontSize: '10px' }}>
-                        Distance: {seg.distanceKm.toFixed(2)} km
+                        {t('map.distance_km', { dist: seg.distanceKm.toFixed(2) })}
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
@@ -2502,7 +2520,7 @@ export default function TripMapView({
                             color: '#0F172A',
                           }}
                         >
-                          Highlight Line
+                          {t('map.highlight_line_btn')}
                         </button>
                       )}
                       {seg.stationName && (
@@ -2530,7 +2548,7 @@ export default function TripMapView({
                             color: '#0F172A',
                           }}
                         >
-                          Inspect Station
+                          {t('map.inspect_station_btn')}
                         </button>
                       )}
                     </div>
@@ -2570,9 +2588,10 @@ export default function TripMapView({
               >
                 <Tooltip direction="top">
                   <span className="font-mono" style={{ fontSize: '10px', fontWeight: 600 }}>
-                    {node.line ? `[Line ${node.line}] ` : ''}Station: {node.stationName}
+                    {node.line ? `${t('map.line_title_bracket', { line: node.line })} ` : ''}
+                    {t('map.station_prefix', { name: node.stationName })}
                     <br />
-                    <span style={{ fontSize: '9px', color: '#64748B' }}>Click to inspect departures & details</span>
+                    <span style={{ fontSize: '9px', color: '#64748B' }}>{t('map.click_inspect_departures')}</span>
                   </span>
                 </Tooltip>
               </CircleMarker>
@@ -2714,7 +2733,7 @@ export default function TripMapView({
                         textTransform: 'uppercase',
                       }}
                     >
-                      DAY {allDaysHoveredPolyline.dayNumber}
+                      {t('map.day_upper', { day: allDaysHoveredPolyline.dayNumber })}
                     </span>
                     {polyDayGroup?.theme && (
                       <span
@@ -3073,7 +3092,11 @@ export default function TripMapView({
                     {st.name}
                   </div>
                   <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
-                    Line {activeTransitLine.line} • Stop {idx + 1} of {activeTransitLine.stations.length}
+                    {t('map.line_stop_progress', {
+                      line: activeTransitLine.line,
+                      current: idx + 1,
+                      total: activeTransitLine.stations.length,
+                    })}
                   </div>
                 </Tooltip>
               </CircleMarker>
@@ -3140,7 +3163,7 @@ export default function TripMapView({
               >
                 <Tooltip direction="top" offset={[0, -14]} opacity={0.95} permanent>
                   <div style={{ fontWeight: 700, fontSize: '11px', fontFamily: 'var(--font-sans, inherit)' }}>
-                    Origin: {activeDirectionsRoute.origin.name}
+                    {t('map.origin_prefix', { name: activeDirectionsRoute.origin.name })}
                   </div>
                 </Tooltip>
               </Marker>
@@ -3154,7 +3177,7 @@ export default function TripMapView({
               >
                 <Tooltip direction="top" offset={[0, -14]} opacity={0.95} permanent>
                   <div style={{ fontWeight: 700, fontSize: '11px', fontFamily: 'var(--font-sans, inherit)' }}>
-                    Destination: {activeDirectionsRoute.destination.name}
+                    {t('map.destination_prefix', { name: activeDirectionsRoute.destination.name })}
                   </div>
                 </Tooltip>
               </Marker>
@@ -3182,10 +3205,10 @@ export default function TripMapView({
                       : 'alight';
                   const roleLabel =
                     role === 'board'
-                      ? 'Boarding Station'
+                      ? t('map.boarding_station')
                       : role === 'transfer'
-                      ? 'Transfer Station'
-                      : 'Alight Station';
+                      ? t('map.transfer_station')
+                      : t('map.alight_station');
                   return (
                     <Marker
                       key={`dir-station-${sIdx}-${s.station_name}`}
@@ -3221,7 +3244,7 @@ export default function TripMapView({
                           </span>
                           {s.station_name}
                           <span style={{ display: 'block', fontSize: '9px', color: '#64748B', marginTop: '2px' }}>
-                            Click to inspect station & departures
+                            {t('map.click_inspect_station_departures')}
                           </span>
                         </div>
                       </Tooltip>
@@ -3273,12 +3296,19 @@ export default function TripMapView({
                             }}
                           >
                             {s.transit_line
-                              ? `${s.transit_line} • Stop ${stopIdx + 1} of ${totalStops}`
-                              : `Stop ${stopIdx + 1} of ${totalStops}`}
+                              ? t('map.line_stop_of_total', {
+                                  line: s.transit_line,
+                                  current: stopIdx + 1,
+                                  total: totalStops,
+                                })
+                              : t('map.stop_of_total', {
+                                  current: stopIdx + 1,
+                                  total: totalStops,
+                                })}
                           </span>
                           {stop.name}
                           <span style={{ display: 'block', fontSize: '9px', color: '#64748B', marginTop: '2px' }}>
-                            Click to inspect station & departures
+                            {t('map.click_inspect_station_departures')}
                           </span>
                         </div>
                       </Tooltip>
@@ -3357,10 +3387,10 @@ export default function TripMapView({
                           {s.transit_line && (
                             <Tooltip sticky direction="top" opacity={0.95}>
                               <span className="font-mono" style={{ fontSize: '11px', fontWeight: 600 }}>
-                                {`[LINE ${s.transit_line}] `}
-                                {s.instruction || 'Transit'}
+                                {`${t('map.line_bracket', { line: s.transit_line })} `}
+                                {s.instruction || t('map.transit_fallback')}
                                 <span style={{ display: 'block', fontSize: '9px', color: '#64748B', marginTop: '2px' }}>
-                                  Click to highlight line & view schedule
+                                  {t('map.click_highlight_line_schedule')}
                                 </span>
                               </span>
                             </Tooltip>
@@ -3475,16 +3505,20 @@ export default function TripMapView({
             }}
           />
           <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
-            Line {activeTransitLine.line}
+            {t('map.line_label', { line: activeTransitLine.line })}
           </span>
           <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 500 }}>
-            ({activeTransitLine.stations.length} station{activeTransitLine.stations.length === 1 ? '' : 's'})
+            (
+            {activeTransitLine.stations.length === 1
+              ? t('map.stations_singular', { count: 1 })
+              : t('map.stations_plural', { count: activeTransitLine.stations.length })}
+            )
           </span>
           {onClearTransitLine && (
             <button
               type="button"
               onClick={onClearTransitLine}
-              title="Clear line highlight"
+              title={t('map.clear_line_highlight_title')}
               style={{
                 marginLeft: '2px',
                 width: '18px',
@@ -3537,15 +3571,15 @@ export default function TripMapView({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <div style={{ width: '14px', height: '0px', borderTop: '2.5px dashed #10B981' }} />
-            <span style={{ color: '#0F172A', fontWeight: 600 }}>Walk</span>
+            <span style={{ color: '#0F172A', fontWeight: 600 }}>{t('map.legend_walk')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <div style={{ width: '14px', height: '3.5px', background: '#EF4444', borderRadius: '1px' }} />
-            <span style={{ color: '#0F172A', fontWeight: 600 }}>Transit Lines</span>
+            <span style={{ color: '#0F172A', fontWeight: 600 }}>{t('map.legend_transit_lines')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <div style={{ width: '14px', height: '0px', borderTop: '2.5px dashed #F59E0B' }} />
-            <span style={{ color: '#0F172A', fontWeight: 600 }}>Transfer</span>
+            <span style={{ color: '#0F172A', fontWeight: 600 }}>{t('map.legend_transfer')}</span>
           </div>
         </div>
       )}

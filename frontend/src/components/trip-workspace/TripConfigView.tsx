@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 import { Trip, TripRevisionItem, useTrips } from '@/hooks/useTrips';
 import type { RouteItineraryData } from '@/types/domain';
 import { extractTripTitle } from '@/utils/tripParser';
@@ -28,9 +30,9 @@ interface TripConfigViewProps {
 }
 
 const PACES = [
-  { id: 'relaxed', label: 'Relaxed', desc: 'Leisurely pace with ample downtime' },
-  { id: 'balanced', label: 'Balanced', desc: 'Even spread of highlights & rest' },
-  { id: 'packed', label: 'Packed / High Tempo', desc: 'Maximum sights & active exploration' },
+  { id: 'relaxed', labelKey: 'trip_config.pace_relaxed_label', descKey: 'trip_config.pace_relaxed_desc' },
+  { id: 'balanced', labelKey: 'trip_config.pace_balanced_label', descKey: 'trip_config.pace_balanced_desc' },
+  { id: 'packed', labelKey: 'trip_config.pace_packed_label', descKey: 'trip_config.pace_packed_desc' },
 ];
 
 function extractPhotoUrl(val: unknown): string {
@@ -46,6 +48,7 @@ function extractPhotoUrl(val: unknown): string {
 }
 
 export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const {
     updateTrip,
@@ -149,11 +152,17 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
       });
       setStartDate(updated.start_date);
       setEndDate(updated.end_date);
-      notify.success('Dates Shifted', `Trip moved to ${updated.start_date} – ${updated.end_date}.`);
+      notify.success(
+        t('trip_config.dates_shifted_title'),
+        t('trip_config.dates_shifted_desc', { start: updated.start_date, end: updated.end_date })
+      );
       onTripUpdated?.();
       await loadRevisions();
     } catch (err) {
-      notify.error('Shift Failed', err instanceof Error ? err.message : 'Could not shift trip dates.');
+      notify.error(
+        t('trip_config.shift_failed_title'),
+        err instanceof Error ? err.message : t('trip_config.shift_failed_msg')
+      );
     } finally {
       setIsShiftingDates(false);
     }
@@ -167,10 +176,13 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         method: 'POST',
         body: JSON.stringify({}),
       });
-      notify.success('Trip Duplicated', 'Opening copied expedition...');
+      notify.success(t('trip_config.duplicated_title'), t('trip_config.duplicated_desc'));
       router.push(`/trips/${cloned.id}`);
     } catch (err) {
-      notify.error('Duplicate Failed', err instanceof Error ? err.message : 'Could not duplicate trip.');
+      notify.error(
+        t('trip_config.duplicate_failed_title'),
+        err instanceof Error ? err.message : t('trip_config.duplicate_failed_msg')
+      );
     } finally {
       setIsDuplicatingTrip(false);
     }
@@ -223,8 +235,14 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
     const days = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
     if (days <= 0) return null;
     const nights = Math.max(0, days - 1);
-    return `${days} ${days === 1 ? 'day' : 'days'} • ${nights} ${nights === 1 ? 'night' : 'nights'}`;
-  }, [startDate, endDate]);
+    const daysLabel =
+      days === 1 ? t('trip_config.day_singular', { count: days }) : t('trip_config.days_plural', { count: days });
+    const nightsLabel =
+      nights === 1
+        ? t('trip_config.night_singular', { count: nights })
+        : t('trip_config.nights_plural', { count: nights });
+    return `${daysLabel} • ${nightsLabel}`;
+  }, [startDate, endDate, t]);
 
   // Save state
   const [isSaving, setIsSaving] = useState(false);
@@ -248,7 +266,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
       setRevisions(data.items || []);
       setCurrentRevision(data.current_revision ?? 0);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Could not load activity history.';
+      const msg = err instanceof Error ? err.message : translate('trip_config.load_history_failed');
       setRevisionsError(msg);
     } finally {
       setRevisionsLoading(false);
@@ -271,7 +289,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         }
       } catch (err: unknown) {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : 'Could not load activity history.';
+          const msg = err instanceof Error ? err.message : translate('trip_config.load_history_failed');
           setRevisionsError(msg);
         }
       } finally {
@@ -332,13 +350,13 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
     setRevisionsError(null);
     try {
       await revertTripRevision(trip.id, revisionId);
-      notify.success('Change Reverted', 'Reverted the selected change and recorded a new revision.');
+      notify.success(t('trip_config.change_reverted_title'), t('trip_config.change_reverted_desc'));
       onTripUpdated?.();
       await loadRevisions();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to revert change.';
+      const msg = err instanceof Error ? err.message : t('trip_config.revert_failed_msg');
       setRevisionsError(msg);
-      notify.error('Revert Failed', msg);
+      notify.error(t('trip_config.revert_failed_title'), msg);
     } finally {
       setBusyRevisionAction(null);
     }
@@ -350,13 +368,16 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
     setRevisionsError(null);
     try {
       await restoreTripVersion(trip.id, targetRevision);
-      notify.success('Version Restored', `Expedition restored to Version v${targetRevision}.`);
+      notify.success(
+        t('trip_config.version_restored_title'),
+        t('trip_config.version_restored_desc', { revision: targetRevision })
+      );
       onTripUpdated?.();
       await loadRevisions();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to restore version.';
+      const msg = err instanceof Error ? err.message : t('trip_config.restore_failed_msg');
       setRevisionsError(msg);
-      notify.error('Restore Failed', msg);
+      notify.error(t('trip_config.restore_failed_title'), msg);
     } finally {
       setBusyRevisionAction(null);
     }
@@ -503,10 +524,10 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         await loadRevisions();
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        setSaveError('Failed to save trip configuration. Please check your network connection.');
+        setSaveError(t('trip_config.save_failed_network'));
       }
     } catch (err: any) {
-      setSaveError(err?.message || 'An unexpected error occurred while saving.');
+      setSaveError(err?.message || t('trip_config.save_failed_unexpected'));
     } finally {
       setIsSaving(false);
     }
@@ -552,7 +573,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h2 className="font-display" style={{ margin: 0, fontSize: '1.6rem', color: 'var(--color-text-primary)', letterSpacing: '-0.01em' }}>
-              TRIP CONFIGURATION
+              {t('trip_config.title')}
             </h2>
           </div>
 
@@ -583,7 +604,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                   <path d="M3 3v5h5" />
                   <path d="M12 7v5l4 2" />
                 </svg>
-                ACTIVITY HISTORY
+                {t('trip_config.activity_history_btn')}
               </button>
             )}
 
@@ -613,17 +634,17 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
                     <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
                   </svg>
-                  SAVING...
+                  {t('trip_config.saving_btn')}
                 </>
               ) : saveSuccess ? (
                 <>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  SAVED!
+                  {t('trip_config.saved_btn')}
                 </>
               ) : (
-                'SAVE CHANGES'
+                t('trip_config.save_changes_btn')
               )}
             </button>
           </div>
@@ -644,7 +665,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             gap: '8px',
           }}
         >
-          ✓ Trip parameters updated successfully and synchronized to database.
+          {t('trip_config.save_success_banner')}
         </div>
       )}
 
@@ -660,7 +681,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             fontSize: '0.85rem',
           }}
         >
-          [ERROR] {saveError}
+          {t('trip_config.error_prefix', { error: saveError })}
         </div>
       )}
 
@@ -678,12 +699,12 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label className="font-mono text-muted text-xs">TRIP NAME / TITLE</label>
+          <label className="font-mono text-muted text-xs">{t('workspace.trip_title')}</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Tokyo Sakura Season Expedition"
+            placeholder={t('workspace.trip_title_placeholder')}
             style={{
               padding: '10px 14px',
               background: 'var(--color-bg-main)',
@@ -709,7 +730,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
               marginBottom: '6px',
             }}
           >
-            Flight Route & Time Windows
+            {t('trip_config.flight_route_label')}
           </label>
           <RouteIntakeBar
             origin={origin}
@@ -796,7 +817,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             }}
           >
             <PaperclipIcon size={13} color="var(--color-accent-primary)" />
-            <span>Upload Photo</span>
+            <span>{t('workspace.upload_photo')}</span>
           </button>
           {photoUrl && (
             <button
@@ -815,7 +836,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                 textDecoration: 'underline',
               }}
             >
-              Clear Cover Photo
+              {t('trip_config.clear_cover_photo')}
             </button>
           )}
         </div>
@@ -840,7 +861,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={photoUrl}
-                alt="Trip Cover Preview"
+                alt={t('workspace.photo_preview')}
                 onError={() => setPhotoPreviewError(true)}
                 style={{
                   width: '100%',
@@ -856,7 +877,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
                 <div className="font-mono text-muted text-xs">
-                  {photoPreviewError ? 'Invalid image URL' : 'No Cover Photo Set'}
+                  {photoPreviewError ? t('trip_config.invalid_image_url') : t('trip_config.no_cover_photo')}
                 </div>
               </div>
             )}
@@ -864,7 +885,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label className="font-mono text-muted text-xs">IMAGE URL (WEB LINK)</label>
+              <label className="font-mono text-muted text-xs">{t('workspace.image_url')}</label>
               <input
                 type="url"
                 value={photoUrl}
@@ -889,7 +910,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             {availablePhotos.length > 0 && (
               <div>
                 <span className="font-mono text-muted text-xs" style={{ display: 'block', marginBottom: '6px' }}>
-                  CHOOSE FROM ITINERARY MEDIA ({availablePhotos.length} SIGHTS)
+                  {t('trip_config.choose_from_media', { count: availablePhotos.length })}
                 </span>
                 <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px' }}>
                   {availablePhotos.slice(0, 8).map((url, i) => (
@@ -915,7 +936,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.08)')}
                       onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-                      title="Use this photo"
+                      title={t('workspace.use_photo')}
                     />
                   ))}
                 </div>
@@ -950,12 +971,12 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
       >
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label className="font-mono text-muted text-xs">TRIP DESCRIPTION</label>
+            <label className="font-mono text-muted text-xs">{t('workspace.trip_description')}</label>
             <textarea
               rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Overview of the mission, highlights, theme, or travel philosophy..."
+              placeholder={t('workspace.trip_desc_placeholder')}
               style={{
                 padding: '10px 14px',
                 background: 'var(--color-bg-main)',
@@ -970,12 +991,12 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label className="font-mono text-muted text-xs">INTERNAL FIELD NOTES & REMINDERS</label>
+            <label className="font-mono text-muted text-xs">{t('trip_config.internal_notes_label')}</label>
             <textarea
               rows={4}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Packing lists, emergency contacts, SIM cards, reservation codes, keys..."
+              placeholder={t('workspace.field_briefing_placeholder')}
               style={{
                 padding: '10px 14px',
                 background: 'var(--color-bg-main)',
@@ -1006,7 +1027,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
       >
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label className="font-mono text-muted text-xs">TARGET BUDGET</label>
+            <label className="font-mono text-muted text-xs">{t('trip_config.target_budget_label')}</label>
             <div style={{ position: 'relative' }}>
               <input
                 type="number"
@@ -1014,7 +1035,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                 step="50"
                 value={budget}
                 onChange={(e) => setBudget(e.target.value)}
-                placeholder="e.g. 2500"
+                placeholder={t('trip_config.budget_placeholder')}
                 style={{
                   width: '100%',
                   padding: '10px 14px',
@@ -1027,11 +1048,11 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                 }}
               />
             </div>
-            <span className="font-mono text-muted text-xs">Target cap evaluated by Knapsack solver & Cost ledger</span>
+            <span className="font-mono text-muted text-xs">{t('trip_config.target_budget_hint')}</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label className="font-mono text-muted text-xs">BASE CURRENCY</label>
+            <label className="font-mono text-muted text-xs">{t('trip_config.base_currency_label')}</label>
             <div
               style={{
                 display: 'flex',
@@ -1056,7 +1077,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
               <button
                 type="button"
                 onClick={() => setIsCurrencyWheelOpen(true)}
-                title="Change currency with dynamic spin dial"
+                title={t('trip_config.change_currency_title')}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -1073,11 +1094,11 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                   boxShadow: 'var(--shadow-sm)',
                 }}
               >
-                <span>Change</span>
+                <span>{t('trip_config.change_btn')}</span>
                 <SettingsIcon size={12} color="var(--color-text-muted)" />
               </button>
             </div>
-            <span className="font-mono text-muted text-xs">Default currency for split ledgers and tickets</span>
+            <span className="font-mono text-muted text-xs">{t('trip_config.base_currency_hint')}</span>
           </div>
         </div>
 
@@ -1136,7 +1157,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
               marginBottom: '6px',
             }}
           >
-            Travel Window & Calendar
+            {t('trip_config.travel_window_label')}
           </label>
           <PaladioDateRangePicker
             startDate={startDate}
@@ -1152,7 +1173,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <label className="font-mono text-muted text-xs">EXPLORATION PACE</label>
+          <label className="font-mono text-muted text-xs">{t('trip_config.exploration_pace_label')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
             {PACES.map((p) => {
               const active = pace === p.id;
@@ -1172,10 +1193,10 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                   }}
                 >
                   <div style={{ fontWeight: 600, fontSize: '0.88rem', color: active ? 'var(--color-accent-teal, #2e7d32)' : 'var(--color-text-primary)' }}>
-                    {p.label}
+                    {t(p.labelKey)}
                   </div>
                   <div className="font-mono text-muted" style={{ fontSize: '0.75rem', marginTop: '4px' }}>
-                    {p.desc}
+                    {t(p.descKey)}
                   </div>
                 </button>
               );
@@ -1220,9 +1241,9 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
       >
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           {[
-            { id: 'active', label: 'Active Expedition', desc: 'In planning or currently traveling' },
-            { id: 'completed', label: 'Completed (Archived in Vault)', desc: 'Mission fulfilled' },
-            { id: 'archived', label: 'Draft / On Hold', desc: 'Paused exploration' },
+            { id: 'active', label: t('trip_config.status_active_label'), desc: t('trip_config.status_active_desc') },
+            { id: 'completed', label: t('trip_config.status_completed_label'), desc: t('trip_config.status_completed_desc') },
+            { id: 'archived', label: t('trip_config.status_archived_label'), desc: t('trip_config.status_archived_desc') },
           ].map((s) => {
             const active = status === s.id;
             return (
@@ -1269,10 +1290,10 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
-              Shift Trip Dates &amp; Re-anchor Bookings
+              {t('trip_config.shift_dates_title')}
             </h4>
             <p className="font-mono text-muted text-xs" style={{ margin: '4px 0 0' }}>
-              Move your entire schedule to a new start date and automatically shift days, hotel stays, tickets, and expenses.
+              {t('trip_config.shift_dates_desc')}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -1296,7 +1317,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
               }}
             >
               <CalendarIcon size={14} color="var(--color-text-muted)" />
-              <span>{shiftStartDate || 'Select start date'}</span>
+              <span>{shiftStartDate || t('trip_config.select_start_date')}</span>
             </button>
             {isShiftDatePickerOpen && typeof document !== 'undefined' && createPortal(
               <div
@@ -1315,7 +1336,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
               >
                 <div onClick={(e) => e.stopPropagation()}>
                   <PaladioSingleDatePicker
-                    title="NEW START DATE"
+                    title={t('trip_config.new_start_date_title')}
                     selectedDate={shiftStartDate}
                     onChange={(d) => {
                       if (d) setShiftStartDate(d);
@@ -1333,7 +1354,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                 checked={reanchorBookings}
                 onChange={(e) => setReanchorBookings(e.target.checked)}
               />
-              Re-anchor tickets &amp; expenses
+              {t('trip_config.reanchor_checkbox')}
             </label>
             <button
               type="button"
@@ -1351,7 +1372,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                 cursor: isShiftingDates ? 'wait' : 'pointer',
               }}
             >
-              {isShiftingDates ? 'SHIFTING...' : 'SHIFT DATES'}
+              {isShiftingDates ? t('trip_config.shifting_btn') : t('trip_config.shift_dates_btn')}
             </button>
           </div>
         </div>
@@ -1361,10 +1382,10 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
-              Duplicate Expedition
+              {t('trip_config.duplicate_title')}
             </h4>
             <p className="font-mono text-muted text-xs" style={{ margin: '4px 0 0' }}>
-              Clone days, stops, participants, and saved collections into a new independent trip.
+              {t('trip_config.duplicate_desc')}
             </p>
           </div>
           <button
@@ -1383,7 +1404,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
               cursor: isDuplicatingTrip ? 'wait' : 'pointer',
             }}
           >
-            {isDuplicatingTrip ? 'DUPLICATING...' : 'DUPLICATE TRIP'}
+            {isDuplicatingTrip ? t('trip_config.duplicating_btn') : t('trip_config.duplicate_btn')}
           </button>
         </div>
       </section>
@@ -1405,10 +1426,10 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
       >
         <div>
           <h4 style={{ margin: '4px 0 0', fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
-            Delete Expedition & Purge All Records
+            {t('trip_config.delete_section_title')}
           </h4>
           <p className="font-mono text-muted text-xs" style={{ margin: '4px 0 0' }}>
-            Irreversibly removes itinerary waypoints, ticket attachments, expense splits, and memory photos.
+            {t('trip_config.delete_section_desc')}
           </p>
         </div>
 
@@ -1428,7 +1449,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             transition: 'all 0.15s ease',
           }}
         >
-          DELETE EXPEDITION
+          {t('trip_config.delete_expedition_btn')}
         </button>
       </section>
       </div>
@@ -1489,12 +1510,12 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           >
             <div>
               <h3 className="font-display" style={{ margin: '6px 0 0', fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>
-                Confirm Deletion of &ldquo;{title || destination}&rdquo;?
+                {t('trip_config.confirm_delete_title', { name: title || destination })}
               </h3>
             </div>
 
             <p className="font-mono text-muted text-xs" style={{ margin: 0, lineHeight: 1.5 }}>
-              This action cannot be undone. All database records, route schedules, wallet passes, and participant splits associated with this trip ID will be deleted.
+              {t('trip_config.confirm_delete_desc')}
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
@@ -1513,7 +1534,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                   cursor: 'pointer',
                 }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
 
               <button
@@ -1532,7 +1553,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                   cursor: isDeleting ? 'wait' : 'pointer',
                 }}
               >
-                {isDeleting ? 'PURGING...' : 'CONFIRM PURGE'}
+                {isDeleting ? t('trip_config.purging_btn') : t('trip_config.confirm_purge_btn')}
               </button>
             </div>
           </div>

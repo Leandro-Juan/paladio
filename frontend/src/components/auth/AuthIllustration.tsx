@@ -1,4 +1,7 @@
+"use client";
+
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export function WaveAndSunIllustration({
   maxWidth = '320px',
@@ -46,6 +49,7 @@ export function WaveAndSunIllustration({
 }
 
 export function SunMark({ size = 32 }: { size?: number }) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -57,7 +61,7 @@ export function SunMark({ size = 32 }: { size?: number }) {
         filter: 'drop-shadow(0 0 8px rgba(32, 60, 99, 0.35))',
         display: 'block',
       }}
-      aria-label="Paladio Logo"
+      aria-label={t('common.paladio_logo')}
     />
   );
 }

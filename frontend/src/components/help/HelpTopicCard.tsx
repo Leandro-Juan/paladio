@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { HelpArticle } from './helpData';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface HelpTopicCardProps {
   article: HelpArticle;
@@ -10,6 +11,7 @@ interface HelpTopicCardProps {
 }
 
 export function HelpTopicCard({ article, isSelected = false, onClick }: HelpTopicCardProps) {
+  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
 
   // Active / Selected state styling (like the purple highlighted card in the reference image)
@@ -68,7 +70,7 @@ export function HelpTopicCard({ article, isSelected = false, onClick }: HelpTopi
                 color: isFilled ? '#FFFFFF' : 'var(--color-ocean, #1B8FA6)',
               }}
             >
-              {article.badge}
+              {t(article.badge)}
             </span>
           )}
 
@@ -79,7 +81,7 @@ export function HelpTopicCard({ article, isSelected = false, onClick }: HelpTopi
               color: isFilled ? 'rgba(255, 255, 255, 0.8)' : 'var(--color-text-muted, #566B76)',
             }}
           >
-            {article.readTime}
+            {t(article.readTime)}
           </span>
         </div>
 
@@ -93,7 +95,7 @@ export function HelpTopicCard({ article, isSelected = false, onClick }: HelpTopi
             color: isFilled ? '#FFFFFF' : 'var(--color-text-primary, #1A2B32)',
           }}
         >
-          {article.title}
+          {t(article.title)}
         </h3>
 
         {/* Excerpt */}
@@ -109,7 +111,7 @@ export function HelpTopicCard({ article, isSelected = false, onClick }: HelpTopi
             overflow: 'hidden',
           }}
         >
-          {article.excerpt}
+          {t(article.excerpt)}
         </p>
       </div>
 
@@ -131,7 +133,7 @@ export function HelpTopicCard({ article, isSelected = false, onClick }: HelpTopi
             fontWeight: 600,
           }}
         >
-          {article.difficulty || 'Guide'}
+          {article.difficulty ? t(article.difficulty) : t('help.difficulty_guide')}
         </span>
 
         <span
@@ -143,7 +145,7 @@ export function HelpTopicCard({ article, isSelected = false, onClick }: HelpTopi
             color: isFilled ? '#FFFFFF' : 'var(--color-ocean, #1B8FA6)',
           }}
         >
-          <span>Read</span>
+          <span>{t('help.read_btn')}</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="9 18 15 12 9 6" />
           </svg>

@@ -3,6 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { HelpArticle, HELP_CATEGORIES } from './helpData';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   TimelineUiMockup,
   RouteComparisonMockup,
@@ -74,6 +75,7 @@ export function HelpArticleView({
   onNavigateCategory,
   onSelectArticle,
 }: HelpArticleViewProps) {
+  const { t } = useTranslation();
   const category = HELP_CATEGORIES.find((c) => c.id === article.categoryId);
 
   // Render matching visual mockup
@@ -83,7 +85,7 @@ export function HelpArticleView({
         return (
           <div style={{ margin: '24px 0 32px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
-              INTERACTIVE TIMELINE OVERVIEW
+              {t('help.mockup_timeline_title')}
             </div>
             <TimelineUiMockup />
           </div>
@@ -92,7 +94,7 @@ export function HelpArticleView({
         return (
           <div style={{ margin: '24px 0 32px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
-              HOW PALADIO COMPARES • ZIGZAG ROUTE VS NEIGHBORHOOD FLOW
+              {t('help.mockup_route_comparison_title')}
             </div>
             <RouteComparisonMockup />
           </div>
@@ -101,7 +103,7 @@ export function HelpArticleView({
         return (
           <div style={{ margin: '24px 0 32px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
-              TASTE STAR &amp; DETERMINISTIC SOLVER GUARDRAILS
+              {t('help.mockup_realism_radar_title')}
             </div>
             <RealismRadarMockup />
           </div>
@@ -110,7 +112,7 @@ export function HelpArticleView({
         return (
           <div style={{ margin: '24px 0 32px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
-              TRIP COSTS, SPEND PROGRESS &amp; SETTLEMENT
+              {t('help.mockup_cost_knapsack_title')}
             </div>
             <CostKnapsackMockup />
           </div>
@@ -119,7 +121,7 @@ export function HelpArticleView({
         return (
           <div style={{ margin: '24px 0 32px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
-              GTFS TRANSIT ROUTING &amp; AREA FILTERING
+              {t('help.mockup_transit_routing_title')}
             </div>
             <TransitRoutingMockup />
           </div>
@@ -128,7 +130,7 @@ export function HelpArticleView({
         return (
           <div style={{ margin: '24px 0 32px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
-              WALLET DROPZONE &amp; PASSBOOK VIEWER
+              {t('help.mockup_wallet_passbook_title')}
             </div>
             <WalletPassbookMockup />
           </div>
@@ -137,7 +139,7 @@ export function HelpArticleView({
         return (
           <div style={{ margin: '24px 0 32px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
-              ROUTE TELEMETRY &amp; P10 DEAL ALERTS
+              {t('help.mockup_route_monitoring_title')}
             </div>
             <RouteMonitoringMockup />
           </div>
@@ -146,7 +148,7 @@ export function HelpArticleView({
         return (
           <div style={{ margin: '24px 0 32px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase', color: 'var(--color-ocean, #1B8FA6)', marginBottom: '8px' }}>
-              YOUR TRAVEL ASSISTANT &amp; SAFE PROPOSAL PREVIEW
+              {t('help.mockup_swarm_assistant_title')}
             </div>
             <SwarmAssistantMockup />
           </div>
@@ -167,7 +169,7 @@ export function HelpArticleView({
     <article style={{ maxWidth: '840px', margin: '0 auto', paddingBottom: '60px' }}>
       {/* Breadcrumbs */}
       <nav
-        aria-label="Breadcrumbs"
+        aria-label={t('help.breadcrumbs_aria')}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -189,7 +191,7 @@ export function HelpArticleView({
             fontWeight: 500,
           }}
         >
-          Help center
+          {t('help.breadcrumb_home')}
         </button>
         <span>/</span>
         <button
@@ -204,11 +206,11 @@ export function HelpArticleView({
             fontWeight: 600,
           }}
         >
-          {category?.title || 'Guides'}
+          {category ? t(category.title) : t('help.guides_fallback')}
         </button>
         <span>/</span>
         <span style={{ color: 'var(--color-text-primary, #1A2B32)', fontWeight: 600 }}>
-          {article.title}
+          {t(article.title)}
         </span>
       </nav>
 
@@ -227,17 +229,17 @@ export function HelpArticleView({
                 color: 'var(--color-ocean, #1B8FA6)',
               }}
             >
-              {article.badge}
+              {t(article.badge)}
             </span>
           )}
           <span style={{ fontSize: '12px', color: 'var(--color-text-muted, #566B76)' }}>
-            {article.readTime} read
+            {t('help.read_time_full', { time: t(article.readTime) })}
           </span>
           {article.difficulty && (
             <>
               <span style={{ color: 'var(--color-border, #E2D9CC)' }}>•</span>
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-accent-gold, #E2B33C)' }}>
-                {article.difficulty}
+                {t(article.difficulty)}
               </span>
             </>
           )}
@@ -253,7 +255,7 @@ export function HelpArticleView({
             lineHeight: 1.25,
           }}
         >
-          {article.title}
+          {t(article.title)}
         </h1>
 
         <p
@@ -264,7 +266,7 @@ export function HelpArticleView({
             color: 'var(--color-text-muted, #566B76)',
           }}
         >
-          {article.excerpt}
+          {t(article.excerpt)}
         </p>
       </header>
 
@@ -289,10 +291,10 @@ export function HelpArticleView({
             marginBottom: '4px',
           }}
         >
-          KEY TAKEAWAY
+          {t('help.key_takeaway')}
         </div>
         <div style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--color-text-primary, #1A2B32)' }}>
-          {article.tldr}
+          {t(article.tldr)}
         </div>
       </div>
 
@@ -311,7 +313,7 @@ export function HelpArticleView({
             {/* Next.js Image */}
             <Image
               src={article.screenshotUrl}
-              alt={article.screenshotCaption || article.title}
+              alt={article.screenshotCaption ? t(article.screenshotCaption) : t(article.title)}
               width={800}
               height={480}
               unoptimized
@@ -338,7 +340,7 @@ export function HelpArticleView({
                 }}
               >
                 <ScreenshotIcon />
-                <span>{article.screenshotCaption}</span>
+                <span>{t(article.screenshotCaption)}</span>
               </div>
             )}
           </div>
@@ -362,7 +364,7 @@ export function HelpArticleView({
                 paddingBottom: '8px',
               }}
             >
-              {sec.heading}
+              {t(sec.heading)}
             </h2>
 
             {/* Paragraphs */}
@@ -376,7 +378,7 @@ export function HelpArticleView({
                   margin: '0 0 12px 0',
                 }}
               >
-                {p}
+                {t(p)}
               </p>
             ))}
 
@@ -393,7 +395,7 @@ export function HelpArticleView({
               >
                 {sec.steps.map((st, sIdx) => (
                   <li key={sIdx} style={{ marginBottom: '6px' }}>
-                    {st}
+                    {t(st)}
                   </li>
                 ))}
               </ol>
@@ -434,7 +436,7 @@ export function HelpArticleView({
                 ) : (
                   <TipIcon color="var(--color-accent-gold, #E2B33C)" />
                 )}
-                <div>{sec.callout.text}</div>
+                <div>{t(sec.callout.text)}</div>
               </div>
             )}
 
@@ -458,10 +460,10 @@ export function HelpArticleView({
                 >
                   <thead>
                     <tr style={{ background: 'var(--color-surface-hover, rgba(15, 76, 92, 0.05))', borderBottom: '1px solid var(--color-border, #E2D9CC)' }}>
-                      <th style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>Setting / Item</th>
-                      <th style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>What it Does</th>
-                      <th style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>Options</th>
-                      <th style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>Example</th>
+                      <th style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>{t('help.table_col_setting')}</th>
+                      <th style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>{t('help.table_col_what')}</th>
+                      <th style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>{t('help.table_col_options')}</th>
+                      <th style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>{t('help.table_col_example')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -474,16 +476,16 @@ export function HelpArticleView({
                         }}
                       >
                         <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--color-ocean, #1B8FA6)', fontFamily: 'var(--font-mono, monospace)' }}>
-                          {row.term}
+                          {t(row.term)}
                         </td>
                         <td style={{ padding: '10px 12px', color: 'var(--color-text-primary)' }}>
-                          {row.meaning}
+                          {t(row.meaning)}
                         </td>
                         <td style={{ padding: '10px 12px', color: 'var(--color-text-muted)' }}>
-                          {row.rangeOrType}
+                          {t(row.rangeOrType)}
                         </td>
                         <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                          {row.defaultOrExample}
+                          {t(row.defaultOrExample)}
                         </td>
                       </tr>
                     ))}
@@ -514,7 +516,7 @@ export function HelpArticleView({
               marginBottom: '14px',
             }}
           >
-            RELATED GUIDES &amp; WALKTHROUGHS
+            {t('help.related_guides_title')}
           </div>
 
           <div
@@ -543,7 +545,7 @@ export function HelpArticleView({
                 }}
               >
                 <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-ocean, #1B8FA6)' }}>
-                  {rel.title}
+                  {t(rel.title)}
                 </span>
                 <span
                   style={{
@@ -555,7 +557,7 @@ export function HelpArticleView({
                     overflow: 'hidden',
                   }}
                 >
-                  {rel.excerpt}
+                  {t(rel.excerpt)}
                 </span>
               </button>
             ))}

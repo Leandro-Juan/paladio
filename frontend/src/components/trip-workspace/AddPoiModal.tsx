@@ -18,6 +18,7 @@ import { CustomHourPickerModal } from '@/components/trip-creation/CustomHourPick
 import { PoiLocationPickerModal } from './PoiLocationPickerModal';
 import { getApiBaseUrl } from '@/utils/api';
 import { notify } from '@/utils/notify';
+import { useTranslation } from '@/hooks/useTranslation';
 import { PoiApiItem } from './TripUnifiedSidebar';
 import { PoiDetail } from '@/types/domain';
 
@@ -35,26 +36,26 @@ export interface AddPoiModalProps {
 const emptySubscribe = () => () => {};
 
 const CATEGORY_OPTIONS = [
-  { value: 'attraction', label: 'Attraction' },
-  { value: 'monument', label: 'Monument' },
-  { value: 'museum', label: 'Museum' },
-  { value: 'restaurant', label: 'Restaurant' },
-  { value: 'cafe', label: 'Café' },
-  { value: 'park', label: 'Park & Nature' },
-  { value: 'shopping', label: 'Shopping' },
-  { value: 'viewpoint', label: 'Viewpoint' },
-  { value: 'hotel', label: 'Hotel & Lodging' },
-  { value: 'transit', label: 'Transit Station' },
+  { value: 'attraction', labelKey: 'add_poi.cat_attraction' },
+  { value: 'monument', labelKey: 'add_poi.cat_monument' },
+  { value: 'museum', labelKey: 'add_poi.cat_museum' },
+  { value: 'restaurant', labelKey: 'add_poi.cat_restaurant' },
+  { value: 'cafe', labelKey: 'add_poi.cat_cafe' },
+  { value: 'park', labelKey: 'add_poi.cat_park' },
+  { value: 'shopping', labelKey: 'add_poi.cat_shopping' },
+  { value: 'viewpoint', labelKey: 'add_poi.cat_viewpoint' },
+  { value: 'hotel', labelKey: 'add_poi.cat_hotel' },
+  { value: 'transit', labelKey: 'add_poi.cat_transit' },
 ];
 
 const WEEK_DAYS = [
-  { key: 'mon', short: 'Mon', full: 'Monday' },
-  { key: 'tue', short: 'Tue', full: 'Tuesday' },
-  { key: 'wed', short: 'Wed', full: 'Wednesday' },
-  { key: 'thu', short: 'Thu', full: 'Thursday' },
-  { key: 'fri', short: 'Fri', full: 'Friday' },
-  { key: 'sat', short: 'Sat', full: 'Saturday' },
-  { key: 'sun', short: 'Sun', full: 'Sunday' },
+  { key: 'mon', shortKey: 'add_poi.day_mon_short', fullKey: 'add_poi.day_mon_full' },
+  { key: 'tue', shortKey: 'add_poi.day_tue_short', fullKey: 'add_poi.day_tue_full' },
+  { key: 'wed', shortKey: 'add_poi.day_wed_short', fullKey: 'add_poi.day_wed_full' },
+  { key: 'thu', shortKey: 'add_poi.day_thu_short', fullKey: 'add_poi.day_thu_full' },
+  { key: 'fri', shortKey: 'add_poi.day_fri_short', fullKey: 'add_poi.day_fri_full' },
+  { key: 'sat', shortKey: 'add_poi.day_sat_short', fullKey: 'add_poi.day_sat_full' },
+  { key: 'sun', shortKey: 'add_poi.day_sun_short', fullKey: 'add_poi.day_sun_full' },
 ];
 
 interface DaySchedule {
@@ -153,6 +154,7 @@ export function AddPoiModal({
   defaultLng,
   onPoiCreated,
 }: AddPoiModalProps) {
+  const { t } = useTranslation();
   const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   // Core fields
@@ -287,7 +289,7 @@ export function AddPoiModal({
     for (const file of Array.from(files)) {
       if (!file.type.startsWith('image/')) continue;
       if (file.size > 10 * 1024 * 1024) {
-        setFormError('Each image must be under 10 MB.');
+        setFormError(t('add_poi.error_image_size'));
         continue;
       }
       try {
@@ -298,7 +300,7 @@ export function AddPoiModal({
           caption: file.name.replace(/\.[^.]+$/, ''),
         });
       } catch {
-        setFormError('Could not process one of the selected images.');
+        setFormError(t('add_poi.error_image_process'));
       }
     }
     if (nextPhotos.length > 0) {
@@ -310,7 +312,7 @@ export function AddPoiModal({
     const trimmed = photoUrlInput.trim();
     if (!trimmed) return;
     if (!/^https?:\/\//i.test(trimmed)) {
-      setFormError('Photo URL must start with http:// or https://');
+      setFormError(t('add_poi.error_photo_url'));
       return;
     }
     setFormError(null);
@@ -385,7 +387,7 @@ export function AddPoiModal({
       });
 
       if (!res.ok) {
-        throw new Error(`Failed to save POI (status ${res.status})`);
+        throw new Error(t('add_poi.error_save_status', { status: res.status }));
       }
 
       const createdPoi: PoiDetail = await res.json();
@@ -414,11 +416,11 @@ export function AddPoiModal({
 
       onPoiCreated(apiItem);
       window.dispatchEvent(new CustomEvent('paladio:poi-created', { detail: createdPoi }));
-      notify.success('Place Added', `"${createdPoi.name}" has been added.`);
+      notify.success(t('add_poi.toast_added_title'), t('add_poi.toast_added_desc', { name: createdPoi.name }));
       handleClose();
     } catch (err) {
       console.error('Failed to create POI:', err);
-      setFormError(err instanceof Error ? err.message : 'Could not create place. Please check details.');
+      setFormError(err instanceof Error ? err.message : t('add_poi.error_create_fallback'));
     } finally {
       setIsSubmitting(false);
     }
@@ -427,18 +429,18 @@ export function AddPoiModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setFormError('Please enter a place name.');
+      setFormError(t('add_poi.error_name_required'));
       return;
     }
     if (allowCityCountryEdit && (!cityInput.trim() || !countryInput.trim())) {
-      setFormError('Please enter both City and Country.');
+      setFormError(t('add_poi.error_city_country_required'));
       return;
     }
 
     const parsedLat = parseFloat(lat);
     const parsedLng = parseFloat(lng);
     if (isNaN(parsedLat) || isNaN(parsedLng)) {
-      setFormError('Please enter valid coordinates or pick a location on the map.');
+      setFormError(t('add_poi.error_coords_required'));
       return;
     }
 
@@ -561,10 +563,12 @@ export function AddPoiModal({
                 fontFamily: 'var(--font-display, inherit)',
               }}
             >
-              Add New Place
+              {t('add_poi.title')}
             </h2>
             <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--color-text-muted, #64748B)' }}>
-              Create a custom point of interest in {(allowCityCountryEdit ? cityInput.trim() : city) || 'your destination'}
+              {t('add_poi.subtitle', {
+                destination: (allowCityCountryEdit ? cityInput.trim() : city) || t('add_poi.destination_fallback'),
+              })}
             </p>
           </div>
 
@@ -572,8 +576,8 @@ export function AddPoiModal({
             type="button"
             onClick={handleClose}
             disabled={isSubmitting}
-            title="Close"
-            aria-label="Close"
+            title={t('common.close')}
+            aria-label={t('common.close')}
             data-testid="close-add-poi-modal-btn"
             style={{
               background: 'transparent',
@@ -621,12 +625,12 @@ export function AddPoiModal({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {/* Place Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={labelStyle}>Place Name *</label>
+                <label style={labelStyle}>{t('add_poi.place_name_label')}</label>
                 <input
                   type="text"
                   required
                   data-testid="add-poi-name-input"
-                  placeholder="e.g. Museo Sorolla"
+                  placeholder={t('add_poi.place_name_placeholder')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   style={{ ...inputStyle, fontSize: '13.5px', fontWeight: 500 }}
@@ -635,11 +639,11 @@ export function AddPoiModal({
 
               {/* Description (right below Place Name) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={labelStyle}>Overview / Description</label>
+                <label style={labelStyle}>{t('add_poi.description_label')}</label>
                 <textarea
                   rows={3}
                   data-testid="add-poi-description-input"
-                  placeholder="Notes, highlights, or tips about this spot..."
+                  placeholder={t('add_poi.description_placeholder')}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   style={{ ...inputStyle, resize: 'vertical' }}
@@ -650,7 +654,7 @@ export function AddPoiModal({
               <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 0.8fr 0.85fr', gap: '10px' }}>
             {/* Custom Category Menu with Icon on Left */}
             <div ref={categoryMenuRef} style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
-              <label style={labelStyle}>Category</label>
+              <label style={labelStyle}>{t('workspace.category')}</label>
               <button
                 type="button"
                 data-testid="add-poi-category-select"
@@ -670,7 +674,7 @@ export function AddPoiModal({
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                   <PoiCategoryIcon category={selectedCategoryObj.value} size={15} color="var(--color-accent-primary, #0F4C5C)" />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {selectedCategoryObj.label}
+                    {t(selectedCategoryObj.labelKey)}
                   </span>
                 </span>
                 <span
@@ -742,7 +746,7 @@ export function AddPoiModal({
                             size={15}
                             color={isSelected ? 'var(--color-accent-primary, #0F4C5C)' : 'var(--color-text-muted)'}
                           />
-                          <span>{opt.label}</span>
+                          <span>{t(opt.labelKey)}</span>
                         </span>
                         {isSelected && <CheckIcon size={13} color="var(--color-accent-primary, #0F4C5C)" />}
                       </button>
@@ -753,7 +757,7 @@ export function AddPoiModal({
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={labelStyle}>Duration (mins)</label>
+              <label style={labelStyle}>{t('add_poi.duration_label')}</label>
               <input
                 type="number"
                 min={5}
@@ -766,7 +770,7 @@ export function AddPoiModal({
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={labelStyle}>Cost (€ / person)</label>
+              <label style={labelStyle}>{t('add_poi.cost_label')}</label>
               <input
                 type="number"
                 min={0}
@@ -782,7 +786,7 @@ export function AddPoiModal({
           {/* Interactive 5-Star Rating (matching Search Star Filter) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label style={labelStyle}>Rating (0.5 – 5.0 Stars)</label>
+              <label style={labelStyle}>{t('add_poi.rating_label')}</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span
                   data-testid="add-poi-rating-label"
@@ -793,7 +797,7 @@ export function AddPoiModal({
                     fontFamily: 'var(--font-mono, monospace)',
                   }}
                 >
-                  {rating !== null ? `★ ${rating.toFixed(1)}` : 'Not Rated'}
+                  {rating !== null ? `★ ${rating.toFixed(1)}` : t('add_poi.not_rated')}
                 </span>
                 {rating !== null && (
                   <button
@@ -812,7 +816,7 @@ export function AddPoiModal({
                       padding: 0,
                     }}
                   >
-                    Clear
+                    {t('common.clear')}
                   </button>
                 )}
               </div>
@@ -897,7 +901,7 @@ export function AddPoiModal({
                     {/* Left half (0.5) */}
                     <button
                       type="button"
-                      aria-label={`Rate ${starIdx - 0.5} stars`}
+                      aria-label={t('add_poi.rate_stars_aria', { count: starIdx - 0.5 })}
                       data-testid={`add-poi-star-${starIdx}-half`}
                       onMouseEnter={() => setHoverRating(starIdx - 0.5)}
                       onClick={() => {
@@ -922,7 +926,7 @@ export function AddPoiModal({
                     {/* Right half (1.0) */}
                     <button
                       type="button"
-                      aria-label={`Rate ${starIdx} stars`}
+                      aria-label={t('add_poi.rate_stars_aria', { count: starIdx })}
                       data-testid={`add-poi-star-${starIdx}-full`}
                       onMouseEnter={() => setHoverRating(starIdx)}
                       onClick={() => {
@@ -951,7 +955,7 @@ export function AddPoiModal({
           {/* Contact & Additional Info */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={labelStyle}>Phone</label>
+              <label style={labelStyle}>{t('add_poi.phone_label')}</label>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <span style={{ position: 'absolute', left: '10px', display: 'inline-flex', color: 'var(--color-text-muted)' }}>
                   <PhoneIcon size={12} />
@@ -968,7 +972,7 @@ export function AddPoiModal({
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={labelStyle}>Website</label>
+              <label style={labelStyle}>{t('workspace.website')}</label>
               <input
                 type="url"
                 data-testid="add-poi-website-input"
@@ -980,11 +984,11 @@ export function AddPoiModal({
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={labelStyle}>Email</label>
+              <label style={labelStyle}>{t('add_poi.email_label')}</label>
               <input
                 type="email"
                 data-testid="add-poi-email-input"
-                placeholder="info@place.com"
+                placeholder={t('add_poi.email_placeholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 style={inputStyle}
@@ -1013,7 +1017,7 @@ export function AddPoiModal({
               }}
             >
               {wheelchairAccessible && <CheckIcon size={12} />}
-              Wheelchair Accessible
+              {t('add_poi.wheelchair_accessible')}
             </button>
 
             <button
@@ -1035,7 +1039,7 @@ export function AddPoiModal({
               }}
             >
               {reservationRequired && <CheckIcon size={12} />}
-              Reservation Recommended
+              {t('add_poi.reservation_recommended')}
             </button>
           </div>
           </div>
@@ -1055,15 +1059,13 @@ export function AddPoiModal({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-              <label style={labelStyle}>Location & Street Address</label>
+              <label style={labelStyle}>{t('add_poi.location_label')}</label>
               <button
                 type="button"
                 data-testid="open-poi-map-picker-btn"
                 onClick={() => {
                   if (allowCityCountryEdit && (!cityInput.trim() || !countryInput.trim())) {
-                    setLocationWarning(
-                      'Please enter both the City and Country first so the map can open and center on that city.'
-                    );
+                    setLocationWarning(t('add_poi.location_city_country_warning'));
                     return;
                   }
                   setLocationWarning(null);
@@ -1084,7 +1086,7 @@ export function AddPoiModal({
                 }}
               >
                 <PinIcon size={13} />
-                Open Map & Search Street
+                {t('add_poi.open_map_btn')}
               </button>
             </div>
 
@@ -1113,7 +1115,7 @@ export function AddPoiModal({
             <input
               type="text"
               data-testid="add-poi-address-input"
-              placeholder="Street, square, or neighborhood (auto-filled from map)..."
+              placeholder={t('add_poi.address_placeholder')}
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               style={inputStyle}
@@ -1122,12 +1124,12 @@ export function AddPoiModal({
             {allowCityCountryEdit && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <label style={{ ...labelStyle, fontSize: '10px' }}>City *</label>
+                  <label style={{ ...labelStyle, fontSize: '10px' }}>{t('add_poi.city_label')}</label>
                   <input
                     type="text"
                     required
                     data-testid="add-poi-city-input"
-                    placeholder="e.g. Tokyo"
+                    placeholder={t('add_poi.city_placeholder')}
                     value={cityInput}
                     onChange={(e) => {
                       setCityInput(e.target.value);
@@ -1137,12 +1139,12 @@ export function AddPoiModal({
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <label style={{ ...labelStyle, fontSize: '10px' }}>Country *</label>
+                  <label style={{ ...labelStyle, fontSize: '10px' }}>{t('add_poi.country_label')}</label>
                   <input
                     type="text"
                     required
                     data-testid="add-poi-country-input"
-                    placeholder="e.g. Japan"
+                    placeholder={t('add_poi.country_placeholder')}
                     value={countryInput}
                     onChange={(e) => {
                       setCountryInput(e.target.value);
@@ -1156,7 +1158,7 @@ export function AddPoiModal({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <label style={{ ...labelStyle, fontSize: '10px' }}>Latitude *</label>
+                <label style={{ ...labelStyle, fontSize: '10px' }}>{t('add_poi.latitude_label')}</label>
                 <input
                   type="number"
                   step="any"
@@ -1168,7 +1170,7 @@ export function AddPoiModal({
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <label style={{ ...labelStyle, fontSize: '10px' }}>Longitude *</label>
+                <label style={{ ...labelStyle, fontSize: '10px' }}>{t('add_poi.longitude_label')}</label>
                 <input
                   type="number"
                   step="any"
@@ -1195,7 +1197,7 @@ export function AddPoiModal({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-              <label style={labelStyle}>Opening & Closing Hours</label>
+              <label style={labelStyle}>{t('add_poi.hours_label')}</label>
               <div
                 style={{
                   display: 'inline-flex',
@@ -1220,7 +1222,7 @@ export function AddPoiModal({
                     color: hoursMode === 'uniform' ? '#FFFFFF' : 'var(--color-text-muted)',
                   }}
                 >
-                  Same Every Day
+                  {t('add_poi.same_every_day')}
                 </button>
                 <button
                   type="button"
@@ -1237,7 +1239,7 @@ export function AddPoiModal({
                     color: hoursMode === 'weekly' ? '#FFFFFF' : 'var(--color-text-muted)',
                   }}
                 >
-                  By Day of Week
+                  {t('add_poi.by_day_of_week')}
                 </button>
               </div>
             </div>
@@ -1251,7 +1253,7 @@ export function AddPoiModal({
                     setHourPickerTarget({
                       scope: 'uniform',
                       field: 'open',
-                      label: 'Opening Time',
+                      label: t('add_poi.opening_time_label'),
                       value: uniformOpenTime,
                     })
                   }
@@ -1270,7 +1272,7 @@ export function AddPoiModal({
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                     <ClockIcon size={13} color="var(--color-accent-primary, #0F4C5C)" />
-                    <span>Open: {hoursEnabled ? uniformOpenTime : '--:--'}</span>
+                    <span>{t('add_poi.open_prefix', { time: hoursEnabled ? uniformOpenTime : '--:--' })}</span>
                   </span>
                   <ChevronDownIcon size={12} color="var(--color-text-muted)" />
                 </button>
@@ -1282,7 +1284,7 @@ export function AddPoiModal({
                     setHourPickerTarget({
                       scope: 'uniform',
                       field: 'close',
-                      label: 'Closing Time',
+                      label: t('add_poi.closing_time_label'),
                       value: uniformCloseTime,
                     })
                   }
@@ -1301,7 +1303,7 @@ export function AddPoiModal({
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                     <ClockIcon size={13} color="var(--color-accent-primary, #0F4C5C)" />
-                    <span>Close: {hoursEnabled ? uniformCloseTime : '--:--'}</span>
+                    <span>{t('add_poi.close_prefix', { time: hoursEnabled ? uniformCloseTime : '--:--' })}</span>
                   </span>
                   <ChevronDownIcon size={12} color="var(--color-text-muted)" />
                 </button>
@@ -1320,7 +1322,7 @@ export function AddPoiModal({
                       padding: '4px 6px',
                     }}
                   >
-                    Clear
+                    {t('common.clear')}
                   </button>
                 )}
               </div>
@@ -1343,7 +1345,7 @@ export function AddPoiModal({
                       padding: 0,
                     }}
                   >
-                    Copy Mon to all days
+                    {t('add_poi.copy_mon_to_all')}
                   </button>
                 </div>
 
@@ -1365,7 +1367,7 @@ export function AddPoiModal({
                       }}
                     >
                       <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                        {day.short}
+                        {t(day.shortKey)}
                       </span>
 
                       <button
@@ -1387,7 +1389,7 @@ export function AddPoiModal({
                           color: sched.isOpen ? 'var(--color-accent-primary, #0F4C5C)' : '#DC2626',
                         }}
                       >
-                        {sched.isOpen ? 'Open' : 'Closed'}
+                        {sched.isOpen ? t('add_poi.status_open') : t('add_poi.status_closed')}
                       </button>
 
                       {sched.isOpen ? (
@@ -1399,7 +1401,7 @@ export function AddPoiModal({
                               setHourPickerTarget({
                                 scope: idx,
                                 field: 'open',
-                                label: `${day.full} Open`,
+                                label: t('add_poi.day_open_label', { day: t(day.fullKey) }),
                                 value: sched.openTime,
                               })
                             }
@@ -1430,7 +1432,7 @@ export function AddPoiModal({
                               setHourPickerTarget({
                                 scope: idx,
                                 field: 'close',
-                                label: `${day.full} Close`,
+                                label: t('add_poi.day_close_label', { day: t(day.fullKey) }),
                                 value: sched.closeTime,
                               })
                             }
@@ -1464,7 +1466,7 @@ export function AddPoiModal({
                             fontStyle: 'italic',
                           }}
                         >
-                          Closed all day
+                          {t('add_poi.closed_all_day')}
                         </div>
                       )}
                     </div>
@@ -1486,7 +1488,7 @@ export function AddPoiModal({
               gap: '10px',
             }}
           >
-            <label style={labelStyle}>Photos ({photos.length})</label>
+            <label style={labelStyle}>{t('add_poi.photos_label', { count: photos.length })}</label>
 
             <input
               ref={photoInputRef}
@@ -1535,14 +1537,14 @@ export function AddPoiModal({
                 cursor: 'pointer',
               }}
             >
-              Drag & drop photos here, or <strong style={{ color: 'var(--color-accent-primary, #0F4C5C)' }}>browse files</strong>
+              {t('add_poi.dropzone_prefix')} <strong style={{ color: 'var(--color-accent-primary, #0F4C5C)' }}>{t('add_poi.dropzone_browse')}</strong>
             </div>
 
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
                 type="url"
                 data-testid="add-poi-photo-url-input"
-                placeholder="Or paste an image URL (https://...)"
+                placeholder={t('add_poi.photo_url_placeholder')}
                 value={photoUrlInput}
                 onChange={(e) => setPhotoUrlInput(e.target.value)}
                 style={{ ...inputStyle, flex: 1 }}
@@ -1563,7 +1565,7 @@ export function AddPoiModal({
                   whiteSpace: 'nowrap',
                 }}
               >
-                Add URL
+                {t('add_poi.add_url_btn')}
               </button>
             </div>
 
@@ -1583,12 +1585,12 @@ export function AddPoiModal({
                   >
                     <img
                       src={ph.url}
-                      alt={ph.caption || 'Place photo'}
+                      alt={ph.caption || t('add_poi.place_photo_alt')}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     />
                     <button
                       type="button"
-                      aria-label="Remove photo"
+                      aria-label={t('add_poi.remove_photo_aria')}
                       onClick={() => setPhotos((prev) => prev.filter((item) => item.id !== ph.id))}
                       style={{
                         position: 'absolute',
@@ -1634,7 +1636,7 @@ export function AddPoiModal({
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
               }}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -1657,7 +1659,7 @@ export function AddPoiModal({
               }}
             >
               <PlusIcon size={14} color="#FFFFFF" />
-              <span>{isSubmitting ? 'Saving...' : 'Add Place'}</span>
+              <span>{isSubmitting ? t('add_poi.saving') : t('add_poi.add_place_btn')}</span>
             </button>
           </div>
         </form>
@@ -1711,10 +1713,12 @@ export function AddPoiModal({
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                    Similar Place Already Exists
+                    {t('add_poi.duplicate_title')}
                   </h3>
                   <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: 'var(--color-text-muted)', lineHeight: 1.45 }}>
-                    We found {duplicateWarning.length === 1 ? 'a similar place' : `${duplicateWarning.length} similar places`} in the database. Do you want to proceed anyway?
+                    {duplicateWarning.length === 1
+                      ? t('add_poi.duplicate_desc_singular')
+                      : t('add_poi.duplicate_desc_plural', { count: duplicateWarning.length })}
                   </p>
                 </div>
               </div>
@@ -1767,7 +1771,7 @@ export function AddPoiModal({
                     cursor: 'pointer',
                   }}
                 >
-                  Go Back & Edit
+                  {t('add_poi.go_back_edit')}
                 </button>
                 <button
                   type="button"
@@ -1788,7 +1792,7 @@ export function AddPoiModal({
                     cursor: isSubmitting ? 'wait' : 'pointer',
                   }}
                 >
-                  Proceed & Add Anyway
+                  {t('add_poi.proceed_anyway')}
                 </button>
               </div>
             </div>
@@ -1802,7 +1806,7 @@ export function AddPoiModal({
         onClose={() => setHourPickerTarget(null)}
         value={hourPickerTarget?.value || '09:00'}
         onChange={handleHourPickerChange}
-        anchorLabel={hourPickerTarget?.label || 'Select Time'}
+        anchorLabel={hourPickerTarget?.label || t('add_poi.select_time')}
         zIndex={100020}
       />
 

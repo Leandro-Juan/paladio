@@ -23,6 +23,8 @@ import {
 } from '@/utils/dragPreview';
 import { notify } from '@/utils/notify';
 import { getApiBaseUrl, getAuthToken } from '@/utils/api';
+import { useTranslation } from '@/hooks/useTranslation';
+import { classifyPoiCategory, getPoiCategoryLabel } from '@/utils/poiCategory';
 
 interface CollectionsTabProps {
   tripId: string;
@@ -39,20 +41,28 @@ interface CollectionsTabProps {
   currencySymbol?: string;
 }
 
-const regionDisplayNames =
+const englishRegionDisplayNames =
   typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function'
     ? new Intl.DisplayNames(['en'], { type: 'region' })
     : null;
 
-function resolveCountryName(countryCode?: string | null, country?: string | null): string | null {
+function resolveCountryName(
+  countryCode?: string | null,
+  country?: string | null,
+  displayLocale: string = 'en'
+): string | null {
   const trimmedCountry = country?.trim();
   if (trimmedCountry && trimmedCountry.length > 2) {
     return trimmedCountry;
   }
   const code = (countryCode || (trimmedCountry && trimmedCountry.length === 2 ? trimmedCountry : '')).trim().toUpperCase();
-  if (code && code.length === 2 && regionDisplayNames) {
+  if (code && code.length === 2 && typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
     try {
-      const resolved = regionDisplayNames.of(code);
+      const formatter =
+        displayLocale === 'en'
+          ? englishRegionDisplayNames
+          : new Intl.DisplayNames([displayLocale], { type: 'region' });
+      const resolved = formatter?.of(code);
       if (resolved && resolved.toUpperCase() !== code) return resolved;
     } catch {
       // Ignore invalid region codes
@@ -61,10 +71,10 @@ function resolveCountryName(countryCode?: string | null, country?: string | null
   return trimmedCountry || (code || null);
 }
 
-function formatCityCountry(poi?: CollectionPoiSummary | null): string | null {
+function formatCityCountry(poi?: CollectionPoiSummary | null, displayLocale: string = 'en'): string | null {
   if (!poi) return null;
   const city = poi.city?.trim() || null;
-  const country = resolveCountryName(poi.country_code, poi.country);
+  const country = resolveCountryName(poi.country_code, poi.country, displayLocale);
   if (city && country) {
     if (city.toLowerCase() === country.toLowerCase()) return city;
     return `${city}, ${country}`;
@@ -88,7 +98,7 @@ function isSameTripCountry(poi?: CollectionPoiSummary | null, tripDestination?: 
   if (!tripDestination || !poi) return true;
   const tripCountry = getCountryForDestination(tripDestination);
   const poiCountry =
-    resolveCountryName(poi.country_code, poi.country) ||
+    resolveCountryName(poi.country_code, poi.country, 'en') ||
     (poi.city ? getCountryForDestination(poi.city) : null);
 
   if (
@@ -155,12 +165,12 @@ function CollectionPoiAvatar({
 }
 
 const PALADIO_COLORS = [
-  { hex: '#0F4C5C', label: 'Pacific Teal' },
-  { hex: '#E36414', label: 'Warm Amber' },
-  { hex: '#2A9D8F', label: 'Sage Teal' },
-  { hex: '#6366F1', label: 'Indigo' },
-  { hex: '#E11D48', label: 'Crimson Rose' },
-  { hex: '#F59E0B', label: 'Gold' },
+  { hex: '#0F4C5C', labelKey: 'collections.color_pacific_teal' },
+  { hex: '#E36414', labelKey: 'collections.color_warm_amber' },
+  { hex: '#2A9D8F', labelKey: 'collections.color_sage_teal' },
+  { hex: '#6366F1', labelKey: 'collections.color_indigo' },
+  { hex: '#E11D48', labelKey: 'collections.color_crimson_rose' },
+  { hex: '#F59E0B', labelKey: 'collections.color_gold' },
 ];
 
 export function CollectionsTab({
@@ -172,6 +182,7 @@ export function CollectionsTab({
   tripDaysCount = 7,
   currencySymbol = '€',
 }: CollectionsTabProps) {
+  const { t, locale } = useTranslation();
   const {
     collections,
     loading,
@@ -197,11 +208,11 @@ export function CollectionsTab({
     e.preventDefault();
     const targetColId = importTargetColId || collections[0]?.id;
     if (!targetColId) {
-      notify.error('No Collection', 'Create a collection first before importing places.');
+      notify.error(t('collections.no_collection_title'), t('collections.no_collection_desc'));
       return;
     }
     if (!importFile && !importUrls.trim()) {
-      notify.error('No Input', 'Select a GPX/KML/KMZ/JSON/CSV file or paste Google Maps URLs.');
+      notify.error(t('collections.no_input_title'), t('collections.no_input_desc'));
       return;
     }
     setIsImportingPlaces(true);
@@ -219,7 +230,7 @@ export function CollectionsTab({
       });
       if (!res.ok) {
         const msg = await res.text();
-        throw new Error(msg || `Import failed (${res.status})`);
+        throw new Error(msg || t('collections.import_failed_status', { status: res.status }));
       }
       const result = (await res.json()) as {
         imported_count: number;
@@ -228,14 +239,21 @@ export function CollectionsTab({
       };
       await refreshCollections();
       notify.success(
-        'Places Imported',
-        `Added ${result.imported_count} places (${result.created_pois_count} indexed in pgvector, ${result.matched_existing_count} matched).`
+        t('collections.places_imported_title'),
+        t('collections.places_imported_desc', {
+          count: result.imported_count,
+          indexed: result.created_pois_count,
+          matched: result.matched_existing_count,
+        })
       );
       setShowImportModal(false);
       setImportFile(null);
       setImportUrls('');
     } catch (err) {
-      notify.error('Import Failed', err instanceof Error ? err.message : 'Failed to import places.');
+      notify.error(
+        t('collections.import_failed_title'),
+        err instanceof Error ? err.message : t('collections.import_failed_desc')
+      );
     } finally {
       setIsImportingPlaces(false);
     }
@@ -355,13 +373,19 @@ export function CollectionsTab({
       return sameId || sameName;
     });
     if (alreadyInCol) {
-      notify.info('Already Saved', `"${rawPoi.name || 'Place'}" is already in "${col.name}"`);
+      notify.info(
+        t('collections.already_saved_title'),
+        t('collections.already_saved_desc', {
+          name: rawPoi.name || t('collections.place_fallback'),
+          collection: col.name,
+        })
+      );
       return;
     }
 
     const summary: CollectionPoiSummary = {
       id: poiId,
-      name: rawPoi.name || `Place #${poiId}`,
+      name: rawPoi.name || t('collections.place_number_fallback', { id: poiId }),
       category: rawPoi.category,
       cost_eur: rawPoi.cost_eur ?? rawPoi.costEur ?? 0,
       duration_mins: rawPoi.duration_mins ?? rawPoi.durationMins ?? 60,
@@ -375,10 +399,16 @@ export function CollectionsTab({
 
     try {
       await togglePoiInCollection(col.id, poiId, summary);
-      notify.success('Added to Collection', `Added "${summary.name}" to "${col.name}"`);
+      notify.success(
+        t('collections.added_to_collection_title'),
+        t('collections.added_to_collection_desc', { name: summary.name, collection: col.name })
+      );
       setToggledColIds((prev) => ({ ...prev, [col.id]: true }));
     } catch {
-      notify.error('Action Failed', `Failed to add place to "${col.name}"`);
+      notify.error(
+        t('collections.action_failed_title'),
+        t('collections.add_place_failed_desc', { collection: col.name })
+      );
     }
   };
 
@@ -395,7 +425,7 @@ export function CollectionsTab({
     if (!trimmedName || isSubmitting) return;
 
     if (collections.some((c) => c.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
-      notify.warning('Duplicate Collection Name', `A collection named "${trimmedName}" already exists.`);
+      notify.warning(t('collections.duplicate_name_title'), t('collections.duplicate_name_desc', { name: trimmedName }));
       return;
     }
 
@@ -403,15 +433,15 @@ export function CollectionsTab({
     try {
       const created = await createCollection(trimmedName, newColDesc.trim() || undefined, newColColor);
       if (created) {
-        notify.success('Collection Created', `Created collection "${created.name}"`);
+        notify.success(t('collections.created_toast_title'), t('collections.created_collection_desc', { name: created.name }));
         setNewColName('');
         setNewColDesc('');
         setShowCreateForm(false);
         setToggledColIds((prev) => ({ ...prev, [created.id]: true }));
       }
     } catch (err: any) {
-      const msg = err?.data?.detail || err?.message || 'Failed to create collection.';
-      notify.warning('Collection Warning', msg);
+      const msg = err?.data?.detail || err?.message || t('collections.create_failed_desc');
+      notify.warning(t('collections.warning_title'), msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -426,10 +456,10 @@ export function CollectionsTab({
     setIsDeletingCol(true);
     try {
       await deleteCollection(pendingDeleteCol.id);
-      notify.info('Collection Deleted', `Deleted "${pendingDeleteCol.name}"`);
+      notify.info(t('collections.deleted_toast_title'), t('collections.deleted_toast_desc', { name: pendingDeleteCol.name }));
       setPendingDeleteCol(null);
     } catch {
-      notify.error('Error', 'Failed to delete collection.');
+      notify.error(t('collections.error_title'), t('collections.delete_failed_desc'));
     } finally {
       setIsDeletingCol(false);
     }
@@ -440,33 +470,33 @@ export function CollectionsTab({
     if (!trimmed) return;
 
     if (collections.some((c) => c.id !== colId && c.name.trim().toLowerCase() === trimmed.toLowerCase())) {
-      notify.warning('Duplicate Collection Name', `A collection named "${trimmed}" already exists.`);
+      notify.warning(t('collections.duplicate_name_title'), t('collections.duplicate_name_desc', { name: trimmed }));
       return;
     }
 
     try {
       await updateCollection(colId, { name: trimmed, color: editColor });
-      notify.success('Collection Updated', 'Updated collection details.');
+      notify.success(t('collections.updated_toast_title'), t('collections.updated_toast_desc'));
       setEditingColId(null);
     } catch (err: any) {
-      const msg = err?.data?.detail || err?.message || 'Failed to update collection.';
-      notify.warning('Collection Warning', msg);
+      const msg = err?.data?.detail || err?.message || t('collections.update_failed_desc');
+      notify.warning(t('collections.warning_title'), msg);
     }
   };
 
   const handleRemovePoi = async (collectionId: string, poiId: string, poiName: string) => {
     try {
       await removeItemFromCollection(collectionId, poiId);
-      notify.info('Place Removed', `Removed "${poiName}" from collection.`);
+      notify.info(t('collections.place_removed_title'), t('collections.place_removed_desc', { name: poiName }));
     } catch {
-      notify.error('Error', 'Failed to remove place from collection.');
+      notify.error(t('collections.error_title'), t('collections.remove_failed_desc'));
     }
   };
 
   if (loading && collections.length === 0) {
     return (
       <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '13px' }}>
-        Loading collections...
+        {t('collections.loading')}
       </div>
     );
   }
@@ -477,10 +507,10 @@ export function CollectionsTab({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-            Collections ({collections.length})
+            {t('collections.header_count', { count: collections.length })}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-            Organize & curate places for your trip
+            {t('collections.subtitle')}
           </div>
         </div>
 
@@ -506,7 +536,7 @@ export function CollectionsTab({
                 cursor: 'pointer',
               }}
             >
-              <span>Import</span>
+              <span>{t('collections.import_btn')}</span>
             </button>
           )}
           <button
@@ -528,7 +558,7 @@ export function CollectionsTab({
               transition: 'all 0.15s ease',
             }}
           >
-            <span>{showCreateForm ? 'Cancel' : '+ New Collection'}</span>
+            <span>{showCreateForm ? t('common.cancel') : t('collections.new_collection_btn')}</span>
           </button>
         </div>
       </div>
@@ -557,7 +587,7 @@ export function CollectionsTab({
           }}
         >
           <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-accent-primary)' }}>
-            NEW COLLECTION
+            {t('collections.new_collection_upper')}
           </div>
 
           <input
@@ -565,7 +595,7 @@ export function CollectionsTab({
             data-testid="input-new-collection-name"
             value={newColName}
             onChange={(e) => setNewColName(e.target.value)}
-            placeholder="Collection name (e.g. Hidden Gems, Nightlife)"
+            placeholder={t('collections.tab_name_placeholder')}
             maxLength={60}
             required
             autoFocus
@@ -596,7 +626,7 @@ export function CollectionsTab({
                 padding: '2px 4px',
               }}
             >
-              <span>⚠ A collection named &quot;{newColName.trim()}&quot; already exists</span>
+              <span>{t('collections.duplicate_name_alert', { name: newColName.trim() })}</span>
             </div>
           )}
 
@@ -604,7 +634,7 @@ export function CollectionsTab({
             type="text"
             value={newColDesc}
             onChange={(e) => setNewColDesc(e.target.value)}
-            placeholder="Description (optional)"
+            placeholder={t('collections.description_optional_placeholder')}
             maxLength={120}
             style={{
               padding: '6px 12px',
@@ -619,13 +649,13 @@ export function CollectionsTab({
 
           {/* Color Chooser */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Color:</span>
+            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{t('collections.color_label')}</span>
             <div style={{ display: 'flex', gap: '6px' }}>
               {PALADIO_COLORS.map((c) => (
                 <button
                   key={c.hex}
                   type="button"
-                  title={c.label}
+                  title={t(c.labelKey)}
                   onClick={() => setNewColColor(c.hex)}
                   style={{
                     width: '20px',
@@ -656,7 +686,7 @@ export function CollectionsTab({
                 cursor: 'pointer',
               }}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -674,7 +704,7 @@ export function CollectionsTab({
                 opacity: !newColName.trim() || isSubmitting ? 0.6 : 1,
               }}
             >
-              {isSubmitting ? 'Creating...' : 'Create Collection'}
+              {isSubmitting ? t('collections.creating') : t('collections.create_collection_btn')}
             </button>
           </div>
         </form>
@@ -713,10 +743,10 @@ export function CollectionsTab({
             </svg>
           </div>
           <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-            No Collections Yet
+            {t('collections.empty_title')}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', maxWidth: '280px', lineHeight: 1.4 }}>
-            Create collections to save places, bookmark backup plans, and curate must-see spots for this trip.
+            {t('collections.empty_desc')}
           </div>
           <button
             type="button"
@@ -733,7 +763,7 @@ export function CollectionsTab({
               marginTop: '4px',
             }}
           >
-            + Create First Collection
+            {t('collections.create_first_btn')}
           </button>
         </div>
       ) : (
@@ -818,7 +848,7 @@ export function CollectionsTab({
                       <line x1="12" y1="5" x2="12" y2="19" />
                       <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
-                    Drop here to add to {col.name}
+                    {t('collections.drop_here_hint', { name: col.name })}
                   </div>
                 )}
 
@@ -881,7 +911,7 @@ export function CollectionsTab({
                             cursor: 'pointer',
                           }}
                         >
-                          Save
+                          {t('common.save')}
                         </button>
                         <button
                           type="button"
@@ -950,7 +980,7 @@ export function CollectionsTab({
                       {/* Edit Button */}
                       <button
                         type="button"
-                        title="Edit collection name"
+                        title={t('collections.edit_name_title')}
                         onClick={() => {
                           setEditingColId(col.id);
                           setEditName(col.name);
@@ -975,7 +1005,7 @@ export function CollectionsTab({
                       {/* Delete Button */}
                       <button
                         type="button"
-                        title="Delete collection"
+                        title={t('collections.delete_collection_title')}
                         onClick={() => handleDeleteCollection(col)}
                         style={{
                           background: 'transparent',
@@ -1024,21 +1054,27 @@ export function CollectionsTab({
                           fontStyle: 'italic',
                         }}
                       >
-                        No places saved in this collection yet.
+                        {t('collections.empty_items_title')}
                         <br />
-                        Click bookmark on any place in Search or Route to add it here.
+                        {t('collections.empty_items_hint')}
                       </div>
                     ) : (
                       uniqueItems.map((item: CollectionItem) => {
                         const poiName = item.poi?.name || item.poi_id;
                         const poiCategory = item.poi?.category || 'place';
+                        const classifiedCategory = classifyPoiCategory(item.poi?.category, poiName);
+                        const poiCategoryDisplay = item.poi?.category
+                          ? locale !== 'en' && classifiedCategory.type !== 'general'
+                            ? getPoiCategoryLabel(classifiedCategory, t)
+                            : item.poi.category
+                          : t('collections.default_place');
                         const poiPhoto = item.poi?.thumbnail_url || item.poi?.photo_url;
                         const durationMins = item.poi?.duration_mins || 60;
                         const costEur = item.poi?.cost_eur ?? 0;
                         const visitStatus: CollectionItemVisitStatus =
                           item.visit_status === 'visited' ? 'visited' : 'want_to_go';
                         const isVisited = visitStatus === 'visited';
-                        const cityCountryLabel = formatCityCountry(item.poi);
+                        const cityCountryLabel = formatCityCountry(item.poi, locale);
                         const sameCountry = isSameTripCountry(item.poi, destinationCity);
 
                         const handleToggleVisitStatus = async (e: React.MouseEvent) => {
@@ -1047,7 +1083,7 @@ export function CollectionsTab({
                           try {
                             await updateItemVisitStatus(col.id, item.poi_id, nextStatus);
                           } catch {
-                            notify.error('Error', 'Failed to update place status.');
+                            notify.error(t('collections.error_title'), t('collections.update_status_failed'));
                           }
                         };
 
@@ -1211,7 +1247,7 @@ export function CollectionsTab({
                                     textOverflow: 'ellipsis',
                                   }}
                                 >
-                                  {poiCategory} · {durationMins}m · {costEur === 0 ? 'Free' : `${currencySymbol}${costEur}`}
+                                  {poiCategoryDisplay} · {t('collections.duration_short', { mins: durationMins })} · {costEur === 0 ? t('workspace.free') : `${currencySymbol}${costEur}`}
                                 </div>
                               </div>
                             </div>
@@ -1222,7 +1258,7 @@ export function CollectionsTab({
                               <button
                                 type="button"
                                 data-testid={`collection-item-status-${item.poi_id}`}
-                                title={isVisited ? 'Visited — click to mark as Want to go' : 'Want to go — click to mark as Visited'}
+                                title={isVisited ? t('collections.status_visited_title') : t('collections.status_want_to_go_title')}
                                 aria-pressed={isVisited}
                                 onClick={handleToggleVisitStatus}
                                 style={{
@@ -1256,13 +1292,13 @@ export function CollectionsTab({
                                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                                   </svg>
                                 )}
-                                <span>{isVisited ? 'Visited' : 'Want to go'}</span>
+                                <span>{isVisited ? t('collections.status_visited') : t('collections.status_want_to_go')}</span>
                               </button>
 
                               {/* Remove from Collection */}
                               <button
                                 type="button"
-                                title="Remove from collection"
+                                title={t('collections.remove_item_title')}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleRemovePoi(col.id, item.poi_id, poiName);
@@ -1369,7 +1405,7 @@ export function CollectionsTab({
                       fontFamily: 'var(--font-display, inherit)',
                     }}
                   >
-                    Delete collection?
+                    {t('collections.delete_modal_title')}
                   </h3>
                   <p
                     style={{
@@ -1379,11 +1415,11 @@ export function CollectionsTab({
                       color: 'var(--color-text-muted)',
                     }}
                   >
-                    Are you sure you want to delete{' '}
+                    {t('collections.delete_modal_prefix')}{' '}
                     <strong style={{ color: 'var(--color-text-primary)' }}>
                       &ldquo;{pendingDeleteCol.name}&rdquo;
                     </strong>
-                    ? This action cannot be undone.
+                    {t('collections.delete_modal_suffix')}
                   </p>
                 </div>
               </div>
@@ -1404,7 +1440,7 @@ export function CollectionsTab({
                     cursor: isDeletingCol ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -1423,7 +1459,7 @@ export function CollectionsTab({
                     opacity: isDeletingCol ? 0.7 : 1,
                   }}
                 >
-                  {isDeletingCol ? 'Deleting...' : 'Delete'}
+                  {isDeletingCol ? t('collections.deleting') : t('common.delete')}
                 </button>
               </div>
             </div>
@@ -1464,15 +1500,15 @@ export function CollectionsTab({
             }}
           >
             <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              Import Saved Places into Collection
+              {t('collections.import_modal_title')}
             </div>
             <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-muted)' }}>
-              Upload GPX, KML, KMZ, or Google Takeout JSON/CSV files, or paste Google Maps place/directions URLs.
+              {t('collections.import_modal_desc')}
             </p>
             <CustomSelect
               value={importTargetColId || collections[0]?.id || ''}
               onChange={(val) => setImportTargetColId(val)}
-              label="Target collection"
+              label={t('collections.target_collection_label')}
               options={collections.map((c) => ({
                 value: c.id,
                 label: `${c.name} (${c.items_count})`,
@@ -1525,7 +1561,7 @@ export function CollectionsTab({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {importFile ? importFile.name : 'Select .gpx, .kml, .kmz, .json, or .csv'}
+                {importFile ? importFile.name : t('collections.select_file_hint')}
               </div>
               <input
                 ref={importFileInputRef}
@@ -1549,14 +1585,14 @@ export function CollectionsTab({
                   flexShrink: 0,
                 }}
               >
-                {importFile ? 'Change File' : 'Choose File'}
+                {importFile ? t('collections.change_file_btn') : t('collections.choose_file_btn')}
               </button>
             </div>
             <textarea
               rows={3}
               value={importUrls}
               onChange={(e) => setImportUrls(e.target.value)}
-              placeholder="Or paste Google Maps URLs (one per line)..."
+              placeholder={t('collections.paste_urls_placeholder')}
               style={{
                 padding: '8px 10px',
                 borderRadius: '8px',
@@ -1583,7 +1619,7 @@ export function CollectionsTab({
                   cursor: 'pointer',
                 }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
@@ -1599,7 +1635,7 @@ export function CollectionsTab({
                   cursor: isImportingPlaces ? 'wait' : 'pointer',
                 }}
               >
-                {isImportingPlaces ? 'Importing...' : 'Import Places'}
+                {isImportingPlaces ? t('collections.importing') : t('collections.import_places_btn')}
               </button>
             </div>
           </form>

@@ -161,7 +161,7 @@ function HelpPageInner() {
             type="button"
             className={styles.mobileMenuToggle}
             onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-            aria-label="Toggle navigation drawer"
+            aria-label={t('help.toggle_nav_drawer_aria')}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <line x1="3" y1="12" x2="21" y2="12" />
@@ -170,21 +170,21 @@ function HelpPageInner() {
             </svg>
           </button>
 
-          <Link href="/dashboard" className={styles.brandLogo} title="Paladio Dashboard">
+          <Link href="/dashboard" className={styles.brandLogo} title={t('config.paladio_dashboard_title')}>
             <div className="logo-mark" aria-hidden="true" style={{ width: '28px', height: '28px' }}>
               <div className="logo-icon-sun" style={{ width: '26px', height: '26px' }} />
             </div>
             <span style={{ fontWeight: 800, fontSize: '16px', letterSpacing: '0.5px' }}>PALADIO</span>
           </Link>
 
-          <span className={styles.helpBadge}>HELP CENTER</span>
+          <span className={styles.helpBadge}>{t('help.center_badge')}</span>
         </div>
 
         {/* Header Right Actions */}
         <div className={styles.headerActions}>
-          <Link href="/dashboard" className={styles.backBtn} aria-label="Back to App">
+          <Link href="/dashboard" className={styles.backBtn} aria-label={t('config.back_to_app')}>
             <ChevronLeftIcon size={14} aria-hidden="true" />
-            <span>Back to App</span>
+            <span>{t('config.back_to_app')}</span>
           </Link>
         </div>
       </header>
@@ -227,10 +227,10 @@ function HelpPageInner() {
                   marginBottom: '16px',
                 }}
               >
-                <span style={{ fontWeight: 500 }}>Help center</span>
+                <span style={{ fontWeight: 500 }}>{t('help.breadcrumb_home')}</span>
                 <span>/</span>
                 <span style={{ color: 'var(--color-text-primary, #1A2B32)', fontWeight: 600 }}>
-                  {activeCategory.title}
+                  {t(activeCategory.title)}
                 </span>
               </div>
 
@@ -256,7 +256,7 @@ function HelpPageInner() {
 
               {/* "Explore Other Sections" Section */}
               <section className={styles.moreSection}>
-                <h2 className={styles.moreTitle}>Explore Other Sections</h2>
+                <h2 className={styles.moreTitle}>{t('help.explore_other_sections')}</h2>
                 <div className={styles.moreGrid}>
                   {otherCategories.map((cat) => (
                     <button
@@ -266,9 +266,9 @@ function HelpPageInner() {
                       className={styles.moreItemCard}
                     >
                       <span className={styles.moreItemCategory}>
-                        {cat.articles.length} GUIDES
+                        {t('help.guides_count', { count: cat.articles.length })}
                       </span>
-                      <span className={styles.moreItemTitle}>{cat.title}</span>
+                      <span className={styles.moreItemTitle}>{t(cat.title)}</span>
                       <span
                         style={{
                           fontSize: '11px',
@@ -279,7 +279,7 @@ function HelpPageInner() {
                           overflow: 'hidden',
                         }}
                       >
-                        {cat.subtitle}
+                        {t(cat.subtitle)}
                       </span>
                     </button>
                   ))}

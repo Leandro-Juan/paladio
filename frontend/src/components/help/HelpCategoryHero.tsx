@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   GettingStartedIllustration,
   TripsHeroIllustration,
@@ -27,6 +28,7 @@ export function HelpCategoryHero({
   subtitle,
   articleCount,
 }: HelpCategoryHeroProps) {
+  const { t } = useTranslation();
   // Render matching bespoke illustration
   const renderIllustration = () => {
     switch (categoryId) {
@@ -108,7 +110,7 @@ export function HelpCategoryHero({
               backdropFilter: 'blur(4px)',
             }}
           >
-            <span>{articleCount} GUIDES &amp; WALKTHROUGHS</span>
+            <span>{t('help.guides_and_walkthroughs_count', { count: articleCount })}</span>
           </div>
         )}
 
@@ -122,7 +124,7 @@ export function HelpCategoryHero({
             lineHeight: 1.2,
           }}
         >
-          {title}
+          {t(title)}
         </h1>
 
         <p
@@ -134,7 +136,7 @@ export function HelpCategoryHero({
             maxWidth: '560px',
           }}
         >
-          {subtitle}
+          {t(subtitle)}
         </p>
       </div>
 

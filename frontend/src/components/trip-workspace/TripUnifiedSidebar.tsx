@@ -2,7 +2,9 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { DayOutput, OptimizationResult, ScheduledPoi, PoiDetail } from '@/types/domain';
-import { classifyPoiCategory, isCategoryMatch, PoiCategoryType, isAirportPoi, isHotelPoi } from '@/utils/poiCategory';
+import { classifyPoiCategory, getPoiCategoryLabel, isCategoryMatch, PoiCategoryType, isAirportPoi, isHotelPoi } from '@/utils/poiCategory';
+import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 import { PoiCategoryIcon, PoiCategoryBadge } from '@/components/PoiCategoryBadge';
 import { MinimalistPoiCard } from './MinimalistPoiCard';
 import { TransitRecommendationCard, TransitLegView } from '@/components/TransitLegView';
@@ -215,15 +217,15 @@ export interface TripUnifiedSidebarProps {
 
 export type MainTabType = 'route' | 'search' | 'transit' | 'weather' | 'saved' | 'agent';
 
-const PROJECT_CATEGORIES: { id: string; label: string; iconType: PoiCategoryType }[] = [
-  { id: 'all', label: 'All', iconType: 'general' },
-  { id: 'attraction', label: 'Attractions', iconType: 'attraction' },
-  { id: 'museum', label: 'Museums', iconType: 'museum' },
-  { id: 'restaurant', label: 'Restaurants', iconType: 'restaurant' },
-  { id: 'cafe', label: 'Cafés', iconType: 'cafe' },
-  { id: 'landmark', label: 'Monuments', iconType: 'landmark' },
-  { id: 'park', label: 'Parks', iconType: 'park' },
-  { id: 'shopping', label: 'Shopping', iconType: 'shopping' },
+const PROJECT_CATEGORIES: { id: string; labelKey: string; iconType: PoiCategoryType }[] = [
+  { id: 'all', labelKey: 'sidebar.cat_all', iconType: 'general' },
+  { id: 'attraction', labelKey: 'sidebar.cat_attractions', iconType: 'attraction' },
+  { id: 'museum', labelKey: 'sidebar.cat_museums', iconType: 'museum' },
+  { id: 'restaurant', labelKey: 'sidebar.cat_restaurants', iconType: 'restaurant' },
+  { id: 'cafe', labelKey: 'sidebar.cat_cafes', iconType: 'cafe' },
+  { id: 'landmark', labelKey: 'sidebar.cat_landmarks', iconType: 'landmark' },
+  { id: 'park', labelKey: 'sidebar.cat_parks', iconType: 'park' },
+  { id: 'shopping', labelKey: 'sidebar.cat_shopping', iconType: 'shopping' },
 ];
 
 interface HoverScrollRowProps {
@@ -349,9 +351,11 @@ export function createRouteCardDragImage(poi: {
   el.style.zIndex = '99999';
   el.style.pointerEvents = 'none';
 
-  const name = poi.name || 'Scheduled Place';
-  const cat = poi.category || 'Waypoint';
-  const dur = poi.duration_mins ? `${poi.duration_mins}m` : '60m';
+  const name = poi.name || translate('sidebar.scheduled_place_fallback');
+  const cat = poi.category || translate('poi_detail.waypoint_fallback');
+  const dur = poi.duration_mins
+    ? translate('collections.duration_short', { mins: poi.duration_mins })
+    : translate('collections.duration_short', { mins: 60 });
 
   el.innerHTML = `
     <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
@@ -368,7 +372,7 @@ export function createRouteCardDragImage(poi: {
       </div>
     </div>
     <div style="font-size: 10px; font-weight: 700; font-family: monospace; color: #0F4C5C; background: rgba(15, 76, 92, 0.08); padding: 3px 8px; border-radius: 9999px; white-space: nowrap;">
-      ROUTE STOP
+      ${translate('sidebar.route_stop_upper')}
     </div>
   `;
 
@@ -408,6 +412,7 @@ export function CustomDropdown<T extends string | number>({
   align = 'left',
   testId,
 }: CustomDropdownProps<T>) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -439,7 +444,7 @@ export function CustomDropdown<T extends string | number>({
       <button
         type="button"
         data-testid={testId}
-        aria-label={ariaLabel || prefix || 'Select option'}
+        aria-label={ariaLabel || prefix || t('sidebar.select_option')}
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
         style={{
@@ -566,6 +571,7 @@ interface PriceRangeSliderDropdownProps {
 }
 
 export function PriceRangeSliderDropdown({ value, onChange, currencySymbol = '€' }: PriceRangeSliderDropdownProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -582,27 +588,32 @@ export function PriceRangeSliderDropdown({ value, onChange, currencySymbol = '�
   const sym = currencySymbol || '€';
   const isAny = value[0] === 0 && value[1] >= 100;
   const label = isAny
-    ? 'Price: Any'
+    ? t('sidebar.price_any')
     : value[0] === 0
-    ? `Price: < ${sym}${value[1]}`
-    : `Price: ${sym}${value[0]} – ${sym}${value[1]}${value[1] >= 100 ? '+' : ''}`;
+    ? t('sidebar.price_lt', { sym, max: value[1] })
+    : t('sidebar.price_range_val', {
+        sym,
+        min: value[0],
+        max: value[1],
+        plus: value[1] >= 100 ? '+' : '',
+      });
 
   const minPercent = Math.max(0, Math.min(100, (value[0] / 100) * 100));
   const maxPercent = Math.max(0, Math.min(100, (value[1] / 100) * 100));
 
   const presets = [
-    { label: 'Free', range: [0, 0] as [number, number] },
+    { label: t('workspace.free'), range: [0, 0] as [number, number] },
     { label: `${sym}`, range: [0, 10] as [number, number] },
     { label: `${sym}${sym}`, range: [10, 25] as [number, number] },
     { label: `${sym}${sym}${sym}`, range: [25, 100] as [number, number] },
-    { label: 'Any', range: [0, 100] as [number, number] },
+    { label: t('sidebar.any_label'), range: [0, 100] as [number, number] },
   ];
 
   return (
     <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button
         type="button"
-        aria-label="Filter by Price Range"
+        aria-label={t('sidebar.filter_price_aria')}
         onClick={() => setIsOpen((prev) => !prev)}
         style={{
           display: 'inline-flex',
@@ -650,7 +661,7 @@ export function PriceRangeSliderDropdown({ value, onChange, currencySymbol = '�
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '11.5px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
-              PRICE RANGE
+              {t('sidebar.price_range_upper')}
             </span>
             <button
               type="button"
@@ -665,7 +676,7 @@ export function PriceRangeSliderDropdown({ value, onChange, currencySymbol = '�
                 padding: '0',
               }}
             >
-              Reset
+              {t('sidebar.reset_btn')}
             </button>
           </div>
 
@@ -702,7 +713,7 @@ export function PriceRangeSliderDropdown({ value, onChange, currencySymbol = '�
             <input
               type="range"
               className="paladio-range-input"
-              aria-label={`Minimum price ${sym}${value[0]}`}
+              aria-label={t('sidebar.min_price_aria', { sym, value: value[0] })}
               min="0"
               max="100"
               step="5"
@@ -717,7 +728,7 @@ export function PriceRangeSliderDropdown({ value, onChange, currencySymbol = '�
             <input
               type="range"
               className="paladio-range-input"
-              aria-label={`Maximum price ${sym}${value[1]}`}
+              aria-label={t('sidebar.max_price_aria', { sym, value: value[1] })}
               min="0"
               max="100"
               step="5"
@@ -768,12 +779,16 @@ interface DurationRangeSliderDropdownProps {
 }
 
 function formatDurationMins(mins: number): string {
-  if (mins < 60) return `${mins}m`;
-  if (mins % 60 === 0) return `${mins / 60}h`;
-  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  if (mins < 60) return translate('collections.duration_short', { mins });
+  if (mins % 60 === 0) return translate('sidebar.hours_short', { hours: mins / 60 });
+  return translate('sidebar.hours_mins_short', {
+    hours: Math.floor(mins / 60),
+    mins: mins % 60,
+  });
 }
 
 export function DurationRangeSliderDropdown({ value, onChange }: DurationRangeSliderDropdownProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -789,8 +804,12 @@ export function DurationRangeSliderDropdown({ value, onChange }: DurationRangeSl
 
   const isAny = value[0] <= 15 && value[1] >= 240;
   const label = isAny
-    ? 'Duration: Any'
-    : `Duration: ${formatDurationMins(value[0])} – ${formatDurationMins(value[1])}${value[1] >= 240 ? '+' : ''}`;
+    ? t('sidebar.duration_any')
+    : t('sidebar.duration_range_val', {
+        min: formatDurationMins(value[0]),
+        max: formatDurationMins(value[1]),
+        plus: value[1] >= 240 ? '+' : '',
+      });
 
   const minPercent = Math.max(0, Math.min(100, ((value[0] - 15) / (240 - 15)) * 100));
   const maxPercent = Math.max(0, Math.min(100, ((value[1] - 15) / (240 - 15)) * 100));
@@ -799,7 +818,7 @@ export function DurationRangeSliderDropdown({ value, onChange }: DurationRangeSl
     <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button
         type="button"
-        aria-label="Filter by Duration Range"
+        aria-label={t('sidebar.filter_duration_aria')}
         onClick={() => setIsOpen((prev) => !prev)}
         style={{
           display: 'inline-flex',
@@ -847,7 +866,7 @@ export function DurationRangeSliderDropdown({ value, onChange }: DurationRangeSl
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '11.5px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
-              DURATION RANGE
+              {t('sidebar.duration_range_upper')}
             </span>
             <button
               type="button"
@@ -862,13 +881,13 @@ export function DurationRangeSliderDropdown({ value, onChange }: DurationRangeSl
                 padding: '0',
               }}
             >
-              Reset
+              {t('sidebar.reset_btn')}
             </button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--color-accent-primary)' }}>
             <span>{formatDurationMins(value[0])}</span>
-            <span>{value[1] >= 240 ? '4h+' : formatDurationMins(value[1])}</span>
+            <span>{value[1] >= 240 ? t('sidebar.duration_4h_plus') : formatDurationMins(value[1])}</span>
           </div>
 
           {/* Single Continuous Glider Line with Two Points */}
@@ -899,7 +918,7 @@ export function DurationRangeSliderDropdown({ value, onChange }: DurationRangeSl
             <input
               type="range"
               className="paladio-range-input"
-              aria-label={`Minimum duration ${formatDurationMins(value[0])}`}
+              aria-label={t('sidebar.min_duration_aria', { value: formatDurationMins(value[0]) })}
               min="15"
               max="240"
               step="15"
@@ -914,7 +933,7 @@ export function DurationRangeSliderDropdown({ value, onChange }: DurationRangeSl
             <input
               type="range"
               className="paladio-range-input"
-              aria-label={`Maximum duration ${formatDurationMins(value[1])}`}
+              aria-label={t('sidebar.max_duration_aria', { value: formatDurationMins(value[1]) })}
               min="15"
               max="240"
               step="15"
@@ -930,10 +949,10 @@ export function DurationRangeSliderDropdown({ value, onChange }: DurationRangeSl
           {/* Quick presets */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', paddingTop: '6px', borderTop: '1px solid var(--color-border)' }}>
             {[
-              { label: '< 45m', range: [15, 45] as [number, number] },
-              { label: '1 - 2h', range: [60, 120] as [number, number] },
-              { label: '> 2h', range: [120, 240] as [number, number] },
-              { label: 'Any', range: [15, 240] as [number, number] },
+              { label: t('sidebar.preset_lt_45m'), range: [15, 45] as [number, number] },
+              { label: t('sidebar.preset_1_2h'), range: [60, 120] as [number, number] },
+              { label: t('sidebar.preset_gt_2h'), range: [120, 240] as [number, number] },
+              { label: t('sidebar.any_label'), range: [15, 240] as [number, number] },
             ].map((p) => {
               const isSelected = value[0] === p.range[0] && value[1] === p.range[1];
               return (
@@ -970,6 +989,7 @@ interface RatingStarFilterDropdownProps {
 }
 
 export function RatingStarFilterDropdown({ value, onChange }: RatingStarFilterDropdownProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -992,7 +1012,7 @@ export function RatingStarFilterDropdown({ value, onChange }: RatingStarFilterDr
     <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button
         type="button"
-        aria-label="Filter by Minimum Star Rating"
+        aria-label={t('sidebar.filter_rating_aria')}
         onClick={() => setIsOpen((prev) => !prev)}
         style={{
           display: 'inline-flex',
@@ -1012,7 +1032,7 @@ export function RatingStarFilterDropdown({ value, onChange }: RatingStarFilterDr
           whiteSpace: 'nowrap',
         }}
       >
-        <span>{isFiltered ? `Rating: ${value.toFixed(1)}★+` : 'Rating: Any'}</span>
+        <span>{isFiltered ? t('sidebar.rating_min_chip', { value: value.toFixed(1) }) : t('sidebar.rating_any')}</span>
         <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', color: 'var(--color-text-muted)', display: 'inline-flex' }}>
           <ChevronDownIcon size={12} color="currentColor" />
         </span>
@@ -1042,7 +1062,7 @@ export function RatingStarFilterDropdown({ value, onChange }: RatingStarFilterDr
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '11.5px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
-              MINIMUM RATING
+              {t('sidebar.minimum_rating_upper')}
             </span>
             <button
               type="button"
@@ -1060,7 +1080,7 @@ export function RatingStarFilterDropdown({ value, onChange }: RatingStarFilterDr
                 padding: '0',
               }}
             >
-              Reset
+              {t('sidebar.reset_btn')}
             </button>
           </div>
 
@@ -1194,7 +1214,7 @@ export function RatingStarFilterDropdown({ value, onChange }: RatingStarFilterDr
           </div>
 
           <div style={{ textAlign: 'center', fontSize: '11px', color: activeRating > 0 ? '#B45309' : 'var(--color-text-muted)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
-            {activeRating > 0 ? `★ ${activeRating.toFixed(1)} & above` : 'Any rating'}
+            {activeRating > 0 ? t('sidebar.rating_and_above', { value: activeRating.toFixed(1) }) : t('sidebar.any_rating')}
           </div>
         </div>
       )}
@@ -1251,6 +1271,7 @@ export function TripUnifiedSidebar({
   onToggleDropWaypoint,
   onClearSpatialCircle,
 }: TripUnifiedSidebarProps) {
+  const { t, locale } = useTranslation();
   const auth = useOptionalAuth();
   const user = auth?.user ?? null;
   const destCurrencyMeta = useDestinationCurrency(destinationCity);
@@ -1315,7 +1336,7 @@ export function TripUnifiedSidebar({
 
   const handleDeletePoi = useCallback(
     async (poi: { id: string; name?: string }) => {
-      if (!window.confirm(`Are you sure you want to delete "${poi.name || 'this place'}"?`)) {
+      if (!window.confirm(t('poi_detail.delete_confirm', { name: poi.name || t('sidebar.this_place') }))) {
         return;
       }
       setDeletingPoiId(poi.id);
@@ -1331,7 +1352,7 @@ export function TripUnifiedSidebar({
           headers,
         });
         if (!res.ok && res.status !== 404) {
-          throw new Error(`Failed to delete POI (HTTP ${res.status})`);
+          throw new Error(t('poi_detail.delete_error_status', { status: res.status }));
         }
         setSearchData((prev) => {
           if (!prev) return prev;
@@ -1345,16 +1366,19 @@ export function TripUnifiedSidebar({
             total: prev.total != null ? Math.max(0, prev.total - 1) : filtered.length,
           };
         });
-        notify.success('Place Deleted', `Deleted "${poi.name || 'custom place'}"`);
+        notify.success(
+          t('poi_detail.place_deleted_title'),
+          t('poi_detail.place_deleted_desc', { name: poi.name || t('sidebar.custom_place') })
+        );
         window.dispatchEvent(new CustomEvent('paladio:poi-deleted', { detail: { id: poi.id } }));
       } catch (err: unknown) {
         console.error('Error deleting custom POI:', err);
-        notify.error('Delete Failed', 'Could not delete custom place. Please try again.');
+        notify.error(t('poi_detail.delete_failed_title'), t('poi_detail.delete_failed_desc'));
       } finally {
         setDeletingPoiId(null);
       }
     },
-    [onCategoryPoisChange, activeTab]
+    [onCategoryPoisChange, activeTab, t]
   );
 
   useEffect(() => {
@@ -1450,10 +1474,12 @@ export function TripUnifiedSidebar({
   const toggleSavePoi = useCallback((poiId: string) => {
     setModalPoi({
       id: poiId,
-      name: poiId.startsWith('gtfs:') ? `Station ${poiId.split(':').slice(2).join(':')}` : `Place #${poiId}`,
+      name: poiId.startsWith('gtfs:')
+        ? t('sidebar.station_fallback_id', { id: poiId.split(':').slice(2).join(':') })
+        : t('collections.place_number_fallback', { id: poiId }),
       category: poiId.startsWith('gtfs:') ? 'transit' : 'attraction',
     });
-  }, []);
+  }, [t]);
 
   // Route Drag-and-drop state
   const [activeDropTarget, setActiveDropTarget] = useState<{ day: number; index: number } | null>(null);
@@ -1477,7 +1503,7 @@ export function TripUnifiedSidebar({
     targetDayNum: number;
     targetIdx: number;
     poiName: string;
-    position: 'first stop' | 'last stop';
+    position: 'first' | 'last';
   } | null>(null);
 
   // Auto-switch to route tab when any POI begins being dragged from search or inspector
@@ -1646,7 +1672,7 @@ export function TripUnifiedSidebar({
           { headers, signal }
         );
         if (!res.ok) {
-          throw new Error(`Search failed (HTTP ${res.status})`);
+          throw new Error(t('sidebar.search_failed_status', { status: res.status }));
         }
         const data: PoiSearchResponseData = await res.json();
 
@@ -1742,7 +1768,7 @@ export function TripUnifiedSidebar({
         if (reqId !== searchReqSeqRef.current) {
           return;
         }
-        const msg = err instanceof Error ? err.message : 'Error executing POI search';
+        const msg = err instanceof Error ? err.message : t('sidebar.search_error_fallback');
         setSearchErrorMessage(msg);
       } finally {
         if (reqId === searchReqSeqRef.current) {
@@ -1751,7 +1777,7 @@ export function TripUnifiedSidebar({
         }
       }
     },
-    [destinationCity, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange, selectedDay, activeDayBounds, activeDayHull, activeTab, onlyCustomPois, spatialCircle]
+    [destinationCity, tripId, hotelAnchor, airportAnchor, activeCategory, onCategoryPoisChange, selectedDay, activeDayBounds, activeDayHull, activeTab, onlyCustomPois, spatialCircle, t]
   );
 
   const handleLoadMore = useCallback(() => {
@@ -1764,14 +1790,17 @@ export function TripUnifiedSidebar({
     if (!destinationCity || isDownloadingPois) return;
     try {
       setIsDownloadingPois(true);
-      notify.info('Downloading POIs', `Initiated POI database download for ${destinationCity}...`);
+      notify.info(
+        t('sidebar.downloading_pois_title'),
+        t('sidebar.downloading_pois_desc', { city: destinationCity })
+      );
       await downloadCityPoisApi(destinationCity);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to download POI database';
-      notify.error('Download Failed', msg);
+      const msg = err instanceof Error ? err.message : t('sidebar.download_failed_desc');
+      notify.error(t('sidebar.download_failed_title'), msg);
       setIsDownloadingPois(false);
     }
-  }, [destinationCity, isDownloadingPois]);
+  }, [destinationCity, isDownloadingPois, t]);
 
   // Listen for POI hydration events from WebSocket and refresh search once complete
   useEffect(() => {
@@ -1948,7 +1977,7 @@ export function TripUnifiedSidebar({
     if (sortOption === 'cost') {
       list.sort((a, b) => a.cost_eur - b.cost_eur);
     } else if (sortOption === 'name') {
-      list.sort((a, b) => a.name.localeCompare(b.name));
+      list.sort((a, b) => a.name.localeCompare(b.name, locale === 'en' ? undefined : locale));
     } else if (sortOption === 'best') {
       // Iconicity is a really important factor (60% iconicity + 40% affinity/similarity)
       list.sort((a, b) => {
@@ -1991,7 +2020,7 @@ export function TripUnifiedSidebar({
           cost_eur: 0,
           similarity: 1.0,
           match_type: 'trip_hotel_base',
-          description: `Booked hotel base for ${destinationCity || 'your trip'}`,
+          description: t('sidebar.hotel_base_desc', { city: destinationCity || t('sidebar.your_trip') }),
         });
       }
       if (airportAnchor && typeof airportAnchor.lat === 'number' && typeof airportAnchor.lng === 'number') {
@@ -2005,7 +2034,7 @@ export function TripUnifiedSidebar({
           cost_eur: 0,
           similarity: 1.0,
           match_type: 'trip_airport_gateway',
-          description: `Gateway airport for ${destinationCity || 'your trip'}`,
+          description: t('sidebar.airport_gateway_desc', { city: destinationCity || t('sidebar.your_trip') }),
         });
       }
       if (anchorItems.length > 0) {
@@ -2023,7 +2052,7 @@ export function TripUnifiedSidebar({
     }
 
     return list;
-  }, [searchData, costRange, durationRange, minRating, onlyCustomPois, sortOption, searchQuery, activeCategory, routePoiIdentifiers, activeDayHull, selectedDay, hotelAnchor, airportAnchor, tripId, destinationCity]);
+  }, [searchData, costRange, durationRange, minRating, onlyCustomPois, sortOption, searchQuery, activeCategory, routePoiIdentifiers, activeDayHull, selectedDay, hotelAnchor, airportAnchor, tripId, destinationCity, locale, t]);
 
   // Displayed days in Route tab
   const displayedDays = useMemo(() => {
@@ -2067,24 +2096,24 @@ export function TripUnifiedSidebar({
       if (isAirport) {
         if (dayNum === 1 && idx === 0) {
           defaultAnchorType = 'airport';
-          defaultLabel = 'TRIP ARRIVAL';
+          defaultLabel = t('sidebar.anchor_trip_arrival');
         } else if (dayNum === totalDays && idx === pathLength - 1) {
           defaultAnchorType = 'airport';
-          defaultLabel = 'TRIP DEPARTURE';
+          defaultLabel = t('sidebar.anchor_trip_departure');
         } else {
           defaultAnchorType = 'airport';
-          defaultLabel = 'AIRPORT STOP';
+          defaultLabel = t('sidebar.anchor_airport_stop');
         }
       } else if (isHotel) {
         if (idx === 0) {
           defaultAnchorType = 'hotel';
-          defaultLabel = 'DAY ORIGIN';
+          defaultLabel = t('sidebar.anchor_day_origin');
         } else if (idx === pathLength - 1) {
           defaultAnchorType = 'hotel';
-          defaultLabel = 'DAY DESTINATION';
+          defaultLabel = t('sidebar.anchor_day_destination');
         } else {
           defaultAnchorType = 'hotel';
-          defaultLabel = 'HOTEL BASE';
+          defaultLabel = t('sidebar.anchor_hotel_base');
         }
       }
 
@@ -2092,13 +2121,13 @@ export function TripUnifiedSidebar({
 
       if (isExplicitlyUnlocked) return { isFixed: false, isAnchor: isDefaultAnchor, type: defaultAnchorType, label: defaultLabel };
       if (isExplicitlyLocked) {
-        return { isFixed: true, isAnchor: isDefaultAnchor, type: defaultAnchorType || 'custom', label: defaultLabel || 'LOCKED STOP' };
+        return { isFixed: true, isAnchor: isDefaultAnchor, type: defaultAnchorType || 'custom', label: defaultLabel || t('sidebar.anchor_locked_stop') };
       }
       if (isDefaultAnchor) return { isFixed: true, isAnchor: true, type: defaultAnchorType, label: defaultLabel };
 
       return { isFixed: false, isAnchor: false };
     },
-    [airportAnchor, hotelAnchor]
+    [airportAnchor, hotelAnchor, t]
   );
 
   // Toggle lock state of a scheduled waypoint (solver anchor / fixed stop)
@@ -2126,13 +2155,13 @@ export function TripUnifiedSidebar({
 
       onItineraryUpdate(clonedItin);
       notify.info(
-        newLockState ? 'Waypoint Locked' : 'Waypoint Unlocked',
+        newLockState ? t('sidebar.waypoint_locked_title') : t('sidebar.waypoint_unlocked_title'),
         newLockState
-          ? `"${scheduledPoi.poi?.name || 'Waypoint'}" is pinned and will stay fixed during solver optimization.`
-          : `"${scheduledPoi.poi?.name || 'Waypoint'}" is now flexible.`
+          ? t('sidebar.waypoint_locked_desc', { name: scheduledPoi.poi?.name || t('poi_detail.waypoint_fallback') })
+          : t('sidebar.waypoint_unlocked_desc', { name: scheduledPoi.poi?.name || t('poi_detail.waypoint_fallback') })
       );
     },
-    [itinerary, onItineraryUpdate]
+    [itinerary, onItineraryUpdate, t]
   );
 
   // Parse HH:MM into minutes since midnight for schedule conflict checks
@@ -2155,7 +2184,7 @@ export function TripUnifiedSidebar({
       const endMins = parseTimeToMins(end);
 
       if (startMins !== null && endMins !== null && endMins < startMins) {
-        return `Exit (${end}) is before entry (${start})`;
+        return t('sidebar.conflict_exit_before_entry', { end, start });
       }
       if (idx > 0 && startMins !== null) {
         const prev = path[idx - 1];
@@ -2164,10 +2193,10 @@ export function TripUnifiedSidebar({
         const transitMins = stop.transit_from_previous?.duration_mins ?? 0;
         if (prevEndMins !== null) {
           if (startMins < prevEndMins) {
-            return `Overlaps previous stop (ends ${prevEnd})`;
+            return t('sidebar.conflict_overlaps_prev', { end: prevEnd });
           }
           if (transitMins > 0 && startMins < prevEndMins + transitMins) {
-            return `Conflicts with ${transitMins}m transit from previous stop (ends ${prevEnd})`;
+            return t('sidebar.conflict_transit_prev', { mins: transitMins, end: prevEnd });
           }
         }
       }
@@ -2178,16 +2207,16 @@ export function TripUnifiedSidebar({
         const nextTransitMins = next.transit_from_previous?.duration_mins ?? 0;
         if (nextStartMins !== null) {
           if (endMins > nextStartMins) {
-            return `Overlaps next stop (starts ${nextStart})`;
+            return t('sidebar.conflict_overlaps_next', { start: nextStart });
           }
           if (nextTransitMins > 0 && endMins + nextTransitMins > nextStartMins) {
-            return `Leaves < ${nextTransitMins}m transit before next stop (${nextStart})`;
+            return t('sidebar.conflict_transit_next', { mins: nextTransitMins, start: nextStart });
           }
         }
       }
       return null;
     },
-    [parseTimeToMins]
+    [parseTimeToMins, t]
   );
 
   const handleUpdateStopTimes = useCallback(
@@ -2216,10 +2245,10 @@ export function TripUnifiedSidebar({
 
       const conflict = getStopConflict(path, poiIdx);
       if (conflict) {
-        notify.warning('Schedule Time Conflict', `${stop.poi?.name || 'Stop'}: ${conflict}`);
+        notify.warning(t('sidebar.schedule_conflict_title'), `${stop.poi?.name || t('sidebar.stop_fallback')}: ${conflict}`);
       }
     },
-    [itinerary, onItineraryUpdate, parseTimeToMins, getStopConflict]
+    [itinerary, onItineraryUpdate, parseTimeToMins, getStopConflict, t]
   );
 
   // Move scheduled waypoint up or down in the route sequence
@@ -2369,7 +2398,7 @@ export function TripUnifiedSidebar({
           if (!poi) return;
           const lat = ((poi.location as { latitude?: number } | undefined)?.latitude ?? poi.lat ?? 0) as number;
           const lng = ((poi.location as { longitude?: number } | undefined)?.longitude ?? poi.lng ?? 0) as number;
-          const poiName = (poi.name as string) || 'Waypoint';
+          const poiName = (poi.name as string) || t('poi_detail.waypoint_fallback');
           const newScheduled: ScheduledPoi = {
             poi: {
               id: (poi.id as string) || poiName,
@@ -2440,7 +2469,7 @@ export function TripUnifiedSidebar({
       let willChange = false;
       let finalIdx = 0;
       let newLength = 0;
-      let poiName = 'Waypoint';
+      let poiName = t('poi_detail.waypoint_fallback');
 
       if (payload.source === 'route') {
         const srcDayNum = payload.day;
@@ -2448,7 +2477,7 @@ export function TripUnifiedSidebar({
         if (typeof srcDayNum === 'number' && typeof srcIdx === 'number') {
           const srcDayObj = itinerary.days?.find((d) => (d.day ?? 1) === srcDayNum);
           const srcItem = srcDayObj?.itinerary?.path?.[srcIdx];
-          poiName = srcItem?.poi?.name || 'Waypoint';
+          poiName = srcItem?.poi?.name || t('poi_detail.waypoint_fallback');
           let adjustedTargetIdx = targetIdx;
           if (srcDayNum === targetDayNum && srcIdx < targetIdx) {
             adjustedTargetIdx = targetIdx - 1;
@@ -2459,7 +2488,7 @@ export function TripUnifiedSidebar({
         }
       } else {
         const poi = payload.poi;
-        poiName = (poi?.name as string) || 'Waypoint';
+        poiName = (poi?.name as string) || t('poi_detail.waypoint_fallback');
         finalIdx = Math.max(0, Math.min(targetIdx, currentLength));
         newLength = currentLength + 1;
         willChange = true;
@@ -2475,7 +2504,7 @@ export function TripUnifiedSidebar({
           targetDayNum,
           targetIdx,
           poiName,
-          position: isFirst ? 'first stop' : 'last stop',
+          position: isFirst ? 'first' : 'last',
         });
         return;
       }
@@ -2508,8 +2537,8 @@ export function TripUnifiedSidebar({
         type="button"
         data-testid="sidebar-expand-btn"
         onClick={onToggle}
-        aria-label="Open sidebar menu"
-        data-tooltip="Open sidebar menu"
+        aria-label={t('workspace.open_sidebar')}
+        data-tooltip={t('workspace.open_sidebar')}
         data-tooltip-position="right"
         style={{
           pointerEvents: isOpen ? 'none' : 'auto',
@@ -2599,9 +2628,9 @@ export function TripUnifiedSidebar({
                   <button
                     type="button"
                     data-testid="tab-route"
-                    data-tooltip="Route"
+                    data-tooltip={t('sidebar.tab_route')}
                     data-tooltip-position="bottom"
-                    aria-label="Route"
+                    aria-label={t('sidebar.tab_route')}
                     onClick={() => setActiveTab('route')}
                     onDragEnter={(e) => {
                       e.preventDefault();
@@ -2631,16 +2660,16 @@ export function TripUnifiedSidebar({
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="3 11 22 2 13 21 11 13 3 11" />
                     </svg>
-                    {activeTab === 'route' && <span>Route</span>}
+                    {activeTab === 'route' && <span>{t('sidebar.tab_route')}</span>}
                   </button>
 
                   {/* Search Tab */}
                   <button
                     type="button"
                     data-testid="tab-search"
-                    data-tooltip="Search"
+                    data-tooltip={t('sidebar.tab_search')}
                     data-tooltip-position="bottom"
-                    aria-label="Search"
+                    aria-label={t('sidebar.tab_search')}
                     onClick={() => setActiveTab('search')}
                     onDragEnter={(e) => {
                       e.preventDefault();
@@ -2668,16 +2697,16 @@ export function TripUnifiedSidebar({
                     }}
                   >
                     <SearchIcon size={13} color="currentColor" />
-                    {activeTab === 'search' && <span>Search</span>}
+                    {activeTab === 'search' && <span>{t('sidebar.tab_search')}</span>}
                   </button>
 
                   {/* Transit Tab */}
                   <button
                     type="button"
                     data-testid="tab-transit"
-                    data-tooltip="Transit"
+                    data-tooltip={t('sidebar.tab_transit')}
                     data-tooltip-position="bottom"
-                    aria-label="Transit"
+                    aria-label={t('sidebar.tab_transit')}
                     onClick={() => setActiveTab('transit')}
                     style={{
                       display: 'inline-flex',
@@ -2704,16 +2733,16 @@ export function TripUnifiedSidebar({
                       <path d="M5 21l2-3" />
                       <path d="M19 21l-2-3" />
                     </svg>
-                    {activeTab === 'transit' && <span>Transit</span>}
+                    {activeTab === 'transit' && <span>{t('sidebar.tab_transit')}</span>}
                   </button>
 
                   {/* Weather Tab */}
                   <button
                     type="button"
                     data-testid="tab-weather"
-                    data-tooltip="Weather"
+                    data-tooltip={t('sidebar.tab_weather')}
                     data-tooltip-position="bottom"
-                    aria-label="Weather"
+                    aria-label={t('sidebar.tab_weather')}
                     onClick={() => setActiveTab('weather')}
                     style={{
                       display: 'inline-flex',
@@ -2735,16 +2764,16 @@ export function TripUnifiedSidebar({
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
                     </svg>
-                    {activeTab === 'weather' && <span>Weather</span>}
+                    {activeTab === 'weather' && <span>{t('sidebar.tab_weather')}</span>}
                   </button>
 
                   {/* Collections Tab */}
                   <button
                     type="button"
                     data-testid="tab-saved"
-                    data-tooltip="Collections"
+                    data-tooltip={t('sidebar.tab_collections')}
                     data-tooltip-position="bottom"
-                    aria-label="Collections"
+                    aria-label={t('sidebar.tab_collections')}
                     onClick={() => setActiveTab('saved')}
                     onDragEnter={(e) => {
                       e.preventDefault();
@@ -2774,16 +2803,16 @@ export function TripUnifiedSidebar({
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                     </svg>
-                    {activeTab === 'saved' && <span>Collections</span>}
+                    {activeTab === 'saved' && <span>{t('sidebar.tab_collections')}</span>}
                   </button>
 
                   {/* Agent Tab */}
                   <button
                     type="button"
                     data-testid="tab-agent"
-                    data-tooltip="Paladio Agent"
+                    data-tooltip={t('sidebar.tab_agent_tooltip')}
                     data-tooltip-position="bottom"
-                    aria-label="Paladio Agent"
+                    aria-label={t('sidebar.tab_agent_tooltip')}
                     onClick={() => setActiveTab('agent')}
                     style={{
                       display: 'inline-flex',
@@ -2806,7 +2835,7 @@ export function TripUnifiedSidebar({
                       <circle cx="12" cy="12" r="10" />
                       <polygon points="12 8 8 16 12 14 16 16 12 8" />
                     </svg>
-                    {activeTab === 'agent' && <span>Agent</span>}
+                    {activeTab === 'agent' && <span>{t('sidebar.tab_agent_short')}</span>}
                   </button>
                 </div>
 
@@ -2829,7 +2858,7 @@ export function TripUnifiedSidebar({
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {selectedDay === 'all' ? 'ALL DAYS' : `DAY ${selectedDay}`}
+                    {selectedDay === 'all' ? t('sidebar.all_days_upper') : t('map.day_upper', { day: selectedDay })}
                   </div>
                 ) : isEditMode && onReoptimizeDay ? (
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -2852,7 +2881,7 @@ export function TripUnifiedSidebar({
                         cursor: isReoptimizing ? 'wait' : 'pointer',
                         opacity: isReoptimizing ? 0.7 : 1,
                       }}
-                      data-tooltip="Re-run C++ optimization solver with locked stops preserved"
+                      data-tooltip={t('sidebar.solve_tooltip')}
                       data-tooltip-position="bottom"
                     >
                       <svg
@@ -2868,7 +2897,7 @@ export function TripUnifiedSidebar({
                       >
                         <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
                       </svg>
-                      <span>{isReoptimizing ? 'Solving...' : 'Solve'}</span>
+                      <span>{isReoptimizing ? t('sidebar.solving_btn') : t('sidebar.solve_btn')}</span>
                     </button>
                   </div>
                 ) : null}
@@ -2906,7 +2935,7 @@ export function TripUnifiedSidebar({
                         transition: 'all 0.16s ease',
                       }}
                     >
-                      ALL DAYS
+                      {t('sidebar.all_days_upper')}
                     </button>
 
                     {days.map((d) => {
@@ -2965,7 +2994,11 @@ export function TripUnifiedSidebar({
                             type="button"
                             data-testid={`day-tab-${d.day}`}
                             onClick={() => onSelectDay(d.day)}
-                            title={isEditMode && days.length > 1 && onReorderDays ? `Day ${d.day} (drag tab to reorder)` : `Day ${d.day}`}
+                            title={
+                              isEditMode && days.length > 1 && onReorderDays
+                                ? t('sidebar.day_tab_reorder_title', { day: d.day })
+                                : t('trips.day_label', { number: d.day })
+                            }
                             style={{
                               background: 'transparent',
                               border: 'none',
@@ -2979,14 +3012,18 @@ export function TripUnifiedSidebar({
                               cursor: 'inherit',
                             }}
                           >
-                            DAY {d.day}
+                            {t('map.day_upper', { day: d.day })}
                           </button>
                           {isEditMode && onRemoveDay && (
                             <button
                               type="button"
                               data-testid={`remove-day-tab-${d.day}`}
-                              aria-label={`Remove Day ${d.day}`}
-                              title={days.length <= 1 ? 'At least 1 day required' : `Remove Day ${d.day}`}
+                              aria-label={t('sidebar.remove_day_aria', { day: d.day })}
+                              title={
+                                days.length <= 1
+                                  ? t('sidebar.min_one_day_required')
+                                  : t('sidebar.remove_day_aria', { day: d.day })
+                              }
                               disabled={days.length <= 1}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -3023,8 +3060,8 @@ export function TripUnifiedSidebar({
                       <button
                         type="button"
                         data-testid="add-day-tab-btn"
-                        aria-label="Add Day"
-                        title="Add a new day"
+                        aria-label={t('sidebar.add_day_aria')}
+                        title={t('sidebar.add_day_title')}
                         onClick={onAddDay}
                         style={{
                           marginLeft: 'auto',
@@ -3088,7 +3125,7 @@ export function TripUnifiedSidebar({
                           }}
                         >
                         <PoiCategoryIcon category={cat.id} size={14} />
-                        <span>{cat.label}</span>
+                        <span>{t(cat.labelKey)}</span>
                       </button>
                     );
                   })}
@@ -3213,10 +3250,10 @@ export function TripUnifiedSidebar({
                             }}
                           >
                             <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                              Day {dayObj.day} {dayObj.theme ? `— ${dayObj.theme}` : ''}
+                              {t('trips.day_label', { number: dayObj.day })}{dayObj.theme ? ` — ${dayObj.theme}` : ''}
                             </span>
                             <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
-                              {path.length} STOPS
+                              {t('sidebar.stops_upper_count', { count: path.length })}
                             </span>
                           </div>
 
@@ -3240,7 +3277,7 @@ export function TripUnifiedSidebar({
                                 background: activeDropTarget?.day === dayObj.day ? 'rgba(15, 76, 92, 0.06)' : 'transparent',
                               }}
                             >
-                              No places scheduled yet. Search and add places, or switch to the Search tab above.
+                              {t('sidebar.empty_day_drop')}
                             </div>
                           )}
 
@@ -3291,7 +3328,7 @@ export function TripUnifiedSidebar({
                                         letterSpacing: '0.04em',
                                       }}
                                     >
-                                      + INSERT AT STOP {stopNum}
+                                      {t('sidebar.insert_at_stop_upper', { num: stopNum })}
                                     </span>
                                   </div>
                                 )}
@@ -3384,7 +3421,7 @@ export function TripUnifiedSidebar({
                                 >
                                   <MinimalistPoiCard
                                     id={p?.id}
-                                    name={p?.name || 'Scheduled Place'}
+                                    name={p?.name || t('sidebar.scheduled_place_fallback')}
                                     category={p?.category}
                                     startTime={startTime}
                                     endTime={endTime}
@@ -3416,7 +3453,7 @@ export function TripUnifiedSidebar({
                                     }}
                                     onDragStart={(e) => {
                                       startCustomDragPreview(e, {
-                                        name: p?.name || 'Scheduled Place',
+                                        name: p?.name || t('sidebar.scheduled_place_fallback'),
                                         category: p?.category,
                                         duration_mins: p?.duration_mins,
                                         cost_eur: p?.cost_eur,
@@ -3503,7 +3540,7 @@ export function TripUnifiedSidebar({
                                       if (typeof lat === 'number' && typeof lng === 'number') {
                                         onPlaceClick?.({
                                           id: pId,
-                                          name: p?.name || 'Waypoint',
+                                          name: p?.name || t('poi_detail.waypoint_fallback'),
                                           lat,
                                           lng,
                                           category: p?.category || 'attraction',
@@ -3562,7 +3599,7 @@ export function TripUnifiedSidebar({
                                   letterSpacing: '0.04em',
                                 }}
                               >
-                                + DROP HERE TO ADD TO DAY {dayObj.day}
+                                {t('sidebar.drop_add_day_upper', { day: dayObj.day })}
                               </span>
                             )}
                           </div>
@@ -3585,14 +3622,14 @@ export function TripUnifiedSidebar({
                     {/* 1. Top Options Pill Dropdowns & Add POI button */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', width: '100%', overflow: 'visible' }}>
                       <CustomDropdown
-                        ariaLabel="Sort Order"
+                        ariaLabel={t('sidebar.sort_order_aria')}
                         value={sortOption}
                         onChange={(val) => setSortOption(val as any)}
                         options={[
-                          { value: 'best', label: 'Recommended' },
-                          { value: 'rating', label: 'Top Rated' },
-                          { value: 'cost', label: 'Lowest Cost' },
-                          { value: 'name', label: 'Alphabetical' },
+                          { value: 'best', label: t('sidebar.sort_recommended') },
+                          { value: 'rating', label: t('sidebar.sort_top_rated') },
+                          { value: 'cost', label: t('sidebar.sort_lowest_cost') },
+                          { value: 'name', label: t('sidebar.sort_alphabetical') },
                         ]}
                         testId="sort-order-dropdown"
                       />
@@ -3601,9 +3638,9 @@ export function TripUnifiedSidebar({
                         <button
                           type="button"
                           onClick={() => setIsAddPoiModalOpen(true)}
-                          data-tooltip="Add New POI"
+                          data-tooltip={t('sidebar.add_new_poi_tooltip')}
                           data-tooltip-position="top"
-                          aria-label="Add New POI"
+                          aria-label={t('sidebar.add_new_poi_tooltip')}
                           data-testid="add-new-poi-btn"
                           style={{
                             display: 'inline-flex',
@@ -3623,7 +3660,7 @@ export function TripUnifiedSidebar({
                           }}
                         >
                           <PlusIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
-                          <span>Add POI</span>
+                          <span>{t('sidebar.add_poi_btn')}</span>
                         </button>
                       </div>
                     </div>
@@ -3665,7 +3702,7 @@ export function TripUnifiedSidebar({
                               executeSearch(searchQuery, activeCategory);
                             }
                           }}
-                          placeholder={`Search attractions, food, sights in ${destinationCity || 'city'}...`}
+                          placeholder={t('sidebar.search_placeholder', { city: destinationCity || t('sidebar.city_fallback_lower') })}
                           style={{
                             flex: 1,
                             border: 'none',
@@ -3679,7 +3716,7 @@ export function TripUnifiedSidebar({
                           <button
                             type="button"
                             onClick={() => setSearchQuery('')}
-                            aria-label="Clear Search Query"
+                            aria-label={t('sidebar.clear_search_aria')}
                             style={{
                               border: 'none',
                               background: 'transparent',
@@ -3721,7 +3758,7 @@ export function TripUnifiedSidebar({
                         ) : (
                           <SearchIcon size={14} color="#FFFFFF" />
                         )}
-                        <span>{isLoadingSearch ? 'Searching...' : 'Search'}</span>
+                        <span>{isLoadingSearch ? t('sidebar.searching_btn') : t('sidebar.search_btn')}</span>
                       </button>
                     </div>
 
@@ -3786,11 +3823,11 @@ export function TripUnifiedSidebar({
                           userSelect: 'none',
                           marginLeft: 'auto',
                         }}
-                        data-tooltip={onlyCustomPois ? 'Showing custom places only (click to show all)' : 'Show custom places only'}
+                        data-tooltip={onlyCustomPois ? t('sidebar.custom_only_tooltip_on') : t('sidebar.custom_only_tooltip_off')}
                         data-tooltip-position="top"
-                        aria-label={onlyCustomPois ? 'Showing custom places only (click to show all)' : 'Show custom places only'}
+                        aria-label={onlyCustomPois ? t('sidebar.custom_only_tooltip_on') : t('sidebar.custom_only_tooltip_off')}
                       >
-                        <span>{onlyCustomPois ? 'Custom Only' : 'All POIs'}</span>
+                        <span>{onlyCustomPois ? t('sidebar.custom_only_btn') : t('sidebar.all_pois_btn')}</span>
                       </button>
                     </div>
 
@@ -3805,21 +3842,24 @@ export function TripUnifiedSidebar({
                     >
                       <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                         {searchQuery
-                          ? `Results for "${searchQuery}"`
+                          ? t('sidebar.results_for', { query: searchQuery })
                           : activeCategory === 'all'
-                          ? 'Recommended for you'
-                          : `Top ${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)} in ${destinationCity || 'City'}`}
+                          ? t('sidebar.recommended_for_you')
+                          : t('sidebar.top_category_in_city', {
+                              category: t(`sidebar.active_cat_${activeCategory}`),
+                              city: destinationCity || t('sidebar.city_fallback_upper'),
+                            })}
                       </span>
                       <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
                         {isPoiDatabaseEmpty
-                          ? '0 PLACES'
+                          ? t('sidebar.zero_places_upper')
                           : filteredSearchResults.length === 0
-                          ? '0 PLACES'
+                          ? t('sidebar.zero_places_upper')
                           : searchData?.total != null
                           ? searchData.total > 1000
-                            ? '+1000 PLACES'
-                            : `${searchData.total} PLACES`
-                          : `${filteredSearchResults.length} PLACES`}
+                            ? t('sidebar.plus_thousand_places_upper')
+                            : t('sidebar.places_upper_count', { count: searchData.total })
+                          : t('sidebar.places_upper_count', { count: filteredSearchResults.length })}
                       </span>
                     </div>
 
@@ -3863,7 +3903,7 @@ export function TripUnifiedSidebar({
                           <div style={{ flex: 1 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                               <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                                {isDownloadingPois ? 'Downloading POI Database...' : 'POI Database Required'}
+                                {isDownloadingPois ? t('sidebar.downloading_db_title') : t('sidebar.db_required_title')}
                               </span>
                               <span
                                 className="font-mono"
@@ -3876,13 +3916,13 @@ export function TripUnifiedSidebar({
                                   fontWeight: 600,
                                 }}
                               >
-                                {isDownloadingPois ? 'DOWNLOADING' : 'NOT INSTALLED'}
+                                {isDownloadingPois ? t('sidebar.downloading_badge_upper') : t('sidebar.not_installed_badge_upper')}
                               </span>
                             </div>
                             <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
                               {isDownloadingPois
-                                ? `Downloading and indexing attractions, sights, and restaurants for ${destinationCity || 'this city'}. Search will activate automatically once finished.`
-                                : `The POI database for ${destinationCity || 'this city'} was erased or has not been downloaded yet. Download it to unlock city sights, food, and attractions.`}
+                                ? t('sidebar.downloading_db_desc', { city: destinationCity || t('sidebar.this_city') })
+                                : t('sidebar.db_required_desc', { city: destinationCity || t('sidebar.this_city') })}
                             </p>
                           </div>
                         </div>
@@ -3911,7 +3951,7 @@ export function TripUnifiedSidebar({
                             }}
                           >
                             <SearchIcon size={14} color="#FFFFFF" />
-                            <span>Download POIs Database</span>
+                            <span>{t('sidebar.download_db_btn')}</span>
                           </button>
                         ) : (
                           <div
@@ -3931,7 +3971,7 @@ export function TripUnifiedSidebar({
                             }}
                           >
                             <Spinner size={14} color="var(--color-accent-gold)" />
-                            <span>Downloading POI database for {destinationCity || 'city'}...</span>
+                            <span>{t('sidebar.downloading_db_inline', { city: destinationCity || t('sidebar.city_fallback_lower') })}</span>
                           </div>
                         )}
                       </div>
@@ -4053,7 +4093,15 @@ export function TripUnifiedSidebar({
                                   {poi.name}
                                 </div>
                                 <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>
-                                  {poi.category || 'Attraction'} · {poi.duration_mins} mins
+                                  {(poi.category
+                                    ? (() => {
+                                        const classified = classifyPoiCategory(poi.category || undefined, poi.name || undefined);
+                                        return locale !== 'en' && classified.type !== 'general'
+                                          ? getPoiCategoryLabel(classified, t)
+                                          : poi.category;
+                                      })()
+                                    : t('sidebar.default_attraction'))}{' '}
+                                  · {t('sidebar.duration_mins_long', { mins: poi.duration_mins })}
                                 </div>
                               </div>
                             </div>
@@ -4063,10 +4111,10 @@ export function TripUnifiedSidebar({
                               {!isAnchorRecommendation && (
                                 <div style={{ textAlign: 'right' }}>
                                   <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                                    {poi.cost_eur === 0 ? 'FREE' : `${currencySymbol}${poi.cost_eur}`}
+                                    {poi.cost_eur === 0 ? t('sidebar.free_upper') : `${currencySymbol}${poi.cost_eur}`}
                                   </div>
                                   {poi.cost_eur > 0 && (
-                                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>/pax</div>
+                                    <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{t('sidebar.per_pax_short')}</div>
                                   )}
                                 </div>
                               )}
@@ -4074,9 +4122,9 @@ export function TripUnifiedSidebar({
                                 <button
                                   type="button"
                                   data-testid={`delete-custom-poi-${poi.id}`}
-                                  data-tooltip="Delete manual POI"
+                                  data-tooltip={t('sidebar.delete_manual_poi')}
                                   data-tooltip-position="left"
-                                  aria-label="Delete manual POI"
+                                  aria-label={t('sidebar.delete_manual_poi')}
                                   disabled={deletingPoiId === poi.id}
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -4112,9 +4160,9 @@ export function TripUnifiedSidebar({
                               <button
                                 type="button"
                                 data-testid={`search-poi-bookmark-${poi.id}`}
-                                data-tooltip={isPoiSaved(poi.id) ? 'Saved in Collections' : 'Save to Collections'}
+                                data-tooltip={isPoiSaved(poi.id) ? t('sidebar.saved_in_collections') : t('sidebar.save_to_collections')}
                                 data-tooltip-position="left"
-                                aria-label={isPoiSaved(poi.id) ? 'Saved in Collections' : 'Save to Collections'}
+                                aria-label={isPoiSaved(poi.id) ? t('sidebar.saved_in_collections') : t('sidebar.save_to_collections')}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   const rect = e.currentTarget.getBoundingClientRect();
@@ -4165,7 +4213,7 @@ export function TripUnifiedSidebar({
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <ClockIcon size={12} color="var(--color-text-muted)" />
-                              <span>Suggested stay: {poi.duration_mins} mins</span>
+                              <span>{t('sidebar.suggested_stay', { mins: poi.duration_mins })}</span>
                             </div>
                             {!isAnchorRecommendation && poi.similarity > 0 ? (
                               <span
@@ -4176,7 +4224,7 @@ export function TripUnifiedSidebar({
                                   color: 'var(--color-success)',
                                 }}
                               >
-                                {Math.round(poi.similarity * 100)}% AFFINITY
+                                {t('sidebar.affinity_pct_upper', { pct: Math.round(poi.similarity * 100) })}
                               </span>
                             ) : null}
                           </div>
@@ -4227,14 +4275,14 @@ export function TripUnifiedSidebar({
                               }}
                             >
                               {isLoadingMore ? <Spinner size={12} color="currentColor" /> : null}
-                              <span>{isLoadingMore ? 'Loading more places...' : 'Load More Places'}</span>
+                              <span>{isLoadingMore ? t('sidebar.loading_more_places') : t('sidebar.load_more_places')}</span>
                             </button>
                           </div>
                         )}
 
                       {filteredSearchResults.length === 0 && !isPoiDatabaseEmpty && hasSearched && !isLoadingSearch && (
                         <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--color-text-muted)' }}>
-                          No matching places found. Try another search query or category filter.
+                          {t('sidebar.no_matching_places')}
                         </div>
                       )}
                     </div>
@@ -4258,7 +4306,7 @@ export function TripUnifiedSidebar({
                           const lng = p.location?.longitude ?? (p as unknown as { lng?: number }).lng ?? 0;
                           return {
                             id: p.id || `poi-${d.day}-${sIdx}`,
-                            name: p.name || 'Waypoint',
+                            name: p.name || t('poi_detail.waypoint_fallback'),
                             lat,
                             lng,
                             category: p.category || 'attraction',
@@ -4349,8 +4397,8 @@ export function TripUnifiedSidebar({
           type="button"
           data-testid="sidebar-collapse-btn"
           onClick={onToggle}
-          aria-label="Close sidebar menu"
-          data-tooltip="Close sidebar menu"
+          aria-label={t('sidebar.close_sidebar')}
+          data-tooltip={t('sidebar.close_sidebar')}
           data-tooltip-position="right"
           style={{
             pointerEvents: 'auto',
@@ -4411,14 +4459,18 @@ export function TripUnifiedSidebar({
       <Modal
         isOpen={Boolean(pendingDrop)}
         variant="warning"
-        title="ANCHOR REORDER WARNING"
+        title={t('sidebar.anchor_reorder_title')}
         message={
           pendingDrop
-            ? `Are you sure you want to place "${pendingDrop.poiName}" as the ${pendingDrop.position} of Day ${pendingDrop.targetDayNum}? First and last stops are normally reserved for your hotel or airport anchors. Do you want to proceed?`
-            : 'Confirm reordering boundary stop.'
+            ? t('sidebar.anchor_reorder_msg', {
+                name: pendingDrop.poiName,
+                position: pendingDrop.position === 'first' ? t('sidebar.position_first_stop') : t('sidebar.position_last_stop'),
+                day: pendingDrop.targetDayNum,
+              })
+            : t('sidebar.confirm_reorder_fallback')
         }
-        confirmText="PROCEED"
-        cancelText="CANCEL"
+        confirmText={t('sidebar.proceed_upper')}
+        cancelText={t('sidebar.cancel_upper')}
         onConfirm={() => {
           if (pendingDrop) {
             executeDrop(pendingDrop.payload, pendingDrop.targetDayNum, pendingDrop.targetIdx);

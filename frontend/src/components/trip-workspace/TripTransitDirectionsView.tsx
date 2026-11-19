@@ -21,6 +21,8 @@ import {
   ChevronDownIcon,
 } from '@/components/icons';
 import { CustomHourPickerModal } from '@/components/trip-creation/CustomHourPickerModal';
+import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 
 export interface DirectionSite {
   name: string;
@@ -124,6 +126,7 @@ export function TripTransitDirectionsView({
   onInspectPoi,
   onSelectTransitLine,
 }: TripTransitDirectionsViewProps) {
+  const { t } = useTranslation();
   // Origin State
   const [originQuery, setOriginQuery] = useState<string>('');
   const [originSite, setOriginSite] = useState<DirectionSite | null>(null);
@@ -223,7 +226,7 @@ export function TripTransitDirectionsView({
       if (!data) return;
 
       const site: DirectionSite = {
-        name: data.name || `Pin (${data.lat.toFixed(4)}, ${data.lng.toFixed(4)})`,
+        name: data.name || translate('transit.dir_pin_fallback', { lat: data.lat.toFixed(4), lng: data.lng.toFixed(4) }),
         address: data.address || `${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}`,
         lat: data.lat,
         lng: data.lng,
@@ -342,13 +345,13 @@ export function TripTransitDirectionsView({
       seenNames.add(hotelNorm);
       seenCoords.add(getCoordKey(hotel.lat, hotel.lng));
       list.push({
-        name: `Hotel: ${hotel.name}`,
+        name: t('transit.dir_hotel_prefix', { name: hotel.name }),
         address: hotel.address || hotel.name,
         lat: hotel.lat,
         lng: hotel.lng,
         category: 'hotel',
         isAnchor: true,
-        badgeLabel: 'HOTEL',
+        badgeLabel: t('transit.dir_badge_hotel'),
       });
     }
 
@@ -359,13 +362,13 @@ export function TripTransitDirectionsView({
       if (airport.iata) seenNames.add(normalize(airport.iata));
       seenCoords.add(getCoordKey(airport.lat, airport.lng));
       list.push({
-        name: `Airport: ${airport.name}`,
+        name: t('transit.dir_airport_prefix', { name: airport.name }),
         address: airport.name,
         lat: airport.lat,
         lng: airport.lng,
         category: 'transit',
         isAnchor: true,
-        badgeLabel: 'AIRPORT',
+        badgeLabel: t('transit.dir_badge_airport'),
       });
     }
 
@@ -415,14 +418,14 @@ export function TripTransitDirectionsView({
           lng: p.lng,
           category: p.category || 'attraction',
           badgeLabel: isCurrentDay
-            ? `DAY ${dayGroup.day_number} STOP`
-            : `DAY ${dayGroup.day_number}`,
+            ? t('transit.dir_badge_day_stop', { day: dayGroup.day_number })
+            : t('transit.dir_badge_day', { day: dayGroup.day_number }),
         });
       });
     });
 
     return list;
-  }, [hotel, airport, tripDays, selectedDayOption]);
+  }, [hotel, airport, tripDays, selectedDayOption, t]);
 
   // Select place from dropdown
   const handleSelectOrigin = (site: DirectionSite) => {
@@ -457,7 +460,10 @@ export function TripTransitDirectionsView({
     field: 'origin' | 'destination',
     coord: { lat: number; lng: number }
   ) => {
-    const fallbackName = `Coordinates (${coord.lat.toFixed(4)}, ${coord.lng.toFixed(4)})`;
+    const fallbackName = t('transit.dir_coordinates_fallback', {
+      lat: coord.lat.toFixed(4),
+      lng: coord.lng.toFixed(4),
+    });
     const initialSite: DirectionSite = {
       name: fallbackName,
       address: `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}`,
@@ -601,7 +607,7 @@ export function TripTransitDirectionsView({
     const orig = overrideOrig || originSite;
     const dest = overrideDest || destSite;
     if (!orig || !dest) {
-      setErrorMsg('Please select both Origin and Destination locations.');
+      setErrorMsg(t('transit.dir_error_missing_sites'));
       return;
     }
 
@@ -660,7 +666,7 @@ export function TripTransitDirectionsView({
         })
       );
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Could not calculate transit route.';
+      const msg = err instanceof Error ? err.message : t('transit.dir_error_calculate_failed');
       setErrorMsg(msg);
     } finally {
       setIsCalculating(false);
@@ -779,7 +785,7 @@ export function TripTransitDirectionsView({
               color: 'var(--color-text-muted)',
             }}
           >
-            No trip places or anchors found. Type a place name or coordinates above.
+            {t('transit.dir_no_anchors_empty')}
           </div>
         );
       }
@@ -799,8 +805,8 @@ export function TripTransitDirectionsView({
               justifyContent: 'space-between',
             }}
           >
-            <span>Trip Anchors & Places</span>
-            <span style={{ fontSize: '9.5px', opacity: 0.7 }}>{allTripPlaces.length} places</span>
+            <span>{t('transit.dir_anchors_header')}</span>
+            <span style={{ fontSize: '9.5px', opacity: 0.7 }}>{t('transit.dir_places_count', { count: allTripPlaces.length })}</span>
           </div>
 
           {allTripPlaces.map((item, idx) => (
@@ -932,10 +938,13 @@ export function TripTransitDirectionsView({
                   color: 'var(--color-accent-primary, #0F4C5C)',
                 }}
               >
-                Use Coordinates: {parsedCoord.lat.toFixed(5)}, {parsedCoord.lng.toFixed(5)}
+                {t('transit.dir_use_coordinates', {
+                  lat: parsedCoord.lat.toFixed(5),
+                  lng: parsedCoord.lng.toFixed(5),
+                })}
               </div>
               <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                Direct GPS Geographic Coordinate
+                {t('transit.dir_gps_coord_sub')}
               </div>
             </div>
             <span
@@ -949,7 +958,7 @@ export function TripTransitDirectionsView({
                 fontFamily: 'var(--font-code, monospace)',
               }}
             >
-              GPS PIN
+              {t('transit.dir_gps_pin_badge')}
             </span>
           </div>
         )}
@@ -968,7 +977,7 @@ export function TripTransitDirectionsView({
             }}
           >
             <Spinner size={12} color="var(--color-accent-primary)" />
-            <span>Searching places matching &quot;{cleanQ}&quot;...</span>
+            <span>{t('transit.dir_searching_places', { query: cleanQ })}</span>
           </div>
         )}
 
@@ -1041,7 +1050,7 @@ export function TripTransitDirectionsView({
                 fontFamily: 'var(--font-code, monospace)',
               }}
             >
-              {item.badgeLabel || 'TRIP PLACE'}
+              {item.badgeLabel || t('transit.dir_badge_trip_place')}
             </span>
           </div>
         ))}
@@ -1113,7 +1122,7 @@ export function TripTransitDirectionsView({
                 fontFamily: 'var(--font-code, monospace)',
               }}
             >
-              {item.category || 'PLACE'}
+              {item.category || t('transit.dir_badge_place')}
             </span>
           </div>
         ))}
@@ -1128,7 +1137,7 @@ export function TripTransitDirectionsView({
               color: 'var(--color-text-muted)',
             }}
           >
-            No matching places found for &quot;{cleanQ}&quot;
+            {t('transit.dir_no_matching_places', { query: cleanQ })}
           </div>
         )}
       </div>
@@ -1196,7 +1205,7 @@ export function TripTransitDirectionsView({
             <input
               ref={originInputRef}
               type="text"
-              placeholder="Origin (place name, address, or lat,lng)"
+              placeholder={t('transit.dir_origin_placeholder')}
               value={originQuery}
               onChange={(e) => handleOriginChange(e.target.value)}
               onFocus={() => setIsOriginMenuOpen(true)}
@@ -1239,7 +1248,7 @@ export function TripTransitDirectionsView({
                   if (onStartMapPick) onStartMapPick('origin');
                 }
               }}
-              title="Pick origin on map"
+              title={t('transit.dir_pick_origin_title')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1261,7 +1270,7 @@ export function TripTransitDirectionsView({
               }}
             >
               <CrosshairIcon size={11} color={isPickingOrigin ? 'var(--color-accent-primary)' : 'currentColor'} />
-              <span>{isPickingOrigin ? 'Picking...' : 'Map'}</span>
+              <span>{isPickingOrigin ? t('transit.dir_picking_btn') : t('transit.dir_map_btn')}</span>
             </button>
           </div>
 
@@ -1301,7 +1310,7 @@ export function TripTransitDirectionsView({
           <button
             type="button"
             onClick={handleSwapSites}
-            title="Swap Origin and Destination"
+            title={t('transit.dir_swap_title')}
             style={{
               width: '24px',
               height: '24px',
@@ -1356,7 +1365,7 @@ export function TripTransitDirectionsView({
             <input
               ref={destInputRef}
               type="text"
-              placeholder="Destination (place name, address, or lat,lng)"
+              placeholder={t('transit.dir_dest_placeholder')}
               value={destQuery}
               onChange={(e) => handleDestChange(e.target.value)}
               onFocus={() => setIsDestMenuOpen(true)}
@@ -1399,7 +1408,7 @@ export function TripTransitDirectionsView({
                   if (onStartMapPick) onStartMapPick('destination');
                 }
               }}
-              title="Pick destination on map"
+              title={t('transit.dir_pick_dest_title')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1421,7 +1430,7 @@ export function TripTransitDirectionsView({
               }}
             >
               <CrosshairIcon size={11} color={isPickingDest ? 'var(--color-accent-primary)' : 'currentColor'} />
-              <span>{isPickingDest ? 'Picking...' : 'Map'}</span>
+              <span>{isPickingDest ? t('transit.dir_picking_btn') : t('transit.dir_map_btn')}</span>
             </button>
           </div>
 
@@ -1478,7 +1487,7 @@ export function TripTransitDirectionsView({
               cursor: 'pointer',
             }}
           >
-            Depart at
+            {t('transit.dir_depart_at')}
           </button>
           <button
             type="button"
@@ -1494,7 +1503,7 @@ export function TripTransitDirectionsView({
               cursor: 'pointer',
             }}
           >
-            Arrive by
+            {t('transit.dir_arrive_by')}
           </button>
         </div>
 
@@ -1519,7 +1528,11 @@ export function TripTransitDirectionsView({
               transition: 'all 0.15s ease',
             }}
           >
-            <span>{selectedDayOption === 'general' ? 'General' : `Day ${selectedDayOption}`}</span>
+            <span>
+              {selectedDayOption === 'general'
+                ? t('transit.dir_general_day')
+                : t('trips.day_label', { number: selectedDayOption })}
+            </span>
             <ChevronDownIcon
               size={12}
               color="var(--color-text-muted)"
@@ -1581,7 +1594,7 @@ export function TripTransitDirectionsView({
                       if (!isSelected) e.currentTarget.style.background = 'transparent';
                     }}
                   >
-                    <span>Day {d.day_number}</span>
+                    <span>{t('trips.day_label', { number: d.day_number })}</span>
                     {isSelected && <CheckIcon size={11} color="var(--color-accent-primary)" />}
                   </button>
                 );
@@ -1607,7 +1620,7 @@ export function TripTransitDirectionsView({
                     textAlign: 'left',
                   }}
                 >
-                  Day 1
+                  {t('trips.day_label', { number: 1 })}
                 </button>
               )}
               <button
@@ -1639,7 +1652,7 @@ export function TripTransitDirectionsView({
                   if (selectedDayOption !== 'general') e.currentTarget.style.background = 'transparent';
                 }}
               >
-                <span>General</span>
+                <span>{t('transit.dir_general_day')}</span>
                 {selectedDayOption === 'general' && <CheckIcon size={11} color="var(--color-accent-primary)" />}
               </button>
             </div>
@@ -1667,7 +1680,7 @@ export function TripTransitDirectionsView({
               boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
               transition: 'all 0.15s ease',
             }}
-            title="Click to select scheduled time"
+            title={t('transit.dir_select_time_title')}
           >
             <ClockIcon size={12} color="var(--color-text-muted)" />
             <span>{timeValue}</span>
@@ -1678,7 +1691,11 @@ export function TripTransitDirectionsView({
             onClose={() => setIsHourPickerOpen(false)}
             value={timeValue}
             onChange={(newVal) => setTimeValue(newVal)}
-            anchorLabel={scheduleMode === 'depart_at' ? 'Departure Time' : 'Arrival Time'}
+            anchorLabel={
+              scheduleMode === 'depart_at'
+                ? t('transit.dir_departure_time_label')
+                : t('transit.dir_arrival_time_label')
+            }
           />
         </div>
       </div>
@@ -1712,12 +1729,12 @@ export function TripTransitDirectionsView({
           {isCalculating ? (
             <>
               <Spinner size={12} color="#FFFFFF" />
-              <span>Calculating Route...</span>
+              <span>{t('transit.dir_calculating_route')}</span>
             </>
           ) : (
             <>
               <TransitIcon size={13} color="#FFFFFF" />
-              <span>Get Directions</span>
+              <span>{t('transit.dir_get_directions')}</span>
             </>
           )}
         </button>
@@ -1737,7 +1754,7 @@ export function TripTransitDirectionsView({
               cursor: 'pointer',
             }}
           >
-            Clear
+            {t('common.clear')}
           </button>
         )}
       </div>
@@ -1797,7 +1814,7 @@ export function TripTransitDirectionsView({
                 padding: '2px 2px 0 2px',
               }}
             >
-              <span>Scheduled Legs (Day {activeDayEntry.day_number})</span>
+              <span>{t('transit.dir_scheduled_legs_day', { day: activeDayEntry.day_number })}</span>
               <span>{legPairs.length}</span>
             </div>
 
@@ -1852,7 +1869,7 @@ export function TripTransitDirectionsView({
                     e.currentTarget.style.borderColor = 'var(--color-border)';
                     e.currentTarget.style.background = 'var(--color-surface-card)';
                   }}
-                  title={`Prefill route: ${from.name} → ${to.name}`}
+                  title={t('transit.dir_prefill_route_title', { from: from.name, to: to.name })}
                 >
                   <span
                     style={{
@@ -1877,7 +1894,7 @@ export function TripTransitDirectionsView({
                       flexShrink: 0,
                     }}
                   >
-                    Load
+                    {t('transit.dir_load_btn')}
                   </span>
                 </button>
               ))}
@@ -1907,7 +1924,7 @@ export function TripTransitDirectionsView({
             >
               <InfoIcon size={14} color="var(--color-accent-primary)" style={{ marginTop: '1px' }} />
               <div>
-                <strong>Recommendation: </strong>
+                <strong>{t('transit.dir_recommendation_prefix')}</strong>{' '}
                 {routeResult.recommendation_reason}
               </div>
             </div>
@@ -1937,7 +1954,9 @@ export function TripTransitDirectionsView({
                   <WalkIcon size={14} color="var(--color-accent-primary)" />
                 )}
                 <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  {activeDisplayLeg.mode === 'transit' ? 'Public Transit Route' : 'Direct Walking Route'}
+                  {activeDisplayLeg.mode === 'transit'
+                    ? t('transit.dir_public_transit_route')
+                    : t('transit.dir_direct_walking_route')}
                 </span>
               </div>
               <span
@@ -1948,7 +1967,7 @@ export function TripTransitDirectionsView({
                   color: 'var(--color-accent-primary)',
                 }}
               >
-                {activeDisplayLeg.duration_mins} MIN
+                {t('transit.min_upper', { count: activeDisplayLeg.duration_mins })}
                 {activeDisplayLeg.cost_eur > 0 && ` • €${activeDisplayLeg.cost_eur.toFixed(2)}`}
               </span>
             </div>
@@ -2005,18 +2024,18 @@ export function TripTransitDirectionsView({
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                     {activeLegView === 'primary'
                       ? routeResult.alternative_leg.mode === 'pedestrian'
-                        ? 'Compare with Direct Walk'
-                        : 'Compare with Public Transit'
-                      : 'Switch back to Primary Route'}
+                        ? t('transit.dir_compare_walk')
+                        : t('transit.dir_compare_transit')
+                      : t('transit.dir_switch_primary')}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
                     {activeLegView === 'primary'
-                      ? `${routeResult.alternative_leg.duration_mins} min • ${
+                      ? `${t('workspace.duration_minutes', { duration: routeResult.alternative_leg.duration_mins })} • ${
                           routeResult.alternative_leg.cost_eur > 0
                             ? `€${routeResult.alternative_leg.cost_eur.toFixed(2)}`
                             : '0€'
                         }`
-                      : `${routeResult.primary_leg.duration_mins} min • ${
+                      : `${t('workspace.duration_minutes', { duration: routeResult.primary_leg.duration_mins })} • ${
                           routeResult.primary_leg.cost_eur > 0
                             ? `€${routeResult.primary_leg.cost_eur.toFixed(2)}`
                             : '0€'
@@ -2033,7 +2052,7 @@ export function TripTransitDirectionsView({
                   textDecoration: 'underline',
                 }}
               >
-                {activeLegView === 'primary' ? 'View Route' : 'Show'}
+                {activeLegView === 'primary' ? t('transit.dir_view_route') : t('transit.dir_show_btn')}
               </span>
             </div>
           )}

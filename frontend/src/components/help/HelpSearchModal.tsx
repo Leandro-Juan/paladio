@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { HELP_CATEGORIES, HelpArticle } from './helpData';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface HelpSearchModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface HelpSearchModalProps {
 }
 
 export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearchModalProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,25 +24,25 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
     }))
   );
 
-  // Filter based on query
+  // Filter based on query across English originals and active translations
   const filtered = query.trim()
     ? allArticles.filter((a) => {
         const q = query.toLowerCase();
+        const matchesQuery = (text?: string) =>
+          Boolean(text && (text.toLowerCase().includes(q) || t(text).toLowerCase().includes(q)));
         return (
-          a.title.toLowerCase().includes(q) ||
-          a.excerpt.toLowerCase().includes(q) ||
-          a.tldr.toLowerCase().includes(q) ||
-          a.categoryName.toLowerCase().includes(q) ||
-          (a.badge && a.badge.toLowerCase().includes(q)) ||
+          matchesQuery(a.title) ||
+          matchesQuery(a.excerpt) ||
+          matchesQuery(a.tldr) ||
+          matchesQuery(a.categoryName) ||
+          matchesQuery(a.badge) ||
           a.sections.some(
             (s) =>
-              s.heading.toLowerCase().includes(q) ||
-              s.content.some((p) => p.toLowerCase().includes(q)) ||
+              matchesQuery(s.heading) ||
+              s.content.some((p) => matchesQuery(p)) ||
               (s.parameterTable &&
                 s.parameterTable.some(
-                  (pt) =>
-                    pt.term.toLowerCase().includes(q) ||
-                    pt.meaning.toLowerCase().includes(q)
+                  (pt) => matchesQuery(pt.term) || matchesQuery(pt.meaning)
                 ))
           )
         );
@@ -90,7 +92,7 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Search Documentation"
+      aria-label={t('help.search_docs_aria')}
       style={{
         position: 'fixed',
         inset: 0,
@@ -143,7 +145,7 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            placeholder="Search guides, algorithms, metrics, shortcuts..."
+            placeholder={t('help.search_modal_placeholder')}
             style={{
               flex: 1,
               border: 'none',
@@ -164,7 +166,7 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
               color: 'var(--color-text-muted, #566B76)',
             }}
           >
-            ESC
+            {t('help.esc_key')}
           </kbd>
         </div>
 
@@ -172,7 +174,23 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
           {filtered.length === 0 ? (
             <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--color-text-muted, #566B76)', fontSize: '13px' }}>
-              No articles matching &ldquo;{query}&rdquo;. Try searching for <em>transit</em>, <em>wallet</em>, <em>monitoring</em>, <em>lock</em>, or <em>currency</em>.
+              {t('help.search_empty_state', {
+                query,
+                term1: '__EM1__',
+                term2: '__EM2__',
+                term3: '__EM3__',
+                term4: '__EM4__',
+                term5: '__EM5__',
+              })
+                .split(/(__EM[1-5]__)/)
+                .map((part, idx) => {
+                  if (part === '__EM1__') return <em key={idx}>{t('help.search_sample_transit')}</em>;
+                  if (part === '__EM2__') return <em key={idx}>{t('help.search_sample_wallet')}</em>;
+                  if (part === '__EM3__') return <em key={idx}>{t('help.search_sample_monitoring')}</em>;
+                  if (part === '__EM4__') return <em key={idx}>{t('help.search_sample_lock')}</em>;
+                  if (part === '__EM5__') return <em key={idx}>{t('help.search_sample_currency')}</em>;
+                  return <React.Fragment key={idx}>{part}</React.Fragment>;
+                })}
             </div>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -200,7 +218,7 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontWeight: 600, fontSize: '13px' }}>{item.title}</span>
+                        <span style={{ fontWeight: 600, fontSize: '13px' }}>{t(item.title)}</span>
                         <span
                           style={{
                             fontSize: '10px',
@@ -210,7 +228,7 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
                             color: isSelected ? 'rgba(255, 255, 255, 0.85)' : 'var(--color-text-muted, #566B76)',
                           }}
                         >
-                          {item.categoryName}
+                          {t(item.categoryName)}
                         </span>
                       </div>
                       <span
@@ -222,7 +240,7 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {item.excerpt}
+                        {t(item.excerpt)}
                       </span>
                     </button>
                   </li>
@@ -245,8 +263,8 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
             color: 'var(--color-text-muted, #566B76)',
           }}
         >
-          <span>Use ↑ ↓ to navigate</span>
-          <span>Press ↵ to select</span>
+          <span>{t('help.nav_arrows_hint')}</span>
+          <span>{t('help.select_enter_hint')}</span>
         </div>
       </div>
     </div>

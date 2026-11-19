@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 /**
  * Tactical Callout Pill
@@ -81,6 +82,7 @@ function StarSvgIcon({ size = 11, color = 'currentColor' }: { size?: number; col
  * 1. Timeline UI Mockup with Numbered Annotations
  */
 export function TimelineUiMockup() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -104,14 +106,14 @@ export function TimelineUiMockup() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>DAY 2 SCHEDULE</span>
+          <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{t('help.mockup_day2_schedule')}</span>
           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--color-ocean, #1B8FA6)', color: '#FFFFFF', fontWeight: 600 }}>
-            OCT 14 • KYOTO
+            {t('help.mockup_oct14_kyoto')}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>4 STOPS • 6.2 KM WALKING</span>
-          <CalloutBadge number={1} label="Day Overview" />
+          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{t('help.mockup_4stops_walking')}</span>
+          <CalloutBadge number={1} label={t('help.mockup_badge_day_overview')} />
         </div>
       </div>
 
@@ -123,8 +125,8 @@ export function TimelineUiMockup() {
           <div style={{ width: '2px', height: '36px', background: 'var(--color-border, #E2D9CC)' }} />
         </div>
         <div style={{ flex: 1, paddingBottom: '14px' }}>
-          <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Hotel Kanra Kyoto (Departure)</div>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Morning hotel anchor point</div>
+          <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('help.mockup_hotel_kanra')}</div>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{t('help.mockup_hotel_anchor')}</div>
         </div>
       </div>
 
@@ -144,8 +146,8 @@ export function TimelineUiMockup() {
           }}
         >
           <WalkSvgIcon size={12} color="var(--color-ocean, #1B8FA6)" />
-          <span>14 min walk (950m)</span>
-          <CalloutBadge number={2} label="Transit Leg" />
+          <span>{t('help.mockup_walk_14m')}</span>
+          <CalloutBadge number={2} label={t('help.mockup_badge_transit_leg')} />
         </div>
       </div>
 
@@ -168,7 +170,7 @@ export function TimelineUiMockup() {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>Fushimi Inari Shrine</span>
+            <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{t('help.mockup_fushimi_inari')}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span
                 style={{
@@ -184,13 +186,13 @@ export function TimelineUiMockup() {
                 }}
               >
                 <LockSvgIcon size={10} color="#FFFFFF" />
-                <span>LOCKED • 09:30</span>
+                <span>{t('help.mockup_locked_0930')}</span>
               </span>
-              <CalloutBadge number={3} label="Locked Stop" />
+              <CalloutBadge number={3} label={t('help.mockup_badge_locked_stop')} />
             </div>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-            Pre-booked ticket window • Paladio keeps this time frozen
+            {t('help.mockup_fushimi_note')}
           </div>
         </div>
       </div>
@@ -213,7 +215,7 @@ export function TimelineUiMockup() {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Nishiki Market Ramen (Lunch)</span>
+            <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{t('help.mockup_nishiki_ramen')}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span
                 style={{
@@ -229,13 +231,13 @@ export function TimelineUiMockup() {
                 }}
               >
                 <StarSvgIcon size={10} color="#B8860B" />
-                <span>LUNCH BREAK</span>
+                <span>{t('help.mockup_lunch_break')}</span>
               </span>
-              <CalloutBadge number={4} label="Guaranteed Meal" />
+              <CalloutBadge number={4} label={t('help.mockup_badge_guaranteed_meal')} />
             </div>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-            Relaxed dining slot (11:45 - 13:00) • Protects you from getting overly hungry
+            {t('help.mockup_nishiki_note')}
           </div>
         </div>
       </div>
@@ -252,10 +254,60 @@ export function TimelineUiMockup() {
           fontSize: '11px',
         }}
       >
-        <div><strong>① Day Overview:</strong> Switch between <code>ALL DAYS</code> and <code>DAY 1..N</code>, add days with <code>+ Day</code>, or click <code>Solve</code> in Edit Route mode.</div>
-        <div><strong>② Transit Leg:</strong> Valhalla walking or GTFS transit estimate between stops (switch <code>Simple</code> / <code>Detailed</code> in the Speed Dial).</div>
-        <div><strong>③ Lock Button:</strong> Revealed by <code>EDIT ROUTE</code> in the bottom-left Speed Dial to freeze a stop before re-solving.</div>
-        <div><strong>④ Meal Protection:</strong> Scheduled lunch and dinner venues aligned with restaurant hours and pace settings.</div>
+        <div>
+          {t('help.mockup_legend1_body', {
+            label: '__LBL__',
+            c1: '__C1__',
+            c2: '__C2__',
+            c3: '__C3__',
+            c4: '__C4__',
+          })
+            .split(/(__LBL__|__C[1-4]__)/)
+            .map((part, idx) => {
+              if (part === '__LBL__') return <strong key={idx}>{t('help.mockup_legend1_label')}</strong>;
+              if (part === '__C1__') return <code key={idx}>{t('help.mockup_legend1_c1')}</code>;
+              if (part === '__C2__') return <code key={idx}>{t('help.mockup_legend1_c2')}</code>;
+              if (part === '__C3__') return <code key={idx}>{t('help.mockup_legend1_c3')}</code>;
+              if (part === '__C4__') return <code key={idx}>{t('help.mockup_legend1_c4')}</code>;
+              return <React.Fragment key={idx}>{part}</React.Fragment>;
+            })}
+        </div>
+        <div>
+          {t('help.mockup_legend2_body', {
+            label: '__LBL__',
+            c1: '__C1__',
+            c2: '__C2__',
+          })
+            .split(/(__LBL__|__C[1-2]__)/)
+            .map((part, idx) => {
+              if (part === '__LBL__') return <strong key={idx}>{t('help.mockup_legend2_label')}</strong>;
+              if (part === '__C1__') return <code key={idx}>{t('help.mockup_legend2_c1')}</code>;
+              if (part === '__C2__') return <code key={idx}>{t('help.mockup_legend2_c2')}</code>;
+              return <React.Fragment key={idx}>{part}</React.Fragment>;
+            })}
+        </div>
+        <div>
+          {t('help.mockup_legend3_body', {
+            label: '__LBL__',
+            c1: '__C1__',
+          })
+            .split(/(__LBL__|__C1__)/)
+            .map((part, idx) => {
+              if (part === '__LBL__') return <strong key={idx}>{t('help.mockup_legend3_label')}</strong>;
+              if (part === '__C1__') return <code key={idx}>{t('help.mockup_legend3_c1')}</code>;
+              return <React.Fragment key={idx}>{part}</React.Fragment>;
+            })}
+        </div>
+        <div>
+          {t('help.mockup_legend4_body', {
+            label: '__LBL__',
+          })
+            .split(/(__LBL__)/)
+            .map((part, idx) => {
+              if (part === '__LBL__') return <strong key={idx}>{t('help.mockup_legend4_label')}</strong>;
+              return <React.Fragment key={idx}>{part}</React.Fragment>;
+            })}
+        </div>
       </div>
     </div>
   );
@@ -265,6 +317,7 @@ export function TimelineUiMockup() {
  * 2. Route Comparison Mockup: Naive Zigzag vs Paladio Neighborhood Flow
  */
 export function RouteComparisonMockup() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -286,14 +339,14 @@ export function RouteComparisonMockup() {
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
           <span style={{ fontWeight: 700, color: 'var(--color-danger, #B3261E)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span>UNORGANIZED (BACK-AND-FORTH)</span>
+            <span>{t('help.mockup_unorganized_title')}</span>
           </span>
           <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(179, 38, 30, 0.12)', color: 'var(--color-danger, #B3261E)', fontWeight: 700 }}>
-            TRAVEL: 24.8 KM
+            {t('help.mockup_travel_24_8_km')}
           </span>
         </div>
         <p style={{ margin: '0 0 12px 0', fontSize: '11px', color: 'var(--color-text-muted)' }}>
-          Generic travel tools make you cross the city east and west repeatedly, wasting hours in transit.
+          {t('help.mockup_unorganized_desc')}
         </p>
 
         {/* Visual Zigzag Graphic */}
@@ -311,7 +364,7 @@ export function RouteComparisonMockup() {
         </svg>
 
         <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--color-danger, #B3261E)', fontWeight: 600 }}>
-          High Exhaustion Risk • 3.5 Hours Wasted in Transit • Constant Backtracking
+          {t('help.mockup_unorganized_footer')}
         </div>
       </div>
 
@@ -328,14 +381,14 @@ export function RouteComparisonMockup() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
           <span style={{ fontWeight: 700, color: 'var(--color-success, #1F7A4D)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <CheckSvgIcon size={14} color="var(--color-success, #1F7A4D)" />
-            <span>PALADIO NEIGHBORHOOD FLOW</span>
+            <span>{t('help.mockup_flow_title')}</span>
           </span>
           <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(31, 122, 77, 0.12)', color: 'var(--color-success, #1F7A4D)', fontWeight: 700 }}>
-            TRAVEL: 8.4 KM
+            {t('help.mockup_travel_8_4_km')}
           </span>
         </div>
         <p style={{ margin: '0 0 12px 0', fontSize: '11px', color: 'var(--color-text-muted)' }}>
-          Morning stops in the West district, single easy river crossing at lunch, afternoon stops in the East.
+          {t('help.mockup_flow_desc')}
         </p>
 
         {/* Visual Smooth Clustered Graphic */}
@@ -353,7 +406,7 @@ export function RouteComparisonMockup() {
         </svg>
 
         <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--color-success, #1F7A4D)', fontWeight: 600 }}>
-          Zero Backtracking • Minimized Transit Distance • Respects Opening Hours
+          {t('help.mockup_flow_footer')}
         </div>
       </div>
     </div>
@@ -364,6 +417,7 @@ export function RouteComparisonMockup() {
  * 3. Realism Radar Mockup
  */
 export function RealismRadarMockup() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -402,48 +456,48 @@ export function RealismRadarMockup() {
           </svg>
         </div>
         <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '4px' }}>
-          Taste Star (8 Axes)
+          {t('help.mockup_taste_star_axes')}
         </div>
         <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
-          Learned automatically from trips
+          {t('help.mockup_learned_from_trips')}
         </div>
       </div>
 
       {/* Deterministic Solver Guardrails */}
       <div style={{ flex: 1, minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-          <span>1. Daily Meal Windows</span>
+          <span>{t('help.mockup_guardrail_1_title')}</span>
           <span style={{ color: 'var(--color-success, #1F7A4D)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <CheckSvgIcon size={12} color="var(--color-success, #1F7A4D)" />
-            <span>Lunch &amp; dinner timed around food venues</span>
+            <span>{t('help.mockup_guardrail_1_desc')}</span>
           </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-          <span>2. Geographic Clustering</span>
+          <span>{t('help.mockup_guardrail_2_title')}</span>
           <span style={{ color: 'var(--color-success, #1F7A4D)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <CheckSvgIcon size={12} color="var(--color-success, #1F7A4D)" />
-            <span>District-grouped TSPTW stop sequence</span>
+            <span>{t('help.mockup_guardrail_2_desc')}</span>
           </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-          <span>3. Opening-Hour Time Windows</span>
+          <span>{t('help.mockup_guardrail_3_title')}</span>
           <span style={{ color: 'var(--color-success, #1F7A4D)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <CheckSvgIcon size={12} color="var(--color-success, #1F7A4D)" />
-            <span>Every stop verified against open hours</span>
+            <span>{t('help.mockup_guardrail_3_desc')}</span>
           </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-          <span>4. Exploration Pace Caps</span>
+          <span>{t('help.mockup_guardrail_4_title')}</span>
           <span style={{ color: 'var(--color-success, #1F7A4D)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <CheckSvgIcon size={12} color="var(--color-success, #1F7A4D)" />
-            <span>Relaxed, Balanced, or Packed / High Tempo</span>
+            <span>{t('help.mockup_guardrail_4_desc')}</span>
           </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-          <span>5. Local Foot &amp; GTFS Routing</span>
+          <span>{t('help.mockup_guardrail_5_title')}</span>
           <span style={{ color: 'var(--color-success, #1F7A4D)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <CheckSvgIcon size={12} color="var(--color-success, #1F7A4D)" />
-            <span>Valhalla street graph + city transit</span>
+            <span>{t('help.mockup_guardrail_5_desc')}</span>
           </span>
         </div>
       </div>
@@ -455,6 +509,7 @@ export function RealismRadarMockup() {
  * 4. Cost Knapsack & Split Mockup
  */
 export function CostKnapsackMockup() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -467,48 +522,57 @@ export function CostKnapsackMockup() {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
         <div>
-          <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary)' }}>Total trip spend</span>
-          <span style={{ marginLeft: '8px', color: 'var(--color-text-muted)' }}>$2,160 / $2,400 Target Budget</span>
+          <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary)' }}>{t('help.mockup_total_trip_spend')}</span>
+          <span style={{ marginLeft: '8px', color: 'var(--color-text-muted)' }}>{t('help.mockup_budget_ratio')}</span>
         </div>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           <span style={{ padding: '3px 8px', borderRadius: '4px', background: 'var(--color-ocean, #1B8FA6)', color: '#FFF', fontWeight: 700, fontSize: '11px' }}>USD</span>
-          <span style={{ padding: '3px 8px', borderRadius: '4px', background: 'var(--color-surface-hover, rgba(0,0,0,0.05))', color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '11px' }}>+ Add expense</span>
-          <span style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border, #E2D9CC)', color: 'var(--color-text-primary)', fontWeight: 600, fontSize: '11px' }}>Export CSV</span>
+          <span style={{ padding: '3px 8px', borderRadius: '4px', background: 'var(--color-surface-hover, rgba(0,0,0,0.05))', color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '11px' }}>{t('help.mockup_add_expense')}</span>
+          <span style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border, #E2D9CC)', color: 'var(--color-text-primary)', fontWeight: 600, fontSize: '11px' }}>{t('help.mockup_export_csv')}</span>
         </div>
       </div>
 
       {/* Progress Bar */}
       <div style={{ height: '14px', borderRadius: '7px', background: 'var(--color-surface-muted, rgba(148, 163, 184, 0.2))', display: 'flex', overflow: 'hidden', marginBottom: '14px' }}>
-        <div style={{ width: '42%', background: 'var(--color-deep-sea, #0F4C5C)' }} title="Accommodation $1,008" />
-        <div style={{ width: '25%', background: 'var(--color-ocean, #1B8FA6)' }} title="Food & Dining $600" />
-        <div style={{ width: '15%', background: 'var(--color-accent-gold, #E2B33C)' }} title="Activities $360" />
-        <div style={{ width: '8%', background: 'var(--color-accent-coral, #D42A2F)' }} title="Transit $192" />
-        <div style={{ width: '10%', background: 'transparent' }} title="Remaining Safe Buffer $240" />
+        <div style={{ width: '42%', background: 'var(--color-deep-sea, #0F4C5C)' }} title={t('help.mockup_title_accommodation')} />
+        <div style={{ width: '25%', background: 'var(--color-ocean, #1B8FA6)' }} title={t('help.mockup_title_food')} />
+        <div style={{ width: '15%', background: 'var(--color-accent-gold, #E2B33C)' }} title={t('help.mockup_title_activities')} />
+        <div style={{ width: '8%', background: 'var(--color-accent-coral, #D42A2F)' }} title={t('help.mockup_title_transit')} />
+        <div style={{ width: '10%', background: 'transparent' }} title={t('help.mockup_title_buffer')} />
       </div>
 
       {/* Legend & Debt Settler */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', fontSize: '11px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--color-deep-sea, #0F4C5C)' }} />
-          <span>Hotel: $1,008 (42%)</span>
+          <span>{t('help.mockup_legend_hotel')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--color-ocean, #1B8FA6)' }} />
-          <span>Dining: $600 (25%)</span>
+          <span>{t('help.mockup_legend_dining')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--color-accent-gold, #E2B33C)' }} />
-          <span>Sightseeing: $360 (15%)</span>
+          <span>{t('help.mockup_legend_sightseeing')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--color-accent-coral, #D42A2F)' }} />
-          <span>Emergency Buffer: $240 (Safe)</span>
+          <span>{t('help.mockup_legend_buffer')}</span>
         </div>
       </div>
 
       <div style={{ marginTop: '14px', padding: '10px 12px', borderRadius: '6px', background: 'var(--color-surface-raised, #FFFFFF)', border: '1px solid var(--color-border, #E2D9CC)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-        <span><strong>Settle up:</strong> Alex paid hotel ($1,008) • Elena paid dining ($600) • Unassigned route estimates: Assign</span>
-        <span style={{ color: 'var(--color-ocean, #1B8FA6)', fontWeight: 700 }}>Elena owes Alex $204.00</span>
+        <span>
+          {t('help.mockup_settle_up_row', { label: '__LBL__' })
+            .split('__LBL__')
+            .map((part, idx, arr) => (
+              <React.Fragment key={idx}>
+                {part}
+                {idx < arr.length - 1 && <strong>{t('help.mockup_settle_up_label')}</strong>}
+              </React.Fragment>
+            ))}
+        </span>
+        <span style={{ color: 'var(--color-ocean, #1B8FA6)', fontWeight: 700 }}>{t('help.mockup_elena_owes_alex')}</span>
       </div>
     </div>
   );
@@ -518,6 +582,7 @@ export function CostKnapsackMockup() {
  * 5. Swarm Assistant Mockup
  */
 export function SwarmAssistantMockup() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -539,7 +604,7 @@ export function SwarmAssistantMockup() {
             maxWidth: '85%',
           }}
         >
-          &ldquo;Swap Day 2 afternoon for a quiet tea garden and find matcha within a 5-minute walk&rdquo;
+          {t('help.mockup_swarm_user_prompt')}
         </div>
       </div>
 
@@ -556,22 +621,22 @@ export function SwarmAssistantMockup() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '4px', background: 'var(--color-accent-gold-soft, rgba(226, 179, 60, 0.2))', color: '#B8860B', fontWeight: 700 }}>
-              CONFIRMATION REQUIRED
+              {t('help.mockup_confirmation_required')}
             </span>
-            <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>Paladio Agent</span>
+            <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{t('help.mockup_paladio_agent')}</span>
           </div>
           <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '10px', color: 'var(--color-text-muted)' }}>
-            Expires in 4:59
+            {t('help.mockup_expires_4_59')}
           </span>
         </div>
         <div style={{ color: 'var(--color-danger, #B3261E)', textDecoration: 'line-through', fontSize: '11px' }}>
-          - 14:30 Crowded Commercial Gallery (Removed)
+          {t('help.mockup_swarm_removed')}
         </div>
         <div style={{ color: 'var(--color-success, #1F7A4D)', fontWeight: 600, fontSize: '11px', marginTop: '2px' }}>
-          + 14:15 Murin-an Japanese Villa &amp; Garden (Added)
+          {t('help.mockup_swarm_added_1')}
         </div>
         <div style={{ color: 'var(--color-success, #1F7A4D)', fontWeight: 600, fontSize: '11px', marginTop: '2px' }}>
-          + 15:45 Camellia Tea Ceremony (350m walk • Within Budget)
+          {t('help.mockup_swarm_added_2')}
         </div>
 
         {/* Action Buttons */}
@@ -595,7 +660,7 @@ export function SwarmAssistantMockup() {
             }}
           >
             <CheckSvgIcon size={12} color="#FFFFFF" />
-            <span>Approve Change</span>
+            <span>{t('help.mockup_approve_change')}</span>
           </button>
           <button
             type="button"
@@ -610,12 +675,12 @@ export function SwarmAssistantMockup() {
               fontSize: '11px',
             }}
           >
-            Reject
+            {t('help.mockup_reject')}
           </button>
         </div>
       </div>
       <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textAlign: 'center' }}>
-        Requires explicit confirmation before expiring — an Undo toast appears immediately after approval.
+        {t('help.mockup_swarm_footer')}
       </div>
     </div>
   );
@@ -625,6 +690,7 @@ export function SwarmAssistantMockup() {
  * 6. GTFS Transit Routing Mockup
  */
 export function TransitRoutingMockup() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -637,35 +703,35 @@ export function TransitRoutingMockup() {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
         <div style={{ display: 'flex', gap: '4px', background: 'var(--color-surface-raised, #FFFFFF)', padding: '3px', borderRadius: '8px', border: '1px solid var(--color-border, #E2D9CC)' }}>
-          <span style={{ padding: '4px 10px', borderRadius: '6px', background: 'var(--color-ocean, #1B8FA6)', color: '#FFF', fontWeight: 700, fontSize: '11px' }}>Directions</span>
-          <span style={{ padding: '4px 10px', borderRadius: '6px', color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '11px' }}>Lines</span>
-          <span style={{ padding: '4px 10px', borderRadius: '6px', color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '11px' }}>Nearby</span>
+          <span style={{ padding: '4px 10px', borderRadius: '6px', background: 'var(--color-ocean, #1B8FA6)', color: '#FFF', fontWeight: 700, fontSize: '11px' }}>{t('help.mockup_transit_directions')}</span>
+          <span style={{ padding: '4px 10px', borderRadius: '6px', color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '11px' }}>{t('help.mockup_transit_lines')}</span>
+          <span style={{ padding: '4px 10px', borderRadius: '6px', color: 'var(--color-text-muted)', fontWeight: 600, fontSize: '11px' }}>{t('help.mockup_transit_nearby')}</span>
         </div>
         <span style={{ padding: '3px 9px', borderRadius: '9999px', background: 'rgba(27, 143, 166, 0.12)', color: 'var(--color-ocean, #1B8FA6)', fontWeight: 700, fontSize: '10px' }}>
-          AREA FILTER: ON
+          {t('help.mockup_area_filter_on')}
         </span>
       </div>
 
       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
-        <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'var(--color-deep-sea, #0F4C5C)', color: '#FFF', fontSize: '10px', fontWeight: 700 }}>Metro</span>
-        <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'var(--color-deep-sea, #0F4C5C)', color: '#FFF', fontSize: '10px', fontWeight: 700 }}>Rail</span>
-        <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'var(--color-surface-raised, #FFFFFF)', border: '1px solid var(--color-border, #E2D9CC)', color: 'var(--color-text-muted)', fontSize: '10px', fontWeight: 600 }}>Tram</span>
-        <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'var(--color-surface-raised, #FFFFFF)', border: '1px solid var(--color-border, #E2D9CC)', color: 'var(--color-text-muted)', fontSize: '10px', fontWeight: 600 }}>Bus</span>
-        <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>Depart at 14:15</span>
+        <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'var(--color-deep-sea, #0F4C5C)', color: '#FFF', fontSize: '10px', fontWeight: 700 }}>{t('help.mockup_mode_metro')}</span>
+        <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'var(--color-deep-sea, #0F4C5C)', color: '#FFF', fontSize: '10px', fontWeight: 700 }}>{t('help.mockup_mode_rail')}</span>
+        <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'var(--color-surface-raised, #FFFFFF)', border: '1px solid var(--color-border, #E2D9CC)', color: 'var(--color-text-muted)', fontSize: '10px', fontWeight: 600 }}>{t('help.mockup_mode_tram')}</span>
+        <span style={{ padding: '3px 8px', borderRadius: '6px', background: 'var(--color-surface-raised, #FFFFFF)', border: '1px solid var(--color-border, #E2D9CC)', color: 'var(--color-text-muted)', fontSize: '10px', fontWeight: 600 }}>{t('help.mockup_mode_bus')}</span>
+        <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>{t('help.mockup_depart_1415')}</span>
       </div>
 
       <div style={{ background: 'var(--color-surface-raised, #FFFFFF)', border: '1px solid var(--color-border, #E2D9CC)', borderRadius: '8px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
         <div>
           <div style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
             <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: '4px', background: 'var(--color-accent-coral, #D42A2F)', color: '#FFF', fontSize: '10px', marginRight: '6px' }}>G</span>
-            Ginza Line • Asakusa → Shibuya
+            {t('help.mockup_ginza_line')}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-            Local GTFS schedule • 3 stops • 11 min total (walk + rail)
+            {t('help.mockup_gtfs_leg_desc')}
           </div>
         </div>
         <span style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(31, 122, 77, 0.12)', color: 'var(--color-success, #1F7A4D)', fontWeight: 700, fontSize: '10px' }}>
-          Get Directions
+          {t('help.mockup_get_directions')}
         </span>
       </div>
     </div>
@@ -676,6 +742,7 @@ export function TransitRoutingMockup() {
  * 7. Wallet Passbook Mockup
  */
 export function WalletPassbookMockup() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -688,25 +755,25 @@ export function WalletPassbookMockup() {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontWeight: 800, color: 'var(--color-text-primary)' }}>TOTAL TICKETS: 4</span>
-          <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(27, 143, 166, 0.12)', color: 'var(--color-ocean, #1B8FA6)', fontWeight: 700 }}>Flights • Stays &amp; Keys • Attractions • Transit</span>
+          <span style={{ fontWeight: 800, color: 'var(--color-text-primary)' }}>{t('help.mockup_total_tickets_4')}</span>
+          <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(27, 143, 166, 0.12)', color: 'var(--color-ocean, #1B8FA6)', fontWeight: 700 }}>{t('help.mockup_ticket_categories_summary')}</span>
         </div>
         <div style={{ display: 'flex', gap: '6px' }}>
-          <span style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--color-ocean, #1B8FA6)', color: 'var(--color-ocean, #1B8FA6)', fontWeight: 700, fontSize: '10px' }}>SYNC ITINERARY</span>
-          <span style={{ padding: '4px 8px', borderRadius: '6px', background: 'var(--color-ocean, #1B8FA6)', color: '#FFF', fontWeight: 700, fontSize: '10px' }}>+ ADD PASS</span>
+          <span style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--color-ocean, #1B8FA6)', color: 'var(--color-ocean, #1B8FA6)', fontWeight: 700, fontSize: '10px' }}>{t('help.mockup_sync_itinerary')}</span>
+          <span style={{ padding: '4px 8px', borderRadius: '6px', background: 'var(--color-ocean, #1B8FA6)', color: '#FFF', fontWeight: 700, fontSize: '10px' }}>{t('help.mockup_add_pass')}</span>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
         <div style={{ background: 'var(--color-surface-raised, #FFFFFF)', border: '1px solid var(--color-border, #E2D9CC)', borderRadius: '8px', padding: '10px 12px' }}>
-          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-accent-coral, #D42A2F)' }}>UP NEXT • FLIGHT</div>
-          <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '2px' }}>MAD → HND • Boarding Pass</div>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>PNR 7K92X • Terminal T4S • QR Code Ready</div>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-accent-coral, #D42A2F)' }}>{t('help.mockup_up_next_flight')}</div>
+          <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '2px' }}>{t('help.mockup_mad_hnd_pass')}</div>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{t('help.mockup_pnr_details')}</div>
         </div>
         <div style={{ background: 'var(--color-surface-hover, rgba(15, 76, 92, 0.04))', border: '1px dashed var(--color-ocean, #1B8FA6)', borderRadius: '8px', padding: '10px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontWeight: 700, color: 'var(--color-ocean, #1B8FA6)', fontSize: '11px' }}>Wallet Dropzone</div>
+          <div style={{ fontWeight: 700, color: 'var(--color-ocean, #1B8FA6)', fontSize: '11px' }}>{t('help.mockup_wallet_dropzone')}</div>
           <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-            Drop PDF, PNG, JPG, WEBP, TXT, .pkpass, or paste booking confirmation text
+            {t('help.mockup_dropzone_hint')}
           </div>
         </div>
       </div>
@@ -718,6 +785,7 @@ export function WalletPassbookMockup() {
  * 8. Route Price & Tariff Telemetry Mockup
  */
 export function RouteMonitoringMockup() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -730,31 +798,42 @@ export function RouteMonitoringMockup() {
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', marginBottom: '12px' }}>
         <div style={{ background: 'var(--color-surface-raised, #FFFFFF)', border: '1px solid var(--color-border, #E2D9CC)', borderRadius: '8px', padding: '8px 10px' }}>
-          <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Monitored Routes</div>
+          <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{t('help.mockup_monitored_routes')}</div>
           <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-text-primary)' }}>6</div>
         </div>
         <div style={{ background: 'var(--color-surface-raised, #FFFFFF)', border: '1px solid var(--color-border, #E2D9CC)', borderRadius: '8px', padding: '8px 10px' }}>
-          <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Open Deal Alerts</div>
-          <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-success, #1F7A4D)' }}>2 Below P10 Target</div>
+          <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{t('help.mockup_open_deal_alerts')}</div>
+          <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-success, #1F7A4D)' }}>{t('help.mockup_2_below_p10')}</div>
         </div>
         <div style={{ background: 'var(--color-surface-raised, #FFFFFF)', border: '1px solid var(--color-border, #E2D9CC)', borderRadius: '8px', padding: '8px 10px' }}>
-          <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Average Savings</div>
-          <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-ocean, #1B8FA6)' }}>27% vs 30D Median</div>
+          <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{t('help.mockup_average_savings')}</div>
+          <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-ocean, #1B8FA6)' }}>{t('help.mockup_27_vs_median')}</div>
         </div>
       </div>
 
       <div style={{ background: 'var(--color-surface-raised, #FFFFFF)', border: '1.5px solid var(--color-success, #1F7A4D)', borderRadius: '8px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
         <div>
           <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(31, 122, 77, 0.14)', color: 'var(--color-success, #1F7A4D)', fontWeight: 700 }}>
-            VERIFIED DEAL PACKAGE FOUND
+            {t('help.mockup_verified_deal_found')}
           </span>
           <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '4px' }}>
-            MAD → TYO • Landed Package $685 <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>(30D Median $940)</span>
+            {t('help.mockup_route_deal_headline', { median: '__MED__' })
+              .split('__MED__')
+              .map((part, idx, arr) => (
+                <React.Fragment key={idx}>
+                  {part}
+                  {idx < arr.length - 1 && (
+                    <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>
+                      {t('help.mockup_route_median')}
+                    </span>
+                  )}
+                </React.Fragment>
+              ))}
           </div>
         </div>
         <div style={{ display: 'flex', gap: '6px' }}>
-          <span style={{ padding: '5px 9px', borderRadius: '6px', border: '1px solid var(--color-border, #E2D9CC)', color: 'var(--color-text-muted)', fontSize: '11px', fontWeight: 600 }}>Discard Offer</span>
-          <span style={{ padding: '5px 9px', borderRadius: '6px', background: 'var(--color-success, #1F7A4D)', color: '#FFF', fontSize: '11px', fontWeight: 700 }}>Make it a Trip →</span>
+          <span style={{ padding: '5px 9px', borderRadius: '6px', border: '1px solid var(--color-border, #E2D9CC)', color: 'var(--color-text-muted)', fontSize: '11px', fontWeight: 600 }}>{t('help.mockup_discard_offer')}</span>
+          <span style={{ padding: '5px 9px', borderRadius: '6px', background: 'var(--color-success, #1F7A4D)', color: '#FFF', fontSize: '11px', fontWeight: 700 }}>{t('help.mockup_make_it_trip')}</span>
         </div>
       </div>
     </div>

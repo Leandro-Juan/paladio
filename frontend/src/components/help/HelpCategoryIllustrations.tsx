@@ -1,4 +1,7 @@
+"use client";
+
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface IllustrationProps {
   className?: string;
@@ -117,6 +120,7 @@ export function TripsHeroIllustration({ width = 180, height = 120, className = '
  * Connected graph nodes, directional arrows, and time window threshold bar.
  */
 export function RoutesHeroIllustration({ width = 180, height = 120, className = '', style }: IllustrationProps) {
+  const { t } = useTranslation();
   return (
     <svg
       width={width}
@@ -164,7 +168,7 @@ export function RoutesHeroIllustration({ width = 180, height = 120, className = 
 
       {/* Sub-50ms Latency Badge */}
       <rect x="42" y="4" width="36" height="12" rx="3" fill="var(--color-surface-card, #FAF6F0)" stroke="var(--color-accent-teal-mid, #1B8FA6)" strokeWidth="1" />
-      <text x="60" y="12" fontSize="5.5" fontFamily="monospace" fontWeight="bold" fill="var(--color-accent-teal-mid, #1B8FA6)" textAnchor="middle">C++20 &lt;50ms</text>
+      <text x="60" y="12" fontSize="5.5" fontFamily="monospace" fontWeight="bold" fill="var(--color-accent-teal-mid, #1B8FA6)" textAnchor="middle">{t('help.illus_cpp_latency')}</text>
     </svg>
   );
 }
@@ -311,6 +315,7 @@ export function SwarmHeroIllustration({ width = 180, height = 120, className = '
  * Radar scale, ruler indicators, and data score tags.
  */
 export function GlossaryHeroIllustration({ width = 180, height = 120, className = '', style }: IllustrationProps) {
+  const { t } = useTranslation();
   return (
     <svg
       width={width}
@@ -334,14 +339,14 @@ export function GlossaryHeroIllustration({ width = 180, height = 120, className 
 
       {/* Score Text */}
       <text x="60" y="44" fontSize="10" fontWeight="bold" fill="var(--color-text-primary, #1A2B32)" textAnchor="middle">9.6</text>
-      <text x="60" y="52" fontSize="5" fontWeight="600" fill="var(--color-accent-teal-deep, #0F4C5C)" textAnchor="middle">REALISM</text>
+      <text x="60" y="52" fontSize="5" fontWeight="600" fill="var(--color-accent-teal-deep, #0F4C5C)" textAnchor="middle">{t('help.illus_realism')}</text>
 
       {/* Metric Pills */}
       <rect x="88" y="14" width="22" height="10" rx="3" fill="var(--color-accent-gold-soft, rgba(226, 179, 60, 0.2))" stroke="var(--color-accent-gold, #E2B33C)" strokeWidth="1" />
       <text x="99" y="21" fontSize="5" fontWeight="bold" fill="var(--color-accent-gold, #E2B33C)" textAnchor="middle">TSPTW</text>
 
       <rect x="10" y="32" width="20" height="10" rx="3" fill="var(--color-accent-warning-bg, rgba(226, 179, 60, 0.12))" stroke="var(--color-accent-coral, #D42A2F)" strokeWidth="1" />
-      <text x="20" y="39" fontSize="5" fontWeight="bold" fill="var(--color-accent-coral, #D42A2F)" textAnchor="middle">SLACK</text>
+      <text x="20" y="39" fontSize="5" fontWeight="bold" fill="var(--color-accent-coral, #D42A2F)" textAnchor="middle">{t('help.illus_slack')}</text>
     </svg>
   );
 }
@@ -450,6 +455,7 @@ export function WalletHeroIllustration({ width = 180, height = 120, className = 
  * Price drop curve, P10 target threshold line, and deal alert badge.
  */
 export function MonitoringHeroIllustration({ width = 180, height = 120, className = '', style }: IllustrationProps) {
+  const { t } = useTranslation();
   return (
     <svg
       width={width}
@@ -487,10 +493,10 @@ export function MonitoringHeroIllustration({ width = 180, height = 120, classNam
 
       {/* Deal Tag Pill */}
       <rect x="64" y="10" width="44" height="13" rx="6.5" fill="var(--color-accent-coral, #D42A2F)" stroke="#FFFFFF" strokeWidth="1.2" />
-      <text x="86" y="19" fontSize="6" fontFamily="monospace" fontWeight="bold" fill="#FFFFFF" textAnchor="middle">P10 DEAL</text>
+      <text x="86" y="19" fontSize="6" fontFamily="monospace" fontWeight="bold" fill="#FFFFFF" textAnchor="middle">{t('help.illus_p10_deal')}</text>
 
       {/* P10 Label */}
-      <text x="24" y="57" fontSize="5.5" fontFamily="monospace" fontWeight="bold" fill="var(--color-success, #1F7A4D)">TARGET P10</text>
+      <text x="24" y="57" fontSize="5.5" fontFamily="monospace" fontWeight="bold" fill="var(--color-success, #1F7A4D)">{t('help.illus_target_p10')}</text>
     </svg>
   );
 }
