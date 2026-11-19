@@ -145,4 +145,11 @@ paladio_frontend.txt
 temp_ui_showcase/
 temp_dashboard_concepts/
 
+# ==========================================
+# Demo Mode Snapshot Builder, Snapshots & Local Secrets
+# ==========================================
+scripts/build_demo_server_snapshot.py
+frontend/src/server/demo-snapshot.raw.json
+frontend/src/server/demo-snapshot.enc
+frontend/.env.local
 

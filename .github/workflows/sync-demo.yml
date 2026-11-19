@@ -1,0 +1,329 @@
+name: Sync main to demo
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: sync-main-to-demo
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync-demo:
+    name: Merge main into demo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.DEMO_SYNC_TOKEN || secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - name: Merge main into demo
+        id: merge
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          write_multiline_output() {
+            local name="$1"
+            local value="$2"
+            local delim="__EOF_${name}_$(date +%s%N)__"
+            {
+              echo "${name}<<${delim}"
+              printf '%s\n' "${value}"
+              echo "${delim}"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          if ! git ls-remote --exit-code --heads origin demo >/dev/null 2>&1; then
+            echo "status=missing_demo" >> "$GITHUB_OUTPUT"
+            echo "main_sha=$(git rev-parse --short origin/main)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch origin main demo
+          git checkout -B demo origin/demo
+
+          MAIN_SHA=$(git rev-parse --short origin/main)
+          echo "main_sha=${MAIN_SHA}" >> "$GITHUB_OUTPUT"
+
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "status=up_to_date" >> "$GITHUB_OUTPUT"
+            echo "frontend_changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          COMMIT_LOG=$(git log --oneline HEAD..origin/main | head -n 30 || true)
+          write_multiline_output "commits" "${COMMIT_LOG}"
+
+          MERGE_OUTPUT=""
+          if ! MERGE_OUTPUT=$(git merge --no-edit --signoff origin/main 2>&1); then
+            CONFLICTS=$(git diff --name-only --diff-filter=U || true)
+            git merge --abort || true
+            echo "status=conflict" >> "$GITHUB_OUTPUT"
+            write_multiline_output "conflicts" "${CONFLICTS}"
+            write_multiline_output "error" "$(printf '%s\n' "${MERGE_OUTPUT}" | tail -n 40)"
+            exit 0
+          fi
+
+          echo "status=merged" >> "$GITHUB_OUTPUT"
+          if git diff --name-only origin/demo HEAD -- frontend/ | grep -q .; then
+            echo "frontend_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node.js
+        if: steps.merge.outputs.status == 'merged' && steps.merge.outputs.frontend_changed == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify merged demo frontend TypeScript
+        id: verify
+        if: steps.merge.outputs.status == 'merged' && steps.merge.outputs.frontend_changed == 'true'
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          write_multiline_output() {
+            local name="$1"
+            local value="$2"
+            local delim="__EOF_${name}_$(date +%s%N)__"
+            {
+              echo "${name}<<${delim}"
+              printf '%s\n' "${value}"
+              echo "${delim}"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          LOG_FILE="/tmp/demo-sync-typecheck.log"
+          if (cd frontend && npm ci && npx next typegen && npx tsc --noEmit) >"$LOG_FILE" 2>&1; then
+            echo "status=passed" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=typecheck_failed" >> "$GITHUB_OUTPUT"
+            write_multiline_output "error" "$(tail -n 80 "$LOG_FILE")"
+          fi
+
+      - name: Push merged demo branch
+        id: push
+        if: >-
+          steps.merge.outputs.status == 'merged' &&
+          (steps.merge.outputs.frontend_changed != 'true' || steps.verify.outputs.status == 'passed')
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          write_multiline_output() {
+            local name="$1"
+            local value="$2"
+            local delim="__EOF_${name}_$(date +%s%N)__"
+            {
+              echo "${name}<<${delim}"
+              printf '%s\n' "${value}"
+              echo "${delim}"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          PUSH_LOG="/tmp/demo-sync-push.log"
+          if git push origin demo >"$PUSH_LOG" 2>&1; then
+            echo "status=pushed" >> "$GITHUB_OUTPUT"
+            echo "workflow_perm_error=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=push_failed" >> "$GITHUB_OUTPUT"
+            if grep -qiE 'create or update workflow|workflows.*permission|refusing to allow.*workflow' "$PUSH_LOG"; then
+              echo "workflow_perm_error=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "workflow_perm_error=false" >> "$GITHUB_OUTPUT"
+            fi
+            write_multiline_output "error" "$(tail -n 40 "$PUSH_LOG")"
+          fi
+
+      - name: Report status & manage sync issue
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          MERGE_STATUS: ${{ steps.merge.outputs.status }}
+          VERIFY_STATUS: ${{ steps.verify.outputs.status }}
+          PUSH_STATUS: ${{ steps.push.outputs.status }}
+          MAIN_SHA: ${{ steps.merge.outputs.main_sha }}
+          COMMITS: ${{ steps.merge.outputs.commits }}
+          CONFLICTS: ${{ steps.merge.outputs.conflicts }}
+          MERGE_ERROR: ${{ steps.merge.outputs.error }}
+          VERIFY_ERROR: ${{ steps.verify.outputs.error }}
+          PUSH_ERROR: ${{ steps.push.outputs.error }}
+          WORKFLOW_PERM_ERROR: ${{ steps.push.outputs.workflow_perm_error }}
+          JOB_STATUS: ${{ job.status }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const mergeStatus = process.env.MERGE_STATUS || '';
+            const verifyStatus = process.env.VERIFY_STATUS || '';
+            const pushStatus = process.env.PUSH_STATUS || '';
+            const mainSha = process.env.MAIN_SHA || context.sha.slice(0, 7);
+            const commits = (process.env.COMMITS || '').trim();
+            const conflicts = (process.env.CONFLICTS || '').trim();
+            const workflowPermError = process.env.WORKFLOW_PERM_ERROR === 'true';
+
+            const labelName = 'demo-sync';
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: labelName });
+            } catch (err) {
+              if (err.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name: labelName,
+                  color: 'd93f0b',
+                  description: 'Automated main -> demo branch sync status',
+                });
+              } else {
+                throw err;
+              }
+            }
+
+            const openIssues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              labels: labelName,
+              per_page: 20,
+            });
+
+            const succeeded =
+              pushStatus === 'pushed' ||
+              mergeStatus === 'up_to_date';
+
+            if (succeeded && process.env.JOB_STATUS !== 'failure') {
+              const summary = mergeStatus === 'up_to_date'
+                ? `\`demo\` is already up to date with \`main\` (\`${mainSha}\`).`
+                : `Successfully merged \`main\` (\`${mainSha}\`) into \`demo\` and pushed.`;
+              core.info(summary);
+              for (const issue of openIssues.data) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: `Resolved by [sync run](${runUrl}): ${summary}`,
+                });
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                });
+              }
+              return;
+            }
+
+            let failureReason = 'Unexpected failure during automated main -> demo sync.';
+            let detailsBlock = '';
+            let extraGuidance = '';
+
+            if (mergeStatus === 'missing_demo') {
+              failureReason = 'Remote branch `demo` does not exist on `origin`.';
+              extraGuidance = [
+                'Push the local `demo` branch first:',
+                '```bash',
+                'git push -u origin demo',
+                '```',
+              ].join('\n');
+            } else if (mergeStatus === 'conflict') {
+              failureReason = 'Merge conflicts occurred while merging `main` into `demo`.';
+              const conflictList = conflicts
+                ? conflicts.split('\n').filter(Boolean).map(f => `- \`${f}\``).join('\n')
+                : '_No conflict file list captured._';
+              detailsBlock = `### Conflicting Files\n${conflictList}\n\n\`\`\`text\n${(process.env.MERGE_ERROR || '').trim()}\n\`\`\``;
+            } else if (verifyStatus === 'typecheck_failed') {
+              failureReason = 'Merged `demo` frontend failed `next typegen` / `tsc --noEmit` (push aborted to keep `demo` healthy).';
+              detailsBlock = `### TypeScript / Build Verification Output\n\`\`\`text\n${(process.env.VERIFY_ERROR || '').trim()}\n\`\`\``;
+            } else if (pushStatus === 'push_failed') {
+              failureReason = workflowPermError
+                ? '`GITHUB_TOKEN` is not allowed to push commits touching `.github/workflows/*`.'
+                : 'Failed to push merged `demo` branch to `origin`.';
+              detailsBlock = `### Git Push Output\n\`\`\`text\n${(process.env.PUSH_ERROR || '').trim()}\n\`\`\``;
+              if (workflowPermError) {
+                extraGuidance = [
+                  '### Why this happened & how to avoid it in the future',
+                  'GitHub blocks the default `GITHUB_TOKEN` from pushing commits that modify `.github/workflows/*`.',
+                  '',
+                  '1. Run the one-time local merge below to sync this workflow change onto `demo`.',
+                  '2. *(Optional)* To allow future workflow edits on `main` to auto-sync to `demo`, create a fine-grained PAT with **Contents: Read and write** and **Workflows: Read and write** on this repo and store it as repository secret `DEMO_SYNC_TOKEN`.',
+                ].join('\n');
+              }
+            }
+
+            const commitSection = commits
+              ? `### Commits Pending Sync\n\`\`\`text\n${commits}\n\`\`\`\n`
+              : '';
+
+            const localFix = mergeStatus === 'missing_demo'
+              ? extraGuidance
+              : [
+                  '### How to Resolve Locally',
+                  '```bash',
+                  'git fetch origin main demo',
+                  'git checkout demo',
+                  'git pull --ff-only origin demo',
+                  'git merge origin/main',
+                  '# Resolve any conflicts or type errors, then:',
+                  'git commit -s',
+                  'git push origin demo',
+                  'git checkout main',
+                  '```',
+                ].join('\n');
+
+            const body = [
+              `Automated sync of \`main\` (\`${mainSha}\`) into \`demo\` failed.`,
+              '',
+              `**Reason:** ${failureReason}`,
+              `**Workflow Run:** ${runUrl}`,
+              '',
+              commitSection,
+              detailsBlock,
+              extraGuidance && mergeStatus !== 'missing_demo' ? `\n${extraGuidance}` : '',
+              '',
+              localFix,
+            ].filter(Boolean).join('\n');
+
+            const title = `[Demo Sync] Failed to sync main into demo (${mainSha})`;
+
+            if (openIssues.data.length > 0) {
+              const target = openIssues.data[0];
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: target.number,
+                title,
+              });
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: target.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body,
+                labels: [labelName],
+              });
+            }
+
+            core.setFailed(failureReason);
