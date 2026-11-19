@@ -24,17 +24,17 @@ export function FlightBoardingPassCard({
   onViewDetail,
   onAttachFile,
 }: FlightBoardingPassCardProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const meta = ticket.metadata || {};
-  const originIata = (meta.origin_iata as string) || 'DEP';
-  const destIata = (meta.destination_iata as string) || 'ARR';
+  const originIata = (meta.origin_iata as string) || t('wallet.departure');
+  const destIata = (meta.destination_iata as string) || t('wallet.arrival');
   const flightNumber = (meta.flight_number as string) || ticket.provider || '';
   const terminal = (meta.terminal as string) || null;
   const gate = (meta.gate as string) || null;
   const seat = ticket.seat_or_room || (meta.seat as string) || '--';
-  const cabinClass = (meta.cabin_class as string) || 'Economy';
+  const cabinClass = (meta.cabin_class as string) || t('wallet.cabin_economy');
 
-  const duration = calculateDuration(ticket.start_time, ticket.end_time, ticket.start_tz, ticket.end_tz);
+  const duration = calculateDuration(ticket.start_time, ticket.end_time, ticket.start_tz, ticket.end_tz, locale);
 
   return (
     <TicketShell
@@ -61,7 +61,7 @@ export function FlightBoardingPassCard({
             </div>
             {ticket.reference_code && (
               <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)', fontWeight: 600 }}>
-                PNR: {ticket.reference_code}
+                {t('wallet.pnr_prefix', { code: ticket.reference_code })}
               </span>
             )}
           </div>
@@ -85,7 +85,7 @@ export function FlightBoardingPassCard({
               className="font-mono text-center"
               style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)', lineHeight: 1.2 }}
             >
-              NO BOARDING PASS ATTACHED
+              {t('wallet.no_boarding_pass')}
             </span>
             {onAttachFile && (
               <button
@@ -104,7 +104,7 @@ export function FlightBoardingPassCard({
                   fontWeight: 600,
                 }}
               >
-                + ATTACH PASS
+                {t('wallet.attach_pass_btn')}
               </button>
             )}
           </div>
@@ -126,7 +126,7 @@ export function FlightBoardingPassCard({
         {ticket.reference_code && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span className="font-mono text-muted" style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
-              PNR:
+              {t('wallet.pnr_label')}
             </span>
             <CopyButton value={ticket.reference_code} label={ticket.reference_code} />
           </div>
@@ -153,7 +153,7 @@ export function FlightBoardingPassCard({
             className="font-mono"
             style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)', fontWeight: 600, letterSpacing: '0.5px' }}
           >
-            DEPARTURE
+            {t('wallet.departure_label')}
           </div>
         </div>
 
@@ -189,7 +189,7 @@ export function FlightBoardingPassCard({
             className="font-mono"
             style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)', fontWeight: 600, letterSpacing: '0.5px' }}
           >
-            ARRIVAL
+            {t('wallet.arrival_label')}
           </div>
         </div>
       </div>
@@ -209,13 +209,13 @@ export function FlightBoardingPassCard({
         <div>
           <span style={{ color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.departure')}: </span>
           <span style={{ color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
-            {formatTicketDateTime(ticket.start_time, ticket.start_tz)}
+            {formatTicketDateTime(ticket.start_time, ticket.start_tz, locale)}
           </span>
         </div>
         <div>
           <span style={{ color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.arrival')}: </span>
           <span style={{ color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
-            {formatTicketDateTime(ticket.end_time, ticket.end_tz)}
+            {formatTicketDateTime(ticket.end_time, ticket.end_tz, locale)}
           </span>
         </div>
       </div>
@@ -251,7 +251,7 @@ export function FlightBoardingPassCard({
         </div>
         <div>
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            TERMINAL
+            {t('wallet.terminal_label')}
           </div>
           <div className="font-mono" style={{ fontSize: '12px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 700 }}>
             {terminal || '--'}

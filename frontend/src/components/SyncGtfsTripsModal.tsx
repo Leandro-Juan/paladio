@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 import { Spinner, CheckIcon, ClockIcon, CloseIcon, RefreshIcon } from '@/components/icons';
 import {
   PlannedTripTransitItem,
@@ -18,6 +20,7 @@ function SyncGtfsTripsModalContent({
   onClose,
   onSyncSuccess,
 }: Omit<SyncGtfsTripsModalProps, 'isOpen'>) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState<PlannedTripTransitItem[]>([]);
   const [selectedTripIds, setSelectedTripIds] = useState<Set<string>>(new Set());
@@ -40,7 +43,7 @@ function SyncGtfsTripsModalContent({
         setSelectedTripIds(initialSelected);
       } catch (err: unknown) {
         if (ignore) return;
-        const msg = err instanceof Error ? err.message : 'Failed to load planned trips';
+        const msg = err instanceof Error ? err.message : translate('vault.gtfs_load_failed');
         setError(msg);
       } finally {
         if (!ignore) {
@@ -98,11 +101,11 @@ function SyncGtfsTripsModalContent({
 
       const res = await syncPlannedGtfsApi(citiesToSync);
       onSyncSuccess(
-        res.message || `GTFS download and ingestion initiated for ${citiesToSync.length} destination(s).`
+        res.message || t('vault.gtfs_sync_initiated', { count: citiesToSync.length })
       );
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to trigger GTFS sync';
+      const msg = err instanceof Error ? err.message : t('vault.gtfs_sync_failed');
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -141,10 +144,10 @@ function SyncGtfsTripsModalContent({
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <div>
             <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>
-              Sync GTFS with Planned Trips
+              {t('vault.gtfs_sync_title')}
             </h3>
             <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px', margin: 0 }}>
-              {'// CHECK & DOWNLOAD TRANSIT SCHEDULES FOR PLANNED DESTINATIONS'}
+              {t('vault.gtfs_sync_subtitle')}
             </p>
           </div>
           <button
@@ -161,7 +164,7 @@ function SyncGtfsTripsModalContent({
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            aria-label="Close"
+            aria-label={t('common.close')}
           >
             <CloseIcon size={18} />
           </button>
@@ -190,14 +193,14 @@ function SyncGtfsTripsModalContent({
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 0', gap: '12px' }}>
               <Spinner size={24} color="var(--color-accent-gold)" />
               <span className="font-mono" style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                Checking planned trips and GTFS cache...
+                {t('vault.gtfs_checking_cache')}
               </span>
             </div>
           ) : trips.length === 0 ? (
             <div data-testid="no-planned-trips-msg" style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--color-text-muted)' }}>
-              <p style={{ margin: 0, fontSize: '13px' }}>No planned trips found.</p>
+              <p style={{ margin: 0, fontSize: '13px' }}>{t('vault.gtfs_no_planned_trips')}</p>
               <p className="font-mono" style={{ fontSize: '11px', marginTop: '6px', opacity: 0.8 }}>
-                Create trips in the Itinerary Vault or Upcoming Trips first.
+                {t('vault.gtfs_create_trips_first')}
               </p>
             </div>
           ) : (
@@ -214,7 +217,7 @@ function SyncGtfsTripsModalContent({
                 }}
               >
                 <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                  {trips.length} PLANNED TRIP{trips.length === 1 ? '' : 'S'}
+                  {trips.length === 1 ? t('vault.gtfs_planned_trip_one', { count: trips.length }) : t('vault.gtfs_planned_trip_many', { count: trips.length })}
                 </span>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button
@@ -230,7 +233,7 @@ function SyncGtfsTripsModalContent({
                       padding: 0,
                     }}
                   >
-                    Select Missing
+                    {t('vault.gtfs_select_missing')}
                   </button>
                   <span style={{ color: 'var(--color-border-subtle)', fontSize: '11px' }}>|</span>
                   <button
@@ -246,7 +249,7 @@ function SyncGtfsTripsModalContent({
                       padding: 0,
                     }}
                   >
-                    {selectedTripIds.size === trips.length ? 'Deselect All' : 'Select All'}
+                    {selectedTripIds.size === trips.length ? t('vault.gtfs_deselect_all') : t('vault.gtfs_select_all')}
                   </button>
                 </div>
               </div>
@@ -298,7 +301,7 @@ function SyncGtfsTripsModalContent({
                           </div>
                           {(trip.start_date || trip.end_date) && (
                             <div className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '2px' }}>
-                              {trip.start_date || 'TBD'} → {trip.end_date || 'TBD'}
+                              {trip.start_date || t('vault.tbd')} → {trip.end_date || t('vault.tbd')}
                             </div>
                           )}
                         </div>
@@ -322,7 +325,7 @@ function SyncGtfsTripsModalContent({
                               border: '1px solid rgba(74, 222, 128, 0.2)',
                             }}
                           >
-                            <CheckIcon size={11} color="var(--color-success)" /> READY
+                            <CheckIcon size={11} color="var(--color-success)" /> {t('vault.gtfs_status_ready')}
                           </span>
                         ) : isBuilding ? (
                           <span
@@ -339,7 +342,7 @@ function SyncGtfsTripsModalContent({
                               border: '1px solid rgba(234, 179, 8, 0.2)',
                             }}
                           >
-                            <Spinner size={11} color="var(--color-accent-gold)" /> DOWNLOADING
+                            <Spinner size={11} color="var(--color-accent-gold)" /> {t('vault.gtfs_status_downloading')}
                           </span>
                         ) : isQueued ? (
                           <span
@@ -356,7 +359,7 @@ function SyncGtfsTripsModalContent({
                               border: '1px solid rgba(234, 179, 8, 0.2)',
                             }}
                           >
-                            <ClockIcon size={11} color="var(--color-accent-gold)" /> QUEUED
+                            <ClockIcon size={11} color="var(--color-accent-gold)" /> {t('vault.gtfs_status_queued')}
                           </span>
                         ) : (
                           <span
@@ -374,7 +377,7 @@ function SyncGtfsTripsModalContent({
                               border: '1px solid rgba(239, 68, 68, 0.2)',
                             }}
                           >
-                            NOT DOWNLOADED
+                            {t('vault.gtfs_status_not_downloaded')}
                           </span>
                         )}
                       </div>
@@ -403,7 +406,7 @@ function SyncGtfsTripsModalContent({
               cursor: submitting ? 'not-allowed' : 'pointer',
             }}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -427,12 +430,12 @@ function SyncGtfsTripsModalContent({
           >
             {submitting ? (
               <>
-                <Spinner size={13} color="#000000" /> TRIGGERING...
+                <Spinner size={13} color="#000000" /> {t('vault.gtfs_triggering')}
               </>
             ) : (
               <>
                 <RefreshIcon size={13} color={selectedCount > 0 ? '#000000' : 'var(--color-text-muted)'} />
-                DOWNLOAD GTFS ({selectedCount})
+                {t('vault.gtfs_download_count', { count: selectedCount })}
               </>
             )}
           </button>

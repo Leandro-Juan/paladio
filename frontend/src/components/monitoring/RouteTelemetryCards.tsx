@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { RouteStats, RouteHistory, RouteItem } from '@/hooks/useRouteMonitoring';
 import { VerdictBadge } from './VerdictBadge';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
@@ -42,6 +43,7 @@ export function RouteTelemetryCards({
   history,
   currency = 'EUR',
 }: RouteTelemetryCardsProps) {
+  const { t } = useTranslation();
   const symbol = getCurrencyInfo(currency).symbol;
 
   // Card 1: Lowest fare and discount trend
@@ -101,10 +103,10 @@ export function RouteTelemetryCards({
   }, [prices]);
 
   return (
-    <section className={styles.sectionContainer} aria-label="Route telemetry metrics">
+    <section className={styles.sectionContainer} aria-label={t('monitoring.telemetry_metrics_aria')}>
       <div className={styles.sectionHeader}>
-        <h3 className={styles.title}>Telemetry</h3>
-        <p className={styles.subtitle}>Fare dynamics &amp; route distribution</p>
+        <h3 className={styles.title}>{t('monitoring.telemetry_title')}</h3>
+        <p className={styles.subtitle}>{t('monitoring.telemetry_subtitle')}</p>
       </div>
 
       <div className={styles.cardsGrid}>
@@ -117,7 +119,7 @@ export function RouteTelemetryCards({
                 <polyline points="17 18 23 18 23 12" />
               </svg>
             </div>
-            <span className={styles.cardLabel}>Best Historical Fare</span>
+            <span className={styles.cardLabel}>{t('monitoring.best_historical_fare')}</span>
           </div>
 
           <div className={styles.cardValueRow}>
@@ -125,7 +127,7 @@ export function RouteTelemetryCards({
               {lowestEver != null ? `${symbol}${lowestEver.toFixed(0)}` : '--'}
             </span>
             <span className={styles.cardUnit}>
-              {savingsPct > 0 ? `(-${savingsPct.toFixed(0)}%)` : 'All-time low'}
+              {savingsPct > 0 ? `(-${savingsPct.toFixed(0)}%)` : t('monitoring.all_time_low')}
             </span>
           </div>
 
@@ -156,7 +158,7 @@ export function RouteTelemetryCards({
                 <path d="M12 20v2" />
               </svg>
             </div>
-            <span className={styles.cardLabel}>Current &amp; 30D Median</span>
+            <span className={styles.cardLabel}>{t('monitoring.current_30d_median')}</span>
           </div>
 
           <div className={styles.cardValueRow}>
@@ -172,7 +174,9 @@ export function RouteTelemetryCards({
               />
             ) : (
               <span className={styles.cardUnit}>
-                {history?.p50_median_eur != null ? `Median: ${symbol}${history.p50_median_eur.toFixed(0)}` : 'Active fare'}
+                {history?.p50_median_eur != null
+                  ? t('monitoring.median_inline', { price: `${symbol}${history.p50_median_eur.toFixed(0)}` })
+                  : t('monitoring.active_fare')}
               </span>
             )}
           </div>
@@ -202,7 +206,7 @@ export function RouteTelemetryCards({
                 <path d="M3.34 19a10 10 0 1 1 17.32 0" />
               </svg>
             </div>
-            <span className={styles.cardLabel}>Price Volatility Index</span>
+            <span className={styles.cardLabel}>{t('monitoring.price_volatility_index')}</span>
           </div>
 
           <div className={styles.cardValueRow}>

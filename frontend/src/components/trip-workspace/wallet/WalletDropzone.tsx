@@ -89,7 +89,7 @@ export function WalletDropzone({
         }
       }}
       role="button"
-      aria-label="Upload ticket documents or boarding passes"
+      aria-label={t('wallet.dropzone_title')}
       style={{
         border: `2px dashed ${
           isDragOver
@@ -137,13 +137,13 @@ export function WalletDropzone({
               fontFamily: 'var(--font-mono, monospace)',
             }}
           >
-            PARSING CREDENTIALS… DECODING BARCODES
+            {t('wallet.parsing_credentials')}
           </span>
           <span
             className="font-mono text-xs text-muted"
             style={{ fontSize: '11px', color: 'var(--color-text-muted, #566B76)' }}
           >
-            Extracting BCBP payloads & booking records deterministically
+            {t('wallet.parsing_subtitle')}
           </span>
         </div>
       ) : (

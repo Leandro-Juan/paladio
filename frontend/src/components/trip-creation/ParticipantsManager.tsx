@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { UserIcon, PlusIcon, CloseIcon, CheckIcon, Spinner } from '@/components/icons';
 import { useTrips, CollaboratorOption } from '@/hooks/useTrips';
 
@@ -28,6 +29,7 @@ export function ParticipantsManager({
   currentUserId,
   hideHeader = false,
 }: ParticipantsManagerProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
@@ -143,10 +145,12 @@ export function ParticipantsManager({
               color: 'var(--color-text-muted)',
             }}
           >
-            Travelers & Participants ({participants.length})
+            {t('engine.travelers_participants_count', { count: participants.length })}
           </label>
           <span className="font-mono text-xs text-muted">
-            {participants.length === 1 ? '1 Guest' : `${participants.length} Guests`}
+            {participants.length === 1
+              ? t('engine.guest_singular')
+              : t('engine.guests_plural', { count: participants.length })}
           </span>
         </div>
       )}
@@ -220,7 +224,7 @@ export function ParticipantsManager({
                     textTransform: 'uppercase',
                   }}
                 >
-                  Guest
+                  {t('engine.guest_badge')}
                 </span>
               )}
 
@@ -237,7 +241,7 @@ export function ParticipantsManager({
                     textTransform: 'uppercase',
                   }}
                 >
-                  Host
+                  {t('engine.host_badge')}
                 </span>
               )}
 
@@ -246,7 +250,7 @@ export function ParticipantsManager({
                 <button
                   type="button"
                   onClick={() => handleRemoveParticipant(p.id)}
-                  title={`Remove ${p.name}`}
+                  title={t('engine.remove_participant_title', { name: p.name })}
                   style={{
                     border: 'none',
                     background: 'transparent',
@@ -304,7 +308,7 @@ export function ParticipantsManager({
           }}
         >
           <PlusIcon size={12} color="#2563EB" />
-          <span>Add Participant</span>
+          <span>{t('engine.add_participant')}</span>
         </button>
       </div>
 
@@ -354,7 +358,7 @@ export function ParticipantsManager({
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  Trip Participants & Travelers
+                  {t('engine.participants_modal_title')}
                 </h3>
                 <p
                   style={{
@@ -364,7 +368,7 @@ export function ParticipantsManager({
                     lineHeight: 1.4,
                   }}
                 >
-                  Add registered app users with checkboxes or add custom guest travelers by name.
+                  {t('engine.participants_modal_desc')}
                 </p>
               </div>
               <button
@@ -405,7 +409,7 @@ export function ParticipantsManager({
                   className="font-mono text-xs text-muted"
                   style={{ fontWeight: 700, letterSpacing: '0.05em' }}
                 >
-                  ADD GUEST TRAVELER (NON-REGISTERED)
+                  {t('engine.add_guest_section_title')}
                 </span>
               </div>
               <form
@@ -420,7 +424,7 @@ export function ParticipantsManager({
                   type="text"
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
-                  placeholder="Enter traveler name (e.g. Sarah, Dad)..."
+                  placeholder={t('engine.guest_name_placeholder')}
                   style={{
                     flex: 1,
                     background: 'var(--color-surface-raised, #FFFFFF)',
@@ -453,7 +457,7 @@ export function ParticipantsManager({
                   }}
                 >
                   <PlusIcon size={12} color="#FFFFFF" />
-                  <span>Add Guest</span>
+                  <span>{t('engine.add_guest_btn')}</span>
                 </button>
               </form>
             </div>
@@ -465,9 +469,9 @@ export function ParticipantsManager({
                   className="font-mono text-xs text-muted"
                   style={{ fontWeight: 700, letterSpacing: '0.05em' }}
                 >
-                  REGISTERED APP USERS ({availableUsers.length})
+                  {t('engine.registered_users_count', { count: availableUsers.length })}
                 </span>
-                <span className="font-mono text-xs text-muted">SELECT VIA CHECKBOX</span>
+                <span className="font-mono text-xs text-muted">{t('engine.select_via_checkbox')}</span>
               </div>
 
               {/* User search filter if multiple users */}
@@ -476,7 +480,7 @@ export function ParticipantsManager({
                   type="text"
                   value={userSearchQuery}
                   onChange={(e) => setUserSearchQuery(e.target.value)}
-                  placeholder="Filter users by name or email..."
+                  placeholder={t('engine.filter_users_placeholder')}
                   style={{
                     width: '100%',
                     background: 'var(--color-bg-main, #FAF8F5)',
@@ -509,12 +513,12 @@ export function ParticipantsManager({
                   <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                     <Spinner size={16} />
                     <span style={{ marginLeft: '8px', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>
-                      Loading registered users...
+                      {t('engine.loading_registered_users')}
                     </span>
                   </div>
                 ) : filteredUsers.length === 0 ? (
                   <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '12.5px' }}>
-                    No registered users match your search.
+                    {t('engine.no_matching_users')}
                   </div>
                 ) : (
                   filteredUsers.map((user) => {
@@ -611,7 +615,7 @@ export function ParticipantsManager({
                                     fontWeight: 700,
                                   }}
                                 >
-                                  You
+                                  {t('engine.you_badge')}
                                 </span>
                               )}
                             </div>
@@ -634,7 +638,7 @@ export function ParticipantsManager({
                             fontWeight: isSelected ? 600 : 400,
                           }}
                         >
-                          {isSelected ? 'Added' : 'Select'}
+                          {isSelected ? t('dashboard.added') : t('engine.select_label')}
                         </span>
                       </div>
                     );
@@ -650,7 +654,7 @@ export function ParticipantsManager({
                   className="font-mono text-xs text-muted"
                   style={{ fontWeight: 700, letterSpacing: '0.05em' }}
                 >
-                  ACTIVE TRIP TRAVELERS ({participants.length})
+                  {t('engine.active_trip_travelers_count', { count: participants.length })}
                 </span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -713,7 +717,7 @@ export function ParticipantsManager({
                   boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
                 }}
               >
-                Done
+                {t('common.done')}
               </button>
             </div>
           </div>

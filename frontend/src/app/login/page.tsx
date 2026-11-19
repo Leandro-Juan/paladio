@@ -3,12 +3,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { WaveAndSunIllustration, SunMark } from '@/components/auth/AuthIllustration';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
 import { isNetworkOrServerDownError } from '@/utils/api';
 
 export default function LoginPage() {
   const { login, setupRequired } = useAuth();
+  const { t } = useTranslation();
   const router = useRouter();
 
   const [identifier, setIdentifier] = useState('');
@@ -28,7 +30,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier.trim() || !password) {
-      setError('Please enter your username/email and password.');
+      setError('auth.enter_credentials_error');
       return;
     }
 
@@ -54,7 +56,7 @@ export default function LoginPage() {
 
         setIsWaitingForBackend(false);
         setSubmitting(false);
-        const message = err instanceof Error ? err.message : 'Authentication failed. Verify credentials.';
+        const message = err instanceof Error ? err.message : 'auth.authentication_failed';
         setError(message);
       }
     };
@@ -68,11 +70,11 @@ export default function LoginPage() {
       reconnectMessage = (
         <div style={{ textAlign: 'center', maxWidth: '340px' }}>
           <p className="font-mono text-xs" style={{ opacity: 0.7, letterSpacing: '0.08em', margin: 0 }}>
-            {'// CONNECTING TO PALADIO CORE...'}
+            {t('auth.connecting_core')}
           </p>
           {retryAttempts >= 10 && (
             <p className="font-mono text-xs" style={{ opacity: 0.5, fontSize: '11px', marginTop: '6px' }}>
-              Engine startup is taking longer than usual. Waiting for container initialization.
+              {t('auth.engine_startup_slow')}
             </p>
           )}
         </div>
@@ -145,7 +147,7 @@ export default function LoginPage() {
                 lineHeight: 1.5,
               }}
             >
-              <strong>First Run Detected:</strong> This Paladio instance has no administrator initialized.
+              <strong>{t('auth.first_run_detected')}</strong> {t('auth.no_admin_initialized')}
               <div style={{ marginTop: '8px' }}>
                 <button
                   onClick={() => router.push('/setup')}
@@ -160,7 +162,7 @@ export default function LoginPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  INITIALIZE MASTER ADMIN
+                  {t('auth.initialize_master_admin')}
                 </button>
               </div>
             </div>
@@ -178,7 +180,7 @@ export default function LoginPage() {
                 fontSize: '13px',
               }}
             >
-              {error}
+              {t(error)}
             </div>
           )}
 
@@ -189,14 +191,14 @@ export default function LoginPage() {
                 className="font-mono text-muted"
                 style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}
               >
-                USERNAME OR EMAIL
+                {t('auth.username_or_email_label')}
               </label>
               <input
                 id="identifier-input"
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="admin or user@paladio.internal"
+                placeholder={t('auth.username_or_email_placeholder')}
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -218,7 +220,7 @@ export default function LoginPage() {
                 className="font-mono text-muted"
                 style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}
               >
-                PASSWORD
+                {t('auth.password_label')}
               </label>
               <input
                 id="password-input"
@@ -259,7 +261,7 @@ export default function LoginPage() {
                 transition: 'opacity 0.2s',
               }}
             >
-              {submitting ? 'AUTHENTICATING...' : 'AUTHENTICATE'}
+              {submitting ? t('auth.authenticating') : t('auth.authenticate')}
             </button>
           </form>
         </div>

@@ -3,6 +3,7 @@
 import React from 'react';
 import { COST_CATEGORY_LIST } from './costsCategories';
 import { CustomSelect } from '../wallet/parts/CustomSelect';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export type FilterScope = 'all' | 'mine' | 'owed' | 'paid' | 'unpaid';
 
@@ -35,6 +36,7 @@ export function CostsFilterToolbar({
   isSingleTraveler = false,
   onExportCsv,
 }: CostsFilterToolbarProps) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -57,7 +59,7 @@ export function CostsFilterToolbar({
             color: 'var(--color-text-main)',
           }}
         >
-          Expenses
+          {t('costs.expenses_heading')}
         </h3>
         <span
           style={{
@@ -98,7 +100,7 @@ export function CostsFilterToolbar({
           </svg>
           <input
             type="text"
-            placeholder="Search expenses..."
+            placeholder={t('costs.search_expenses_placeholder')}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             style={{
@@ -117,10 +119,10 @@ export function CostsFilterToolbar({
         <CustomSelect
           value={categoryFilter}
           onChange={onCategoryFilterChange}
-          label="Filter by category"
+          label={t('costs.filter_by_category')}
           options={[
-            { value: '', label: 'All categories' },
-            ...COST_CATEGORY_LIST.map((cat) => ({ value: cat.key, label: cat.label })),
+            { value: '', label: t('costs.all_categories') },
+            ...COST_CATEGORY_LIST.map((cat) => ({ value: cat.key, label: t(cat.labelKey) })),
           ]}
           style={{
             width: 'auto',
@@ -142,9 +144,9 @@ export function CostsFilterToolbar({
           <CustomSelect
             value={dayFilter}
             onChange={onDayFilterChange}
-            label="Filter by day"
+            label={t('costs.filter_by_day')}
             options={[
-              { value: '', label: 'All days' },
+              { value: '', label: t('costs.all_days') },
               ...days.map((d) => ({ value: d.value, label: d.label })),
             ]}
             style={{
@@ -176,14 +178,14 @@ export function CostsFilterToolbar({
         >
           {(isSingleTraveler
             ? ([
-                { key: 'all', label: 'All' },
-                { key: 'paid', label: 'Paid' },
-                { key: 'unpaid', label: 'Unpaid' },
+                { key: 'all', label: t('costs.filter_all') },
+                { key: 'paid', label: t('costs.status_paid') },
+                { key: 'unpaid', label: t('costs.status_unpaid') },
               ] as const)
             : ([
-                { key: 'all', label: 'All' },
-                { key: 'mine', label: 'Paid by me' },
-                { key: 'owed', label: "I'm owed" },
+                { key: 'all', label: t('costs.filter_all') },
+                { key: 'mine', label: t('costs.filter_paid_by_me') },
+                { key: 'owed', label: t('costs.filter_im_owed') },
               ] as const)
           ).map((item) => {
             const active = scopeFilter === item.key;
@@ -217,7 +219,7 @@ export function CostsFilterToolbar({
           <button
             type="button"
             onClick={onExportCsv}
-            title="Export CSV"
+            title={t('costs.export_csv')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

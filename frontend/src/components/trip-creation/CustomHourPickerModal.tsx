@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ChevronUpIcon, ChevronDownIcon, ClockIcon } from '@/components/icons';
 
 interface CustomHourPickerModalProps {
@@ -17,9 +18,11 @@ export function CustomHourPickerModal({
   onClose,
   value,
   onChange,
-  anchorLabel = 'Select Time',
+  anchorLabel,
   zIndex = 100,
 }: CustomHourPickerModalProps) {
+  const { t } = useTranslation();
+  const resolvedAnchorLabel = anchorLabel ?? t('engine.select_time');
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Parse hour and minute
@@ -115,7 +118,7 @@ export function CustomHourPickerModal({
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-text-secondary)' }}>
           <ClockIcon size={14} color="#0F4C5C" />
           <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {anchorLabel}
+            {resolvedAnchorLabel}
           </span>
         </div>
 
@@ -313,7 +316,7 @@ export function CustomHourPickerModal({
             boxShadow: '0 2px 8px rgba(15, 76, 92, 0.25)',
           }}
         >
-          Confirm Time
+          {t('engine.confirm_time')}
         </button>
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   RouteItem,
   RouteStats,
@@ -63,12 +64,25 @@ export function RouteFullScreenView({
   onFetchLodging,
 }: RouteFullScreenViewProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const isDeal = route.status === 'DEAL';
   const isActive = route.is_active;
   const activeCurrency = route.currency || history?.currency || calendar?.currency || userDefaultCurrency || 'EUR';
 
+  const statusLabel = isDeal
+    ? t('monitoring.status_deal_active')
+    : !route.status || (route.status as string) === 'MONITORING'
+    ? t('monitoring.status_monitoring')
+    : route.status === 'ACTIVE'
+    ? t('monitoring.status_active')
+    : route.status === 'PAUSED'
+    ? t('monitoring.status_paused')
+    : route.status === 'PENDING'
+    ? t('monitoring.status_pending')
+    : String(route.status);
+
   return (
-    <div className={styles.container} role="region" aria-label={`Route detail for ${route.origin_iata} to ${route.destination_code}`}>
+    <div className={styles.container} role="region" aria-label={t('monitoring.route_detail_aria', { origin: route.origin_iata, dest: route.destination_code })}>
       {/* Top Navigation & Route Header Bar */}
       <div className={styles.topBar}>
         <div className={styles.leftGroup}>
@@ -79,10 +93,10 @@ export function RouteFullScreenView({
               onBack?.();
               router.push('/monitoring');
             }}
-            aria-label="Back to Fleet Overview"
+            aria-label={t('monitoring.back_to_fleet_overview')}
           >
             <ChevronLeftIcon size={14} aria-hidden="true" />
-            <span>Fleet Overview</span>
+            <span>{t('monitoring.fleet_overview')}</span>
           </button>
 
           <div className={styles.routeTitleBlock}>
@@ -102,18 +116,22 @@ export function RouteFullScreenView({
                     : styles.statusActive
                 }`}
               >
-                {isDeal ? 'DEAL ACTIVE' : route.status || 'MONITORING'}
+                {statusLabel}
               </span>
             </div>
             <span className={styles.routeSub}>
-              {route.destination_name} · {route.earliest_date && route.latest_date ? `${route.earliest_date} → ${route.latest_date}` : 'Flexible Dates'} · {route.min_nights}–{route.max_nights}N · RID-{route.id.slice(0, 8)}
+              {route.destination_name} · {route.earliest_date && route.latest_date ? `${route.earliest_date} → ${route.latest_date}` : t('monitoring.flexible_dates')} · {t('monitoring.nights_range_short', { min: route.min_nights, max: route.max_nights })} · RID-{route.id.slice(0, 8)}
             </span>
           </div>
         </div>
 
         <div className={styles.actionsGroup}>
           <div className={styles.budgetBadge}>
-            <span>Budget Ceiling: {formatCurrencyAmount(route.max_budget_eur, activeCurrency, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+            <span>
+              {t('monitoring.budget_ceiling', {
+                amount: formatCurrencyAmount(route.max_budget_eur, activeCurrency, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+              })}
+            </span>
           </div>
 
 
@@ -123,20 +141,20 @@ export function RouteFullScreenView({
             className={styles.pauseBtn}
             onClick={() => onToggleActive(route.id, !route.is_active)}
           >
-            {route.is_active ? 'Pause' : 'Resume'}
+            {route.is_active ? t('monitoring.pause') : t('monitoring.resume')}
           </button>
 
           <button
             type="button"
             className={styles.deleteBtn}
             onClick={() => {
-              if (window.confirm(`Delete route monitor for ${route.origin_iata} -> ${route.destination_code}?`)) {
+              if (window.confirm(t('monitoring.confirm_delete_route', { origin: route.origin_iata, dest: route.destination_code }))) {
                 onDelete(route.id);
                 onBack();
               }
             }}
           >
-            Delete
+            {t('common.delete')}
           </button>
         </div>
       </div>

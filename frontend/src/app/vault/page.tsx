@@ -1,12 +1,22 @@
 "use client";
 import React, { useState } from 'react';
 import { useTrips } from '@/hooks/useTrips';
+import { useTranslation } from '@/hooks/useTranslation';
 import dynamic from 'next/dynamic';
 import VaultStatsTab from '@/components/VaultStatsTab';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
 
+function VaultMapLoading() {
+  const { t } = useTranslation();
+  return (
+    <div className="font-mono text-muted flex items-center justify-center h-full w-full bg-surface">
+      {t('vault.loading_map_data')}
+    </div>
+  );
+}
+
 // Dynamically import the map to avoid SSR issues with Leaflet
-const VaultMap = dynamic(() => import('@/components/VaultMap'), { ssr: false, loading: () => <div className="font-mono text-muted flex items-center justify-center h-full w-full bg-surface">LOADING MAP DATA...</div> });
+const VaultMap = dynamic(() => import('@/components/VaultMap'), { ssr: false, loading: () => <VaultMapLoading /> });
 
 const CITY_COORDINATES: Record<string, [number, number]> = {
   tokyo: [35.6762, 139.6503],

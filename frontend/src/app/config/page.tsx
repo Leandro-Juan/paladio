@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeftIcon } from '@/components/icons';
@@ -94,7 +94,11 @@ function ConfigPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user: currentUser, isLoading: authLoading, refreshUser } = useAuth();
-  const { setLocale, locale } = useTranslation();
+  const { setLocale, locale, t } = useTranslation();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const { theme } = useThemeStore();
   const { typography } = useTypographyStore();
 
@@ -190,10 +194,10 @@ function ConfigPageInner() {
       if (data.update_available && notifiedVersionRef.current !== data.latest_version) {
         notifiedVersionRef.current = data.latest_version;
         notify.info(
-          `New Update Available: v${data.latest_version}`,
-          data.release_title || `Paladio v${data.latest_version} has new features and patch notes available to install.`,
+          tRef.current('config.update_available_title', { version: data.latest_version }),
+          data.release_title || tRef.current('config.update_available_desc', { version: data.latest_version }),
           {
-            actionLabel: 'Review & Install',
+            actionLabel: tRef.current('config.review_and_install'),
             actionLink: '/config?tab=updates',
           }
         );
@@ -265,11 +269,11 @@ function ConfigPageInner() {
       setUpdaterStatus(res.config);
       setUpdaterSuccess(
         nextState
-          ? 'Automatic updates enabled. Paladio will automatically download and install updates.'
-          : 'Automatic updates disabled. You will be notified with patch notes and asked before an update is installed.'
+          ? t('config.auto_update_enabled_msg')
+          : t('config.auto_update_disabled_msg')
       );
     } catch (err: unknown) {
-      setUpdaterError(err instanceof Error ? err.message : 'Failed to update auto-update preferences');
+      setUpdaterError(err instanceof Error ? err.message : t('config.auto_update_failed'));
     } finally {
       setUpdaterToggling(false);
     }
@@ -284,20 +288,20 @@ function ConfigPageInner() {
       setUpdaterStatus(res.telemetry);
       if (res.telemetry.update_available) {
         setInstallPromptDismissed(false);
-        setUpdaterSuccess(`New update found: v${res.telemetry.latest_version}`);
+        setUpdaterSuccess(t('config.new_update_found', { version: res.telemetry.latest_version }));
         notify.info(
-          `New Update Available: v${res.telemetry.latest_version}`,
-          res.telemetry.release_title || `Paladio v${res.telemetry.latest_version} is available. Review features and install.`,
+          t('config.update_available_title', { version: res.telemetry.latest_version }),
+          res.telemetry.release_title || t('config.update_available_check_desc', { version: res.telemetry.latest_version }),
           {
-            actionLabel: 'Review & Install',
+            actionLabel: t('config.review_and_install'),
             actionLink: '/config?tab=updates',
           }
         );
       } else {
-        setUpdaterSuccess('Paladio is up to date.');
+        setUpdaterSuccess(t('config.up_to_date_msg'));
       }
     } catch (err: unknown) {
-      setUpdaterError(err instanceof Error ? err.message : 'Failed to check GitHub repository');
+      setUpdaterError(err instanceof Error ? err.message : t('config.check_github_failed'));
     } finally {
       setUpdaterChecking(false);
     }
@@ -314,9 +318,9 @@ function ConfigPageInner() {
         updaterStatus.download_url || undefined
       );
       setUpdaterStatus(res.download);
-      setUpdaterSuccess(`Successfully downloaded Paladio v${res.download.latest_version} archive!`);
+      setUpdaterSuccess(t('config.download_update_success', { version: res.download.latest_version }));
     } catch (err: unknown) {
-      setUpdaterError(err instanceof Error ? err.message : 'Failed to download update archive');
+      setUpdaterError(err instanceof Error ? err.message : t('config.download_update_failed'));
     } finally {
       setUpdaterDownloading(false);
     }
@@ -363,10 +367,10 @@ function ConfigPageInner() {
   useEffect(() => {
     const onTransitQueued = (e: Event) => {
       const customEvent = e as CustomEvent<{ city?: string; city_name?: string }>;
-      const cName = customEvent.detail?.city_name || customEvent.detail?.city || 'City';
+      const cName = customEvent.detail?.city_name || customEvent.detail?.city || tRef.current('config.city_fallback');
       setGtfsMessage({
         type: 'success',
-        text: `GTFS compilation for ${cName} has been queued behind an active compilation.`,
+        text: tRef.current('config.gtfs_queued_msg', { city: cName }),
       });
       fetchGtfsData(false);
     };
@@ -406,12 +410,12 @@ function ConfigPageInner() {
       const res = await deleteGtfsApi(deleteGtfsCandidate.city);
       setGtfsMessage({
         type: 'success',
-        text: res.message || `GTFS transit data and tasks for ${deleteGtfsCandidate.display_name} cleaned up successfully.`,
+        text: res.message || t('config.gtfs_deleted_msg', { city: deleteGtfsCandidate.display_name }),
       });
       setDeleteGtfsCandidate(null);
       await fetchGtfsData(false);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete GTFS transit data';
+      const msg = err instanceof Error ? err.message : t('config.gtfs_delete_failed');
       setGtfsMessage({ type: 'error', text: msg });
     } finally {
       setDeletingGtfs(false);
@@ -428,7 +432,7 @@ function ConfigPageInner() {
       const data = await listUsersApi();
       setUsers(data);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to fetch users';
+      const msg = err instanceof Error ? err.message : tRef.current('config.users_fetch_failed');
       setActionError(msg);
     } finally {
       setIsFetchingUsers(false);
@@ -446,7 +450,7 @@ function ConfigPageInner() {
         }
       } catch (err: unknown) {
         if (!ignore) {
-          const msg = err instanceof Error ? err.message : 'Failed to fetch users';
+          const msg = err instanceof Error ? err.message : tRef.current('config.users_fetch_failed');
           setActionError(msg);
         }
       }
@@ -460,11 +464,11 @@ function ConfigPageInner() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUsername.trim() || !newPassword) {
-      setActionError('Username and password are required.');
+      setActionError(t('config.username_password_required'));
       return;
     }
     if (newPassword.length < 6) {
-      setActionError('Password must be at least 6 characters.');
+      setActionError(t('config.password_min_length'));
       return;
     }
 
@@ -480,7 +484,7 @@ function ConfigPageInner() {
         role: newRole,
         preferred_language: newPreferredLanguage,
       });
-      setActionSuccess(`User ${newUsername.trim()} provisioned successfully.`);
+      setActionSuccess(t('config.user_provisioned_success', { username: newUsername.trim() }));
       setIsModalOpen(false);
       setNewUsername('');
       setNewEmail('');
@@ -489,7 +493,7 @@ function ConfigPageInner() {
       setNewPreferredLanguage('en');
       await fetchUsers();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to provision user';
+      const msg = err instanceof Error ? err.message : t('config.user_provision_failed');
       setActionError(msg);
     } finally {
       setCreating(false);
@@ -523,9 +527,11 @@ function ConfigPageInner() {
         },
       });
       await refreshUser();
-      setActionSuccess(`Default currency updated to ${currency.code} (${currency.symbol}) successfully.`);
+      setActionSuccess(
+        t('config.currency_updated_success', { code: currency.code, symbol: currency.symbol })
+      );
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update default currency';
+      const msg = err instanceof Error ? err.message : t('config.currency_update_failed');
       setActionError(msg);
     } finally {
       setSavingCurrency(false);
@@ -538,12 +544,12 @@ function ConfigPageInner() {
     e.target.value = '';
 
     if (!file.type.startsWith('image/')) {
-      setActionError('Please select a valid image file (PNG, JPG, SVG, WebP).');
+      setActionError(t('config.invalid_image_file_type'));
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      setActionError('Image size must be less than 2MB.');
+      setActionError(t('config.image_too_large_2mb'));
       return;
     }
 
@@ -586,17 +592,17 @@ function ConfigPageInner() {
     e.preventDefault();
     if (!editCandidate) return;
     if (!editUsername.trim()) {
-      setActionError('Username cannot be empty.');
+      setActionError(t('config.username_empty_error'));
       return;
     }
     if (editPassword && editPassword.length < 6) {
-      setActionError('Password must be at least 6 characters.');
+      setActionError(t('config.password_min_length'));
       return;
     }
 
     const validatedAvatar = editAvatarUrl ? getSafeAvatarUrl(editAvatarUrl) : null;
     if (editAvatarUrl && !validatedAvatar) {
-      setActionError('Please provide a valid image URL (http/https) or upload an image file.');
+      setActionError(t('config.invalid_image_url_error'));
       return;
     }
 
@@ -647,10 +653,10 @@ function ConfigPageInner() {
       if (isAdmin) {
         await fetchUsers();
       }
-      setActionSuccess(`User ${editUsername.trim()} profile updated successfully.`);
+      setActionSuccess(t('config.user_profile_updated', { username: editUsername.trim() }));
       setEditCandidate(null);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update user profile';
+      const msg = err instanceof Error ? err.message : t('config.user_profile_update_failed');
       setActionError(msg);
     } finally {
       setSavingEdit(false);
@@ -659,7 +665,7 @@ function ConfigPageInner() {
 
   const handleToggleActive = async (targetUser: User) => {
     if (targetUser.id === currentUser?.id) {
-      setActionError('Cannot deactivate your own administrator account.');
+      setActionError(t('config.cannot_deactivate_self'));
       return;
     }
 
@@ -667,10 +673,14 @@ function ConfigPageInner() {
     setActionSuccess(null);
     try {
       await updateUserApi(targetUser.id, { is_active: !targetUser.is_active });
-      setActionSuccess(`User ${targetUser.username} ${targetUser.is_active ? 'deactivated' : 'activated'}.`);
+      setActionSuccess(
+        targetUser.is_active
+          ? t('config.user_deactivated', { username: targetUser.username })
+          : t('config.user_activated', { username: targetUser.username })
+      );
       await fetchUsers();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update user status';
+      const msg = err instanceof Error ? err.message : t('config.user_status_update_failed');
       setActionError(msg);
     }
   };
@@ -678,7 +688,7 @@ function ConfigPageInner() {
   const handleDeleteUser = async () => {
     if (!deleteCandidate) return;
     if (deleteCandidate.id === currentUser?.id) {
-      setActionError('Cannot delete your own administrator account.');
+      setActionError(t('config.cannot_delete_self'));
       setDeleteCandidate(null);
       return;
     }
@@ -689,11 +699,11 @@ function ConfigPageInner() {
 
     try {
       await deleteUserApi(deleteCandidate.id);
-      setActionSuccess(`User ${deleteCandidate.username} permanently deleted.`);
+      setActionSuccess(t('config.user_deleted_success', { username: deleteCandidate.username }));
       setDeleteCandidate(null);
       await fetchUsers();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete user';
+      const msg = err instanceof Error ? err.message : t('config.user_delete_failed');
       setActionError(msg);
     } finally {
       setDeleting(false);
@@ -706,20 +716,27 @@ function ConfigPageInner() {
     let unitSummary: string | undefined;
     if (typeof window !== 'undefined') {
       const layer = localStorage.getItem('paladio_map_layer') || 'carto_dark';
-      mapLayerName = layer.replace(/_/g, ' ').toUpperCase();
+      const layerMap: Record<string, string> = {
+        carto_dark: t('config.map_layer_carto_dark_upper'),
+        carto_voyager: t('config.map_layer_carto_voyager_upper'),
+        osm: t('config.map_layer_osm_upper'),
+        satellite: t('config.map_layer_satellite_upper'),
+      };
+      mapLayerName = layerMap[layer] || layer.replace(/_/g, ' ').toUpperCase();
       const dist = localStorage.getItem('paladio_unit_distance') || (currentUser?.preferences?.distance_unit as string) || 'km';
       const clock = localStorage.getItem('paladio_unit_clock') || (currentUser?.preferences?.clock_format as string) || '24h';
-      unitSummary = `${dist === 'mi' ? 'IMPERIAL' : 'METRIC'} / ${clock.toUpperCase()}`;
+      const clockDisplay = clock === '12h' ? t('config.clock_12h_upper') : t('config.clock_24h_upper');
+      unitSummary = `${dist === 'mi' ? t('config.unit_imperial_upper') : t('config.unit_metric_upper')} / ${clockDisplay}`;
     }
 
     return {
       themeName:
         theme === 'light'
-          ? 'Pacific Jazz Light'
+          ? t('config.theme_light_name')
           : theme === 'dark'
-          ? 'Pacific Jazz Dark'
-          : 'Silent Waters',
-      typographyName: typography === 'inter' ? 'Inter Modern' : 'Classic Editorial',
+          ? t('config.theme_dark_name')
+          : t('config.theme_silent_waters_name'),
+      typographyName: typography === 'inter' ? t('config.typography_inter_name') : t('config.typography_classic_name'),
       localeCode: locale,
       currencyCode: (currentUser?.preferences?.default_currency as string) || 'EUR',
       llmProvider: llmProviderName,
@@ -745,6 +762,7 @@ function ConfigPageInner() {
     engineSummary,
     vaultSummary,
     localPrefsTick,
+    t,
   ]);
 
   const handleRestoreDefaults = async () => {
@@ -784,12 +802,12 @@ function ConfigPageInner() {
         await refreshUser();
       }
 
-      setActionSuccess('All settings have been successfully restored to factory defaults.');
-      notify.success('Settings Restored', 'All settings have been restored to factory defaults.');
+      setActionSuccess(t('config.restore_defaults_success'));
+      notify.success(t('config.restore_defaults_toast_title'), t('config.restore_defaults_success'));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to restore default settings';
+      const msg = err instanceof Error ? err.message : t('config.restore_defaults_failed');
       setActionError(msg);
-      notify.error('Reset Failed', msg);
+      notify.error(t('config.reset_failed_title'), msg);
     }
   };
 
@@ -797,18 +815,18 @@ function ConfigPageInner() {
     <div className={styles.settingsShell}>
       <header className={styles.settingsHeader}>
         <div className={styles.headerBrandArea}>
-          <Link href="/dashboard" className={styles.headerBrandLogo} title="Paladio Dashboard">
+          <Link href="/dashboard" className={styles.headerBrandLogo} title={t('config.paladio_dashboard_title')}>
             <div className="logo-mark" aria-hidden="true" style={{ width: '28px', height: '28px' }}>
               <div className="logo-icon-sun" style={{ width: '26px', height: '26px' }} />
             </div>
             <span style={{ fontWeight: 800, fontSize: '16px', letterSpacing: '0.5px' }}>PALADIO</span>
           </Link>
-          <span className={styles.headerBadge}>SETTINGS</span>
+          <span className={styles.headerBadge}>{t('config.settings_upper')}</span>
         </div>
         <div className={styles.headerActions}>
-          <Link href="/dashboard" className={styles.backBtn} aria-label="Back to App">
+          <Link href="/dashboard" className={styles.backBtn} aria-label={t('config.back_to_app')}>
             <ChevronLeftIcon size={14} aria-hidden="true" />
-            <span>Back to App</span>
+            <span>{t('config.back_to_app')}</span>
           </Link>
         </div>
       </header>
@@ -824,7 +842,7 @@ function ConfigPageInner() {
       />
 
       {/* Main Content Pane */}
-      <main className={styles.settingsCanvas} aria-label="Settings Content">
+      <main className={styles.settingsCanvas} aria-label={t('config.settings_content_aria')}>
         {/* Global Action Messages */}
         {actionError && (
           <div

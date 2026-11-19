@@ -10,6 +10,7 @@ import { HelpTopicCard } from '@/components/help/HelpTopicCard';
 import { HelpArticleView } from '@/components/help/HelpArticleView';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
 import { ChevronLeftIcon } from '@/components/icons';
+import { useTranslation } from '@/hooks/useTranslation';
 import styles from './help.module.css';
 
 function getHelpViewKey(categoryId: string, articleId: string | null): string {
@@ -17,6 +18,7 @@ function getHelpViewKey(categoryId: string, articleId: string | null): string {
 }
 
 function HelpPageInner() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();

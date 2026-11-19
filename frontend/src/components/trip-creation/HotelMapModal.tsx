@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { useTranslation } from '@/hooks/useTranslation';
 import { HotelIcon, PinIcon, CheckIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
 
@@ -16,9 +17,9 @@ export interface HotelMapModalProps {
   onConfirm: (hotel: { name: string; address?: string; lat: number; lng: number }) => void;
 }
 
-const HotelMapInner = dynamic(() => import('./HotelMapInner'), {
-  ssr: false,
-  loading: () => (
+function MapLoadingPlaceholder() {
+  const { t } = useTranslation();
+  return (
     <div
       className="font-mono text-xs text-muted"
       style={{
@@ -31,9 +32,14 @@ const HotelMapInner = dynamic(() => import('./HotelMapInner'), {
         borderRadius: '16px',
       }}
     >
-      INITIALIZING INTERACTIVE MAP...
+      {t('engine.initializing_map')}
     </div>
-  ),
+  );
+}
+
+const HotelMapInner = dynamic(() => import('./HotelMapInner'), {
+  ssr: false,
+  loading: () => <MapLoadingPlaceholder />,
 });
 
 interface HotelSearchResult {
@@ -55,6 +61,7 @@ export function HotelMapModal({
   initialLng,
   onConfirm,
 }: HotelMapModalProps) {
+  const { t } = useTranslation();
   const destLower = (destination || '').toLowerCase().trim();
   const addressLower = (initialHotelAddress || '').toLowerCase().trim();
   const nameLower = (initialHotelName || '').toLowerCase().trim();
@@ -226,7 +233,7 @@ export function HotelMapModal({
       if (isMounted) {
         setIsLocating(false);
         setLocationError(
-          `Unable to resolve coordinates dynamically for "${destination || initialHotelName}". Please search on the map above.`
+          t('engine.hotel_locate_error', { target: destination || initialHotelName })
         );
       }
     };
@@ -236,7 +243,7 @@ export function HotelMapModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, initialHotelName, initialHotelAddress, initialLat, initialLng, destination, isCityMismatch]);
+  }, [isOpen, initialHotelName, initialHotelAddress, initialLat, initialLng, destination, isCityMismatch, t]);
 
   // Handle map click with reverse geocode
   const handleMapClick = useCallback(async (lat: number, lng: number) => {
@@ -313,7 +320,7 @@ export function HotelMapModal({
   const handleConfirm = () => {
     if (!pinPos) return;
     onConfirm({
-      name: hotelName.trim() || `Stay at ${destination}`,
+      name: hotelName.trim() || t('engine.stay_at_destination', { destination }),
       address: hotelAddress.trim() || undefined,
       lat: pinPos[0],
       lng: pinPos[1],
@@ -388,7 +395,7 @@ export function HotelMapModal({
                   color: 'var(--color-text-primary, #1A1A1A)',
                 }}
               >
-                Locate Hotel / Stay on Map
+                {t('engine.locate_hotel_modal_title')}
               </h3>
             </div>
             <p
@@ -399,7 +406,9 @@ export function HotelMapModal({
                 fontSize: '11.5px',
               }}
             >
-              Click anywhere on the map to pin your accommodation in {destination || 'destination'}
+              {t('engine.locate_hotel_modal_desc', {
+                destination: destination || t('engine.destination_lower'),
+              })}
             </p>
           </div>
 
@@ -453,7 +462,9 @@ export function HotelMapModal({
                   setSearchResults([]);
                 }
               }}
-              placeholder={`Search hotel name, brand, or landmark in ${destination || 'city'}...`}
+              placeholder={t('engine.search_hotel_modal_placeholder', {
+                destination: destination || t('engine.city_lower'),
+              })}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -466,7 +477,7 @@ export function HotelMapModal({
             />
             {isSearching && (
               <span className="font-mono text-xs text-muted" style={{ fontSize: '11px' }}>
-                SEARCHING...
+                {t('engine.searching_upper')}
               </span>
             )}
           </div>
@@ -566,7 +577,7 @@ export function HotelMapModal({
                     {locationError}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                    Type your hotel name or landmark in the search bar above to locate it.
+                    {t('engine.search_hotel_hint')}
                   </div>
                 </>
               ) : (
@@ -583,8 +594,10 @@ export function HotelMapModal({
                   />
                   <span>
                     {initialHotelName?.trim()
-                      ? `LOCATING "${initialHotelName.trim().toUpperCase()}"...`
-                      : `LOCATING ${destination ? destination.toUpperCase() : 'DESTINATION'}...`}
+                      ? t('engine.locating_quoted', { target: initialHotelName.trim().toUpperCase() })
+                      : t('engine.locating_plain', {
+                          target: destination ? destination.toUpperCase() : t('engine.destination_upper'),
+                        })}
                   </span>
                 </>
               )}
@@ -622,13 +635,13 @@ export function HotelMapModal({
                   marginBottom: '4px',
                 }}
               >
-                Accommodation Name
+                {t('engine.accommodation_name_label')}
               </label>
               <input
                 type="text"
                 value={hotelName}
                 onChange={(e) => setHotelName(e.target.value)}
-                placeholder="e.g. Hotel Le Marais"
+                placeholder={t('engine.accommodation_name_placeholder')}
                 style={{
                   width: '100%',
                   background: 'var(--color-surface-raised, #FFFFFF)',
@@ -652,13 +665,13 @@ export function HotelMapModal({
                   marginBottom: '4px',
                 }}
               >
-                Address / Neighborhood {isReverseLoading && '· Resolving...'}
+                {t('engine.address_neighborhood_label')} {isReverseLoading && t('engine.resolving_suffix')}
               </label>
               <input
                 type="text"
                 value={hotelAddress}
                 onChange={(e) => setHotelAddress(e.target.value)}
-                placeholder="Click map or enter address..."
+                placeholder={t('engine.address_placeholder')}
                 style={{
                   width: '100%',
                   background: 'var(--color-surface-raised, #FFFFFF)',
@@ -676,8 +689,8 @@ export function HotelMapModal({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
             <span className="font-mono text-xs" style={{ color: 'var(--color-text-muted)', fontSize: '11px' }}>
               {pinPos
-                ? `PIN: ${pinPos[0].toFixed(5)}, ${pinPos[1].toFixed(5)}`
-                : 'Click map to place stay anchor pin'}
+                ? t('engine.pin_coords', { lat: pinPos[0].toFixed(5), lng: pinPos[1].toFixed(5) })
+                : t('engine.click_map_to_pin')}
             </span>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -695,7 +708,7 @@ export function HotelMapModal({
                   cursor: 'pointer',
                 }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -716,7 +729,7 @@ export function HotelMapModal({
                   boxShadow: pinPos ? '0 2px 8px rgba(15,76,92,0.25)' : 'none',
                 }}
               >
-                <CheckIcon size={14} color="#FFFFFF" /> Set Stay Anchor
+                <CheckIcon size={14} color="#FFFFFF" /> {t('engine.set_stay_anchor')}
               </button>
             </div>
           </div>

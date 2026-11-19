@@ -20,17 +20,18 @@ interface TripWorkspaceHeaderProps {
   onTabChange: (tab: WorkspaceTab) => void;
 }
 
-const formatDateRange = (start?: string, end?: string): string => {
+const formatDateRange = (start?: string, end?: string, locale?: string): string => {
   if (!start) return '';
   try {
     const dStart = new Date(start);
     if (isNaN(dStart.getTime())) return start;
+    const fmtLocale = locale && locale !== 'en' ? locale : undefined;
     const opt: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-    const startStr = dStart.toLocaleDateString(undefined, opt);
+    const startStr = dStart.toLocaleDateString(fmtLocale, opt);
     if (!end) return startStr;
     const dEnd = new Date(end);
     if (isNaN(dEnd.getTime())) return startStr;
-    const endStr = dEnd.toLocaleDateString(undefined, opt);
+    const endStr = dEnd.toLocaleDateString(fmtLocale, opt);
     return `${startStr} — ${endStr}`;
   } catch {
     return start;
@@ -46,7 +47,7 @@ export function TripWorkspaceHeader({
   activeTab,
   onTabChange,
 }: TripWorkspaceHeaderProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -78,11 +79,18 @@ export function TripWorkspaceHeader({
       const stats = await pinTripOffline(tripId);
       setIsOfflinePinned(true);
       notify.success(
-        'Offline Ready',
-        `Cached itinerary, ${stats.ticketsCached} tickets, ${stats.attachmentsCached} attachments, and ${stats.expensesCached} expenses.`
+        t('workspace.offline_ready'),
+        t('workspace.offline_cached_summary', {
+          tickets: stats.ticketsCached,
+          attachments: stats.attachmentsCached,
+          expenses: stats.expensesCached,
+        })
       );
     } catch (err) {
-      notify.error('Offline Cache Failed', err instanceof Error ? err.message : 'Could not cache trip offline.');
+      notify.error(
+        t('workspace.offline_cache_failed'),
+        err instanceof Error ? err.message : t('workspace.offline_cache_error')
+      );
     } finally {
       setIsPinningOffline(false);
     }
@@ -235,7 +243,7 @@ export function TripWorkspaceHeader({
               }}
               data-dates-badge="true"
             >
-              {formatDateRange(startDate, endDate)}
+              {formatDateRange(startDate, endDate, locale)}
             </span>
           )}
         </div>
@@ -353,7 +361,7 @@ export function TripWorkspaceHeader({
               border: '1px solid rgba(227, 100, 20, 0.35)',
             }}
           >
-            OFFLINE
+            {t('workspace.offline_badge')}
           </span>
         )}
         {tripId && (
@@ -363,17 +371,17 @@ export function TripWorkspaceHeader({
             onClick={handlePinOffline}
             title={
               isPinningOffline
-                ? 'Downloading trip for offline access...'
+                ? t('workspace.downloading_offline_title')
                 : isOfflinePinned
-                ? 'Trip downloaded for offline access'
-                : 'Download the trip offline'
+                ? t('workspace.downloaded_offline_title')
+                : t('workspace.download_offline_title')
             }
             aria-label={
               isPinningOffline
-                ? 'Downloading trip for offline access'
+                ? t('workspace.downloading_offline_aria')
                 : isOfflinePinned
-                ? 'Trip downloaded for offline access'
-                : 'Download the trip offline'
+                ? t('workspace.downloaded_offline_title')
+                : t('workspace.download_offline_title')
             }
             style={{
               display: 'inline-flex',

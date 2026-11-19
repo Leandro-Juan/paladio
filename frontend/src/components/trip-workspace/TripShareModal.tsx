@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
+import { useTranslation } from '@/hooks/useTranslation';
 import { CloseIcon } from '@/components/icons';
 import {
   downloadTripPackage,
@@ -31,6 +32,7 @@ export function TripShareModal({
   endDate,
   itineraryData,
 }: TripShareModalProps) {
+  const { t } = useTranslation();
   const isMounted = useIsMounted();
   const [profile, setProfile] = useState<'full_vault' | 'community_shareable'>('full_vault');
   const [isExportingTrip, setIsExportingTrip] = useState(false);
@@ -100,7 +102,7 @@ export function TripShareModal({
     try {
       await downloadTripPackage(tripId, profile, destination);
     } catch (err) {
-      setTripError(err instanceof Error ? err.message : 'Export failed');
+      setTripError(err instanceof Error ? err.message : t('share.export_failed'));
     } finally {
       setIsExportingTrip(false);
     }
@@ -200,7 +202,7 @@ export function TripShareModal({
                 color: 'var(--color-text-primary, #111827)',
               }}
             >
-              Export & Share
+              {t('share.title')}
             </h2>
             <p
               style={{
@@ -216,7 +218,7 @@ export function TripShareModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close share dialog"
+            aria-label={t('share.close_aria')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -256,7 +258,7 @@ export function TripShareModal({
               paddingLeft: '2px',
             }}
           >
-            Export Formats
+            {t('share.export_formats')}
           </div>
 
           {itineraryDayNumbers.length > 0 && (
@@ -290,7 +292,7 @@ export function TripShareModal({
                   color: exportAllDays ? '#FFFFFF' : 'var(--color-text-secondary, #6B7280)',
                 }}
               >
-                All Days ({itineraryDayNumbers.length})
+                {t('share.all_days_count', { count: itineraryDayNumbers.length })}
               </button>
               {itineraryDayNumbers.map((dNum) => {
                 const isSelected = !exportAllDays && selectedExportDays.includes(dNum);
@@ -316,7 +318,7 @@ export function TripShareModal({
                         : 'var(--color-text-secondary, #6B7280)',
                     }}
                   >
-                    Day {dNum}
+                    {t('trips.day_label', { number: dNum })}
                   </button>
                 );
               })}
@@ -359,7 +361,7 @@ export function TripShareModal({
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary, #111827)' }}>
-                  Paladio Package (.trip)
+                  {t('share.package_title')}
                 </div>
                 <div
                   style={{
@@ -371,8 +373,8 @@ export function TripShareModal({
                   }}
                 >
                   {profile === 'full_vault'
-                    ? 'Air-gapped vault with documents & tickets'
-                    : 'Sanitized bundle safe for sharing'}
+                    ? t('share.profile_full_vault_desc')
+                    : t('share.profile_shareable_desc')}
                 </div>
               </div>
 
@@ -381,7 +383,7 @@ export function TripShareModal({
                 <select
                   value={profile}
                   onChange={(e) => setProfile(e.target.value as 'full_vault' | 'community_shareable')}
-                  aria-label="Package profile"
+                  aria-label={t('share.package_profile_aria')}
                   style={{
                     appearance: 'none',
                     backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
@@ -399,8 +401,8 @@ export function TripShareModal({
                     outline: 'none',
                   }}
                 >
-                  <option value="full_vault">Full Vault</option>
-                  <option value="community_shareable">Shareable</option>
+                  <option value="full_vault">{t('share.profile_full_vault')}</option>
+                  <option value="community_shareable">{t('share.profile_shareable')}</option>
                 </select>
 
                 <button
@@ -424,7 +426,7 @@ export function TripShareModal({
                   }}
                 >
                   {isExportingTrip ? (
-                    'Exporting...'
+                    t('share.exporting')
                   ) : (
                     <>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -432,7 +434,7 @@ export function TripShareModal({
                         <polyline points="7 10 12 15 17 10" />
                         <line x1="12" y1="15" x2="12" y2="3" />
                       </svg>
-                      <span>Export</span>
+                      <span>{t('share.export_btn')}</span>
                     </>
                   )}
                 </button>
@@ -487,7 +489,7 @@ export function TripShareModal({
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary, #111827)' }}>
-                  Printable Document (.pdf)
+                  {t('share.printable_title')}
                 </div>
                 <div
                   style={{
@@ -498,7 +500,7 @@ export function TripShareModal({
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  Formatted schedule for print & PDF
+                  {t('share.printable_desc')}
                 </div>
               </div>
 
@@ -532,7 +534,7 @@ export function TripShareModal({
                     <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
                     <rect x="6" y="14" width="12" height="8" />
                   </svg>
-                  <span>Print</span>
+                  <span>{t('share.print_btn')}</span>
                 </button>
               </div>
             </div>
@@ -572,7 +574,7 @@ export function TripShareModal({
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary, #111827)' }}>
-                  Calendar Sync (.ics)
+                  {t('share.calendar_title')}
                 </div>
                 <div
                   style={{
@@ -583,7 +585,7 @@ export function TripShareModal({
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  Apple Calendar, Google Calendar & Outlook
+                  {t('share.calendar_desc')}
                 </div>
               </div>
 
@@ -617,7 +619,7 @@ export function TripShareModal({
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  <span>Export</span>
+                  <span>{t('share.export_btn')}</span>
                 </button>
               </div>
             </div>
@@ -655,7 +657,7 @@ export function TripShareModal({
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary, #111827)' }}>
-                  Raw Itinerary (.json)
+                  {t('share.json_title')}
                 </div>
                 <div
                   style={{
@@ -666,7 +668,7 @@ export function TripShareModal({
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  Full GeoJSON route geometries & POIs
+                  {t('share.json_desc')}
                 </div>
               </div>
 
@@ -700,7 +702,7 @@ export function TripShareModal({
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  <span>Export</span>
+                  <span>{t('share.export_btn')}</span>
                 </button>
               </div>
             </div>
@@ -738,7 +740,7 @@ export function TripShareModal({
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary, #111827)' }}>
-                  GPS Route &amp; Waypoints (.gpx)
+                  {t('share.gpx_title')}
                 </div>
                 <div
                   style={{
@@ -749,7 +751,7 @@ export function TripShareModal({
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  Organic Maps, OsmAnd, CoMaps &amp; Garmin
+                  {t('share.gpx_desc')}
                 </div>
               </div>
 
@@ -777,7 +779,7 @@ export function TripShareModal({
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  <span>Export</span>
+                  <span>{t('share.export_btn')}</span>
                 </button>
               </div>
             </div>
@@ -840,7 +842,7 @@ export function TripShareModal({
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span>Copied!</span>
+                <span>{t('common.copied')}</span>
               </>
             ) : (
               <>
@@ -849,7 +851,7 @@ export function TripShareModal({
                   <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                   <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                 </svg>
-                <span>Copy link</span>
+                <span>{t('share.copy_link')}</span>
               </>
             )}
           </button>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export interface CustomSelectOption<T extends string = string> {
   value: T;
@@ -25,12 +26,14 @@ export function CustomSelect<T extends string = string>({
   onChange,
   options,
   label,
-  placeholder = 'Select...',
+  placeholder,
   disabled = false,
   style,
   buttonStyle,
   menuStyle,
 }: CustomSelectProps<T>) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t('wallet.select_placeholder');
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -62,7 +65,7 @@ export function CustomSelect<T extends string = string>({
         onClick={() => !disabled && setIsOpen((prev) => !prev)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        aria-label={label || 'Select option'}
+        aria-label={label || t('wallet.select_option')}
         style={{
           width: '100%',
           display: 'flex',
@@ -85,7 +88,7 @@ export function CustomSelect<T extends string = string>({
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
           {selectedOption?.badge}
           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {selectedOption ? selectedOption.label : placeholder}
+            {selectedOption ? selectedOption.label : resolvedPlaceholder}
           </span>
         </div>
         <svg

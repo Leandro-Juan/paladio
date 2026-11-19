@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { COST_CATEGORY_LIST, getCostCategoryMeta } from './costsCategories';
 import { DisplayExpenseItem } from './ExpenseRow';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface CategoryBreakdownWidgetProps {
   items: DisplayExpenseItem[];
@@ -39,6 +40,8 @@ function describeDonutArc(
 }
 
 export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBreakdownWidgetProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const currencyInfo = getCurrencyInfo(currency);
   const currencySymbol = currencyInfo.symbol;
@@ -73,7 +76,7 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
   }, [categoryTotals, hoveredKey]);
 
   const formatCost = (amt: number) => {
-    return amt.toLocaleString(undefined, {
+    return amt.toLocaleString(intlLocale, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     });
@@ -88,7 +91,7 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
       return [
         {
           key: cat.key,
-          label: cat.label,
+          label: t(cat.labelKey),
           color: cat.color,
           total: cat.total,
           sharePct: 100,
@@ -115,7 +118,7 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
 
       return {
         key: cat.key,
-        label: cat.label,
+        label: t(cat.labelKey),
         color: cat.color,
         total: cat.total,
         sharePct,
@@ -124,7 +127,7 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
         endAngle,
       };
     });
-  }, [categoryTotals, grandTotal]);
+  }, [categoryTotals, grandTotal, t]);
 
   return (
     <div
@@ -154,7 +157,7 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
             color: 'var(--color-text-primary, #0F172A)',
           }}
         >
-          BY CATEGORY
+          {t('costs.by_category')}
         </div>
 
         {grandTotal > 0 && (
@@ -166,7 +169,16 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
               color: 'var(--color-text-muted, #64748B)',
             }}
           >
-            Total: <b style={{ color: 'var(--color-text-primary, #0F172A)' }}>{currencySymbol}{formatCost(grandTotal)}</b>
+            {(() => {
+              const [before, after] = t('costs.total_with_amount', { amount: '__AMT__' }).split('__AMT__');
+              return (
+                <>
+                  {before}
+                  <b style={{ color: 'var(--color-text-primary, #0F172A)' }}>{currencySymbol}{formatCost(grandTotal)}</b>
+                  {after}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>
@@ -181,7 +193,7 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
             color: 'var(--color-text-muted, #94A3B8)',
           }}
         >
-          {`// NO CATEGORY COSTS LOGGED YET`}
+          {t('costs.no_category_costs')}
         </div>
       ) : (
         <div>
@@ -199,14 +211,18 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
               height="170"
               viewBox="0 0 180 180"
               style={{ overflow: 'visible', userSelect: 'none' }}
-              aria-label="Category cost distribution circular graph"
+              aria-label={t('costs.category_chart_aria')}
               role="img"
             >
               {slices.map((slice) => {
                 const isHovered = hoveredKey === slice.key;
                 const rOuter = isHovered ? 76 : 72;
                 const rInner = isHovered ? 45 : 48;
-                const tooltipText = `${slice.label}: ${currencySymbol}${formatCost(slice.total)} (${slice.sharePct}%)`;
+                const tooltipText = t('costs.category_slice_tooltip', {
+                  label: slice.label,
+                  amount: `${currencySymbol}${formatCost(slice.total)}`,
+                  pct: slice.sharePct,
+                });
 
                 if (slice.isSingle) {
                   return (
@@ -273,9 +289,10 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
                         letterSpacing: '0.02em',
                       }}
                     >
-                      {activeCategory.label.length > 13
-                        ? `${activeCategory.label.slice(0, 12)}…`
-                        : activeCategory.label}
+                      {(() => {
+                        const catLabel = t(activeCategory.labelKey);
+                        return catLabel.length > 13 ? `${catLabel.slice(0, 12)}…` : catLabel;
+                      })()}
                     </text>
                     <text
                       x={90}
@@ -319,7 +336,7 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
                         fill: 'var(--color-text-muted, #64748B)',
                       }}
                     >
-                      TOTAL
+                      {t('costs.total_upper')}
                     </text>
                     <text
                       x={90}
@@ -344,7 +361,9 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
                         fill: 'var(--color-text-muted, #94A3B8)',
                       }}
                     >
-                      {categoryTotals.length} {categoryTotals.length === 1 ? 'category' : 'categories'}
+                      {categoryTotals.length === 1
+                        ? t('costs.category_count_one', { count: 1 })
+                        : t('costs.category_count_other', { count: categoryTotals.length })}
                     </text>
                   </>
                 )}
@@ -355,12 +374,17 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
           {/* Individual Category Rows */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {categoryTotals.map((cat) => {
+              const catLabel = t(cat.labelKey);
               const percentage =
                 maxCategoryAmount > 0 ? (cat.total / maxCategoryAmount) * 100 : 0;
               const shareOfTotal =
                 grandTotal > 0 ? ((cat.total / grandTotal) * 100).toFixed(0) : '0';
               const isHovered = hoveredKey === cat.key;
-              const tooltipText = `${cat.label}: ${currencySymbol}${formatCost(cat.total)} (${shareOfTotal}%)`;
+              const tooltipText = t('costs.category_slice_tooltip', {
+                label: catLabel,
+                amount: `${currencySymbol}${formatCost(cat.total)}`,
+                pct: shareOfTotal,
+              });
 
               return (
                 <div
@@ -405,7 +429,7 @@ export function CategoryBreakdownWidget({ items, currency = 'EUR' }: CategoryBre
                         color: 'var(--color-text-primary, #0F172A)',
                       }}
                     >
-                      {cat.label}
+                      {catLabel}
                     </span>
                     <span
                       style={{

@@ -1,12 +1,19 @@
+import { translate, useLocaleStore } from '@/stores/localeStore';
+
+function resolveIntlLocale(localeOverride?: string): string {
+  const active = localeOverride || useLocaleStore.getState().currentLocale || 'en';
+  return active === 'en' ? 'en-US' : active;
+}
+
 /**
  * Formats an ISO timestamp into a human-readable date and time string.
  * Example: "Sep 16, 2026, 17:45"
  */
-export function formatFullDateTime(isoString: string): string {
+export function formatFullDateTime(isoString: string, localeOverride?: string): string {
   try {
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return isoString;
-    return date.toLocaleString('en-US', {
+    return date.toLocaleString(resolveIntlLocale(localeOverride), {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -23,25 +30,33 @@ export function formatFullDateTime(isoString: string): string {
 /**
  * Returns a concise relative time string (e.g., "just now", "5m ago", "2h ago", "3d ago").
  */
-export function formatRelativeTime(isoString: string): string {
+export function formatRelativeTime(isoString: string, localeOverride?: string): string {
   try {
     const date = new Date(isoString);
     const now = new Date();
     const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diffSeconds < 5) return 'just now';
-    if (diffSeconds < 60) return `${diffSeconds}s ago`;
+    if (diffSeconds < 5) return translate('common.time_just_now', undefined, localeOverride);
+    if (diffSeconds < 60) {
+      return translate('common.time_seconds_ago', { count: diffSeconds }, localeOverride);
+    }
 
     const diffMinutes = Math.floor(diffSeconds / 60);
-    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffMinutes < 60) {
+      return translate('common.time_minutes_ago', { count: diffMinutes }, localeOverride);
+    }
 
     const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) {
+      return translate('common.time_hours_ago', { count: diffHours }, localeOverride);
+    }
 
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 30) return `${diffDays}d ago`;
+    if (diffDays < 30) {
+      return translate('common.time_days_ago', { count: diffDays }, localeOverride);
+    }
 
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString(resolveIntlLocale(localeOverride), { month: 'short', day: 'numeric' });
   } catch {
     return '';
   }
@@ -131,7 +146,8 @@ export function getPoiOpeningHours(
     open_time_mins?: number;
     close_time_mins?: number;
   },
-  dayNumber?: number
+  dayNumber?: number,
+  localeOverride?: string
 ): string | null {
   if (!p) return null;
   if (p.osm_opening_hours) return p.osm_opening_hours;
@@ -157,7 +173,7 @@ export function getPoiOpeningHours(
   if (closeMins === undefined || closeMins === null || closeMins < 0) return null;
 
   if (openMins === 0 && closeMins >= 1440) {
-    return 'Open 24h';
+    return translate('common.open_24h', undefined, localeOverride);
   }
 
   const oH = String(Math.floor(openMins / 60) % 24).padStart(2, '0');
@@ -165,9 +181,16 @@ export function getPoiOpeningHours(
   const rawCloseHours = Math.floor(closeMins / 60);
   const cH = String(rawCloseHours % 24).padStart(2, '0');
   const cM = String(closeMins % 60).padStart(2, '0');
-  const nextDay = rawCloseHours >= 24 && !(rawCloseHours === 24 && cM === '00') ? ' (+1)' : '';
+  const nextDay =
+    rawCloseHours >= 24 && !(rawCloseHours === 24 && cM === '00')
+      ? translate('common.next_day_suffix', undefined, localeOverride)
+      : '';
 
-  return `Open ${oH}:${oM} – ${cH}:${cM}${nextDay}`;
+  return translate(
+    'common.open_hours_range',
+    { open: `${oH}:${oM}`, close: `${cH}:${cM}`, nextDay },
+    localeOverride
+  );
 }
 
 /**

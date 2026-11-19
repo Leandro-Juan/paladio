@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { TripTicket } from '@/hooks/useTripTickets';
 import { BarcodeStripe } from './BarcodeStripe';
 
@@ -21,6 +22,9 @@ export function PastTripFlightTicket({
   travelersCount,
   origin,
 }: PastTripFlightTicketProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
+
   // Format departure date e.g. "December 25"
   const formattedDate = useMemo(() => {
     try {
@@ -28,14 +32,14 @@ export function PastTripFlightTicket({
         ? new Date(ticket.start_time)
         : new Date(startDate);
       if (isNaN(d.getTime())) return startDate;
-      return d.toLocaleDateString(undefined, {
+      return d.toLocaleDateString(intlLocale, {
         month: 'long',
         day: 'numeric',
       });
     } catch {
       return startDate;
     }
-  }, [ticket?.start_time, startDate]);
+  }, [ticket?.start_time, startDate, intlLocale]);
 
   // Compute days and nights
   const { days, nights } = useMemo(() => {
@@ -59,7 +63,7 @@ export function PastTripFlightTicket({
     (meta.origin_iata as string) ||
     (meta.departure_city as string) ||
     origin ||
-    'Departure Hub';
+    t('vault.departure_hub');
 
   const destinationName =
     (meta.arrival_airport as string) ||
@@ -111,7 +115,7 @@ export function PastTripFlightTicket({
             fontWeight: 600,
           }}
         >
-          {ticket ? 'FLIGHT BOARDING PASS' : 'EXPEDITION VOYAGE'}
+          {ticket ? t('vault.flight_boarding_pass') : t('vault.expedition_voyage')}
         </span>
         <span
           style={{
@@ -152,7 +156,9 @@ export function PastTripFlightTicket({
             className="font-mono text-muted"
             style={{ fontSize: '0.7rem' }}
           >
-            {days} Days / {nights} Nights · {travelersCount} {travelersCount === 1 ? 'Traveler' : 'Travelers'}
+            {travelersCount === 1
+              ? t('vault.voyage_meta_one_traveler', { days, nights, count: travelersCount })
+              : t('vault.voyage_meta_many_travelers', { days, nights, count: travelersCount })}
           </span>
         </div>
       </div>
@@ -211,7 +217,7 @@ export function PastTripFlightTicket({
             className="font-mono text-muted"
             style={{ fontSize: '0.68rem', marginTop: '1px' }}
           >
-            Origin Terminal
+            {t('vault.origin_terminal')}
           </div>
         </div>
 
@@ -244,7 +250,7 @@ export function PastTripFlightTicket({
             className="font-mono text-muted"
             style={{ fontSize: '0.68rem', marginTop: '1px' }}
           >
-            Destination Terminal
+            {t('vault.destination_terminal')}
           </div>
         </div>
       </div>

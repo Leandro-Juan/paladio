@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 import { CloseIcon, Spinner, SettingsIcon, CalendarIcon } from '@/components/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
@@ -31,23 +33,29 @@ interface NewRouteModalProps {
 }
 
 const DURATION_PRESETS = [
-  { label: '3 Days', sub: '2–3 nights', range: [2, 3] as [number, number] },
-  { label: '5 Days', sub: '4–5 nights', range: [4, 5] as [number, number] },
-  { label: '10 Days', sub: '7–10 nights', range: [7, 10] as [number, number] },
-  { label: 'Any / Full', sub: '1–30 nights', range: [1, 30] as [number, number] },
+  { labelKey: 'monitoring.preset_3_days', subKey: 'monitoring.preset_2_3_nights', range: [2, 3] as [number, number] },
+  { labelKey: 'monitoring.preset_5_days', subKey: 'monitoring.preset_4_5_nights', range: [4, 5] as [number, number] },
+  { labelKey: 'monitoring.preset_10_days', subKey: 'monitoring.preset_7_10_nights', range: [7, 10] as [number, number] },
+  { labelKey: 'monitoring.preset_any_full', subKey: 'monitoring.preset_1_30_nights', range: [1, 30] as [number, number] },
 ];
 
-function formatDisplayDate(dateStr: string): string {
+function formatDisplayDate(dateStr: string, locale: string = 'en'): string {
   if (!dateStr) return '';
   const parts = dateStr.split('-');
   if (parts.length !== 3) return dateStr;
-  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const year = parseInt(parts[0], 10);
   const mIndex = parseInt(parts[1], 10) - 1;
   const d = parseInt(parts[2], 10);
-  return `${MONTHS[mIndex] || parts[1]} ${d}, ${parts[0]}`;
+  if (isNaN(year) || isNaN(mIndex) || isNaN(d) || mIndex < 0 || mIndex > 11) return dateStr;
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
+  const monthStr = new Intl.DateTimeFormat(intlLocale, { month: 'short', timeZone: 'UTC' }).format(
+    new Date(Date.UTC(year, mIndex, 1))
+  );
+  return `${monthStr} ${d}, ${parts[0]}`;
 }
 
 export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRoutes, onSubmit }: NewRouteModalProps) {
+  const { t, locale } = useTranslation();
   const { user } = useAuth();
   const initialCurrency = userDefaultCurrency || (user?.preferences?.default_currency as string) || 'EUR';
 
@@ -103,7 +111,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
     return [
       {
         id: user.id || 'organizer',
-        name: (user as { name?: string }).name || user.username || 'Organizer',
+        name: (user as { name?: string }).name || user.username || translate('vault.role_organizer'),
         email: user.email || '',
         user_id: user.id,
         is_guest: false,
@@ -118,7 +126,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
         setParticipants([
           {
             id: user.id || 'organizer',
-            name: (user as { name?: string }).name || user.username || 'Organizer',
+            name: (user as { name?: string }).name || user.username || translate('vault.role_organizer'),
             email: user.email || '',
             user_id: user.id,
             is_guest: false,
@@ -142,15 +150,15 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
     const destCode = (destIata || destCity).trim().toUpperCase();
 
     if (!origCode || origCode.length !== 3) {
-      setError('Origin must be a 3-letter IATA code (e.g. MAD, BCN, DUB)');
+      setError(t('monitoring.err_origin_iata'));
       return;
     }
     if (!destCode || destCode.length < 3) {
-      setError('Destination must be a valid airport or city code (e.g. FCO, DUB, OPO)');
+      setError(t('monitoring.err_dest_code'));
       return;
     }
     if (origCode === destCode) {
-      setError('Origin and destination cannot be the same corridor.');
+      setError(t('monitoring.err_same_corridor'));
       return;
     }
     const isDuplicate = existingRoutes?.some(
@@ -159,27 +167,27 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
         r.destination_code.trim().toUpperCase() === destCode
     );
     if (isDuplicate) {
-      setError(`Route ${origCode} → ${destCode} is already being monitored.`);
+      setError(t('monitoring.err_duplicate_route', { origin: origCode, dest: destCode }));
       return;
     }
     if (earliestDate && latestDate && new Date(earliestDate) > new Date(latestDate)) {
-      setError('Earliest departure date must be before or equal to latest departure date.');
+      setError(t('monitoring.err_date_order'));
       return;
     }
     if (Number(minNights) < 1) {
-      setError('Minimum stay duration must be at least 1 night.');
+      setError(t('monitoring.err_min_nights'));
       return;
     }
     if (Number(maxNights) < Number(minNights)) {
-      setError('Maximum stay duration cannot be less than minimum stay duration.');
+      setError(t('monitoring.err_max_nights'));
       return;
     }
     if (participants.length === 0) {
-      setError('At least one traveler or participant must be added to the monitored route.');
+      setError(t('monitoring.err_no_travelers'));
       return;
     }
     if (!budget || isNaN(Number(budget)) || Number(budget) <= 0) {
-      setError('Target ceiling budget envelope must be greater than 0.');
+      setError(t('monitoring.err_budget_zero'));
       return;
     }
 
@@ -204,7 +212,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
       });
       handleClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create route monitor';
+      const msg = err instanceof Error ? err.message : t('monitoring.err_create_failed');
       setError(msg);
       setShowRateLimitWarning(false);
     } finally {
@@ -216,12 +224,12 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
     <div className={styles.backdrop} onClick={handleClose} role="dialog" aria-modal="true">
       <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h3 className={styles.modalTitle}>Track New Airfare Route</h3>
+          <h3 className={styles.modalTitle}>{t('monitoring.track_new_route')}</h3>
           <button
             type="button"
             className={styles.closeBtn}
             onClick={handleClose}
-            aria-label="Close modal"
+            aria-label={t('monitoring.close_modal')}
           >
             <CloseIcon size={16} />
           </button>
@@ -245,7 +253,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                 type="button"
                 className={styles.errorDismissBtn}
                 onClick={() => setError(null)}
-                aria-label="Dismiss error"
+                aria-label={t('monitoring.dismiss_error')}
               >
                 <CloseIcon size={12} />
               </button>
@@ -255,7 +263,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
           {/* Flight Route Corridor Intake from Trip Creation */}
           <div className={styles.sectionGroup}>
             <div className={styles.sectionLabel}>
-              <span>Flight Route Corridor & Airport Search</span>
+              <span>{t('monitoring.corridor_airport_search')}</span>
             </div>
             <RouteIntakeBar
               origin={originCity}
@@ -273,9 +281,11 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
           {/* Travelers & Participants Manager from Trip Creation */}
           <div className={styles.sectionGroup}>
             <div className={styles.sectionLabel}>
-              <span>Travelers & Participants</span>
+              <span>{t('monitoring.travelers_participants')}</span>
               <span className={styles.badgeTravelers}>
-                {travelersCount} {travelersCount === 1 ? 'Traveler' : 'Travelers'}
+                {travelersCount === 1
+                  ? t('monitoring.traveler_one', { count: travelersCount })
+                  : t('monitoring.traveler_many', { count: travelersCount })}
               </span>
             </div>
             <ParticipantsManager
@@ -290,7 +300,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
           {/* Departure Window (Earliest - Latest) */}
           <div className={styles.sectionGroup}>
             <div className={styles.sectionLabel}>
-              <span>Departure Dates Window</span>
+              <span>{t('monitoring.departure_dates_window')}</span>
               {(earliestDate || latestDate) ? (
                 <button
                   type="button"
@@ -300,17 +310,17 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                     setLatestDate('');
                   }}
                 >
-                  Clear Dates (Flexible)
+                  {t('monitoring.clear_dates_flexible')}
                 </button>
               ) : (
-                <span className={styles.flexibleStatusTag}>Flexible / Open-Ended</span>
+                <span className={styles.flexibleStatusTag}>{t('monitoring.flexible_open_ended')}</span>
               )}
             </div>
 
             <div className={styles.twoCol}>
               <div className={styles.inputGroup}>
                 <label className={styles.label}>
-                  Earliest Departure
+                  {t('monitoring.earliest_departure')}
                 </label>
                 <div className={styles.datePickerAnchor}>
                   <button
@@ -321,19 +331,19 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                       setIsLatestPickerOpen(false);
                     }}
                     aria-expanded={isEarliestPickerOpen}
-                    aria-label="Select earliest departure date"
+                    aria-label={t('monitoring.select_earliest_date')}
                   >
                     <div className={styles.dateTriggerContent}>
                       <CalendarIcon size={14} color="var(--color-accent-primary)" />
                       <span className={earliestDate ? styles.dateTriggerValue : styles.dateTriggerPlaceholder}>
-                        {earliestDate ? formatDisplayDate(earliestDate) : 'Any / Flexible Date'}
+                        {earliestDate ? formatDisplayDate(earliestDate, locale) : t('monitoring.any_flexible_date')}
                       </span>
                     </div>
                     {earliestDate && (
                       <span
                         role="button"
                         tabIndex={0}
-                        aria-label="Clear earliest date"
+                        aria-label={t('monitoring.clear_earliest_date')}
                         className={styles.clearDateInlineBtn}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -348,7 +358,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                   {isEarliestPickerOpen && (
                     <div className={styles.datePickerPopover}>
                       <PaladioSingleDatePicker
-                        title="EARLIEST DEPARTURE"
+                        title={t('monitoring.earliest_departure_upper')}
                         selectedDate={earliestDate}
                         onChange={(d) => {
                           setEarliestDate(d);
@@ -364,7 +374,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
 
               <div className={styles.inputGroup}>
                 <label className={styles.label}>
-                  Latest Departure
+                  {t('monitoring.latest_departure')}
                 </label>
                 <div className={styles.datePickerAnchor}>
                   <button
@@ -375,19 +385,19 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                       setIsEarliestPickerOpen(false);
                     }}
                     aria-expanded={isLatestPickerOpen}
-                    aria-label="Select latest departure date"
+                    aria-label={t('monitoring.select_latest_date')}
                   >
                     <div className={styles.dateTriggerContent}>
                       <CalendarIcon size={14} color="var(--color-accent-primary)" />
                       <span className={latestDate ? styles.dateTriggerValue : styles.dateTriggerPlaceholder}>
-                        {latestDate ? formatDisplayDate(latestDate) : 'Any / Flexible Date'}
+                        {latestDate ? formatDisplayDate(latestDate, locale) : t('monitoring.any_flexible_date')}
                       </span>
                     </div>
                     {latestDate && (
                       <span
                         role="button"
                         tabIndex={0}
-                        aria-label="Clear latest date"
+                        aria-label={t('monitoring.clear_latest_date')}
                         className={styles.clearDateInlineBtn}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -402,7 +412,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                   {isLatestPickerOpen && (
                     <div className={styles.datePickerPopoverRight}>
                       <PaladioSingleDatePicker
-                        title="LATEST DEPARTURE"
+                        title={t('monitoring.latest_departure_upper')}
                         selectedDate={latestDate}
                         onChange={(d) => {
                           setLatestDate(d);
@@ -421,14 +431,16 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
           {/* Stay Duration (Min - Max Nights) */}
           <div className={styles.sectionGroup}>
             <div className={styles.sectionLabel}>
-              <span>Stay Duration</span>
+              <span>{t('monitoring.stay_duration')}</span>
               <div className={styles.durationHeaderActions}>
                 <span className={styles.durationValueDisplay}>
                   {minNights === 1 && maxNights === 30
-                    ? 'Any Duration (1–30 nights)'
+                    ? t('monitoring.any_duration_1_30')
                     : minNights === maxNights
-                    ? `${minNights} ${minNights === 1 ? 'night' : 'nights'}`
-                    : `${minNights} – ${maxNights} nights`}
+                    ? minNights === 1
+                      ? t('monitoring.night_one', { count: minNights })
+                      : t('monitoring.night_many', { count: minNights })
+                    : t('monitoring.nights_range', { min: minNights, max: maxNights })}
                 </span>
                 {(minNights !== 1 || maxNights !== 30) && (
                   <button
@@ -439,7 +451,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                       setMaxNights(30);
                     }}
                   >
-                    Reset to Any
+                    {t('monitoring.reset_to_any')}
                   </button>
                 )}
               </div>
@@ -472,7 +484,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
               <input
                 type="range"
                 className="paladio-range-input"
-                aria-label={`Minimum stay duration: ${minNights} nights`}
+                aria-label={t('monitoring.min_stay_aria', { nights: minNights })}
                 min="1"
                 max="30"
                 step="1"
@@ -487,7 +499,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
               <input
                 type="range"
                 className="paladio-range-input"
-                aria-label={`Maximum stay duration: ${maxNights} nights`}
+                aria-label={t('monitoring.max_stay_aria', { nights: maxNights })}
                 min="1"
                 max="30"
                 step="1"
@@ -505,7 +517,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                 const isSelected = minNights === p.range[0] && maxNights === p.range[1];
                 return (
                   <button
-                    key={p.label}
+                    key={p.labelKey}
                     type="button"
                     className={`${styles.presetCard} ${isSelected ? styles.presetCardActive : ''}`}
                     onClick={() => {
@@ -513,8 +525,8 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                       setMaxNights(p.range[1]);
                     }}
                   >
-                    <span className={styles.presetTitle}>{p.label}</span>
-                    <span className={styles.presetSub}>{p.sub}</span>
+                    <span className={styles.presetTitle}>{t(p.labelKey)}</span>
+                    <span className={styles.presetSub}>{t(p.subKey)}</span>
                   </button>
                 );
               })}
@@ -524,8 +536,8 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
           {/* Target Ceiling Budget Envelope */}
           <div className={styles.sectionGroup}>
             <div className={styles.sectionLabel}>
-              <span>Target Ceiling Budget Envelope</span>
-              <span className={styles.hint}>Ceiling per passenger</span>
+              <span>{t('monitoring.target_budget_envelope')}</span>
+              <span className={styles.hint}>{t('monitoring.ceiling_per_passenger')}</span>
             </div>
             <div className={styles.budgetPillContainer}>
               <input
@@ -543,7 +555,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
               <button
                 type="button"
                 onClick={() => setIsCurrencyWheelOpen(true)}
-                title="Change currency with dynamic spin dial"
+                title={t('monitoring.change_currency_title')}
                 className={styles.currencyTriggerBtn}
               >
                 <FlagIcon countryCode={getCurrencyInfo(selectedCurrency).flag} size={15} />
@@ -557,7 +569,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
           </div>
 
           {showRateLimitWarning && (
-            <div className={styles.warningMessage} role="alertdialog" aria-live="assertive" aria-label="API Rate Limit Warning">
+            <div className={styles.warningMessage} role="alertdialog" aria-live="assertive" aria-label={t('monitoring.rate_limit_warning_aria')}>
               <div className={styles.warningIcon}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -568,7 +580,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
               <div className={styles.warningContent}>
                 <span className={styles.warningTag}>{"// API_RATE_LIMIT_ADVISORY"}</span>
                 <span className={styles.warningText}>
-                  You already have {existingRoutes?.length ?? 0} monitored routes. Monitoring more than 3 routes increases daily request volume, so external flight and hotel APIs may hit rate limits or work less reliably. Do you want to proceed anyway?
+                  {t('monitoring.rate_limit_warning_body', { count: existingRoutes?.length ?? 0 })}
                 </span>
               </div>
             </div>
@@ -584,7 +596,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                   onClick={() => setShowRateLimitWarning(false)}
                   disabled={isSubmitting}
                 >
-                  Go Back
+                  {t('monitoring.go_back')}
                 </button>
                 <button
                   type="submit"
@@ -594,10 +606,10 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                   {isSubmitting ? (
                     <>
                       <Spinner size={14} />
-                      <span>Configuring Target...</span>
+                      <span>{t('monitoring.configuring_target')}</span>
                     </>
                   ) : (
-                    <span>Proceed Anyway</span>
+                    <span>{t('monitoring.proceed_anyway')}</span>
                   )}
                 </button>
               </>
@@ -609,7 +621,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                   onClick={handleClose}
                   disabled={isSubmitting}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -619,10 +631,10 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                   {isSubmitting ? (
                     <>
                       <Spinner size={14} />
-                      <span>Configuring Target...</span>
+                      <span>{t('monitoring.configuring_target')}</span>
                     </>
                   ) : (
-                    <span>Activate Route Monitor</span>
+                    <span>{t('monitoring.activate_route_monitor')}</span>
                   )}
                 </button>
               </>

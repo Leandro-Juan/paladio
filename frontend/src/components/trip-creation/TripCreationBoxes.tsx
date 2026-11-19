@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useTrips } from '@/hooks/useTrips';
 import { useAuth } from '@/contexts/AuthContext';
 import { MealRequirement } from '@/types/domain';
@@ -81,6 +82,7 @@ export function TripCreationBoxes({
   status = 'connected',
   onReconnect,
 }: TripCreationBoxesProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const { saveTrip } = useTrips();
   const { user: currentUser } = useAuth();
@@ -167,7 +169,7 @@ export function TripCreationBoxes({
             const idx = nextParticipants.length + 1;
             nextParticipants.push({
               id: `deal-guest-${idx}`,
-              name: `Guest ${idx}`,
+              name: t('engine.deal_guest_name', { index: idx }),
               is_guest: true,
               is_organizer: false,
             });
@@ -338,11 +340,15 @@ export function TripCreationBoxes({
   const handleExtracted = (data: ExtractedTravelDocData) => {
     const today = new Date().toISOString().split('T')[0];
     if (data.departure_date && data.departure_date < today) {
-      setBlankError(`Invalid travel pass: Departure date (${data.departure_date}) precedes today's date (${today}). Past dates cannot be used.`);
+      setBlankError(
+        t('engine.doc_apply_past_departure_short', { date: data.departure_date, today })
+      );
       return;
     }
     if (data.check_in_date && data.check_in_date < today) {
-      setBlankError(`Invalid travel pass: Check-in date (${data.check_in_date}) precedes today's date (${today}). Past dates cannot be used.`);
+      setBlankError(
+        t('engine.doc_apply_past_checkin_short', { date: data.check_in_date, today })
+      );
       return;
     }
     setBlankError(null);
@@ -421,7 +427,7 @@ export function TripCreationBoxes({
         : undefined;
       const synthesized: TravelDocumentDraft = {
         ticket_type: 'flight',
-        title: `${data.flight_number || 'Flight'} ${data.origin_iata || data.origin_city || 'Origin'} → ${data.destination_iata || data.destination_city || 'Destination'}`,
+        title: `${data.flight_number || t('dashboard.flight_fallback')} ${data.origin_iata || data.origin_city || t('engine.origin_titlecase')} → ${data.destination_iata || data.destination_city || t('engine.destination_titlecase')}`,
         provider: data.carrier || undefined,
         reference_code: data.reference_code || undefined,
         holder_name: data.holder_name || undefined,
@@ -452,7 +458,7 @@ export function TripCreationBoxes({
         : undefined;
       const synthesized: TravelDocumentDraft = {
         ticket_type: 'hotel',
-        title: `${data.hotel_name} Stay`,
+        title: t('engine.hotel_stay_title', { hotel: data.hotel_name }),
         provider: data.hotel_name,
         reference_code: data.reference_code || undefined,
         holder_name: data.holder_name || undefined,
@@ -477,35 +483,35 @@ export function TripCreationBoxes({
   const handleCreateBlankTrip = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!destination.trim()) {
-      setBlankError('Destination city is required.');
+      setBlankError(t('engine.err_destination_required'));
       return;
     }
     if (!startDate || !endDate) {
-      setBlankError('Please select departure and return dates on the calendar.');
+      setBlankError(t('engine.err_dates_required'));
       return;
     }
     const today = new Date().toISOString().split('T')[0];
     if (startDate < today) {
-      setBlankError(`Trip departure date (${startDate}) cannot precede today's date (${today}).`);
+      setBlankError(t('engine.err_start_before_today', { startDate, today }));
       return;
     }
     if (endDate < startDate) {
-      setBlankError('Trip return date cannot precede departure date.');
+      setBlankError(t('engine.err_end_before_start'));
       return;
     }
     const effectiveCheckInDate = hotelCheckInDate || startDate;
     const effectiveCheckOutDate = hotelCheckOutDate || endDate;
     if (effectiveCheckOutDate < effectiveCheckInDate) {
-      setBlankError('Hotel check-out date cannot precede check-in date.');
+      setBlankError(t('engine.err_checkout_before_checkin'));
       return;
     }
     if (!participants || participants.length === 0) {
-      setBlankError('At least one traveler or participant must be added to the trip.');
+      setBlankError(t('engine.err_participant_required'));
       return;
     }
     setBlankError(null);
     setIsCreatingBlank(true);
-    onBlankSubmitStart?.('Creating blank trip workspace...');
+    onBlankSubmitStart?.(t('engine.creating_blank_workspace'));
 
     try {
       const start = parseLocalIsoDate(startDate);
@@ -550,7 +556,7 @@ export function TripCreationBoxes({
             effectiveIata = apData.iata;
             airportPoi = {
               id: `airport-${String(apData.iata).toLowerCase()}`,
-              name: apData.name || `${apData.iata} Airport`,
+              name: apData.name || t('engine.airport_suffix_name', { name: apData.iata }),
               city: apData.city || destination.trim(),
               category: 'AIRPORT',
               duration_mins: 120,
@@ -568,7 +574,9 @@ export function TripCreationBoxes({
       if (!airportPoi) {
         airportPoi = {
           id: effectiveIata ? `airport-${effectiveIata.toLowerCase()}` : 'airport-dest',
-          name: effectiveIata ? `${effectiveIata} Airport` : `${destination.trim()} Airport`,
+          name: effectiveIata
+            ? t('engine.airport_suffix_name', { name: effectiveIata })
+            : t('engine.airport_suffix_name', { name: destination.trim() }),
           city: destination.trim(),
           category: 'AIRPORT',
           duration_mins: 120,
@@ -606,7 +614,7 @@ export function TripCreationBoxes({
 
       const hotelPoi = {
         id: 'hotel-base',
-        name: hotelArea.trim() || 'Accommodation / Hotel',
+        name: hotelArea.trim() || t('engine.accommodation_hotel_fallback'),
         city: destination.trim(),
         category: 'HOTEL',
         duration_mins: 0,
@@ -683,7 +691,7 @@ export function TripCreationBoxes({
         days.push({
           day: i,
           date: dayDateStr,
-          theme: `Day ${i} Exploration`,
+          theme: t('engine.day_exploration_theme', { day: i }),
           itinerary: {
             day_index: i - 1,
             path: dayPath,
@@ -696,7 +704,7 @@ export function TripCreationBoxes({
 
       const outboundFlightDoc = scannedDocuments.find((d) => d.ticket_type === 'flight');
       const blankItineraryData = {
-        title: tripTitle.trim() || `Trip to ${destination.trim()}`,
+        title: tripTitle.trim() || t('engine.trip_to_destination', { destination: destination.trim() }),
         destination: destination.trim(),
         origin: origin.trim() || undefined,
         description: tripDescription.trim() || undefined,
@@ -784,15 +792,15 @@ export function TripCreationBoxes({
 
       if (createdTrip?.id) {
         resetDraft();
-        setBlankSuccess('Trip created! Seeding POIs & GTFS in background...');
+        setBlankSuccess(t('engine.blank_trip_created_msg'));
         setTimeout(() => {
           router.push(`/trips/${createdTrip.id}`);
         }, 500);
       } else {
-        throw new Error('Failed to create trip in database.');
+        throw new Error(t('engine.err_create_trip_db'));
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error creating blank trip.';
+      const msg = err instanceof Error ? err.message : t('engine.err_creating_blank_trip');
       setBlankError(msg);
       setIsCreatingBlank(false);
     }
@@ -803,26 +811,26 @@ export function TripCreationBoxes({
     e.preventDefault();
     if (!personalizedPrompt.trim()) return;
     if (!startDate || !endDate) {
-      setBlankError('Please select departure and return dates on the calendar.');
+      setBlankError(t('engine.err_dates_required'));
       return;
     }
     const today = new Date().toISOString().split('T')[0];
     if (startDate < today) {
-      setBlankError(`Trip departure date (${startDate}) cannot precede today's date (${today}).`);
+      setBlankError(t('engine.err_start_before_today', { startDate, today }));
       return;
     }
     if (endDate < startDate) {
-      setBlankError('Trip return date cannot precede departure date.');
+      setBlankError(t('engine.err_end_before_start'));
       return;
     }
     const effectiveCheckInDate = hotelCheckInDate || startDate;
     const effectiveCheckOutDate = hotelCheckOutDate || endDate;
     if (effectiveCheckOutDate < effectiveCheckInDate) {
-      setBlankError('Hotel check-out date cannot precede check-in date.');
+      setBlankError(t('engine.err_checkout_before_checkin'));
       return;
     }
     if (!participants || participants.length === 0) {
-      setBlankError('At least one traveler or participant must be added to the trip.');
+      setBlankError(t('engine.err_participant_required'));
       return;
     }
     setBlankError(null);
@@ -831,7 +839,7 @@ export function TripCreationBoxes({
       auto_verify: true,
       test_mode: anchorMode === 'simulated',
       plan_mode: 'estimated',
-      title: tripTitle.trim() || `Trip to ${destination.trim()}`,
+      title: tripTitle.trim() || t('engine.trip_to_destination', { destination: destination.trim() }),
       description: tripDescription.trim() || undefined,
       booking_text: anchorMode === 'direct' ? rawBookingText : undefined,
       scanned_documents: scannedDocuments,
@@ -868,7 +876,7 @@ export function TripCreationBoxes({
       } : undefined,
       manual_constraints: {
         plan_mode: 'estimated',
-        title: tripTitle.trim() || `Trip to ${destination.trim()}`,
+        title: tripTitle.trim() || t('engine.trip_to_destination', { destination: destination.trim() }),
         description: tripDescription.trim() || undefined,
         origin_city: origin.trim() || undefined,
         origin_iata: originIata.trim().toUpperCase() || undefined,
@@ -904,12 +912,15 @@ export function TripCreationBoxes({
     onPersonalizedSubmit(personalizedPrompt, extras);
   };
 
-  const promptPresets = [
-    { label: 'Architecture & Art', icon: 'museum', text: 'Focus on iconic architecture, world-class art museums, and historical landmarks.' },
-    { label: 'Gastronomy & Cafes', icon: 'gastronomy', text: 'Highlight traditional local bistros, artisanal bakeries, cozy coffee shops, and authentic food markets.' },
-    { label: 'Hidden Gems', icon: 'compass', text: 'Avoid large tourist queues. Prioritize charming hidden alleys, quiet parks, and neighborhood secrets.' },
-    { label: 'Fast-Paced Route', icon: 'lightning', text: 'High-intensity efficient route covering maximum top sights with smooth transit connections.' },
-  ];
+  const promptPresets = useMemo(
+    () => [
+      { label: t('engine.preset_arch_label'), icon: 'museum', text: t('engine.preset_arch_text') },
+      { label: t('engine.preset_gastro_label'), icon: 'gastronomy', text: t('engine.preset_gastro_text') },
+      { label: t('engine.preset_hidden_label'), icon: 'compass', text: t('engine.preset_hidden_text') },
+      { label: t('engine.preset_fast_label'), icon: 'lightning', text: t('engine.preset_fast_text') },
+    ],
+    [t]
+  );
 
   return (
     <div style={{ width: '100%', maxWidth: '1280px', margin: '0 auto' }}>
@@ -970,7 +981,7 @@ export function TripCreationBoxes({
               }}
             >
               <StarIcon size={14} color={selectedMode === 'personalized' ? '#FFFFFF' : 'currentColor'} />
-              <span>Personalized Trip</span>
+              <span>{t('engine.personalized_trip_mode')}</span>
             </button>
             <button
               type="button"
@@ -992,7 +1003,7 @@ export function TripCreationBoxes({
               }}
             >
               <DocumentIcon size={14} color={selectedMode === 'blank' ? '#FFFFFF' : 'currentColor'} />
-              <span>Blank Trip</span>
+              <span>{t('engine.blank_trip_mode')}</span>
             </button>
           </div>
 
@@ -1028,7 +1039,7 @@ export function TripCreationBoxes({
               }}
             >
               <PlusIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
-              <span>Upload Documents</span>
+              <span>{t('engine.upload_documents_btn')}</span>
             </button>
           </div>
         </div>
@@ -1063,7 +1074,7 @@ export function TripCreationBoxes({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={currentPhoto}
-                    alt={destination || 'Travel destination'}
+                    alt={destination || t('engine.travel_destination_alt')}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -1097,7 +1108,7 @@ export function TripCreationBoxes({
                 <button
                   type="button"
                   onClick={() => setIsUploadModalOpen(true)}
-                  title="Upload your own trip photo"
+                  title={t('engine.upload_own_photo_title')}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -1117,7 +1128,7 @@ export function TripCreationBoxes({
                   }}
                 >
                   <PaperclipIcon size={12} color="#FFFFFF" />
-                  <span>Upload Photo</span>
+                  <span>{t('workspace.upload_photo')}</span>
                 </button>
 
                 {currentPhoto ? (
@@ -1127,7 +1138,7 @@ export function TripCreationBoxes({
                       setIsPhotoRemoved(true);
                       setCustomPhotoUrl('');
                     }}
-                    title="Remove photo altogether"
+                    title={t('engine.remove_photo_title')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -1153,7 +1164,7 @@ export function TripCreationBoxes({
                       setIsPhotoRemoved(false);
                       setCustomPhotoUrl('');
                     }}
-                    title="Restore default destination photo"
+                    title={t('engine.restore_default_photo_title')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -1171,7 +1182,7 @@ export function TripCreationBoxes({
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    Reset
+                    {t('engine.reset_btn')}
                   </button>
                 )}
               </div>
@@ -1206,7 +1217,11 @@ export function TripCreationBoxes({
                     type="text"
                     value={tripTitle}
                     onChange={(e) => setTripTitle(e.target.value)}
-                    placeholder={destination.trim() ? `Trip to ${destination.trim()}` : 'Trip to Europe'}
+                    placeholder={
+                      destination.trim()
+                        ? t('engine.trip_to_destination', { destination: destination.trim() })
+                        : t('engine.trip_to_europe_placeholder')
+                    }
                     style={{
                       background: 'transparent',
                       border: 'none',
@@ -1234,7 +1249,7 @@ export function TripCreationBoxes({
                     letterSpacing: '0.04em',
                   }}
                 >
-                  {destination ? destination.toUpperCase() : 'DESTINATION'}
+                  {destination ? destination.toUpperCase() : t('engine.destination_upper')}
                 </span>
               </div>
             </div>
@@ -1256,7 +1271,7 @@ export function TripCreationBoxes({
                 type="text"
                 value={tripDescription}
                 onChange={(e) => setTripDescription(e.target.value)}
-                placeholder="Trip description (e.g. Autumn photography journey through local neighborhoods)..."
+                placeholder={t('engine.trip_description_placeholder')}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -1288,7 +1303,7 @@ export function TripCreationBoxes({
                     color: 'var(--color-text-muted)',
                   }}
                 >
-                  Flight Route & Time Windows
+                  {t('engine.flight_route_time_windows')}
                 </label>
               </div>
               <RouteIntakeBar
@@ -1346,7 +1361,7 @@ export function TripCreationBoxes({
                     marginBottom: '6px',
                   }}
                 >
-                  Budget Envelope
+                  {t('engine.budget_envelope')}
                 </label>
                 <div
                   style={{
@@ -1382,7 +1397,7 @@ export function TripCreationBoxes({
                   <button
                     type="button"
                     onClick={() => setIsCurrencyWheelOpen(true)}
-                    title="Change currency with dynamic spin dial"
+                    title={t('engine.change_currency_dial_title')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -1435,7 +1450,7 @@ export function TripCreationBoxes({
                 color: 'var(--color-text-muted)',
               }}
             >
-              Travel Window & Calendar
+              {t('engine.travel_window_calendar')}
             </label>
             <PaladioDateRangePicker
               startDate={startDate}
@@ -1504,7 +1519,7 @@ export function TripCreationBoxes({
                 }}
               >
                 <Spinner size={16} color="#2563EB" />
-                <span>Swarm inferencing & optimizing route in C++20...</span>
+                <span>{t('engine.swarm_inferencing_optimizing')}</span>
               </div>
             )}
 
@@ -1526,7 +1541,7 @@ export function TripCreationBoxes({
                     justifyContent: 'space-between',
                   }}
                 >
-                  <span>Gateway uplink offline (auto-reconnecting...)</span>
+                  <span>{t('engine.gateway_uplink_offline')}</span>
                   {onReconnect && (
                     <button
                       type="button"
@@ -1541,7 +1556,7 @@ export function TripCreationBoxes({
                         textDecoration: 'underline',
                       }}
                     >
-                      Retry Now
+                      {t('engine.retry_now')}
                     </button>
                   )}
                 </div>
@@ -1573,12 +1588,12 @@ export function TripCreationBoxes({
                   {status === 'inferencing' ? (
                     <>
                       <Spinner size={16} color="#FFFFFF" />
-                      Optimization In Progress...
+                      {t('engine.optimization_in_progress')}
                     </>
                   ) : (
                     <>
                       <StarIcon size={15} color="#FFFFFF" />
-                      <span>Generate Sovereign Trip Plan</span>
+                      <span>{t('engine.generate_sovereign_trip_plan')}</span>
                       <ArrowRightIcon size={14} />
                     </>
                   )}
@@ -1610,12 +1625,12 @@ export function TripCreationBoxes({
                   {isCreatingBlank ? (
                     <>
                       <Spinner size={16} color="#FFFFFF" />
-                      Creating Blank Trip & Seeding POIs...
+                      {t('engine.creating_blank_trip_seeding')}
                     </>
                   ) : (
                     <>
                       <DocumentIcon size={15} color="#FFFFFF" />
-                      <span>Create Blank Canvas Trip</span>
+                      <span>{t('engine.create_blank_canvas_trip')}</span>
                       <ArrowRightIcon size={14} />
                     </>
                   )}
@@ -1642,14 +1657,14 @@ export function TripCreationBoxes({
           >
             <div>
               <span className="font-mono text-xs text-muted" style={{ fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                Describe your ideal trip
+                {t('engine.describe_ideal_trip')}
               </span>
             </div>
             <textarea
               rows={2}
               value={personalizedPrompt}
               onChange={(e) => setPersonalizedPrompt(e.target.value)}
-              placeholder="Describe your travel vision, desired rhythm, favorite cuisines, special interests, or specific stops..."
+              placeholder={t('engine.personalized_prompt_placeholder')}
               style={{
                 background: 'transparent',
                 border: 'none',

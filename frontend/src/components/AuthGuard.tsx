@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { useNavigationStore } from '@/stores/navigationStore';
 import { AppSidebar } from './AppSidebar';
@@ -13,6 +14,7 @@ import { PaladioLoader } from './common/PaladioLoader';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, setupRequired, isLoading, reconnectAttempts } = useAuth();
+  const { t } = useTranslation();
   const { toggleMobile } = useSidebarStore();
   const { navStyle } = useNavigationStore();
   const pathname = usePathname();
@@ -44,11 +46,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       reconnectMessage = (
         <div style={{ textAlign: 'center', maxWidth: '340px' }}>
           <p className="font-mono text-xs" style={{ opacity: 0.7, letterSpacing: '0.08em', margin: 0 }}>
-            {'// CONNECTING TO PALADIO CORE...'}
+            {t('auth.connecting_core')}
           </p>
           {reconnectAttempts >= 10 && (
             <p className="font-mono text-xs" style={{ opacity: 0.5, fontSize: '11px', marginTop: '6px' }}>
-              Engine startup is taking longer than usual. Waiting for container initialization.
+              {t('auth.engine_startup_slow')}
             </p>
           )}
         </div>
@@ -84,12 +86,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   return (
     <div className="layout-container">
       {/* Mobile Top App Bar (visible on <= 768px via CSS) */}
-      <header className="mobile-app-header" aria-label="Mobile Navigation Bar">
+      <header className="mobile-app-header" aria-label={t('nav.mobile_nav_bar')}>
         <button
           type="button"
           onClick={() => toggleMobile()}
           className="mobile-menu-btn"
-          aria-label="Open navigation menu"
+          aria-label={t('nav.open_nav_menu')}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="3" y1="12" x2="21" y2="12" />
@@ -98,7 +100,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           </svg>
         </button>
 
-        <Link href="/dashboard" style={{ textDecoration: 'none' }} aria-label="Paladio Dashboard">
+        <Link href="/dashboard" style={{ textDecoration: 'none' }} aria-label={t('nav.paladio_dashboard')}>
           <div className="logo-container">
             <div className="logo-mark" aria-hidden="true" style={{ width: '30px', height: '30px' }}>
               <div className="logo-icon-sun" style={{ width: '28px', height: '28px' }} />

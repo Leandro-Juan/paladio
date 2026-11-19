@@ -22,6 +22,7 @@ import {
 } from '@/utils/currencyResolver';
 import { CurrencyWheelPicker } from './costs/CurrencyWheelPicker';
 import { getCostCategoryMeta } from './costs/costsCategories';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface TripCostsViewProps {
   trip: Trip;
@@ -30,6 +31,8 @@ interface TripCostsViewProps {
 }
 
 export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const {
     getTripExpenses,
     addTripExpense,
@@ -202,12 +205,12 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
             items.push({
               id: `itin-poi-${dayNum}-${poiIdx}-${p?.name || 'ticket'}`,
               source: 'itinerary',
-              title: p?.name ? `${p.name} admission` : `Day ${dayNum} Admission`,
+              title: p?.name ? t('costs.poi_admission', { name: p.name }) : t('costs.day_admission', { day: dayNum }),
               category: p?.category || 'activities',
               amount: cost,
               convertedAmount: convertCurrency(cost, 'EUR', activeCurrency, eurRates),
               currency: 'EUR',
-              date: dayDate || `Day ${dayNum}`,
+              date: dayDate || t('trips.day_label', { number: dayNum }),
               isUnfinished: true,
               raw: scheduledPoi,
             });
@@ -217,7 +220,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     });
 
     return items;
-  }, [itinerary, trip.start_date, activeCurrency, eurRates]);
+  }, [itinerary, trip.start_date, activeCurrency, eurRates, t]);
 
   // Map logged expenses
   const loggedItems = useMemo<DisplayExpenseItem[]>(() => {
@@ -235,17 +238,17 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         currency: cur,
         date: e.expense_date || undefined,
         payerId: e.payer_id,
-        payerName: payer?.name || e.payer_name || 'Traveler',
+        payerName: payer?.name || e.payer_name || t('costs.traveler_fallback'),
         isUnfinished: !e.payer_id,
         splitSummary: isSingleTraveler
           ? undefined
           : e.split_type === 'custom'
-          ? 'Custom split'
-          : `Split among ${e.splits?.length || participants.length} travelers`,
+          ? t('costs.custom_split_summary')
+          : t('costs.split_among_travelers', { count: e.splits?.length || participants.length }),
         raw: e,
       };
     });
-  }, [expenses, participants, activeCurrency, eurRates, isSingleTraveler]);
+  }, [expenses, participants, activeCurrency, eurRates, isSingleTraveler, t]);
 
   // Deduplicate route estimates that have already been logged/paid
   const visibleItineraryItems = useMemo<DisplayExpenseItem[]>(() => {
@@ -279,8 +282,9 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
         const query = search.toLowerCase();
         const matchesTitle = item.title.toLowerCase().includes(query);
         const matchesCat = item.category.toLowerCase().includes(query);
+        const matchesCatLabel = t(getCostCategoryMeta(item.category).labelKey).toLowerCase().includes(query);
         const matchesPayer = (item.payerName || '').toLowerCase().includes(query);
-        if (!matchesTitle && !matchesCat && !matchesPayer) return false;
+        if (!matchesTitle && !matchesCat && !matchesCatLabel && !matchesPayer) return false;
       }
 
       // Category filter
@@ -377,7 +381,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
   const groupedByDate = useMemo(() => {
     const groups: Record<string, DisplayExpenseItem[]> = {};
     filteredItems.forEach((item) => {
-      const dateKey = item.date || 'NO DATE';
+      const dateKey = item.date || t('costs.no_date_upper');
       if (!groups[dateKey]) groups[dateKey] = [];
       groups[dateKey].push(item);
     });
@@ -386,7 +390,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
       entries,
       subtotal: entries.reduce((sum, e) => sum + (e.convertedAmount ?? e.amount), 0),
     }));
-  }, [filteredItems]);
+  }, [filteredItems, t]);
 
   // Date range formatted
   const tripDateMeta = useMemo(() => {
@@ -396,12 +400,12 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
       const d2 = trip.end_date ? new Date(trip.end_date) : d1;
       const days = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / (1000 * 3600 * 24)) + 1);
       const opt: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-      const range = `${d1.toLocaleDateString(undefined, opt)} - ${d2.toLocaleDateString(undefined, opt)}`;
+      const range = `${d1.toLocaleDateString(intlLocale, opt)} - ${d2.toLocaleDateString(intlLocale, opt)}`;
       return { range, days };
     } catch {
       return null;
     }
-  }, [trip.start_date, trip.end_date]);
+  }, [trip.start_date, trip.end_date, intlLocale]);
 
   // Today's spend in active currency
   const todaySpend = useMemo(() => {
@@ -454,7 +458,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
 
   const handleDeleteExpense = async (item: DisplayExpenseItem) => {
     if (!trip.id || item.source !== 'logged') return;
-    if (window.confirm(`Delete expense "${item.title}"?`)) {
+    if (window.confirm(t('costs.confirm_delete_expense', { title: item.title }))) {
       const ok = await deleteTripExpense(trip.id, item.id);
       if (ok) {
         await loadData();
@@ -511,7 +515,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
     // Record as a settled reimbursement expense where sender pays receiver
     const res = await addTripExpense(trip.id, {
       payer_id: data.sender_id,
-      description: data.description || 'Debt settlement payment',
+      description: data.description || t('costs.debt_settlement_payment'),
       amount: data.amount,
       currency: activeCurrency,
       category: 'other',
@@ -534,7 +538,15 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
 
   const handleExportCsv = () => {
     if (allItems.length === 0) return;
-    const headers = ['Date', 'Title', 'Category', 'Amount', 'Currency', 'Source', 'Payer'];
+    const headers = [
+      t('common.date'),
+      t('costs.csv_title'),
+      t('workspace.category'),
+      t('costs.amount_label'),
+      t('costs.csv_currency'),
+      t('costs.csv_source'),
+      t('costs.csv_payer'),
+    ];
     const rows = allItems.map((i) => [
       `"${i.date || ''}"`,
       `"${i.title.replace(/"/g, '""')}"`,
@@ -586,7 +598,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                 fontWeight: 500,
               }}
             >
-              {tripDateMeta.range} · <b style={{ color: 'var(--color-text-main)' }}>{tripDateMeta.days} days</b>
+              {tripDateMeta.range} · <b style={{ color: 'var(--color-text-main)' }}>{t('costs.days_count', { count: tripDateMeta.days })}</b>
             </span>
           )}
 
@@ -620,7 +632,12 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
             >
               {participants.length || 1}
             </span>
-            {participants.length || 1} traveler{participants.length !== 1 ? 's' : ''}
+            {(() => {
+              const travelerCount = participants.length || 1;
+              return travelerCount === 1
+                ? t('costs.traveler_count_one', { count: 1 })
+                : t('costs.traveler_count_other', { count: travelerCount });
+            })()}
           </span>
         </div>
 
@@ -651,7 +668,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
-              Settle up
+              {t('costs.settle_up_btn')}
             </button>
           )}
 
@@ -683,7 +700,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Add expense
+            {t('costs.add_expense_btn')}
           </button>
         </div>
       </div>
@@ -746,7 +763,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
 
           {isLoading ? (
             <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--color-text-muted)' }}>
-              Loading trip expenses...
+              {t('costs.loading_expenses')}
             </div>
           ) : groupedByDate.length === 0 ? (
             <div
@@ -776,14 +793,14 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                 </svg>
               </div>
               <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-main)' }}>
-                No expenses found
+                {t('costs.no_expenses_found')}
               </h4>
               <p style={{ margin: '6px 0 16px 0', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
                 {search || categoryFilter || dayFilter || scopeFilter !== 'all'
-                  ? 'Try clearing active filters to see all trip costs.'
+                  ? t('costs.empty_filtered_hint')
                   : isSingleTraveler
-                  ? 'Start by logging your first expense or marking route estimates as paid.'
-                  : 'Start by logging your first expense or assigning route tickets.'}
+                  ? t('costs.empty_solo_hint')
+                  : t('costs.empty_shared_hint')}
               </p>
               <button
                 type="button"
@@ -802,7 +819,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                   cursor: 'pointer',
                 }}
               >
-                + Add first expense
+                {t('costs.add_first_expense')}
               </button>
             </div>
           ) : (
@@ -839,7 +856,9 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
                         fontWeight: 600,
                       }}
                     >
-                      {getCurrencyInfo(activeCurrency).symbol}{group.subtotal.toFixed(2)} spent
+                      {t('costs.amount_spent', {
+                        amount: `${getCurrencyInfo(activeCurrency).symbol}${group.subtotal.toFixed(2)}`,
+                      })}
                     </span>
                   </div>
 

@@ -253,6 +253,7 @@ export interface PoiDetail {
     reviews?: number | null;
   };
   description?: string | null;
+  description_lang?: string | null;
   description_source?: string | null;
   wikipedia_title?: string | null;
   wikidata_id?: string | null;

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { PoiCategoryIcon } from '@/components/PoiCategoryBadge';
 import { isHotelPoi, isAirportPoi } from '@/utils/poiCategory';
 import { GripVerticalIcon, LockIcon, UnlockIcon, ChevronUpIcon, ChevronDownIcon, ClockIcon } from '@/components/icons';
@@ -84,6 +85,7 @@ export function MinimalistPoiCard({
   className,
   style,
 }: MinimalistPoiCardProps) {
+  const { t } = useTranslation();
   const { getPhoto, requestPhoto } = usePoiPhotos();
   const [imgFailed, setImgFailed] = useState(false);
   const [activeHourPicker, setActiveHourPicker] = useState<'entry' | 'exit' | null>(null);
@@ -107,9 +109,9 @@ export function MinimalistPoiCard({
   } else if (openHours) {
     timeDisplay = openHours;
   } else if (durationMins && durationMins > 0) {
-    timeDisplay = `~${durationMins}m`;
+    timeDisplay = t('workspace.approx_duration_short', { mins: durationMins });
   } else {
-    timeDisplay = 'Flexible';
+    timeDisplay = t('workspace.flexible_time');
   }
 
   const isLocked = Boolean(anchorInfo?.isFixed);
@@ -223,7 +225,7 @@ export function MinimalistPoiCard({
                 display: 'flex',
                 alignItems: 'center',
               }}
-              aria-label="Drag to reorder"
+              aria-label={t('workspace.drag_to_reorder')}
             >
               <GripVerticalIcon size={12} color="var(--color-text-muted)" />
             </span>
@@ -264,7 +266,7 @@ export function MinimalistPoiCard({
                 alignItems: 'center',
                 borderRadius: 'var(--radius-sm)',
               }}
-              aria-label={anchorInfo.isFixed ? 'Locked waypoint (click to unlock)' : 'Unlocked waypoint (click to lock)'}
+              aria-label={anchorInfo.isFixed ? t('workspace.locked_waypoint_aria') : t('workspace.unlocked_waypoint_aria')}
             >
               {anchorInfo.isFixed ? (
                 <LockIcon size={11} color="var(--color-accent-primary)" />
@@ -293,7 +295,7 @@ export function MinimalistPoiCard({
                     alignItems: 'center',
                     color: 'var(--color-text-muted)',
                   }}
-                  aria-label="Move stop up"
+                  aria-label={t('workspace.move_stop_up')}
                 >
                   <ChevronUpIcon size={10} color="currentColor" />
                 </button>
@@ -314,7 +316,7 @@ export function MinimalistPoiCard({
                     alignItems: 'center',
                     color: 'var(--color-text-muted)',
                   }}
-                  aria-label="Move stop down"
+                  aria-label={t('workspace.move_stop_down')}
                 >
                   <ChevronDownIcon size={10} color="currentColor" />
                 </button>
@@ -340,8 +342,8 @@ export function MinimalistPoiCard({
                     fontWeight: 700,
                     lineHeight: 1,
                   }}
-                  aria-label={`Remove ${name} from day`}
-                  title={`Remove ${name} from day`}
+                  aria-label={t('workspace.remove_stop_from_day', { name })}
+                  title={t('workspace.remove_stop_from_day', { name })}
                 >
                   -
                 </button>
@@ -393,7 +395,7 @@ export function MinimalistPoiCard({
               <button
                 type="button"
                 data-testid={`poi-entry-time-${id || stopNum || name}`}
-                aria-label={`Entry time for ${name}`}
+                aria-label={t('workspace.entry_time_for', { name })}
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveHourPicker('entry');
@@ -421,7 +423,7 @@ export function MinimalistPoiCard({
               <button
                 type="button"
                 data-testid={`poi-exit-time-${id || stopNum || name}`}
-                aria-label={`Exit time for ${name}`}
+                aria-label={t('workspace.exit_time_for', { name })}
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveHourPicker('exit');
@@ -489,7 +491,7 @@ export function MinimalistPoiCard({
             )}
             {typeof costEur === 'number' && costEur === 0 && !isHotelPoi({ category, name, id }) && !isAirportPoi({ category, name, id }) && (
               <span style={{ color: '#10b981', fontWeight: 600 }}>
-                • Free
+                • {t('workspace.free')}
               </span>
             )}
           </div>
@@ -545,7 +547,11 @@ export function MinimalistPoiCard({
               onUpdateTimes?.(entryVal || newVal, newVal);
             }
           }}
-          anchorLabel={activeHourPicker === 'entry' ? `Entry Time: ${name}` : `Exit Time: ${name}`}
+          anchorLabel={
+            activeHourPicker === 'entry'
+              ? t('workspace.entry_time_label', { name })
+              : t('workspace.exit_time_label', { name })
+          }
           zIndex={1000}
         />
       )}

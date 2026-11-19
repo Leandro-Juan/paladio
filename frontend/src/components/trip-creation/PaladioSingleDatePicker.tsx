@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { CalendarIcon } from '@/components/icons';
 
 interface PaladioSingleDatePickerProps {
@@ -12,24 +13,15 @@ interface PaladioSingleDatePickerProps {
   maxDate?: string; // YYYY-MM-DD
 }
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
-
-const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-function formatDisplayDate(dateStr: string): string {
+function formatDisplayDate(dateStr: string, intlLocale: string): string {
   if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  const y = parts[0];
-  const mIndex = parseInt(parts[1], 10) - 1;
-  const d = parseInt(parts[2], 10);
-  const mStr = MONTH_ABBR[mIndex] || parts[1];
-  return `${mStr} ${d}, ${y}`;
+  const parsed = parseDateStr(dateStr);
+  if (!parsed) return dateStr;
+  return new Intl.DateTimeFormat(intlLocale, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(parsed);
 }
 
 function parseDateStr(str: string): Date | null {
@@ -58,6 +50,19 @@ export function PaladioSingleDatePicker({
   minDate,
   maxDate,
 }: PaladioSingleDatePickerProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
+
+  const weekdays = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(intlLocale, { weekday: 'short' });
+    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)));
+  }, [intlLocale]);
+
+  const monthNames = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(intlLocale, { month: 'long' });
+    return Array.from({ length: 12 }, (_, m) => fmt.format(new Date(2024, m, 1)));
+  }, [intlLocale]);
+
   const initialDate = useMemo(() => parseDateStr(selectedDate) || new Date(), [selectedDate]);
 
   // Current viewed month (first day of viewed month)
@@ -151,7 +156,7 @@ export function PaladioSingleDatePicker({
         <button
           type="button"
           onClick={handlePrevMonth}
-          aria-label="Previous month"
+          aria-label={t('calendar.prev_month')}
           style={{
             background: 'var(--color-surface-raised, #FAF8F5)',
             border: '1px solid var(--color-border, #E2D9CC)',
@@ -175,13 +180,13 @@ export function PaladioSingleDatePicker({
           className="font-mono text-xs"
           style={{ letterSpacing: '0.05em', fontWeight: 700, color: 'var(--color-text-primary, #1A1A1A)' }}
         >
-          {MONTH_NAMES[m]} {y}
+          {t('calendar.month_year_title', { month: monthNames[m], year: y })}
         </span>
 
         <button
           type="button"
           onClick={handleNextMonth}
-          aria-label="Next month"
+          aria-label={t('calendar.next_month')}
           style={{
             background: 'var(--color-surface-raised, #FAF8F5)',
             border: '1px solid var(--color-border, #E2D9CC)',
@@ -211,9 +216,9 @@ export function PaladioSingleDatePicker({
           marginBottom: '6px',
         }}
       >
-        {WEEKDAYS.map((day) => (
+        {weekdays.map((day, idx) => (
           <div
-            key={day}
+            key={`${day}-${idx}`}
             className="font-mono text-xs text-muted"
             style={{
               textAlign: 'center',
@@ -305,7 +310,7 @@ export function PaladioSingleDatePicker({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
           <CalendarIcon size={13} color="currentColor" />
-          <span>{selectedDate ? formatDisplayDate(selectedDate) : 'No date set'}</span>
+          <span>{selectedDate ? formatDisplayDate(selectedDate, intlLocale) : t('engine.no_date_set')}</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -324,7 +329,7 @@ export function PaladioSingleDatePicker({
                 borderRadius: '4px',
               }}
             >
-              Clear
+              {t('common.clear')}
             </button>
           )}
           {onClose && (
@@ -342,7 +347,7 @@ export function PaladioSingleDatePicker({
                 borderRadius: '6px',
               }}
             >
-              Done
+              {t('common.done')}
             </button>
           )}
         </div>

@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
+import { useTranslation } from '@/hooks/useTranslation';
 import { CameraTacticalIllustration } from '@/components/illustrations';
 import { CloseIcon, PlusIcon, Spinner, UploadIcon, VideoIcon } from '@/components/icons';
 
@@ -19,6 +20,7 @@ export function PhotoUploadModal({
   onUpload,
   isUploading = false,
 }: PhotoUploadModalProps) {
+  const { t } = useTranslation();
   const isMounted = useIsMounted();
   const [dragOver, setDragOver] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -175,8 +177,8 @@ export function PhotoUploadModal({
             justifyContent: 'center',
             transition: 'background 0.15s ease',
           }}
-          title="Close"
-          aria-label="Close"
+          title={t('common.close')}
+          aria-label={t('common.close')}
         >
           <CloseIcon size={18} />
         </button>
@@ -233,11 +235,11 @@ export function PhotoUploadModal({
                 marginTop: '4px',
               }}
             >
-              Drag & Drop Photos & Videos Here
+              {t('photos.dropzone_title')}
             </span>
 
             <span className="font-mono text-xs text-muted" style={{ fontSize: '11px', color: 'var(--color-text-muted, #566B76)' }}>
-              Supports JPG, PNG, WebP, MP4, WebM, MOV • Auto-aligned in mosaic
+              {t('photos.dropzone_desc')}
             </span>
 
             {/* Tactical Plus Sign Browse Button */}
@@ -279,7 +281,7 @@ export function PhotoUploadModal({
               >
                 <PlusIcon size={12} color="#FFFFFF" />
               </div>
-              <span>Browse Files</span>
+              <span>{t('common.browse_files')}</span>
             </button>
           </div>
 
@@ -298,7 +300,7 @@ export function PhotoUploadModal({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="font-mono text-xs" style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                  SELECTED FILES ({selectedFiles.length})
+                  {t('photos.selected_files', { count: selectedFiles.length })}
                 </span>
                 <button
                   type="button"
@@ -313,7 +315,7 @@ export function PhotoUploadModal({
                     fontWeight: 600,
                   }}
                 >
-                  Clear All
+                  {t('photos.clear_all')}
                 </button>
               </div>
 
@@ -361,7 +363,7 @@ export function PhotoUploadModal({
                               gap: '3px',
                             }}
                           >
-                            <VideoIcon size={10} color="var(--color-hero-bg, #0F4C5C)" /> VIDEO
+                            <VideoIcon size={10} color="var(--color-hero-bg, #0F4C5C)" /> {t('photos.video_badge')}
                           </span>
                         )}
                         <span
@@ -421,7 +423,7 @@ export function PhotoUploadModal({
                     cursor: isUploading ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
 
                 <button
@@ -447,12 +449,20 @@ export function PhotoUploadModal({
                   {isUploading ? (
                     <>
                       <Spinner size={14} color="#FFFFFF" />
-                      <span>Uploading {selectedFiles.length} Media Item{selectedFiles.length > 1 ? 's' : ''}...</span>
+                      <span>
+                        {selectedFiles.length === 1
+                          ? t('photos.uploading_item_singular', { count: selectedFiles.length })
+                          : t('photos.uploading_item_plural', { count: selectedFiles.length })}
+                      </span>
                     </>
                   ) : (
                     <>
                       <UploadIcon size={14} color="#FFFFFF" />
-                      <span>Upload {selectedFiles.length} Media Item{selectedFiles.length > 1 ? 's' : ''}</span>
+                      <span>
+                        {selectedFiles.length === 1
+                          ? t('photos.upload_item_singular', { count: selectedFiles.length })
+                          : t('photos.upload_item_plural', { count: selectedFiles.length })}
+                      </span>
                     </>
                   )}
                 </button>

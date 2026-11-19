@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { User, UserRole } from '@/types/auth';
 import {
   SystemUpdateStatus,
@@ -86,6 +87,7 @@ interface InfrastructureSectionProps {
 }
 
 export function InfrastructureSection(props: InfrastructureSectionProps) {
+  const { t, locale } = useTranslation();
   const {
     onBackToOverview,
     subTab = 'updates',
@@ -156,9 +158,9 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
     setVaultConfig(updated);
     try {
       await updateDomainSettingsApi<VaultConfigData>('vault', patch);
-      notify.success('Vault Updated', 'Data vault & backup configuration updated');
+      notify.success(t('config.vault_updated_title'), t('config.vault_updated_msg'));
     } catch {
-      notify.error('Vault Error', 'Failed to update vault configuration');
+      notify.error(t('config.vault_error_title'), t('config.vault_update_failed'));
     }
   };
 
@@ -241,54 +243,62 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
       {subTab === 'vault' && (
         <>
           <SettingsHeader
-            title="Data Vault & Instance Backups"
-            subtitle="Manage encrypted instance snapshots, export JSON/PDF trip archives, and Immich / Synology photo sync"
+            title={t('config.vault_header_title')}
+            subtitle={t('config.vault_header_subtitle')}
             onBackToOverview={onBackToOverview}
           />
           <SettingsCardFrame
-            title="Sovereign Data Vault & Media Sync"
-            subtitle="Manage encrypted instance snapshots, export JSON/PDF trip archives, and sync itinerary photos to Immich and Synology"
-            badge={vaultConfig.auto_snapshot_enabled ? 'AUTO SNAPSHOTS ON' : 'MANUAL'}
+            title={t('config.vault_card_title')}
+            subtitle={t('config.vault_card_subtitle')}
+            badge={vaultConfig.auto_snapshot_enabled ? t('config.vault_badge_auto_on') : t('config.badge_manual')}
             badgeTone="gold"
             subTabs={[
-              { id: 'storage', label: 'Storage & Snapshots' },
-              { id: 'photo_sync', label: 'Photo Sync (Immich & Synology)' },
+              { id: 'storage', label: t('config.subtab_storage') },
+              { id: 'photo_sync', label: t('config.subtab_photo_sync') },
             ]}
             activeSubTab={vaultSubTab}
             onSelectSubTab={(id) => setVaultSubTab(id as 'storage' | 'photo_sync')}
 
-            innerTitle={vaultSubTab === 'storage' ? 'Instance Backup Registry' : 'Photo Sync Integrations'}
-            innerBadge={vaultSubTab === 'storage' ? `Retention: ${vaultConfig.snapshot_retention_days} days` : (vaultConfig.immich_enabled || vaultConfig.synology_enabled ? 'Active' : 'Standby')}
+            innerTitle={vaultSubTab === 'storage' ? t('config.vault_inner_storage') : t('config.vault_inner_photo')}
+            innerBadge={
+              vaultSubTab === 'storage'
+                ? t('config.vault_retention_badge', { days: vaultConfig.snapshot_retention_days })
+                : vaultConfig.immich_enabled || vaultConfig.synology_enabled
+                ? t('config.badge_active_title')
+                : t('config.badge_standby')
+            }
             menuItems={[
               {
                 id: 'create_snapshot',
-                label: 'Create Instant Snapshot',
+                label: t('config.create_snapshot_menu'),
                 onClick: async () => {
                   try {
                     const res = await createVaultSnapshotApi();
                     notify.success(
-                      'Snapshot Created',
-                      `Snapshot recorded at ${new Date(res.snapshot_at).toLocaleTimeString()}.`
+                      t('config.snapshot_created_title'),
+                      t('config.snapshot_created_msg', {
+                        time: new Date(res.snapshot_at).toLocaleTimeString(locale === 'en' ? undefined : locale),
+                      })
                     );
                   } catch (err: unknown) {
-                    const msg = err instanceof Error ? err.message : 'Failed to create snapshot';
-                    notify.error('Snapshot Error', msg);
+                    const msg = err instanceof Error ? err.message : t('config.snapshot_create_failed');
+                    notify.error(t('config.snapshot_error_title'), msg);
                   }
                 },
               },
               {
                 id: 'purge_cache',
-                label: 'Purge Valhalla & Tile Cache',
+                label: t('config.purge_cache_menu'),
                 onClick: async () => {
                   try {
                     const res = await purgeSystemCacheApi();
                     notify.info(
-                      'Cache Purged',
-                      `Cleared ${res.keys_cleared} cached routing/tile keys.`
+                      t('config.cache_purged_title'),
+                      t('config.cache_purged_msg', { count: res.keys_cleared })
                     );
                   } catch (err: unknown) {
-                    const msg = err instanceof Error ? err.message : 'Failed to purge cache';
-                    notify.error('Cache Purge Error', msg);
+                    const msg = err instanceof Error ? err.message : t('config.cache_purge_failed');
+                    notify.error(t('config.cache_purge_error_title'), msg);
                   }
                 },
               },
@@ -299,27 +309,27 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
                   <div>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                      Daily Automated Database Snapshots
+                      {t('config.auto_snapshots_title')}
                     </span>
                     <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
-                      Archives trips, POI embeddings, and GTFS schedules to sovereign disk storage
+                      {t('config.auto_snapshots_desc')}
                     </p>
                   </div>
                   <TacticalToggle
                     checked={vaultConfig.auto_snapshot_enabled}
                     onChange={(checked) => handleUpdateVault({ auto_snapshot_enabled: checked })}
                     tone="gold"
-                    ariaLabel="Toggle automated snapshots"
+                    ariaLabel={t('config.toggle_auto_snapshots_aria')}
                   />
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
                   <div>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                      Snapshot Retention Policy: {vaultConfig.snapshot_retention_days} Days
+                      {t('config.retention_policy_title', { days: vaultConfig.snapshot_retention_days })}
                     </span>
                     <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
-                      Older automated snapshots are pruned automatically to conserve volume disk space
+                      {t('config.retention_policy_desc')}
                     </p>
                   </div>
                   <select
@@ -335,27 +345,27 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
                       fontWeight: 600,
                     }}
                   >
-                    <option value={7}>7 days</option>
-                    <option value={14}>14 days</option>
-                    <option value={30}>30 days (Recommended)</option>
-                    <option value={90}>90 days</option>
+                    <option value={7}>{t('config.retention_7_days')}</option>
+                    <option value={14}>{t('config.retention_14_days')}</option>
+                    <option value={30}>{t('config.retention_30_days')}</option>
+                    <option value={90}>{t('config.retention_90_days')}</option>
                   </select>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
                   <div>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                      Anonymize Exported Trip Bundles
+                      {t('config.anonymize_exports_title')}
                     </span>
                     <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
-                      Strip traveler names and email credentials when exporting trips for public showcase
+                      {t('config.anonymize_exports_desc')}
                     </p>
                   </div>
                   <TacticalToggle
                     checked={vaultConfig.export_anonymized_trips}
                     onChange={(checked) => handleUpdateVault({ export_anonymized_trips: checked })}
                     tone="teal"
-                    ariaLabel="Toggle anonymized trip exports"
+                    ariaLabel={t('config.toggle_anonymize_exports_aria')}
                   />
                 </div>
               </div>
@@ -374,8 +384,8 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
       {subTab === 'notifications' && (
         <>
           <SettingsHeader
-            title="Notifications"
-            subtitle="Configure notification event triggers and push delivery relays"
+            title={t('nav.notifications')}
+            subtitle={t('config.notifications_header_subtitle')}
             onBackToOverview={onBackToOverview}
           />
           <NotificationsSettingsCard isAdmin={isAdmin} initialSubTab={initialSubTab} />

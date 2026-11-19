@@ -3,6 +3,7 @@
 import React from 'react';
 import { ParticipantBalance, TripParticipant } from '@/hooks/useTrips';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface BalancesWidgetProps {
   balances: ParticipantBalance[];
@@ -11,12 +12,13 @@ interface BalancesWidgetProps {
 }
 
 export function BalancesWidget({ balances = [], participants = [], currency = 'EUR' }: BalancesWidgetProps) {
+  const { t } = useTranslation();
   const curInfo = getCurrencyInfo(currency);
   const displayRows = participants.map((p) => {
     const b = balances.find((bal) => bal.participant_id === p.id);
     return {
       id: p.id,
-      name: p.name || 'Traveler',
+      name: p.name || t('costs.traveler_fallback'),
       totalPaid: b?.total_paid || 0,
       totalShare: b?.total_share || 0,
       netBalance: b?.net_balance || 0,
@@ -44,7 +46,7 @@ export function BalancesWidget({ balances = [], participants = [], currency = 'E
           marginBottom: '16px',
         }}
       >
-        BALANCES
+        {t('costs.balances_title')}
       </div>
 
       {displayRows.length === 0 ? (
@@ -57,7 +59,7 @@ export function BalancesWidget({ balances = [], participants = [], currency = 'E
             color: 'var(--color-text-muted)',
           }}
         >
-          {`// NO TRAVELERS REGISTERED`}
+          {t('costs.no_travelers')}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -122,7 +124,7 @@ export function BalancesWidget({ balances = [], participants = [], currency = 'E
                         color: 'var(--color-text-muted)',
                       }}
                     >
-                      Paid {curInfo.symbol}{row.totalPaid.toFixed(2)}
+                      {t('costs.paid_amount', { amount: `${curInfo.symbol}${row.totalPaid.toFixed(2)}` })}
                     </div>
                   </div>
                 </div>
@@ -141,7 +143,7 @@ export function BalancesWidget({ balances = [], participants = [], currency = 'E
                     {isPositive ? `+${curInfo.symbol}${row.netBalance.toFixed(2)}` : isNegative ? `-${curInfo.symbol}${Math.abs(row.netBalance).toFixed(2)}` : `${curInfo.symbol}0.00`}
                   </div>
                   <div style={{ fontSize: '0.68rem', fontWeight: 500, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
-                    {isPositive ? 'is owed' : isNegative ? 'owes' : 'settled'}
+                    {isPositive ? t('costs.status_is_owed') : isNegative ? t('costs.status_owes') : t('costs.status_settled')}
                   </div>
                 </div>
               </div>

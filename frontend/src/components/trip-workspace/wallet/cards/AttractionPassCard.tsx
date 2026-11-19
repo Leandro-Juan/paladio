@@ -7,6 +7,7 @@ import { CodeRenderer } from '../codes/CodeRenderer';
 import { CopyButton } from '../parts/CopyButton';
 import { MuseumIcon, PinIcon, CheckIcon } from '@/components/icons';
 import { formatTicketDateTime } from '@/lib/wallet/format';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface AttractionPassCardProps {
   ticket: TripTicket;
@@ -23,6 +24,7 @@ export function AttractionPassCard({
   onViewDetail,
   onAttachFile,
 }: AttractionPassCardProps) {
+  const { t, locale } = useTranslation();
   const meta = ticket.metadata || {};
   const venue = (meta.venue as string) || ticket.location_or_venue || '';
   const slot = (meta.time_slot as string) || null;
@@ -54,7 +56,7 @@ export function AttractionPassCard({
             </div>
             {ticket.reference_code && (
               <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
-                REF: {ticket.reference_code}
+                {t('wallet.ref_prefix', { code: ticket.reference_code })}
               </span>
             )}
           </div>
@@ -78,7 +80,7 @@ export function AttractionPassCard({
               className="font-mono text-center"
               style={{ fontSize: '10px', color: '#047857', fontWeight: 600, lineHeight: 1.2 }}
             >
-              MUSEUM / ENTRY PASS
+              {t('wallet.museum_entry_pass')}
             </span>
             {onAttachFile && (
               <button
@@ -97,7 +99,7 @@ export function AttractionPassCard({
                   fontWeight: 600,
                 }}
               >
-                + ATTACH TICKET
+                {t('wallet.attach_ticket_btn')}
               </button>
             )}
           </div>
@@ -134,7 +136,7 @@ export function AttractionPassCard({
         {ticket.reference_code && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
-              REF:
+              {t('wallet.ref_label')}
             </span>
             <CopyButton value={ticket.reference_code} label={ticket.reference_code} />
           </div>
@@ -155,19 +157,19 @@ export function AttractionPassCard({
       >
         <div>
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            VALID FROM / ENTRY
+            {t('wallet.valid_from_entry')}
           </div>
           <div className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
-            {formatTicketDateTime(ticket.start_time, ticket.start_tz)}
+            {formatTicketDateTime(ticket.start_time, ticket.start_tz, locale)}
           </div>
         </div>
 
         <div>
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            TIME SLOT / WINDOW
+            {t('wallet.time_slot_window')}
           </div>
           <div className="font-mono" style={{ fontSize: '11px', color: '#059669', fontWeight: 700 }}>
-            {slot || (ticket.end_time ? formatTicketDateTime(ticket.end_time, ticket.end_tz) : 'OPEN ENTRY')}
+            {slot || (ticket.end_time ? formatTicketDateTime(ticket.end_time, ticket.end_tz, locale) : t('wallet.open_entry'))}
           </div>
         </div>
       </div>
@@ -191,7 +193,7 @@ export function AttractionPassCard({
             }}
           >
             <CheckIcon size={11} color="var(--color-success)" />
-            FAST-TRACK / SKIP LINE
+            {t('wallet.fast_track_skip_line')}
           </span>
         )}
         {audioGuide && (
@@ -211,7 +213,7 @@ export function AttractionPassCard({
             }}
           >
             <CheckIcon size={11} color="#0284C7" />
-            AUDIO GUIDE INCLUDED
+            {t('wallet.audio_guide_included')}
           </span>
         )}
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   NotificationsConfigData,
   fetchDomainSettingsApi,
@@ -19,6 +20,7 @@ interface NotificationsSettingsCardProps {
 }
 
 export function NotificationsSettingsCard({ isAdmin, initialSubTab }: NotificationsSettingsCardProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(isAdmin);
   const [prevInitialSubTab, setPrevInitialSubTab] = useState(initialSubTab);
   const [subTab, setSubTab] = useState<'pushify' | 'pushover' | 'webhooks'>(() => {
@@ -113,9 +115,9 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
     if (patch.webhook) setWebhookDraft(patch.webhook);
     try {
       await updateDomainSettingsApi<NotificationsConfigData>('notifications', patch);
-      notify.success('Relays Saved', 'Notification configuration updated');
+      notify.success(t('config.relays_saved_title'), t('config.notif_config_updated_msg'));
     } catch {
-      notify.error('Update Failed', 'Failed to persist notification settings');
+      notify.error(t('config.update_failed_title'), t('config.notif_persist_failed'));
     }
   };
 
@@ -130,9 +132,12 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
     try {
       await updateDomainSettingsApi<NotificationsConfigData>('notifications', patch);
       setConfig((prev) => ({ ...prev, ...patch }));
-      notify.success('Relays Saved', `${provider.toUpperCase()} configuration saved successfully`);
+      notify.success(
+        t('config.relays_saved_title'),
+        t('config.provider_saved_msg', { provider: provider.toUpperCase() })
+      );
     } catch {
-      notify.error('Update Failed', `Failed to save ${provider} settings`);
+      notify.error(t('config.update_failed_title'), t('config.provider_save_failed', { provider }));
     } finally {
       setSavingRelay((prev) => ({ ...prev, [provider]: false }));
     }
@@ -151,23 +156,29 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
       if (res.success) {
         setTestStatus((prev) => ({
           ...prev,
-          [provider]: { success: true, text: res.message || 'Test notification delivered successfully' },
+          [provider]: { success: true, text: res.message || t('config.test_notif_delivered_msg') },
         }));
-        notify.success(`${provider.toUpperCase()} Delivered`, res.message || 'Test alert delivered');
+        notify.success(
+          t('config.provider_delivered_title', { provider: provider.toUpperCase() }),
+          res.message || t('config.test_alert_delivered')
+        );
       } else {
         setTestStatus((prev) => ({
           ...prev,
-          [provider]: { success: false, text: res.error || 'Failed to dispatch test notification' },
+          [provider]: { success: false, text: res.error || t('config.test_notif_dispatch_failed') },
         }));
-        notify.error(`${provider.toUpperCase()} Failed`, res.error || 'Failed to dispatch test notification');
+        notify.error(
+          t('config.provider_failed_title', { provider: provider.toUpperCase() }),
+          res.error || t('config.test_notif_dispatch_failed')
+        );
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Dispatch failure';
+      const msg = e instanceof Error ? e.message : t('config.dispatch_failure');
       setTestStatus((prev) => ({
         ...prev,
         [provider]: { success: false, text: msg },
       }));
-      notify.error(`${provider.toUpperCase()} Error`, msg);
+      notify.error(t('config.provider_error_title', { provider: provider.toUpperCase() }), msg);
     } finally {
       setTestingRelay((prev) => ({ ...prev, [provider]: false }));
     }
@@ -176,14 +187,14 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
   if (!isAdmin) {
     return (
       <SettingsCardFrame
-        title="Notification Relays & External Alerts"
-        subtitle="Forward itinerary changes, flight deal alerts, and ticket processing updates"
-        badge="Admin Required"
+        title={t('config.relays_card_title')}
+        subtitle={t('config.relays_non_admin_subtitle')}
+        badge={t('config.admin_required_title')}
         badgeTone="coral"
       >
         <div style={{ padding: '24px', textAlign: 'center' }}>
           <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-muted)' }}>
-            Notification relay endpoints and secrets can only be configured by administrators.
+            {t('config.relays_non_admin_msg')}
           </span>
         </div>
       </SettingsCardFrame>
@@ -206,14 +217,14 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
 
       {/* 2. Notification Relays Card */}
       <SettingsCardFrame
-        title="Notification Relays & External Alerts"
-        subtitle="Dispatch real-time travel alerts, price drops, and trip updates to Pushify, Pushover, Ntfy, or Webhooks"
-        badge="Admin Configured"
+        title={t('config.relays_card_title')}
+        subtitle={t('config.relays_card_subtitle')}
+        badge={t('config.admin_configured_badge')}
         badgeTone="teal"
         subTabs={[
-          { id: 'pushify', label: 'Pushify' },
-          { id: 'pushover', label: 'Pushover & Ntfy' },
-          { id: 'webhooks', label: 'Custom Webhooks' },
+          { id: 'pushify', label: t('config.subtab_pushify') },
+          { id: 'pushover', label: t('config.subtab_pushover') },
+          { id: 'webhooks', label: t('config.subtab_webhooks') },
         ]}
         activeSubTab={subTab}
         onSelectSubTab={(id) => setSubTab(id as 'pushify' | 'pushover' | 'webhooks')}
@@ -223,7 +234,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px' }}>
           <Spinner size={18} />
           <span style={{ marginLeft: '8px', fontSize: '13px', color: 'var(--color-text-muted)' }}>
-            Loading notification relay configurations...
+            {t('config.loading_relays')}
           </span>
         </div>
       ) : (
@@ -234,10 +245,10 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    Pushify Push Notifications
+                    {t('config.pushify_title')}
                   </span>
                   <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
-                    Deliver push notifications straight to mobile devices via Pushify API.
+                    {t('config.pushify_desc')}
                   </p>
                 </div>
                 <TacticalToggle
@@ -248,14 +259,14 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     handleUpdate({ pushify: updated });
                   }}
                   tone="teal"
-                  ariaLabel="Toggle Pushify relay"
+                  ariaLabel={t('config.toggle_pushify_aria')}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-                    Pushify Endpoint URL
+                    {t('config.pushify_endpoint_label')}
                   </label>
                   <input
                     type="text"
@@ -278,11 +289,11 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
 
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-                    Channel / Topic (Optional)
+                    {t('config.pushify_channel_label')}
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. travel-alerts"
+                    placeholder={t('config.pushify_channel_placeholder')}
                     value={pushifyDraft.channel || ''}
                     onChange={(e) =>
                       setPushifyDraft((prev) => ({ ...prev, channel: e.target.value }))
@@ -301,12 +312,12 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
 
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-                    Pushify API Key / Token
+                    {t('config.pushify_api_key_label')}
                   </label>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
                       type={showPushifyKey ? 'text' : 'password'}
-                      placeholder="Enter Pushify secret API token"
+                      placeholder={t('config.pushify_api_key_placeholder')}
                       value={pushifyDraft.api_key || ''}
                       onChange={(e) =>
                         setPushifyDraft((prev) => ({ ...prev, api_key: e.target.value }))
@@ -336,7 +347,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                         fontWeight: 600,
                       }}
                     >
-                      {showPushifyKey ? 'Hide' : 'Reveal'}
+                      {showPushifyKey ? t('config.hide_btn') : t('config.reveal_btn')}
                     </button>
                     <button
                       type="button"
@@ -360,7 +371,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                       }}
                     >
                       {savingRelay['pushify'] && <Spinner size={12} color="#FFFFFF" />}
-                      <span>SAVE KEY</span>
+                      <span>{t('config.save_key_upper')}</span>
                     </button>
                   </div>
                 </div>
@@ -377,7 +388,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                       : 'var(--color-text-muted)',
                   }}
                 >
-                  {testStatus.pushify?.text || 'Test your Pushify push notification credentials'}
+                  {testStatus.pushify?.text || t('config.pushify_test_hint')}
                 </span>
                 <button
                   type="button"
@@ -400,7 +411,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                   }}
                 >
                   {testingRelay.pushify && <Spinner size={12} />}
-                  Send Pushify Test Alert
+                  {t('config.pushify_test_btn')}
                 </button>
               </div>
             </div>
@@ -414,10 +425,10 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                      Pushover Delivery
+                      {t('config.pushover_title')}
                     </span>
                     <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
-                      Deliver push notifications via Pushover client on iOS, Android, and Desktop.
+                      {t('config.pushover_desc')}
                     </p>
                   </div>
                   <TacticalToggle
@@ -428,18 +439,18 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                       handleUpdate({ pushover: updated });
                     }}
                     tone="teal"
-                    ariaLabel="Toggle Pushover relay"
+                    ariaLabel={t('config.toggle_pushover_aria')}
                   />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-                      Pushover User Key
+                      {t('config.pushover_user_key_label')}
                     </label>
                     <input
                       type="text"
-                      placeholder="Your 30-character User Key"
+                      placeholder={t('config.pushover_user_key_placeholder')}
                       value={pushoverDraft.user_key || ''}
                       onChange={(e) =>
                         setPushoverDraft((prev) => ({ ...prev, user_key: e.target.value }))
@@ -459,12 +470,12 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-                      Pushover App Token
+                      {t('config.pushover_app_token_label')}
                     </label>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input
                         type={showPushoverToken ? 'text' : 'password'}
-                        placeholder="Application API Token"
+                        placeholder={t('config.pushover_app_token_placeholder')}
                         value={pushoverDraft.app_token || ''}
                         onChange={(e) =>
                           setPushoverDraft((prev) => ({ ...prev, app_token: e.target.value }))
@@ -494,7 +505,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                           fontWeight: 600,
                         }}
                       >
-                        {showPushoverToken ? 'Hide' : 'Reveal'}
+                        {showPushoverToken ? t('config.hide_btn') : t('config.reveal_btn')}
                       </button>
                       <button
                         type="button"
@@ -518,7 +529,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                         }}
                       >
                         {savingRelay['pushover'] && <Spinner size={12} color="#FFFFFF" />}
-                        <span>SAVE KEY</span>
+                        <span>{t('config.save_key_upper')}</span>
                       </button>
                     </div>
                   </div>
@@ -535,7 +546,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                         : 'var(--color-text-muted)',
                     }}
                   >
-                    {testStatus.pushover?.text || 'Test your Pushover credentials'}
+                    {testStatus.pushover?.text || t('config.pushover_test_hint')}
                   </span>
                   <button
                     type="button"
@@ -558,7 +569,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     }}
                   >
                     {testingRelay.pushover && <Spinner size={12} />}
-                    Send Pushover Test Alert
+                    {t('config.pushover_test_btn')}
                   </button>
                 </div>
               </div>
@@ -568,10 +579,10 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                      Ntfy Open-Source Push
+                      {t('config.ntfy_title')}
                     </span>
                     <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
-                      Publish notifications to public ntfy.sh topics or your self-hosted Ntfy server.
+                      {t('config.ntfy_desc')}
                     </p>
                   </div>
                   <TacticalToggle
@@ -582,14 +593,14 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                       handleUpdate({ ntfy: updated });
                     }}
                     tone="gold"
-                    ariaLabel="Toggle Ntfy relay"
+                    ariaLabel={t('config.toggle_ntfy_aria')}
                   />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-                      Ntfy Server URL
+                      {t('config.ntfy_server_url_label')}
                     </label>
                     <input
                       type="text"
@@ -613,7 +624,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-                      Topic Name
+                      {t('config.ntfy_topic_label')}
                     </label>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input
@@ -655,7 +666,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                         }}
                       >
                         {savingRelay['ntfy'] && <Spinner size={12} color="#FFFFFF" />}
-                        <span>SAVE CONFIG</span>
+                        <span>{t('config.save_config_upper')}</span>
                       </button>
                     </div>
                   </div>
@@ -672,7 +683,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                         : 'var(--color-text-muted)',
                     }}
                   >
-                    {testStatus.ntfy?.text || 'Test your Ntfy server and topic'}
+                    {testStatus.ntfy?.text || t('config.ntfy_test_hint')}
                   </span>
                   <button
                     type="button"
@@ -695,7 +706,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     }}
                   >
                     {testingRelay.ntfy && <Spinner size={12} />}
-                    Send Ntfy Test Ping
+                    {t('config.ntfy_test_btn')}
                   </button>
                 </div>
               </div>
@@ -708,10 +719,10 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                    Custom HTTP Webhook Delivery
+                    {t('config.webhook_title')}
                   </span>
                   <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
-                    Post real-time event payloads directly to Discord, Slack, Home Assistant, or custom HTTP listener.
+                    {t('config.webhook_desc')}
                   </p>
                 </div>
                 <TacticalToggle
@@ -722,18 +733,18 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                     handleUpdate({ webhook: updated });
                   }}
                   tone="coral"
-                  ariaLabel="Toggle custom webhook relay"
+                  ariaLabel={t('config.toggle_webhook_aria')}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-                    HTTP POST Webhook URL
+                    {t('config.webhook_url_label')}
                   </label>
                   <input
                     type="text"
-                    placeholder="https://discord.com/api/webhooks/... or https://hooks.slack.com/services/..."
+                    placeholder={t('config.webhook_url_placeholder')}
                     value={webhookDraft.url || ''}
                     onChange={(e) =>
                       setWebhookDraft((prev) => ({ ...prev, url: e.target.value }))
@@ -753,12 +764,12 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
 
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-                    X-Webhook-Secret Header (Optional)
+                    {t('config.webhook_secret_label')}
                   </label>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
                       type="text"
-                      placeholder="Optional secret token sent in X-Webhook-Secret header"
+                      placeholder={t('config.webhook_secret_placeholder')}
                       value={webhookDraft.secret_header || ''}
                       onChange={(e) =>
                         setWebhookDraft((prev) => ({ ...prev, secret_header: e.target.value }))
@@ -796,7 +807,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                       }}
                     >
                       {savingRelay['webhook'] && <Spinner size={12} color="#FFFFFF" />}
-                      <span>SAVE SECRET</span>
+                      <span>{t('config.save_secret_upper')}</span>
                     </button>
                   </div>
                 </div>
@@ -813,7 +824,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                       : 'var(--color-text-muted)',
                   }}
                 >
-                  {testStatus.webhook?.text || 'Test sending an HTTP POST webhook event'}
+                  {testStatus.webhook?.text || t('config.webhook_test_hint')}
                 </span>
                 <button
                   type="button"
@@ -836,7 +847,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
                   }}
                 >
                   {testingRelay.webhook && <Spinner size={12} />}
-                  Send Test Webhook
+                  {t('config.webhook_test_btn')}
                 </button>
               </div>
             </div>

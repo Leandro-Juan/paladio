@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   fetchSecretsStatusApi,
   updateSecretApi,
@@ -17,6 +18,12 @@ interface SecretsSectionProps {
 }
 
 export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
+  const { t, locale } = useTranslation();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
   const [loading, setLoading] = useState(true);
   const [aviasalesSecret, setAviasalesSecret] = useState<SecretItemResponse | null>(null);
 
@@ -37,8 +44,8 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
       })
       .catch((err: unknown) => {
         if (!ignore) {
-          const msg = err instanceof Error ? err.message : 'Failed to load secrets status';
-          notify.error('Secrets Error', msg);
+          const msg = err instanceof Error ? err.message : tRef.current('config.secrets_load_failed');
+          notify.error(tRef.current('config.secrets_error_title'), msg);
         }
       })
       .finally(() => {
@@ -56,7 +63,7 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
     e.preventDefault();
     const trimmed = inputToken.trim();
     if (!trimmed) {
-      notify.error('Validation Error', 'Please enter a valid Aviasales API token');
+      notify.error(t('config.validation_error_title'), t('config.aviasales_invalid_token_msg'));
       return;
     }
 
@@ -66,17 +73,17 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
       setAviasalesSecret(res.secret);
       setInputToken('');
       setShowInput(false);
-      notify.success('Token Saved', 'Aviasales token saved and activated in Deal Engine');
+      notify.success(t('config.token_saved_title'), t('config.aviasales_token_saved_msg'));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save Aviasales token';
-      notify.error('Save Failed', msg);
+      const msg = err instanceof Error ? err.message : t('config.aviasales_save_failed');
+      notify.error(t('config.save_failed_title'), msg);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteToken = async () => {
-    if (!confirm('Are you sure you want to delete your configured Aviasales token? This will deactivate live flight sweeps.')) {
+    if (!confirm(t('config.aviasales_delete_confirm'))) {
       return;
     }
 
@@ -86,10 +93,10 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
       setAviasalesSecret(res.secret);
       setInputToken('');
       setShowInput(true);
-      notify.success('Token Removed', 'Aviasales token deleted. Enter a new token to resume sweeps.');
+      notify.success(t('config.token_removed_title'), t('config.aviasales_token_removed_msg'));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete Aviasales token';
-      notify.error('Delete Failed', msg);
+      const msg = err instanceof Error ? err.message : t('config.aviasales_delete_failed');
+      notify.error(t('config.delete_failed_title'), msg);
     } finally {
       setDeleting(false);
     }
@@ -100,25 +107,31 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <SettingsHeader
-        title="API Keys & Secrets"
-        subtitle="Manage external provider credentials, flight scraper tokens, and API authentication"
+        title={t('config.item_secrets_title')}
+        subtitle={t('config.secrets_header_subtitle')}
         onBackToOverview={onBackToOverview}
       />
 
       {/* 1. Aviasales / Travelpayouts Card */}
       <SettingsCardFrame
-        title="Aviasales / Travelpayouts Flight Data API"
-        subtitle="Primary flight cache aggregator for forward calendar sweeps, price drops, and live booking verification"
-        badge={isConfigured ? 'Active' : 'Unconfigured'}
+        title={t('config.aviasales_card_title')}
+        subtitle={t('config.aviasales_card_subtitle')}
+        badge={isConfigured ? t('config.badge_active_title') : t('config.badge_unconfigured')}
         badgeTone={isConfigured ? 'teal' : 'coral'}
-        innerTitle="Credential Vault"
-        innerBadge={aviasalesSecret?.source === 'database' ? 'Database Stored' : aviasalesSecret?.source === 'env' ? 'Environment Fallback' : undefined}
+        innerTitle={t('config.aviasales_inner_title')}
+        innerBadge={
+          aviasalesSecret?.source === 'database'
+            ? t('config.aviasales_source_db')
+            : aviasalesSecret?.source === 'env'
+            ? t('config.aviasales_source_env')
+            : undefined
+        }
       >
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
             <Spinner size={24} />
             <span style={{ marginLeft: '12px', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>
-              READING CREDENTIAL VAULT...
+              {t('config.reading_credential_vault')}
             </span>
           </div>
         ) : (
@@ -138,7 +151,7 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
               >
                 <div>
                   <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
-                    ACTIVE API TOKEN (OBFUSCATED):
+                    {t('config.active_api_token_label')}
                   </label>
                   <div
                     style={{
@@ -187,7 +200,7 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
                           alignItems: 'center',
                           gap: '6px',
                         }}
-                        title="Delete current token and enter a new one"
+                        title={t('config.delete_token_title')}
                       >
                         {deleting ? (
                           <Spinner size={12} />
@@ -199,7 +212,7 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
                             <line x1="14" y1="11" x2="14" y2="17" />
                           </svg>
                         )}
-                        <span>DELETE TOKEN</span>
+                        <span>{t('config.delete_token_upper')}</span>
                       </button>
                     </div>
                   </div>
@@ -207,10 +220,19 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-muted)' }}>
                   <span>
-                    Storage: <strong>{aviasalesSecret?.source === 'database' ? 'PostgreSQL system_config' : 'Environment (.env)'}</strong>
+                    {t('config.storage_label')}{' '}
+                    <strong>
+                      {aviasalesSecret?.source === 'database'
+                        ? t('config.storage_postgres')
+                        : t('config.storage_env')}
+                    </strong>
                   </span>
                   {aviasalesSecret?.updated_at && (
-                    <span>Last updated: {new Date(aviasalesSecret.updated_at).toLocaleString()}</span>
+                    <span>
+                      {t('config.last_updated_label', {
+                        datetime: new Date(aviasalesSecret.updated_at).toLocaleString(locale === 'en' ? undefined : locale),
+                      })}
+                    </span>
                   )}
                 </div>
               </div>
@@ -231,7 +253,7 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <label className="font-mono text-xs text-muted" style={{ fontWeight: 600 }}>
-                      ENTER AVIASALES / TRAVELPAYOUTS TOKEN:
+                      {t('config.enter_aviasales_token_label')}
                     </label>
                     {isConfigured && (
                       <button
@@ -247,7 +269,7 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
                           textDecoration: 'underline',
                         }}
                       >
-                        CANCEL
+                        {t('config.cancel_upper')}
                       </button>
                     )}
                   </div>
@@ -257,7 +279,7 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
                       type="password"
                       value={inputToken}
                       onChange={(e) => setInputToken(e.target.value)}
-                      placeholder="e.g. 32-character hexadecimal token (a1b2c3d4...)"
+                      placeholder={t('config.aviasales_token_placeholder')}
                       autoComplete="off"
                       spellCheck="false"
                       style={{
@@ -291,7 +313,7 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
                       }}
                     >
                       {saving && <Spinner size={14} color="#FFFFFF" />}
-                      <span>SAVE TOKEN</span>
+                      <span>{t('config.save_token_upper')}</span>
                     </button>
                   </div>
                 </div>
@@ -309,13 +331,24 @@ export function SecretsSection({ onBackToOverview }: SecretsSectionProps) {
                   }}
                 >
                   <strong style={{ color: 'var(--color-text-primary)', display: 'block', marginBottom: '4px' }}>
-                    How to obtain your Aviasales API token:
+                    {t('config.aviasales_how_to_title')}
                   </strong>
                   <ol style={{ margin: 0, paddingLeft: '18px' }}>
-                    <li>Create a free account on <a href="https://www.travelpayouts.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent-teal, #0D9488)', textDecoration: 'underline' }}>Travelpayouts</a>.</li>
-                    <li>Go to <strong>Programs</strong> → <strong>Aviasales</strong> → <strong>API</strong>.</li>
-                    <li>Copy your API token and paste it into the field above.</li>
-                    <li>Once saved, your token will immediately be obfuscated and encrypted in PostgreSQL.</li>
+                    <li>
+                      {t('config.aviasales_step1_prefix')}
+                      <a href="https://www.travelpayouts.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent-teal, #0D9488)', textDecoration: 'underline' }}>
+                        Travelpayouts
+                      </a>
+                      {t('config.aviasales_step1_suffix')}
+                    </li>
+                    <li>
+                      {t('config.aviasales_step2_prefix')}
+                      <strong>{t('config.aviasales_step2_programs')}</strong> → <strong>Aviasales</strong> →{' '}
+                      <strong>{t('config.aviasales_step2_api')}</strong>
+                      {t('config.aviasales_step2_suffix')}
+                    </li>
+                    <li>{t('config.aviasales_step3')}</li>
+                    <li>{t('config.aviasales_step4')}</li>
                   </ol>
                 </div>
               </form>

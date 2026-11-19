@@ -7,6 +7,7 @@ import { SecretField } from './parts/SecretField';
 import { CopyButton } from './parts/CopyButton';
 import { formatTicketDateTime } from '@/lib/wallet/format';
 import { SearchIcon } from '@/components/icons';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface WalletUpNextProps {
   tickets: TripTicket[];
@@ -14,6 +15,7 @@ interface WalletUpNextProps {
 }
 
 export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
+  const { t, locale } = useTranslation();
   const upcomingTickets = tickets
     .filter((t) => t.status !== 'used' && t.status !== 'cancelled' && t.start_time)
     .sort((a, b) => new Date(a.start_time!).getTime() - new Date(b.start_time!).getTime());
@@ -25,7 +27,7 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
 
   return (
     <aside
-      aria-label="Next upcoming credential"
+      aria-label={t('wallet.up_next_aria')}
       style={{
         background: 'var(--color-surface-card)',
         border: '1px solid var(--color-border-subtle)',
@@ -70,10 +72,10 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
                 letterSpacing: '0.5px',
               }}
             >
-              UP NEXT
+              {t('wallet.up_next_badge')}
             </span>
             <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-              {formatTicketDateTime(nextTicket.start_time, nextTicket.start_tz)}
+              {formatTicketDateTime(nextTicket.start_time, nextTicket.start_tz, locale)}
             </span>
           </div>
 
@@ -95,7 +97,7 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         {nextTicket.seat_or_room && (
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>ASSIGNMENT</div>
+            <div style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>{t('wallet.assignment_label')}</div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-main)' }}>
               {nextTicket.seat_or_room}
             </div>
@@ -104,14 +106,14 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
 
         {nextTicket.access_code && (
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '9px', color: 'var(--color-accent-secondary)', fontWeight: 700 }}>DOOR CODE</div>
+            <div style={{ fontSize: '9px', color: 'var(--color-accent-secondary)', fontWeight: 700 }}>{t('wallet.door_code_label')}</div>
             <SecretField value={nextTicket.access_code} highlight />
           </div>
         )}
 
         {nextTicket.booking_reference && (
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>PNR / REF</div>
+            <div style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>{t('wallet.pnr_ref_label')}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-main)' }}>
                 {nextTicket.booking_reference}
@@ -124,7 +126,7 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
         <button
           type="button"
           onClick={() => onViewDetail(nextTicket)}
-          aria-label={`Open fullscreen view for ${nextTicket.title}`}
+          aria-label={t('wallet.open_fullscreen_aria', { title: nextTicket.title })}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -144,7 +146,7 @@ export function WalletUpNext({ tickets, onViewDetail }: WalletUpNextProps) {
           onMouseLeave={(e) => (e.currentTarget.style.background = '#FFFFFF')}
         >
           <SearchIcon size={12} color="var(--color-accent-primary, #1E3A8A)" />
-          <span>VIEW PASS</span>
+          <span>{t('wallet.view_pass_upper')}</span>
         </button>
       </div>
     </aside>

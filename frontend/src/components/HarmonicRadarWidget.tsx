@@ -5,22 +5,23 @@ import PreferenceRadar from '@/components/PreferenceRadar';
 import { fetchCurrentUser } from '@/utils/api';
 import { User } from '@/types/auth';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
+import { useTranslation } from '@/hooks/useTranslation';
 import styles from './HarmonicRadarWidget.module.css';
 
 interface TagConfig {
   key: string;
-  label: string;
+  labelKey: string;
 }
 
 const CATEGORY_MAP: TagConfig[] = [
-  { key: 'art_culture', label: 'Art & Culture' },
-  { key: 'history_heritage', label: 'Historical Sites' },
-  { key: 'nature_outdoors', label: 'Nature & Outdoors' },
-  { key: 'architecture', label: 'Architecture' },
-  { key: 'food_culinary', label: 'Culinary & Food' },
-  { key: 'nightlife', label: 'Nightlife' },
-  { key: 'shopping', label: 'Shopping & Bazaars' },
-  { key: 'scenic_views', label: 'Scenic Views' },
+  { key: 'art_culture', labelKey: 'categories.art_culture' },
+  { key: 'history_heritage', labelKey: 'preferences.cat_history_heritage' },
+  { key: 'nature_outdoors', labelKey: 'categories.nature_outdoors' },
+  { key: 'architecture', labelKey: 'categories.architecture' },
+  { key: 'food_culinary', labelKey: 'preferences.cat_food_culinary' },
+  { key: 'nightlife', labelKey: 'categories.nightlife' },
+  { key: 'shopping', labelKey: 'preferences.cat_shopping' },
+  { key: 'scenic_views', labelKey: 'categories.scenic_views' },
 ];
 
 export interface HarmonicRadarWidgetProps {
@@ -31,6 +32,7 @@ export interface HarmonicRadarWidgetProps {
 }
 
 export function HarmonicRadarWidget(props: HarmonicRadarWidgetProps) {
+  const { t } = useTranslation();
   const [fetchedUser, setFetchedUser] = useState<User | null>(null);
   const [fetchLoading, setFetchLoading] = useState<boolean>(!props.user && !props.tagAffinities);
 
@@ -68,25 +70,43 @@ export function HarmonicRadarWidget(props: HarmonicRadarWidgetProps) {
   const currentPace = (props.pace ?? userPace ?? 'balanced').toLowerCase();
   const currentBudget = (props.budgetTier ?? userBudget ?? 'balanced').toLowerCase();
 
-  const radarData = CATEGORY_MAP.map(({ key, label }) => ({
-    subject: label,
+  const radarData = CATEGORY_MAP.map(({ key, labelKey }) => ({
+    subject: t(labelKey),
     A: Math.round(((affinities && typeof affinities[key] === 'number') ? affinities[key] : 0.5) * 100),
     fullMark: 100,
   }));
 
+  const paceLabel =
+    currentPace === 'leisurely'
+      ? t('preferences.pace_leisurely')
+      : currentPace === 'intense'
+      ? t('preferences.pace_intense')
+      : currentPace === 'balanced'
+      ? t('preferences.pace_balanced')
+      : currentPace;
+
+  const budgetLabel =
+    currentBudget === 'budget'
+      ? t('preferences.budget_budget')
+      : currentBudget === 'luxury'
+      ? t('preferences.budget_luxury')
+      : currentBudget === 'balanced'
+      ? t('preferences.budget_balanced')
+      : currentBudget;
+
   const dwellDescription =
     currentPace === 'leisurely'
-      ? '90-150m dwell'
+      ? t('preferences.dwell_leisurely')
       : currentPace === 'intense'
-      ? '30-60m highlights'
-      : '60-90m baseline';
+      ? t('preferences.dwell_intense')
+      : t('preferences.dwell_balanced');
 
   const budgetDescription =
     currentBudget === 'budget'
-      ? 'Cost sensitive'
+      ? t('preferences.budget_desc_budget')
       : currentBudget === 'luxury'
-      ? 'Zero penalty'
-      : 'Moderate tolerance';
+      ? t('preferences.budget_desc_luxury')
+      : t('preferences.budget_desc_balanced');
 
   if (loading) {
     return (
@@ -100,7 +120,7 @@ export function HarmonicRadarWidget(props: HarmonicRadarWidgetProps) {
     <div className={styles.container}>
       <div className={styles.radarCard}>
         <div className={styles.header}>
-          <span className={styles.headerTag}>Taste Star</span>
+          <span className={styles.headerTag}>{t('preferences.taste_star')}</span>
         </div>
 
         <div className={styles.chartWrapper}>
@@ -108,20 +128,20 @@ export function HarmonicRadarWidget(props: HarmonicRadarWidgetProps) {
         </div>
 
         <p className={styles.caption}>
-          Multi-attribute utility projection feeding branch-and-bound optimization.
+          {t('preferences.taste_star_caption')}
         </p>
       </div>
 
       <div className={styles.statusGrid}>
         <div className={styles.statusCard}>
-          <span className={styles.statusLabel}>TRAVEL PACE</span>
-          <span className={styles.statusValue}>{currentPace}</span>
+          <span className={styles.statusLabel}>{t('preferences.travel_pace_label')}</span>
+          <span className={styles.statusValue}>{paceLabel}</span>
           <span className={styles.statusSubtext}>{dwellDescription}</span>
         </div>
 
         <div className={styles.statusCard}>
-          <span className={styles.statusLabel}>BUDGET STRATEGY</span>
-          <span className={styles.statusValue}>{currentBudget}</span>
+          <span className={styles.statusLabel}>{t('preferences.budget_strategy_label')}</span>
+          <span className={styles.statusValue}>{budgetLabel}</span>
           <span className={styles.statusSubtext}>{budgetDescription}</span>
         </div>
       </div>

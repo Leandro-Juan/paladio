@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Trip } from '@/hooks/useTrips';
 import { countWaypoints, isTripCompleted } from '@/utils/tripParser';
 import { TripStatus, calculateTripDurationDays, downloadTripIcs } from '@/utils/calendarUtils';
@@ -15,26 +16,28 @@ interface MissionInspectorModalProps {
 }
 
 export function MissionInspectorModal({ isOpen, trip, status, onClose }: MissionInspectorModalProps) {
+  const { t, locale } = useTranslation();
   if (!isOpen || !trip) return null;
 
   const durationDays = calculateTripDurationDays(trip.start_date, trip.end_date);
   const waypoints = countWaypoints(trip.itinerary_data);
+  const dateLocale = locale === 'en' ? undefined : locale;
 
   const statusConfig = {
     UPCOMING: {
-      label: 'QUEUED PROTOCOL',
+      label: t('calendar.status_queued_protocol'),
       bg: 'rgba(15, 76, 92, 0.1)',
       border: 'var(--color-accent-teal-soft)',
       text: 'var(--color-accent-primary)',
     },
     ACTIVE: {
-      label: 'ACTIVE MISSION',
+      label: t('calendar.status_active_mission'),
       bg: 'rgba(31, 122, 77, 0.12)',
       border: 'var(--color-success)',
       text: 'var(--color-success)',
     },
     COMPLETED: {
-      label: 'COMPLETED ARCHIVE',
+      label: t('calendar.status_completed_archive'),
       bg: 'transparent',
       border: 'var(--color-border)',
       text: 'var(--color-text-muted)',
@@ -92,7 +95,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
           </div>
           <button
             onClick={onClose}
-            aria-label="Close inspector"
+            aria-label={t('calendar.close_inspector')}
             style={{
               background: 'transparent',
               border: 'none',
@@ -121,27 +124,29 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
           }}
         >
           <div>
-            <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>TIMEFRAME</span>
+            <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>{t('calendar.timeframe')}</span>
             <p className="font-mono text-xs font-semibold" style={{ marginTop: '2px', color: 'var(--color-text-primary)' }}>
-              {new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}
+              {new Date(trip.start_date).toLocaleDateString(dateLocale)} - {new Date(trip.end_date).toLocaleDateString(dateLocale)}
             </p>
           </div>
           <div>
-            <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>DURATION</span>
+            <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>{t('calendar.duration')}</span>
             <p className="font-mono text-xs font-semibold" style={{ marginTop: '2px', color: 'var(--color-text-primary)' }}>
-              {durationDays} {durationDays === 1 ? 'DAY' : 'DAYS'}
+              {durationDays === 1
+                ? t('calendar.duration_day_singular')
+                : t('calendar.duration_days_plural', { count: durationDays })}
             </p>
           </div>
           <div>
-            <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>WAYPOINTS / POIS</span>
+            <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>{t('calendar.waypoints_pois')}</span>
             <p className="font-mono text-xs font-semibold" style={{ marginTop: '2px', color: 'var(--color-text-primary)' }}>
-              {waypoints} OPTIMIZED STOPS
+              {t('calendar.optimized_stops', { count: waypoints })}
             </p>
           </div>
           <div>
-            <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>SYSTEM ID</span>
+            <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>{t('calendar.system_id')}</span>
             <p className="font-mono text-muted text-xs" style={{ marginTop: '2px' }}>
-              {trip.id ? trip.id.slice(0, 8) : 'EPHEMERAL'}
+              {trip.id ? trip.id.slice(0, 8) : t('calendar.ephemeral')}
             </p>
           </div>
         </div>
@@ -167,7 +172,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
                 transition: 'opacity 0.2s',
               }}
             >
-              VIEW FULL MISSION DOSSIER <ChevronRightIcon size={14} />
+              {t('calendar.view_full_mission_dossier')} <ChevronRightIcon size={14} />
             </Link>
           )}
 
@@ -192,7 +197,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
                 gap: '6px',
               }}
             >
-              EXPORT .ICS (CALENDAR)
+              {t('calendar.export_ics_calendar')}
             </button>
             <button
               type="button"
@@ -209,7 +214,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
                 fontWeight: 600,
               }}
             >
-              CLOSE
+              {t('calendar.close_upper')}
             </button>
           </div>
         </div>

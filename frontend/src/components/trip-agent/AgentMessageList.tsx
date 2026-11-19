@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 import { AgentChatMessage, ToolCallItem } from './types/agent';
 import { ProposalCard } from './ProposalCard';
 import { AgentPoiCards, AgentPoiItem } from './AgentPoiCards';
@@ -21,53 +23,58 @@ interface AgentMessageListProps {
 /**
  * Derives a clean, dynamic tactical action description while the agent is thinking
  */
-function getToolActionDescription(tool: string, args?: Record<string, unknown>): string {
+function getToolActionDescription(
+  tool: string,
+  args: Record<string, unknown> | undefined,
+  t: (key: string, params?: Record<string, string | number>) => string
+): string {
   const query = (args?.query || args?.q) as string | undefined;
   const category = args?.category as string | undefined;
   const day = args?.day as number | string | undefined;
   const city = args?.city as string | undefined;
+  const name = (args?.poi_name || args?.name) as string | undefined;
 
   switch (tool) {
     case 'search_pois':
-      if (query && category) return `Searching database for "${query}" (${category})...`;
-      if (query) return `Searching database for "${query}"...`;
-      if (category) return `Searching database for ${category}...`;
-      return `Searching POI database...`;
+      if (query && category) return t('trip_agent.tool_search_pois_query_cat', { query, category });
+      if (query) return t('trip_agent.tool_search_pois_query', { query });
+      if (category) return t('trip_agent.tool_search_pois_cat', { category });
+      return t('trip_agent.tool_search_pois');
     case 'search_places':
-      if (query && city) return `Looking up "${query}" in ${city}...`;
-      if (query) return `Looking up places for "${query}"...`;
-      return `Looking up places & addresses...`;
+      if (query && city) return t('trip_agent.tool_search_places_query_city', { query, city });
+      if (query) return t('trip_agent.tool_search_places_query', { query });
+      return t('trip_agent.tool_search_places');
     case 'find_nearby':
-      if (query) return `Finding spots near "${query}"...`;
-      return `Finding nearby spots...`;
+      if (query) return t('trip_agent.tool_find_nearby_query', { query });
+      return t('trip_agent.tool_find_nearby');
     case 'suggest_additions':
-      if (day) return `Analyzing schedule gaps for Day ${day}...`;
-      return `Exploring schedule recommendations...`;
+      if (day) return t('trip_agent.tool_suggest_additions_day', { day });
+      return t('trip_agent.tool_suggest_additions');
     case 'get_poi_details':
-      if (args?.poi_name || args?.name) return `Retrieving details for ${args.poi_name || args.name}...`;
-      return `Retrieving place details & hours...`;
+      if (name) return t('trip_agent.tool_get_poi_details_name', { name });
+      return t('trip_agent.tool_get_poi_details');
     case 'optimize_day':
-      if (day) return `Running routing solver for Day ${day}...`;
-      return `Optimizing day route & schedule...`;
+      if (day) return t('trip_agent.tool_optimize_day_num', { day });
+      return t('trip_agent.tool_optimize_day');
     case 'optimize_all_days':
-      return `Optimizing all days with C++ solver...`;
+      return t('trip_agent.tool_optimize_all_days');
     case 'reorder_stops':
-      return `Reordering stops...`;
+      return t('trip_agent.tool_reorder_stops');
     case 'add_stop':
     case 'add_poi':
-      return `Adding stop to itinerary...`;
+      return t('trip_agent.tool_add_stop');
     case 'remove_stop':
-      return `Removing stop from itinerary...`;
+      return t('trip_agent.tool_remove_stop');
     case 'list_expenses':
-      return `Checking trip budget & expenses...`;
+      return t('trip_agent.tool_list_expenses');
     case 'add_expense':
-      return `Logging expense...`;
+      return t('trip_agent.tool_add_expense');
     case 'convert_currency':
-      return `Calculating currency conversion...`;
+      return t('trip_agent.tool_convert_currency');
     case 'check_schedule_conflicts':
-      return `Checking schedule for conflicts...`;
+      return t('trip_agent.tool_check_conflicts');
     default:
-      return `Running ${tool.replace(/_/g, ' ')}...`;
+      return t('trip_agent.tool_running_generic', { tool: tool.replace(/_/g, ' ') });
   }
 }
 
@@ -103,7 +110,7 @@ function extractPoisFromMessage(msg: AgentChatMessage): { pois: AgentPoiItem[]; 
       collected.push({
         poi_id: id || normKey,
         id: id || normKey,
-        name: item.name || 'Unnamed Place',
+        name: item.name || translate('trip_agent.unnamed_place'),
         category: item.category || (item.type ? String(item.type) : 'attraction'),
         coordinates: (typeof lat === 'number' && typeof lng === 'number') ? { lat, lng } : undefined,
         lat,
@@ -127,6 +134,7 @@ function extractPoisFromMessage(msg: AgentChatMessage): { pois: AgentPoiItem[]; 
  * Collapsible modern disclosure for executed tool calls (inspired by modern LLM interfaces)
  */
 function ToolExecutionDisclosure({ toolCalls }: { toolCalls: ToolCallItem[] }) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   if (!toolCalls || toolCalls.length === 0) return null;
 
@@ -139,15 +147,17 @@ function ToolExecutionDisclosure({ toolCalls }: { toolCalls: ToolCallItem[] }) {
         type="button"
         className={styles.toolDisclosureToggle}
         onClick={() => setIsOpen((prev) => !prev)}
-        title="Toggle tool execution details"
+        title={t('trip_agent.toggle_tool_details')}
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
         </svg>
         <span>
           {runningCount > 0
-            ? `Working · ${runningCount} action in progress`
-            : `Thought process · ${count} tool${count > 1 ? 's' : ''} run`}
+            ? t('trip_agent.working_actions', { count: runningCount })
+            : count === 1
+            ? t('trip_agent.thought_process_one')
+            : t('trip_agent.thought_process_many', { count })}
         </span>
         <svg
           width="10"
@@ -247,7 +257,7 @@ export function renderMarkdownContent(
             photo_url: poi.photo_url,
           })
         }
-        title={`Focus ${poi.name} on map & open details`}
+        title={translate('trip_agent.focus_poi_on_map', { name: poi.name })}
       >
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <circle cx="12" cy="12" r="3" />
@@ -432,6 +442,7 @@ export function AgentMessageList({
   onSwitchModel,
   onRetryTurn,
 }: AgentMessageListProps) {
+  const { t, locale } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom
@@ -449,9 +460,9 @@ export function AgentMessageList({
             <circle cx="12" cy="12" r="10" />
             <polygon points="12 8 8 16 12 14 16 16 12 8" />
           </svg>
-          <div className={styles.emptyStateTitle}>Tactical Trip Agent</div>
+          <div className={styles.emptyStateTitle}>{t('trip_agent.empty_title')}</div>
           <p className={styles.emptyStateSub}>
-            Sovereign local assistant connected to itinerary tools. Ask to optimize routes, reorder stops, budget checks, or use slash commands.
+            {t('trip_agent.empty_desc')}
           </p>
         </div>
       </div>
@@ -462,7 +473,7 @@ export function AgentMessageList({
     <div className={styles.messageListContainer} ref={scrollRef}>
       {messages.map((msg, index) => {
         const isAssistant = msg.role === 'assistant';
-        const timeStr = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeStr = new Date(msg.timestamp).toLocaleTimeString(locale === 'en' ? undefined : locale, { hour: '2-digit', minute: '2-digit' });
         const discovered = isAssistant ? extractPoisFromMessage(msg) : { pois: [] };
 
         // Determine real-time thinking status text
@@ -470,8 +481,8 @@ export function AgentMessageList({
         const lastTool = msg.toolCalls?.at(-1);
         const activeTool = runningTool || (lastTool && !msg.content ? lastTool : undefined);
         const thinkingText = activeTool
-          ? getToolActionDescription(activeTool.tool, activeTool.args)
-          : 'Thinking...';
+          ? getToolActionDescription(activeTool.tool, activeTool.args, t)
+          : t('trip_agent.thinking');
 
         // Check for structured error or legacy raw error text
         const isRawError =
@@ -536,7 +547,7 @@ export function AgentMessageList({
                   !effectiveError &&
                   (!msg.toolCalls || msg.toolCalls.length === 0) &&
                   !msg.proposal && (
-                    <span style={{ fontStyle: 'italic', opacity: 0.6 }}>No response generated.</span>
+                    <span style={{ fontStyle: 'italic', opacity: 0.6 }}>{t('trip_agent.no_response_generated')}</span>
                   )}
 
                 {/* Discovered POIs Interactive Deck */}

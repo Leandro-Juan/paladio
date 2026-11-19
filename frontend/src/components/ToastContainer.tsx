@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ToastItem, NotificationType } from '@/types/notification';
 import { formatRelativeTime } from '@/utils/date';
 import { InfoIcon, CheckIcon, AlertTriangleIcon, CloseIcon, ChevronRightIcon } from '@/components/icons';
@@ -15,6 +16,7 @@ const TOAST_THEMES: Record<NotificationType, { border: string; bg: string; icon:
 };
 
 function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => void }) {
+  const { t, locale } = useTranslation();
   const { notification, durationMs } = toast;
   const theme = TOAST_THEMES[notification.type] || TOAST_THEMES.info;
 
@@ -78,7 +80,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
               color: 'var(--color-text-primary)',
             }}
           >
-            {notification.title}
+            {t(notification.title)}
           </span>
           <span
             className="font-mono"
@@ -88,7 +90,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
               whiteSpace: 'nowrap',
             }}
           >
-            {formatRelativeTime(notification.timestamp)}
+            {formatRelativeTime(notification.timestamp, locale)}
           </span>
         </div>
 
@@ -101,7 +103,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
             wordBreak: 'break-word',
           }}
         >
-          {notification.message}
+          {t(notification.message)}
         </p>
 
         {notification.actionLink && (
@@ -120,7 +122,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
                 textDecoration: 'none',
               }}
             >
-              {notification.actionLabel || 'View'} <ChevronRightIcon size={10} />
+              {notification.actionLabel ? t(notification.actionLabel) : t('common.view')} <ChevronRightIcon size={10} />
             </Link>
           </div>
         )}
@@ -129,7 +131,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
       {/* Dismiss button */}
       <button
         onClick={onDismiss}
-        title="Dismiss"
+        title={t('notifications.dismiss')}
         style={{
           background: 'transparent',
           border: 'none',

@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { LlmConfigCard } from '../LlmConfigCard';
 import { SettingsHeader } from '../SettingsHeader';
 
@@ -15,12 +16,14 @@ export function IntelligenceSection({
   subTab = 'llm',
   isAdmin = false,
 }: IntelligenceSectionProps) {
+  const { t } = useTranslation();
+
   if (!isAdmin) return null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <SettingsHeader
-        title="AI & Multi-Provider LLM Engine"
+        title={t('config.llm_header_title')}
         onBackToOverview={onBackToOverview}
       />
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { TripRevisionChangeItem, TripRevisionItem } from '@/hooks/useTrips';
 
 interface TripActivityTimelineProps {
@@ -15,16 +16,21 @@ interface TripActivityTimelineProps {
   onClose?: () => void;
 }
 
-function formatRelativeTime(isoDate: string, nowMs: number): string {
+function formatRelativeTime(
+  isoDate: string,
+  nowMs: number,
+  t: (key: string, params?: Record<string, string | number>) => string,
+  locale: string
+): string {
   const parsed = new Date(isoDate);
   if (Number.isNaN(parsed.getTime())) return isoDate;
 
   const diffMs = Math.max(0, nowMs - parsed.getTime());
   const diffSec = Math.floor(diffMs / 1000);
-  if (diffSec < 45) return 'Just now';
+  if (diffSec < 45) return t('activity.just_now');
 
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return t('activity.minutes_ago', { count: diffMin });
 
   const nowDate = new Date(nowMs);
   const startOfToday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).getTime();
@@ -33,12 +39,12 @@ function formatRelativeTime(isoDate: string, nowMs: number): string {
 
   if (dayDiff === 0) {
     const diffHours = Math.floor(diffMin / 60);
-    return `${diffHours}h ago`;
+    return t('activity.hours_ago', { count: diffHours });
   }
-  if (dayDiff === 1) return 'Yesterday';
-  if (dayDiff < 7) return `${dayDiff}d ago`;
+  if (dayDiff === 1) return t('activity.yesterday');
+  if (dayDiff < 7) return t('activity.days_ago', { count: dayDiff });
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale === 'en' ? undefined : locale, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -46,10 +52,10 @@ function formatRelativeTime(isoDate: string, nowMs: number): string {
   }).format(parsed);
 }
 
-function formatExactTime(isoDate: string): string {
+function formatExactTime(isoDate: string, locale: string): string {
   const parsed = new Date(isoDate);
   if (Number.isNaN(parsed.getTime())) return isoDate;
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale === 'en' ? undefined : locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -219,6 +225,7 @@ export function TripActivityTimeline({
   onRefresh,
   onClose,
 }: TripActivityTimelineProps) {
+  const { t, locale } = useTranslation();
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
   useEffect(() => {
@@ -228,7 +235,7 @@ export function TripActivityTimeline({
 
   return (
     <aside
-      aria-label="Trip Activity Timeline"
+      aria-label={t('activity.timeline_aria')}
       data-testid="trip-activity-timeline"
       style={{
         background: 'var(--color-surface-card)',
@@ -263,7 +270,7 @@ export function TripActivityTimeline({
               letterSpacing: '-0.01em',
             }}
           >
-            Activity
+            {t('activity.title')}
           </h3>
           <span
             className="font-mono"
@@ -278,7 +285,7 @@ export function TripActivityTimeline({
               letterSpacing: '0.03em',
             }}
           >
-            REV v{currentRevision}
+            {t('activity.rev_badge', { revision: currentRevision })}
           </span>
         </div>
 
@@ -287,8 +294,8 @@ export function TripActivityTimeline({
             <button
               type="button"
               onClick={onRefresh}
-              title="Refresh activity timeline"
-              aria-label="Refresh activity timeline"
+              title={t('activity.refresh_aria')}
+              aria-label={t('activity.refresh_aria')}
               style={{
                 width: '32px',
                 height: '32px',
@@ -313,8 +320,8 @@ export function TripActivityTimeline({
             <button
               type="button"
               onClick={onClose}
-              title="Collapse Activity panel"
-              aria-label="Close Activity panel"
+              title={t('activity.collapse_title')}
+              aria-label={t('activity.close_aria')}
               style={{
                 width: '32px',
                 height: '32px',
@@ -365,11 +372,11 @@ export function TripActivityTimeline({
 
         {loading && items.length === 0 ? (
           <div className="font-mono text-muted" style={{ fontSize: '0.8rem', padding: '1rem 0', textAlign: 'center' }}>
-            Loading revision log...
+            {t('activity.loading_log')}
           </div>
         ) : items.length === 0 ? (
           <div className="font-mono text-muted" style={{ fontSize: '0.8rem', padding: '1rem 0', textAlign: 'center' }}>
-            No recorded changes yet.
+            {t('activity.empty_log')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -379,7 +386,7 @@ export function TripActivityTimeline({
               const primaryChange: TripRevisionChangeItem =
                 item.changes && item.changes.length > 0
                   ? item.changes[0]
-                  : { kind: item.kind, verb: 'updated', after_label: item.summary };
+                  : { kind: item.kind, verb: t('activity.default_verb_updated'), after_label: item.summary };
               const extraChanges = item.changes && item.changes.length > 1 ? item.changes.slice(1) : [];
 
               const revertKey = `revert:${item.id}`;
@@ -492,13 +499,13 @@ export function TripActivityTimeline({
                       }}
                     >
                       <span
-                        title={formatExactTime(item.created_at)}
+                        title={formatExactTime(item.created_at, locale)}
                         style={{
                           fontSize: '0.76rem',
                           color: 'var(--color-text-muted)',
                         }}
                       >
-                        {formatRelativeTime(item.created_at, nowMs)}
+                        {formatRelativeTime(item.created_at, nowMs, t, locale)}
                       </span>
                       <span
                         className="font-mono"
@@ -512,7 +519,7 @@ export function TripActivityTimeline({
                           borderRadius: '4px',
                         }}
                       >
-                        {item.is_current ? `v${item.revision} • CURRENT` : `v${item.revision}`}
+                        {item.is_current ? t('activity.version_current', { revision: item.revision }) : t('activity.version_tag', { revision: item.revision })}
                       </span>
                     </div>
 
@@ -554,7 +561,7 @@ export function TripActivityTimeline({
                               <path d="M9 14 4 9l5-5" />
                               <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
                             </svg>
-                            {isRevertingThis ? 'Reverting...' : 'Revert change'}
+                            {isRevertingThis ? t('activity.reverting') : t('activity.revert_change')}
                           </button>
                         )}
                         {showRestore && (
@@ -584,7 +591,7 @@ export function TripActivityTimeline({
                               <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
                               <path d="M3 3v5h5" />
                             </svg>
-                            {isRestoringThis ? 'Restoring...' : `Restore v${item.revision}`}
+                            {isRestoringThis ? t('activity.restoring') : t('activity.restore_version', { revision: item.revision })}
                           </button>
                         )}
                       </div>

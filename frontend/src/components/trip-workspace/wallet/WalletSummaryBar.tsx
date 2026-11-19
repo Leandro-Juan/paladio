@@ -10,6 +10,7 @@ import {
   MuseumIcon,
   TransitIcon,
 } from '@/components/icons';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface WalletSummaryBarProps {
   tickets: TripTicket[];
@@ -24,6 +25,7 @@ export function WalletSummaryBar({
   onOpenCreateModal,
   hasItineraryDrift = false,
 }: WalletSummaryBarProps) {
+  const { t } = useTranslation();
   const [isSyncing, setIsSyncing] = useState(false);
 
   const counts = {
@@ -72,7 +74,7 @@ export function WalletSummaryBar({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--color-accent-secondary)' }}>
             <AlertTriangleIcon size={14} color="var(--color-accent-secondary)" />
             <span>
-              <strong>ITINERARY DRIFT DETECTED:</strong> Trip details were modified since tickets were seeded. User edits were preserved.
+              <strong>{t('wallet.itinerary_drift_title')}</strong> {t('wallet.itinerary_drift_desc')}
             </span>
           </div>
           {onSyncItinerary && (
@@ -91,7 +93,7 @@ export function WalletSummaryBar({
                 fontWeight: 700,
               }}
             >
-              {isSyncing ? 'RECONCILING...' : 'RE-SYNC ITINERARY'}
+              {isSyncing ? t('wallet.reconciling') : t('wallet.resync_itinerary')}
             </button>
           )}
         </div>
@@ -115,7 +117,7 @@ export function WalletSummaryBar({
         {/* Metric Counters */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>TOTAL TICKETS:</span>
+            <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{t('wallet.total_tickets_label')}</span>
             <span
               style={{
                 fontSize: '13px',
@@ -134,19 +136,19 @@ export function WalletSummaryBar({
           <div style={{ width: '1px', height: '14px', background: 'var(--color-border-subtle)' }} />
 
           <div style={{ display: 'flex', gap: '14px', fontSize: '11px', color: 'var(--color-text-muted)' }}>
-            <span title="Flights" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <span title={t('wallet.types.flight_label')} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <PlaneIcon size={13} color="#0284C7" />
               <strong style={{ color: 'var(--color-text-main)' }}>{counts.flight}</strong>
             </span>
-            <span title="Stays & Access Codes" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <span title={t('wallet.stays_access_codes_title')} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <HotelIcon size={13} color="#D97706" />
               <strong style={{ color: 'var(--color-text-main)' }}>{counts.hotel}</strong>
             </span>
-            <span title="Attraction Passes" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <span title={t('wallet.attraction_passes_title')} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <MuseumIcon size={13} color="#059669" />
               <strong style={{ color: 'var(--color-text-main)' }}>{counts.attraction}</strong>
             </span>
-            <span title="Transit Passes" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <span title={t('wallet.transit_passes_title')} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <TransitIcon size={13} color="#7C3AED" />
               <strong style={{ color: 'var(--color-text-main)' }}>{counts.transit}</strong>
             </span>
@@ -160,7 +162,7 @@ export function WalletSummaryBar({
               type="button"
               onClick={handleSync}
               disabled={isSyncing}
-              aria-label="Sync tickets from itinerary"
+              aria-label={t('wallet.sync_tickets_aria')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -177,7 +179,7 @@ export function WalletSummaryBar({
               }}
             >
               <RefreshIcon size={12} color="var(--color-accent-primary)" className={isSyncing ? 'animate-spin' : ''} />
-              <span>{isSyncing ? 'SYNCING…' : 'SYNC ITINERARY'}</span>
+              <span>{isSyncing ? t('wallet.syncing') : t('wallet.sync_itinerary')}</span>
             </button>
           )}
 
@@ -185,7 +187,7 @@ export function WalletSummaryBar({
             <button
               type="button"
               onClick={onOpenCreateModal}
-              aria-label="Manually add new ticket"
+              aria-label={t('wallet.add_ticket_aria')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -202,7 +204,7 @@ export function WalletSummaryBar({
                 transition: 'background 0.15s ease',
               }}
             >
-              <span>+ ADD PASS</span>
+              <span>{t('wallet.add_pass_btn')}</span>
             </button>
           )}
         </div>

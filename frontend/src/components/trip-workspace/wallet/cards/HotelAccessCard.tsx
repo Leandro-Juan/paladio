@@ -8,6 +8,7 @@ import { CopyButton } from '../parts/CopyButton';
 import { CodeRenderer } from '../codes/CodeRenderer';
 import { HotelIcon, KeyIcon, WifiIcon, PhoneIcon, PinIcon } from '@/components/icons';
 import { formatTicketDateTime } from '@/lib/wallet/format';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface HotelAccessCardProps {
   ticket: TripTicket;
@@ -23,6 +24,7 @@ export function HotelAccessCard({
   onDelete,
   onViewDetail,
 }: HotelAccessCardProps) {
+  const { t, locale } = useTranslation();
   const meta = ticket.metadata || {};
   const room = ticket.seat_or_room || (meta.room_number as string) || '--';
   const address = (meta.address as string) || ticket.location_or_venue || '';
@@ -54,7 +56,7 @@ export function HotelAccessCard({
               />
             </div>
             <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
-              ROOM {room}
+              {t('wallet.room_number', { room })}
             </span>
           </div>
         ) : (
@@ -77,10 +79,10 @@ export function HotelAccessCard({
               className="font-mono text-center"
               style={{ fontSize: '10px', color: '#B45309', fontWeight: 600, lineHeight: 1.2 }}
             >
-              DIGITAL ROOM KEY
+              {t('wallet.digital_room_key')}
             </span>
             <span className="font-mono" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-              ROOM {room}
+              {t('wallet.room_number', { room })}
             </span>
           </div>
         )
@@ -132,13 +134,13 @@ export function HotelAccessCard({
           <KeyIcon size={18} color="#D97706" />
           <div>
             <div className="font-mono" style={{ fontSize: '10px', color: '#B45309', fontWeight: 700 }}>
-              DOOR / ACCESS CODE
+              {t('wallet.door_access_code_short')}
             </div>
             {ticket.access_code ? (
               <SecretField value={ticket.access_code} highlight />
             ) : (
               <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
-                No key code set
+                {t('wallet.no_key_code_set')}
               </span>
             )}
           </div>
@@ -147,7 +149,7 @@ export function HotelAccessCard({
         {ticket.reference_code && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span className="font-mono text-muted" style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
-              CONF:
+              {t('wallet.conf_label')}
             </span>
             <CopyButton value={ticket.reference_code} label={ticket.reference_code} />
           </div>
@@ -168,25 +170,25 @@ export function HotelAccessCard({
       >
         <div>
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            CHECK-IN
+            {t('wallet.check_in_label')}
           </div>
           <div className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
-            {formatTicketDateTime(ticket.start_time, ticket.start_tz)}
+            {formatTicketDateTime(ticket.start_time, ticket.start_tz, locale)}
           </div>
         </div>
 
         <div>
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            CHECK-OUT
+            {t('wallet.check_out_label')}
           </div>
           <div className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
-            {formatTicketDateTime(ticket.end_time, ticket.end_tz)}
+            {formatTicketDateTime(ticket.end_time, ticket.end_tz, locale)}
           </div>
         </div>
 
         <div>
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            ROOM
+            {t('wallet.room_label')}
           </div>
           <div className="font-mono" style={{ fontSize: '13px', color: '#D97706', fontWeight: 700 }}>
             {room}
@@ -214,7 +216,7 @@ export function HotelAccessCard({
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <WifiIcon size={13} color="var(--color-text-muted, #64748B)" />
               <span>{wifiSsid}</span>
-              {wifiPass && <SecretField value={wifiPass} label="pwd" />}
+              {wifiPass && <SecretField value={wifiPass} label={t('wallet.pwd_label')} />}
             </div>
           )}
           {phone && (

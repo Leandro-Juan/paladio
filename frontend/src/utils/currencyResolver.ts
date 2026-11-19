@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getApiBaseUrl } from '@/utils/api';
+import { useLocaleStore } from '@/stores/localeStore';
 
 export interface CurrencyInfo {
   code: string;
@@ -604,16 +605,56 @@ export function convertCurrency(
   return to === 'EUR' ? eurAmount : eurAmount * toRate;
 }
 
+export function getLocalizedCurrencyName(code?: string, localeOverride?: string): string {
+  const info = getCurrencyInfo(code);
+  const activeLocale = localeOverride || useLocaleStore.getState().currentLocale || 'en';
+  if (activeLocale !== 'en' && typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+    try {
+      const displayNames = new Intl.DisplayNames([activeLocale], { type: 'currency' });
+      const localized = displayNames.of(info.code);
+      if (localized && localized !== info.code) {
+        return localized;
+      }
+    } catch {
+      // fall back to English name
+    }
+  }
+  return info.name;
+}
+
+export function getLocalizedCurrencyCountry(
+  countryCode: string,
+  fallbackCountry: string,
+  localeOverride?: string
+): string {
+  const activeLocale = localeOverride || useLocaleStore.getState().currentLocale || 'en';
+  const clean = (countryCode || '').toUpperCase().trim();
+  if (activeLocale !== 'en' && clean.length === 2 && typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+    try {
+      const displayNames = new Intl.DisplayNames([activeLocale], { type: 'region' });
+      const localized = displayNames.of(clean);
+      if (localized && localized !== clean) {
+        return localized;
+      }
+    } catch {
+      // fall back to English country
+    }
+  }
+  return fallbackCountry;
+}
+
 export function formatCurrencyAmount(
   amount: number,
   currency: string = 'EUR',
-  options?: { minimumFractionDigits?: number; maximumFractionDigits?: number }
+  options?: { minimumFractionDigits?: number; maximumFractionDigits?: number; locale?: string }
 ): string {
   const cur = (currency || 'EUR').toUpperCase().trim();
   const info = getCurrencyInfo(cur);
+  const activeLocale = options?.locale || useLocaleStore.getState().currentLocale || 'en';
+  const intlLocale = activeLocale === 'en' ? 'en-US' : activeLocale;
   const maxDigits = options?.maximumFractionDigits !== undefined ? options.maximumFractionDigits : 2;
   const minDigits = options?.minimumFractionDigits !== undefined ? options.minimumFractionDigits : Math.min(2, maxDigits);
-  const formattedNumber = Math.abs(amount).toLocaleString(undefined, {
+  const formattedNumber = Math.abs(amount).toLocaleString(intlLocale, {
     minimumFractionDigits: Math.min(minDigits, maxDigits),
     maximumFractionDigits: maxDigits,
   });

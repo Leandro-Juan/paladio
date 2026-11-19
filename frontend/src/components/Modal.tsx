@@ -1,5 +1,8 @@
+"use client";
+
 import React, { useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const emptySubscribe = () => () => {};
 
@@ -20,14 +23,15 @@ export function Modal({
   isOpen,
   title,
   message,
-  confirmText = "OK",
-  cancelText = "CANCEL",
+  confirmText,
+  cancelText,
   onConfirm,
   onCancel,
   isDanger = false,
   variant = 'default',
   children
 }: ModalProps) {
+  const { t } = useTranslation();
   const isClient = useSyncExternalStore(
     emptySubscribe,
     () => true,
@@ -35,6 +39,9 @@ export function Modal({
   );
 
   if (!isOpen) return null;
+
+  const resolvedConfirmText = confirmText === undefined ? t('common.ok') : (confirmText ? t(confirmText) : '');
+  const resolvedCancelText = cancelText === undefined ? t('common.cancel_upper') : (cancelText ? t(cancelText) : '');
 
   const isWarningMode = variant === 'warning';
   const isDangerMode = variant === 'danger' || isDanger;
@@ -75,10 +82,10 @@ export function Modal({
         boxShadow: 'var(--shadow-lg)'
       }}>
         <h2 className="font-display" style={{ margin: '0 0 1rem 0', fontSize: '1.5rem', color: headerColor }}>
-          {title}
+          {t(title)}
         </h2>
         <p className="font-mono text-muted text-sm" style={{ marginBottom: children ? '1rem' : '2rem', lineHeight: 1.5 }}>
-          {message}
+          {t(message)}
         </p>
         
         {children && (
@@ -88,7 +95,7 @@ export function Modal({
         )}
         
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-          {Boolean(cancelText) && (
+          {Boolean(resolvedCancelText) && (
             <button 
               onClick={onCancel}
               style={{
@@ -103,10 +110,10 @@ export function Modal({
                 transition: 'all 0.15s ease'
               }}
             >
-              {cancelText}
+              {resolvedCancelText}
             </button>
           )}
-          {Boolean(confirmText) && (
+          {Boolean(resolvedConfirmText) && (
             <button 
               onClick={onConfirm}
               style={{
@@ -122,7 +129,7 @@ export function Modal({
                 transition: 'all 0.15s ease'
               }}
             >
-              {confirmText}
+              {resolvedConfirmText}
             </button>
           )}
         </div>

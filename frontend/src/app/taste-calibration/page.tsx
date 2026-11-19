@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
 import { updatePreferencesApi } from '@/utils/api';
 import {
@@ -17,6 +18,7 @@ type AnswerChoice = 'A' | 'B' | 'C' | 'D';
 export default function TasteCalibrationPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, refreshUser } = useAuth();
+  const { t } = useTranslation();
 
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [answers, setAnswers] = useState<Record<string, AnswerChoice>>({});
@@ -43,17 +45,17 @@ export default function TasteCalibrationPage() {
     return (
       <div className={styles.pageShell}>
         <div className={styles.guardCard}>
-          <span className={styles.dimensionTag}>TASTE VECTOR // CALIBRATED</span>
-          <h1 className={styles.guardTitle}>Your taste profile is already active</h1>
+          <span className={styles.dimensionTag}>{t('taste_calibration.calibrated_badge')}</span>
+          <h1 className={styles.guardTitle}>{t('taste_calibration.already_active_title')}</h1>
           <p className={styles.guardText}>
-            Initial taste calibration is only available when your 8-point Harmonic Radar is at its 0.50 neutral baseline. You can fine-tune preferences anytime in Settings.
+            {t('taste_calibration.already_active_desc')}
           </p>
           <button
             type="button"
             className={styles.submitBtn}
             onClick={() => router.push('/dashboard')}
           >
-            Back to Dashboard
+            {t('taste_calibration.back_to_dashboard')}
           </button>
         </div>
       </div>
@@ -85,7 +87,7 @@ export default function TasteCalibrationPage() {
       router.push('/dashboard');
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : 'Failed to save your calibrated taste profile.'
+        err instanceof Error ? err.message : 'taste_calibration.save_error'
       );
       setSaving(false);
     }
@@ -140,7 +142,7 @@ export default function TasteCalibrationPage() {
             type="button"
             className={styles.backBtn}
             onClick={() => router.push('/dashboard')}
-            aria-label="Back to dashboard"
+            aria-label={t('taste_calibration.back_to_dashboard_aria')}
           >
             <svg
               width="16"
@@ -157,31 +159,33 @@ export default function TasteCalibrationPage() {
             </svg>
           </button>
           <div className={styles.headerTitleGroup}>
-            <h1 className={styles.headerTitle}>Harmonic Taste Calibration</h1>
+            <h1 className={styles.headerTitle}>{t('taste_calibration.page_title')}</h1>
             <span className={styles.headerSubtitle}>
-              {completionPct}% of Taste Seeding Completed
+              {t('taste_calibration.completion_subtitle', { pct: completionPct })}
             </span>
           </div>
         </div>
 
         <span className={styles.headerProgressPill}>
-          {answeredCount} / {totalQuestions} ANSWERED
+          {t('taste_calibration.answered_pill', { answered: answeredCount, total: totalQuestions })}
         </span>
       </header>
 
       {/* Main Split Layout */}
       <main className={styles.workspace}>
         {/* Left Calibration Track Sidebar */}
-        <aside className={styles.trackPanel} aria-label="Calibration Track">
+        <aside className={styles.trackPanel} aria-label={t('taste_calibration.track_heading')}>
           <div className={styles.trackHeader}>
             <div>
-              <h2 className={styles.trackHeading}>Calibration Track</h2>
-              <div className={styles.trackSub}>{completionPct}% completed</div>
+              <h2 className={styles.trackHeading}>{t('taste_calibration.track_heading')}</h2>
+              <div className={styles.trackSub}>
+                {t('taste_calibration.track_completed_pct', { pct: completionPct })}
+              </div>
             </div>
           </div>
 
           <div className={styles.infoCallout}>
-            Answer as many prompts as you like to seed your 768D semantic taste vector and 8-point Harmonic Radar. Any step can be skipped.
+            {t('taste_calibration.info_callout')}
           </div>
 
           <div className={styles.trackList}>
@@ -190,10 +194,10 @@ export default function TasteCalibrationPage() {
               const isAnswered = Boolean(answers[q.id]);
               const isSkipped = Boolean(skippedIds[q.id]);
 
-              let statusLabel = 'Not Attempted';
-              if (isActive) statusLabel = 'In progress';
-              else if (isAnswered) statusLabel = `Completed (${answers[q.id]})`;
-              else if (isSkipped) statusLabel = 'Skipped';
+              let statusLabel = t('taste_calibration.status_not_attempted');
+              if (isActive) statusLabel = t('taste_calibration.status_in_progress');
+              else if (isAnswered) statusLabel = t('taste_calibration.status_completed_choice', { choice: answers[q.id] });
+              else if (isSkipped) statusLabel = t('taste_calibration.status_skipped');
 
               return (
                 <button
@@ -210,7 +214,7 @@ export default function TasteCalibrationPage() {
                     .join(' ')}
                 >
                   <span className={styles.trackItemTitle}>
-                    {idx + 1}. {q.trackTitle}
+                    {idx + 1}. {t(q.trackTitle)}
                   </span>
                   <span className={styles.trackItemStatus}>{statusLabel}</span>
                 </button>
@@ -224,17 +228,19 @@ export default function TasteCalibrationPage() {
           <div className={styles.questionBody}>
             <div className={styles.questionMetaRow}>
               <span className={styles.stepCounter}>
-                STEP {String(currentIndex + 1).padStart(2, '0')} /{' '}
-                {String(totalQuestions).padStart(2, '0')}
+                {t('taste_calibration.step_counter', {
+                  current: String(currentIndex + 1).padStart(2, '0'),
+                  total: String(totalQuestions).padStart(2, '0'),
+                })}
               </span>
               <span className={styles.dimensionTag}>
-                {currentQuestion.dimensionLabel}
+                {t(currentQuestion.dimensionLabel)}
               </span>
             </div>
 
-            <h2 className={styles.questionPrompt}>{currentQuestion.prompt}</h2>
+            <h2 className={styles.questionPrompt}>{t(currentQuestion.prompt)}</h2>
 
-            <div className={styles.optionsGrid} role="radiogroup" aria-label={currentQuestion.prompt}>
+            <div className={styles.optionsGrid} role="radiogroup" aria-label={t(currentQuestion.prompt)}>
               {currentQuestion.options.map((option) => {
                 const isSelected = activeChoice === option.id;
                 return (
@@ -260,9 +266,9 @@ export default function TasteCalibrationPage() {
                     </span>
                     <span className={styles.optionTextWrap}>
                       <span className={styles.optionTitle}>
-                        {option.id}. {option.label}
+                        {option.id}. {t(option.label)}
                       </span>
-                      <span className={styles.optionSub}>{option.sublabel}</span>
+                      <span className={styles.optionSub}>{t(option.sublabel)}</span>
                     </span>
                   </label>
                 );
@@ -271,7 +277,7 @@ export default function TasteCalibrationPage() {
 
             {error && (
               <div className={styles.errorBanner} role="alert">
-                {error}
+                {t(error)}
               </div>
             )}
 
@@ -283,10 +289,10 @@ export default function TasteCalibrationPage() {
                 onClick={handleSubmitStep}
               >
                 {saving
-                  ? 'Calibrating...'
+                  ? t('taste_calibration.calibrating')
                   : currentIndex + 1 === totalQuestions
-                  ? 'Finish & Save'
-                  : 'Submit'}
+                  ? t('taste_calibration.finish_and_save')
+                  : t('taste_calibration.submit')}
               </button>
 
               <button
@@ -296,8 +302,8 @@ export default function TasteCalibrationPage() {
                 onClick={handleSkipStep}
               >
                 {currentIndex + 1 === totalQuestions && answeredCount === 0
-                  ? 'Skip All'
-                  : 'Skip'}
+                  ? t('taste_calibration.skip_all')
+                  : t('taste_calibration.skip')}
               </button>
             </div>
           </div>

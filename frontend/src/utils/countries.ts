@@ -1,3 +1,5 @@
+import { useLocaleStore } from '@/stores/localeStore';
+
 export interface CountryOption {
   code: string;
   name: string;
@@ -173,8 +175,29 @@ export const DEFAULT_COUNTRIES: CountryOption[] = [
   { code: 'ZW', name: 'Zimbabwe' },
 ];
 
-export function getCountryDisplayName(code: string, fallback?: string): string {
+export function getCountryDisplayName(code: string, fallback?: string, localeOverride?: string): string {
   const clean = (code || '').toUpperCase().trim();
   const match = DEFAULT_COUNTRIES.find((c) => c.code === clean);
+  const activeLocale = localeOverride || useLocaleStore.getState().currentLocale || 'en';
+
+  if (activeLocale !== 'en' && clean.length === 2 && typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+    try {
+      const displayNames = new Intl.DisplayNames([activeLocale], { type: 'region' });
+      const localized = displayNames.of(clean);
+      if (localized && localized !== clean) {
+        return localized;
+      }
+    } catch {
+      // fall back to default English table
+    }
+  }
+
   return match ? match.name : fallback || clean;
+}
+
+export function getLocalizedCountries(localeOverride?: string): CountryOption[] {
+  return DEFAULT_COUNTRIES.map((c) => ({
+    code: c.code,
+    name: getCountryDisplayName(c.code, c.name, localeOverride),
+  }));
 }

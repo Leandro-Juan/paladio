@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
-import { ALL_LOCALES, LocaleInfo } from '@/utils/locales';
+import { SHIPPED_LOCALES, LocaleInfo } from '@/utils/locales';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfileApi } from '@/utils/api';
 import { WheelDialPicker } from './WheelDialPicker';
@@ -27,9 +27,9 @@ export function LanguagePickerModal({
 
   const activeCode = selectedLanguage || locale || 'en';
 
-  // Items: put active language first, followed by remaining locales
+  // Items: put active language first, followed by remaining shipped locales
   const items = useMemo(() => {
-    const list = [...ALL_LOCALES];
+    const list = [...SHIPPED_LOCALES];
     const defCode = activeCode.toLowerCase();
     const activeItem = list.find((i) => i.code.toLowerCase() === defCode);
     const remaining = list.filter((i) => i.code.toLowerCase() !== defCode);
@@ -39,6 +39,12 @@ export function LanguagePickerModal({
     result.push(...remaining);
     return result;
   }, [activeCode]);
+
+  const getLocalizedName = (item: LocaleInfo) => {
+    const key = `languages.${item.code}`;
+    const translated = t(key);
+    return translated === key ? item.name : translated;
+  };
 
   const handleSelectLocale = async (targetLocale: LocaleInfo) => {
     try {
@@ -74,14 +80,14 @@ export function LanguagePickerModal({
     <WheelDialPicker<LocaleInfo>
       isOpen={isOpen}
       onClose={onClose}
-      title={title || t('nav.change_language') || 'Select Language'}
-      subtitle="Drag, scroll, or search to spin wheel"
-      searchPlaceholder="Search language or code..."
+      title={title || t('nav.change_language')}
+      subtitle={t('config.wheel_subtitle')}
+      searchPlaceholder={t('config.search_language_placeholder')}
       items={items}
       selectedId={activeCode}
       getItemId={(item) => item.code}
       keyExtractor={(item) => item.code}
-      getItemSearchText={(item) => `${item.name} ${item.nativeName} ${item.code}`}
+      getItemSearchText={(item) => `${item.name} ${getLocalizedName(item)} ${item.nativeName} ${item.code}`}
       onSelect={handleSelectLocale}
       renderItem={(item, isCenter) => (
         <>
@@ -121,7 +127,7 @@ export function LanguagePickerModal({
                   : 'var(--color-text-muted, #6B7280)',
               }}
             >
-              {item.name}
+              {getLocalizedName(item)}
             </span>
             <span
               style={{
@@ -136,7 +142,7 @@ export function LanguagePickerModal({
                 flexShrink: 1,
               }}
             >
-              {item.nativeName} {item.direction === 'rtl' ? '· RTL' : ''}
+              {item.nativeName} {item.direction === 'rtl' ? t('config.rtl_badge') : ''}
             </span>
           </div>
         </>
@@ -168,7 +174,7 @@ export function LanguagePickerModal({
               textOverflow: 'ellipsis',
             }}
           >
-            Use {item.name} ({item.nativeName})
+            {t('config.use_language_action', { name: getLocalizedName(item), nativeName: item.nativeName })}
           </span>
         </>
       )}

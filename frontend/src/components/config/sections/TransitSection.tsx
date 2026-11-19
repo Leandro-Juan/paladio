@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { GtfsRegistryResponse, CityGtfsItem } from '@/utils/api';
 import { Spinner, ClockIcon, LightningIcon, RefreshIcon, CheckIcon } from '@/components/icons';
 import { SyncGtfsTripsModal } from '@/components/SyncGtfsTripsModal';
@@ -41,10 +42,27 @@ export function TransitSection({
   syncTripsModalOpen,
   setSyncTripsModalOpen,
 }: TransitSectionProps) {
+  const { t, formatNumber } = useTranslation();
+
+  const translateTransitStatus = (status: string): string => {
+    const upper = (status || '').toUpperCase();
+    const map: Record<string, string> = {
+      READY: t('config.status_ready_upper'),
+      BUILDING: t('config.status_building_upper'),
+      QUEUED: t('config.status_queued_upper'),
+      UNAVAILABLE: t('config.status_unavailable_upper'),
+      FAILED: t('config.status_failed_upper'),
+      MISSING: t('config.status_missing_upper'),
+      IDLE: t('config.status_idle_upper'),
+      DOWNLOADING: t('config.status_downloading_upper'),
+    };
+    return map[upper] || upper;
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <SettingsHeader
-        title="City Data & Storage Vault"
+        title={t('config.transit_header_title')}
         onBackToOverview={onBackToOverview}
         actions={
           <button
@@ -65,7 +83,7 @@ export function TransitSection({
               fontWeight: 600,
             }}
           >
-            <RefreshIcon size={13} /> SYNC WITH PLANNED TRIPS
+            <RefreshIcon size={13} /> {t('config.sync_planned_trips_upper')}
           </button>
         }
       />
@@ -117,10 +135,10 @@ export function TransitSection({
                     letterSpacing: '0.5px',
                   }}
                 >
-                  ACTIVE DOWNLOAD PROCESS DETECTED ({gtfsTelemetry.active_processes_count})
+                  {t('config.gtfs_active_download_title', { count: gtfsTelemetry.active_processes_count })}
                 </span>
                 <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                  Downloading and ingesting GTFS transit data for: <strong>{gtfsTelemetry.active_cities.join(', ')}</strong>. Lines, stops, and schedules are being indexed in PostgreSQL.
+                  {t('config.gtfs_active_download_desc', { cities: gtfsTelemetry.active_cities.join(', ') })}
                 </p>
               </div>
             </div>
@@ -136,7 +154,7 @@ export function TransitSection({
                 whiteSpace: 'nowrap',
               }}
             >
-              DOWNLOADING LIVE
+              {t('config.downloading_live_upper')}
             </span>
           </div>
         ) : (
@@ -164,11 +182,11 @@ export function TransitSection({
                 }}
               />
               <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-success)', fontWeight: 600 }}>
-                ALL GTFS SCHEDULES IDLE — NO ACTIVE DOWNLOADS
+                {t('config.gtfs_all_idle_upper')}
               </span>
             </div>
             <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
-              {gtfsTelemetry?.compiled_cities || 0} DOWNLOADED & READY
+              {t('config.gtfs_downloaded_ready_upper', { count: gtfsTelemetry?.compiled_cities || 0 })}
             </span>
           </div>
         )}
@@ -176,43 +194,43 @@ export function TransitSection({
         {/* Storage & Dataset Summary Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
           <div style={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-subtle)', borderRadius: '8px', padding: '0.85rem' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>TRACKED CITIES</span>
+            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>{t('config.tracked_cities_upper')}</span>
             <div className="font-display" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '4px' }}>
               {gtfsTelemetry?.total_cities ?? 0}
             </div>
             <div className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '2px' }}>
-              {gtfsTelemetry?.compiled_cities ?? 0} GTFS compiled
+              {t('config.gtfs_compiled_count', { count: gtfsTelemetry?.compiled_cities ?? 0 })}
             </div>
           </div>
           <div style={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-subtle)', borderRadius: '8px', padding: '0.85rem' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>DISK STORAGE</span>
+            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>{t('config.disk_storage_upper')}</span>
             <div className="font-display" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '4px' }}>
               {formatBytes(gtfsTelemetry?.total_disk_bytes)}
             </div>
             <div className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '2px' }}>
-              GTFS feeds & OSM files
+              {t('config.gtfs_feeds_osm_files')}
             </div>
           </div>
           <div style={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-subtle)', borderRadius: '8px', padding: '0.85rem' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>DATABASE STORAGE</span>
+            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>{t('config.database_storage_upper')}</span>
             <div className="font-display" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '4px' }}>
               {formatBytes(gtfsTelemetry?.total_db_bytes)}
             </div>
             <div className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '2px' }}>
-              POIs, vectors & transit
+              {t('config.pois_vectors_transit')}
             </div>
           </div>
           <div style={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-subtle)', borderRadius: '8px', padding: '0.85rem' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>COMBINED FOOTPRINT</span>
+            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>{t('config.combined_footprint_upper')}</span>
             <div className="font-display" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-success)', marginTop: '4px' }}>
               {formatBytes(gtfsTelemetry?.total_storage_bytes)}
             </div>
             <div className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '2px' }}>
-              Total disk + DB size
+              {t('config.total_disk_db_size')}
             </div>
           </div>
           <div style={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-subtle)', borderRadius: '8px', padding: '0.85rem' }}>
-            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>ACTIVE BACKGROUND TASKS</span>
+            <span className="font-mono text-muted" style={{ fontSize: '10px' }}>{t('config.active_bg_tasks_upper')}</span>
             <div
               className="font-display"
               style={{
@@ -225,7 +243,7 @@ export function TransitSection({
               {gtfsTelemetry?.active_processes_count ?? 0}
             </div>
             <div className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '2px' }}>
-              {gtfsTelemetry?.queued_cities || 0} queued
+              {t('config.queued_count', { count: gtfsTelemetry?.queued_cities || 0 })}
             </div>
           </div>
         </div>
@@ -235,12 +253,12 @@ export function TransitSection({
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>CITY</th>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>POIS DATABASE</th>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>TRANSIT & GTFS</th>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>OSM ROAD GRAPH</th>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>TOTAL STORAGE</th>
-                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>{t('config.col_city_upper')}</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>{t('config.col_pois_db_upper')}</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>{t('config.col_transit_gtfs_upper')}</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>{t('config.col_osm_road_upper')}</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>{t('config.col_total_storage_upper')}</th>
+                <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right' }}>{t('config.col_actions_upper')}</th>
               </tr>
             </thead>
             <tbody>
@@ -252,7 +270,7 @@ export function TransitSection({
                   return (
                     <tr>
                       <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
-                        No destination cities currently loaded in the database or filesystem.
+                        {t('config.no_cities_loaded')}
                       </td>
                     </tr>
                   );
@@ -290,7 +308,7 @@ export function TransitSection({
                               )}
                             </div>
                             <div className="font-mono text-muted" style={{ fontSize: '10px', fontWeight: 400, marginTop: '2px' }}>
-                              {cityItem.has_feed ? 'Open Data Transit Feed' : 'No Official Feed Mapped'}
+                              {cityItem.has_feed ? t('config.open_data_transit_feed') : t('config.no_official_feed_mapped')}
                             </div>
                           </div>
                         </div>
@@ -300,10 +318,14 @@ export function TransitSection({
                       <td style={{ padding: '12px' }}>
                         <div>
                           <div style={{ fontWeight: 600 }}>
-                            {hasPois ? `${cityItem.poi_count?.toLocaleString()} POIs` : '0 POIs'}
+                            {hasPois
+                              ? t('config.pois_count_label', { count: formatNumber(cityItem.poi_count || 0) })
+                              : t('config.zero_pois_label')}
                           </div>
                           <div className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '2px' }}>
-                            {hasPois ? `${formatBytes(cityItem.poi_db_bytes)} (DB & vectors)` : 'Not ingested'}
+                            {hasPois
+                              ? t('config.db_vectors_size', { size: formatBytes(cityItem.poi_db_bytes) })
+                              : t('config.not_ingested')}
                           </div>
                         </div>
                       </td>
@@ -328,7 +350,7 @@ export function TransitSection({
                                   gap: '4px',
                                 }}
                               >
-                                <ClockIcon size={10} color="var(--color-accent-gold)" /> In Queue
+                                <ClockIcon size={10} color="var(--color-accent-gold)" /> {t('config.in_queue_label')}
                               </span>
                             ) : (
                               <span
@@ -360,21 +382,24 @@ export function TransitSection({
                                 }}
                               >
                                 {isItemCompiling && <Spinner size={10} color="var(--color-accent-gold)" />}
-                                {isItemCompiling ? 'DOWNLOADING' : cityItem.gtfs_status.toUpperCase()}
+                                {isItemCompiling ? t('config.status_downloading_upper') : translateTransitStatus(cityItem.gtfs_status)}
                               </span>
                             )}
                             {hasGtfs && (
                               <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                                {formatBytes(cityItem.disk_gtfs_bytes)} disk
+                                {t('config.size_disk_label', { size: formatBytes(cityItem.disk_gtfs_bytes) })}
                               </span>
                             )}
                           </div>
                           <div className="font-mono text-muted" style={{ fontSize: '10px' }}>
                             {cityItem.transit_stations_count
-                              ? `${cityItem.transit_stations_count.toLocaleString()} stations · ${cityItem.transit_lines_count || 0} lines`
+                              ? t('config.stations_lines_summary', {
+                                  stations: formatNumber(cityItem.transit_stations_count),
+                                  lines: cityItem.transit_lines_count || 0,
+                                })
                               : cityItem.is_compiled
-                              ? 'Schedule indexed'
-                              : 'No stations'}
+                              ? t('config.schedule_indexed')
+                              : t('config.no_stations')}
                           </div>
                         </div>
                       </td>
@@ -395,10 +420,12 @@ export function TransitSection({
                               marginBottom: '3px',
                             }}
                           >
-                            {cityItem.osm_status}
+                            {translateTransitStatus(cityItem.osm_status)}
                           </span>
                           <div className="font-mono text-muted" style={{ fontSize: '10px' }}>
-                            {(cityItem.disk_osm_bytes || 0) > 0 ? `${formatBytes(cityItem.disk_osm_bytes)} on disk` : 'Cached extract'}
+                            {(cityItem.disk_osm_bytes || 0) > 0
+                              ? t('config.size_on_disk', { size: formatBytes(cityItem.disk_osm_bytes) })
+                              : t('config.cached_extract')}
                           </div>
                         </div>
                       </td>
@@ -422,7 +449,10 @@ export function TransitSection({
                             {formatBytes(cityItem.total_storage_bytes)}
                           </span>
                           <div className="font-mono text-muted" style={{ fontSize: '9px' }}>
-                            {formatBytes(cityItem.total_disk_bytes)} disk · {formatBytes(cityItem.total_db_bytes)} DB
+                            {t('config.disk_and_db_summary', {
+                              disk: formatBytes(cityItem.total_disk_bytes),
+                              db: formatBytes(cityItem.total_db_bytes),
+                            })}
                           </div>
                         </div>
                       </td>
@@ -436,7 +466,7 @@ export function TransitSection({
                             onClick={() => setDeleteGtfsCandidate(cityItem)}
                             disabled={deletingGtfs && deleteGtfsCandidate?.city === cityItem.city}
                             className="font-mono"
-                            title="Delete or cancel GTFS transit schedules and disk files"
+                            title={t('config.delete_gtfs_btn_title')}
                             style={{
                               padding: '5px 8px',
                               fontSize: '10px',
@@ -458,13 +488,13 @@ export function TransitSection({
                           >
                             {deletingGtfs && deleteGtfsCandidate?.city === cityItem.city
                               ? isItemCompiling || isItemQueued
-                              ? 'STOPPING...'
-                              : 'DELETING...'
+                              ? t('config.stopping_upper')
+                              : t('config.deleting_upper')
                               : isItemQueued
-                              ? 'CANCEL'
+                              ? t('config.cancel_upper')
                               : isItemCompiling
-                              ? 'STOP'
-                              : 'DELETE'}
+                              ? t('config.stop_upper')
+                              : t('config.delete_upper')}
                           </button>
                         </div>
                       </td>
@@ -505,23 +535,13 @@ export function TransitSection({
           >
             <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-danger)' }}>
               {deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued
-                ? 'Stop GTFS Compilation'
-                : 'Delete GTFS Transit Data'}
+                ? t('config.stop_gtfs_modal_title')
+                : t('config.delete_gtfs_modal_title')}
             </h3>
             <p style={{ fontSize: '13px', margin: '1rem 0', color: 'var(--color-text-primary)', lineHeight: 1.5 }}>
-              {deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued ? (
-                <>
-                  Are you sure you want to stop and cancel GTFS compilation for{' '}
-                  <strong>{deleteGtfsCandidate.display_name}</strong>? Active background tasks will be terminated,
-                  locks released, and temporary build files deleted.
-                </>
-              ) : (
-                <>
-                  Are you sure you want to permanently delete compiled GTFS transit data for{' '}
-                  <strong>{deleteGtfsCandidate.display_name}</strong>? This removes downloaded schedules and Valhalla
-                  transit tiles.
-                </>
-              )}
+              {deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued
+                ? t('config.gtfs_stop_modal_body', { city: deleteGtfsCandidate.display_name })
+                : t('config.gtfs_delete_modal_body', { city: deleteGtfsCandidate.display_name })}
             </p>
             <div
               className="font-mono text-muted"
@@ -534,7 +554,7 @@ export function TransitSection({
                 border: '1px solid var(--color-border-subtle)',
               }}
             >
-              User trips, itineraries, and scraped hotel accommodations will remain safe and untouched.
+              {t('config.gtfs_delete_safe_notice')}
             </div>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
@@ -552,7 +572,7 @@ export function TransitSection({
                   cursor: 'pointer',
                 }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -573,11 +593,11 @@ export function TransitSection({
               >
                 {deletingGtfs
                   ? deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued
-                    ? 'STOPPING...'
-                    : 'DELETING...'
+                    ? t('config.stopping_upper')
+                    : t('config.deleting_upper')
                   : deleteGtfsCandidate.is_building || deleteGtfsCandidate.is_queued
-                  ? 'STOP & CLEAN UP'
-                  : 'DELETE GTFS'}
+                  ? t('config.stop_and_cleanup_upper')
+                  : t('config.delete_gtfs_upper')}
               </button>
             </div>
           </div>

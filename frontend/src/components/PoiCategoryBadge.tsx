@@ -1,7 +1,8 @@
 "use client";
 
 import React from 'react';
-import { classifyPoiCategory, PoiCategoryType } from '@/utils/poiCategory';
+import { useTranslation } from '@/hooks/useTranslation';
+import { classifyPoiCategory, getPoiCategoryLabel, PoiCategoryType } from '@/utils/poiCategory';
 
 interface PoiCategoryBadgeProps {
   category?: string;
@@ -158,7 +159,9 @@ export function PoiCategoryBadge({
   size = 'sm',
   showIcon = true,
 }: PoiCategoryBadgeProps) {
+  const { t } = useTranslation();
   const meta = classifyPoiCategory(category, name);
+  const label = getPoiCategoryLabel(meta, t);
 
   const padding = size === 'xs' ? '1px 5px' : size === 'md' ? '4px 10px' : '2px 7px';
   const fontSize = size === 'xs' ? '0.65rem' : size === 'md' ? '0.8rem' : '0.7rem';
@@ -188,7 +191,7 @@ export function PoiCategoryBadge({
       }}
     >
       {showIcon && <CategoryIcon type={meta.type} size={iconSize} />}
-      <span>{meta.label}</span>
+      <span>{label}</span>
     </span>
   );
 }

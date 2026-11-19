@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { LLMConfigResponse } from '@/utils/api';
 import styles from './ModelSelectorPopover.module.css';
 
@@ -25,6 +26,7 @@ export function ModelSelectorPopover({
   onSelectModel,
   isSwitching = false,
 }: ModelSelectorPopoverProps) {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const popoverRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -113,13 +115,13 @@ export function ModelSelectorPopover({
     if (activeProv !== 'ollama') {
       fallbackList.push({
         provKey: 'ollama',
-        name: 'Ollama (Local)',
+        name: t('trip_agent.ollama_local'),
         models: ['qwen2.5:3b', 'qwen2.5:latest', 'llama3.2:latest', 'llama3.1:latest'],
       });
     }
 
     return fallbackList;
-  }, [llmConfig, currentProvider, currentModel]);
+  }, [llmConfig, currentProvider, currentModel, t]);
 
   // Filtered families based on search query
   const filteredFamilies = useMemo(() => {
@@ -148,7 +150,7 @@ export function ModelSelectorPopover({
 
   return (
     <div className={styles.popoverOverlay}>
-      <div ref={popoverRef} className={styles.popoverCard} role="dialog" aria-label="Select AI Model">
+      <div ref={popoverRef} className={styles.popoverCard} role="dialog" aria-label={t('trip_agent.select_ai_model')}>
         {/* Search Header */}
         <div className={styles.searchHeader}>
           <div className={styles.searchBox}>
@@ -159,7 +161,7 @@ export function ModelSelectorPopover({
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search models..."
+              placeholder={t('trip_agent.search_models')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={styles.searchInput}
@@ -169,7 +171,7 @@ export function ModelSelectorPopover({
                 type="button"
                 onClick={() => setSearchQuery('')}
                 className={styles.clearSearchBtn}
-                aria-label="Clear search"
+                aria-label={t('trip_agent.clear_search')}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -184,8 +186,8 @@ export function ModelSelectorPopover({
         <div className={styles.modelListScroll}>
           {filteredFamilies.length === 0 ? (
             <div className={styles.emptyState}>
-              <p>No matching models found</p>
-              <span>Try searching for &quot;gemini&quot;, &quot;claude&quot;, or &quot;gpt&quot;</span>
+              <p>{t('trip_agent.no_models_found')}</p>
+              <span>{t('trip_agent.try_searching_models')}</span>
             </div>
           ) : (
             filteredFamilies.map((fam) => (
@@ -194,7 +196,10 @@ export function ModelSelectorPopover({
                   <span className={styles.familyName}>{fam.name}</span>
                   {fam.provKey === 'ollama' && llmConfig?.hardware_profile && (
                     <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}>
-                      {llmConfig.hardware_profile.recommended_num_ctx} ctx • {llmConfig.hardware_profile.total_ram_gb}GB RAM
+                      {t('trip_agent.hw_ram_ctx', {
+                        ctx: llmConfig.hardware_profile.recommended_num_ctx,
+                        ram: llmConfig.hardware_profile.total_ram_gb,
+                      })}
                     </span>
                   )}
                 </div>
@@ -241,7 +246,7 @@ export function ModelSelectorPopover({
                                 marginLeft: '6px',
                               }}
                             >
-                              Recommended
+                              {t('trip_agent.recommended')}
                             </span>
                           )}
                         </div>
@@ -271,7 +276,7 @@ export function ModelSelectorPopover({
             className={styles.footerLink}
             onClick={() => onClose()}
           >
-            + Configure more providers in Settings
+            {t('trip_agent.configure_more_providers')}
           </a>
         </div>
       </div>

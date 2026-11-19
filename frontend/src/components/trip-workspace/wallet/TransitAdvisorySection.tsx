@@ -3,6 +3,7 @@
 import React from 'react';
 import { RouteItineraryData, TransitRecommendation } from '@/types/domain';
 import { BulbIcon, TicketIcon } from '@/components/icons';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface TransitAdvisorySectionProps {
   itinerary?: RouteItineraryData | null;
@@ -10,6 +11,7 @@ interface TransitAdvisorySectionProps {
 }
 
 export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvisorySectionProps) {
+  const { t } = useTranslation();
   if (!itinerary?.days || !Array.isArray(itinerary.days)) {
     return null;
   }
@@ -53,10 +55,10 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
     <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
-          {'TRANSIT PASS SAVINGS ADVISORY'}
+          {t('wallet.transit_advisory_heading')}
         </h3>
         <span className="font-mono text-muted" style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
-          SOLVER FARE ANALYSIS
+          {t('wallet.solver_fare_analysis')}
         </span>
       </div>
 
@@ -117,8 +119,8 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
                     }}
                   >
                     {isPassRecommended
-                      ? 'TRANSIT PASS ADVISORY: 24H PASS RECOMMENDED'
-                      : 'TRANSIT FARE SUMMARY'}
+                      ? t('wallet.advisory_24h_recommended')
+                      : t('wallet.transit_fare_summary')}
                   </span>
                 </div>
 
@@ -132,7 +134,7 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
                     border: '1px solid var(--color-border, #CBD5E1)',
                   }}
                 >
-                  DAY {dayNumber} {date ? `· ${date}` : ''}
+                  {t('wallet.day_upper', { number: dayNumber })}{date ? ` · ${date}` : ''}
                 </span>
               </div>
 
@@ -145,7 +147,7 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
                   fontSize: '0.8rem',
                 }}
               >
-                {rec.message || (isPassRecommended ? 'Purchasing a 24-hour pass is more economical than single journey tickets for this day.' : 'Single tickets are more cost-effective for the planned routes.')}
+                {rec.message || (isPassRecommended ? t('wallet.advisory_24h_rationale') : t('wallet.advisory_single_rationale'))}
               </p>
 
               {/* Pricing breakdown stats row */}
@@ -169,7 +171,7 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
                       textTransform: 'uppercase',
                     }}
                   >
-                    Point-to-Point Fare
+                    {t('wallet.point_to_point_fare')}
                   </span>
                   <span
                     style={{
@@ -191,7 +193,7 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
                       textTransform: 'uppercase',
                     }}
                   >
-                    24h Day Pass
+                    {t('wallet.day_pass_24h')}
                   </span>
                   <span
                     style={{
@@ -213,7 +215,7 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
                       textTransform: 'uppercase',
                     }}
                   >
-                    {isPassRecommended ? 'Savings' : 'Difference'}
+                    {isPassRecommended ? t('wallet.savings_label') : t('wallet.difference_label')}
                   </span>
                   <span
                     style={{
@@ -246,7 +248,7 @@ export function TransitAdvisorySection({ itinerary, onAddDayPass }: TransitAdvis
                         boxShadow: '0 1px 3px rgba(30, 58, 138, 0.2)',
                       }}
                     >
-                      + ADD DAY PASS TO WALLET
+                      {t('wallet.add_day_pass_btn')}
                     </button>
                   </div>
                 )}

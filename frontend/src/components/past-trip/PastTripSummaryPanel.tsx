@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { TripParticipant, TripSettlement } from '@/hooks/useTrips';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
@@ -28,6 +29,9 @@ export function PastTripSummaryPanel({
   heroPhotoUrl,
   firstPoiName,
 }: PastTripSummaryPanelProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
+
   // POI photo dynamic watch if heroPhotoUrl not already present
   const poisToWatch = useMemo(() => {
     if (heroPhotoUrl || !firstPoiName) return [];
@@ -42,21 +46,21 @@ export function PastTripSummaryPanel({
     try {
       const d = new Date(startDate);
       if (isNaN(d.getTime())) return startDate;
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      return d.toLocaleDateString(intlLocale, { month: 'short', day: 'numeric', year: 'numeric' });
     } catch {
       return startDate;
     }
-  }, [startDate]);
+  }, [startDate, intlLocale]);
 
   const formattedEndDate = useMemo(() => {
     try {
       const d = new Date(endDate);
       if (isNaN(d.getTime())) return endDate;
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      return d.toLocaleDateString(intlLocale, { month: 'short', day: 'numeric', year: 'numeric' });
     } catch {
       return endDate;
     }
-  }, [endDate]);
+  }, [endDate, intlLocale]);
 
   // Compute duration
   const { days, nights } = useMemo(() => {
@@ -95,7 +99,7 @@ export function PastTripSummaryPanel({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span className="font-mono text-muted" style={{ fontSize: '0.78rem' }}>
-            Trip Start Date
+            {t('vault.trip_start_date')}
           </span>
           <span className="font-mono" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
             {formattedStartDate}
@@ -104,7 +108,7 @@ export function PastTripSummaryPanel({
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span className="font-mono text-muted" style={{ fontSize: '0.78rem' }}>
-            Trip End Date
+            {t('vault.trip_end_date')}
           </span>
           <span className="font-mono" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
             {formattedEndDate}
@@ -113,7 +117,7 @@ export function PastTripSummaryPanel({
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span className="font-mono text-muted" style={{ fontSize: '0.78rem' }}>
-            Total Travelers
+            {t('vault.total_travelers')}
           </span>
           <span className="font-mono" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
             {travelersCount}
@@ -122,7 +126,7 @@ export function PastTripSummaryPanel({
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span className="font-mono text-muted" style={{ fontSize: '0.78rem' }}>
-            Settlement Status
+            {t('vault.settlement_status')}
           </span>
           <span
             className="font-mono"
@@ -135,7 +139,7 @@ export function PastTripSummaryPanel({
               color: isSettled ? 'var(--color-success, #1F7A4D)' : 'var(--color-accent-warning, #E2B33C)',
             }}
           >
-            {isSettled ? 'BALANCED' : 'SPLITS PENDING'}
+            {isSettled ? t('vault.balanced') : t('vault.splits_pending')}
           </span>
         </div>
       </div>
@@ -151,7 +155,7 @@ export function PastTripSummaryPanel({
         }}
       >
         <span className="font-mono text-muted" style={{ fontSize: '0.7rem' }}>
-          {days} Days / {nights} Nights
+          {t('vault.days_nights_count', { days, nights })}
         </span>
         <span
           className="font-display"
@@ -162,11 +166,11 @@ export function PastTripSummaryPanel({
             lineHeight: 1.2,
           }}
         >
-          {currencySymbol} {totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {currencySymbol} {totalCost.toLocaleString(intlLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
         {travelersCount > 1 && (
           <span className="font-mono text-muted" style={{ fontSize: '0.65rem' }}>
-            ~{currencySymbol} {perPersonCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / person
+            ~{currencySymbol} {perPersonCost.toLocaleString(intlLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {t('workspace.per_person')}
           </span>
         )}
       </div>
@@ -233,7 +237,7 @@ export function PastTripSummaryPanel({
                   backdropFilter: 'blur(4px)',
                 }}
               >
-                DESTINATION
+                {t('vault.destination_badge')}
               </span>
             </div>
           </div>
@@ -267,7 +271,7 @@ export function PastTripSummaryPanel({
               className="font-mono text-muted"
               style={{ fontSize: '0.68rem', textTransform: 'uppercase' }}
             >
-              [ PHOTO NOT RECORDED ]
+              {t('vault.photo_not_recorded')}
             </span>
           </div>
         )}

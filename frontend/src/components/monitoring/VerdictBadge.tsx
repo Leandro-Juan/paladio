@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import styles from './VerdictBadge.module.css';
 
 interface VerdictBadgeProps {
@@ -20,6 +21,8 @@ export function VerdictBadge({
   size,
   compact = false,
 }: VerdictBadgeProps) {
+  const { t } = useTranslation();
+
   if (!verdict) return null;
 
   const actualSize = size || (compact ? 'sm' : 'md');
@@ -27,24 +30,24 @@ export function VerdictBadge({
 
   let verdictClass = styles.verdictTypical;
   let icon = '•';
-  let label = 'Typical';
+  let label = t('monitoring.verdict_typical');
 
   if (vNorm === 'GREAT') {
     verdictClass = styles.verdictGreat;
     icon = '★';
-    label = 'Great Deal';
+    label = t('monitoring.verdict_great_deal');
   } else if (vNorm === 'GOOD') {
     verdictClass = styles.verdictGood;
     icon = '↓';
-    label = 'Good Price';
+    label = t('monitoring.verdict_good_price');
   } else if (vNorm === 'HIGH') {
     verdictClass = styles.verdictHigh;
     icon = '↑';
-    label = 'High';
+    label = t('monitoring.verdict_high');
   } else if (vNorm === 'PEAK') {
     verdictClass = styles.verdictPeak;
     icon = '▲';
-    label = 'Peak Surge';
+    label = t('monitoring.verdict_peak_surge');
   }
 
   const sizeClass = actualSize === 'sm' ? styles.sizeSm : actualSize === 'lg' ? styles.sizeLg : styles.sizeMd;
@@ -56,11 +59,24 @@ export function VerdictBadge({
       ? styles.confidenceBuilding
       : styles.confidenceProvisional;
 
+  const confidenceLabel =
+    confidence === 'established'
+      ? t('monitoring.confidence_established')
+      : confidence === 'building'
+      ? t('monitoring.confidence_building')
+      : confidence === 'provisional'
+      ? t('monitoring.confidence_provisional')
+      : confidence;
+
   return (
     <div className={styles.badgeWrapper}>
       <span
         className={`${styles.badge} ${verdictClass} ${sizeClass}`}
-        data-tooltip={percentile !== null && percentile !== undefined ? `Percentile: P${percentile.toFixed(0)}` : undefined}
+        data-tooltip={
+          percentile !== null && percentile !== undefined
+            ? t('monitoring.percentile_tooltip', { pct: percentile.toFixed(0) })
+            : undefined
+        }
         data-tooltip-position="top"
       >
         <span aria-hidden="true">{icon}</span>
@@ -77,12 +93,12 @@ export function VerdictBadge({
           className={`${styles.confidencePill} ${confClass}`}
           data-tooltip={
             confidence === 'established'
-              ? 'Backed by 21+ days of time-series observations'
-              : 'Provisional baseline from forward calendar sweep'
+              ? t('monitoring.confidence_established_tooltip')
+              : t('monitoring.confidence_provisional_tooltip')
           }
           data-tooltip-position="top"
         >
-          {confidence}
+          {confidenceLabel}
         </span>
       )}
     </div>

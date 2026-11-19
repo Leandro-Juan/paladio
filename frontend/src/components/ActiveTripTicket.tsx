@@ -139,7 +139,11 @@ export function ActiveTripTicket({
               {diffDays > 0 ? diffDays : isOngoing ? elapsedDays : '0'}
             </span>
             <span className={styles.countdownUnit}>
-              {diffDays > 0 ? 'days' : isOngoing ? 'active' : 'today'}
+              {diffDays > 0
+                ? t('dashboard.countdown_days_unit')
+                : isOngoing
+                ? t('dashboard.countdown_active_unit')
+                : t('dashboard.countdown_today_unit')}
             </span>
           </div>
         </div>
@@ -149,13 +153,15 @@ export function ActiveTripTicket({
           <div className={styles.telemetryGroup}>
             <div className={styles.heroStatPair}>
               <span className={styles.heroStatLabel}>{t('dashboard.waypoints')}</span>
-              <span className={styles.heroStatValue}>{poisCount} STOPS</span>
+              <span className={styles.heroStatValue}>{t('dashboard.stops_count', { count: poisCount })}</span>
             </div>
 
             <div className={styles.heroStatPair}>
               <span className={styles.heroStatLabel}>{t('dashboard.crew')}</span>
               <span className={styles.heroStatValue}>
-                {participantsCount > 1 ? `${participantsCount} TRAVELERS` : 'SOLO'}
+                {participantsCount > 1
+                  ? t('dashboard.travelers_count', { count: participantsCount })
+                  : t('dashboard.solo')}
               </span>
             </div>
 

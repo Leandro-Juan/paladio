@@ -10,6 +10,7 @@ import {
   WorkspaceContextData,
 } from './types/agent';
 import { parseAgentError } from './errorParser';
+import { translate } from '@/stores/localeStore';
 import { notify } from '@/utils/notify';
 import { getAuthToken, getWsBaseUrl } from '@/utils/api';
 
@@ -32,7 +33,7 @@ export function useTripAgent({ tripId, uiContext, onTripUpdated }: UseTripAgentP
             ...m,
             // Ensure restored messages are not stuck in an active streaming state
             isStreaming: false,
-            content: m.content || (m.role === 'assistant' ? 'No response recorded.' : ''),
+            content: m.content || (m.role === 'assistant' ? translate('trip_agent.no_response_recorded') : ''),
           }));
         }
       }
@@ -167,7 +168,7 @@ export function useTripAgent({ tripId, uiContext, onTripUpdated }: UseTripAgentP
           const proposalItem: ProposalItem = {
             proposal_id: ev.proposal_id,
             tool: ev.tool || 'action',
-            summary: ev.summary || 'Confirmation required for this action.',
+            summary: ev.summary || translate('trip_agent.proposal_default_summary'),
             diff: ev.diff,
             expires_in_seconds: ev.expires_in_seconds || 600,
             created_at: Date.now(),
@@ -191,7 +192,7 @@ export function useTripAgent({ tripId, uiContext, onTripUpdated }: UseTripAgentP
           if (ev.revision !== undefined && ev.revision !== null) {
             setLastChange({
               revision: ev.revision,
-              summary: ev.summary || 'Trip itinerary updated',
+              summary: ev.summary || translate('trip_agent.trip_itinerary_updated'),
               undoToken: ev.undo_token,
             });
           }
@@ -228,7 +229,7 @@ export function useTripAgent({ tripId, uiContext, onTripUpdated }: UseTripAgentP
           if (ev.code === 'CANCELLED' || ev.code === 'TURN_IN_PROGRESS') {
             setIsWorking(false);
           }
-          notify.info('Trip Agent', ev.message || 'Warning');
+          notify.info(translate('trip_agent.trip_agent'), ev.message || translate('trip_agent.warning_default'));
           break;
         }
 
@@ -324,7 +325,7 @@ export function useTripAgent({ tripId, uiContext, onTripUpdated }: UseTripAgentP
               ...prev.slice(0, -1),
               {
                 ...last,
-                content: last.content || 'Connection interrupted. Reconnecting to agent co-pilot...',
+                content: last.content || translate('trip_agent.connection_interrupted_reconnecting'),
                 isStreaming: false,
               },
             ];
@@ -395,7 +396,7 @@ export function useTripAgent({ tripId, uiContext, onTripUpdated }: UseTripAgentP
         wsRef.current.send(JSON.stringify(payload));
       } else {
         setIsWorking(false);
-        notify.warning('Agent Offline', 'Reconnecting to agent co-pilot...');
+        notify.warning(translate('trip_agent.agent_offline_title'), translate('trip_agent.reconnecting_copilot'));
         connectWs();
       }
     },
@@ -438,7 +439,7 @@ export function useTripAgent({ tripId, uiContext, onTripUpdated }: UseTripAgentP
     }
     setIsWorking(false);
     setMessages((prev) =>
-      prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false, content: m.content || 'Turn cancelled.' } : m))
+      prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false, content: m.content || translate('trip_agent.turn_cancelled') } : m))
     );
   }, []);
 

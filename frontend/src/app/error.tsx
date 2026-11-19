@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import { AlertTriangleIcon, ChevronLeftIcon } from '@/components/icons';
 
 export default function GlobalError({
@@ -11,6 +12,8 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     console.error('Unhandled app error:', error);
   }, [error]);
@@ -52,7 +55,7 @@ export default function GlobalError({
             letterSpacing: '0.05em',
           }}
         >
-          TELEMETRY FAULT DETECTED
+          {t('errors.telemetry_fault_title')}
         </h3>
         <p
           className="font-mono text-muted text-sm mt-3"
@@ -62,14 +65,14 @@ export default function GlobalError({
             wordBreak: 'break-word',
           }}
         >
-          {error.message || 'An unexpected rendering exception occurred in this operational sector.'}
+          {error.message ? t(error.message) : t('errors.unexpected_rendering_exception')}
         </p>
         {error.digest && (
           <p
             className="font-mono text-xs mt-1"
             style={{ color: 'var(--color-text-subtle, #555560)' }}
           >
-            FAULT DIGEST: {error.digest}
+            {t('errors.fault_digest', { digest: error.digest })}
           </p>
         )}
         <div
@@ -95,7 +98,7 @@ export default function GlobalError({
               fontSize: '0.85rem',
             }}
           >
-            RETRY OPERATION
+            {t('errors.retry_operation')}
           </button>
           <Link
             href="/dashboard"
@@ -112,7 +115,7 @@ export default function GlobalError({
               fontSize: '0.85rem',
             }}
           >
-            <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> RETURN TO DASHBOARD
+            <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> {t('errors.return_to_dashboard')}
           </Link>
         </div>
       </div>

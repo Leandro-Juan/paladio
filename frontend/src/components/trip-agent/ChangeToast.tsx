@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import styles from './AgentDock.module.css';
 
 interface ChangeToastProps {
@@ -10,6 +11,8 @@ interface ChangeToastProps {
 }
 
 export function ChangeToast({ change, onUndo, onDismiss }: ChangeToastProps) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     if (!change) return;
     const timer = setTimeout(() => {
@@ -28,7 +31,7 @@ export function ChangeToast({ change, onUndo, onDismiss }: ChangeToastProps) {
             <polyline points="20 6 9 17 4 12" />
           </svg>
           <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-            {change.summary} (Rev {change.revision})
+            {t('trip_agent.change_rev', { summary: change.summary, revision: change.revision })}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '12px' }}>
@@ -36,10 +39,11 @@ export function ChangeToast({ change, onUndo, onDismiss }: ChangeToastProps) {
             className={styles.undoToastBtn}
             onClick={() => onUndo(change.revision)}
           >
-            Undo
+            {t('trip_agent.undo')}
           </button>
           <button
             onClick={onDismiss}
+            aria-label={t('common.close')}
             style={{
               background: 'none',
               border: 'none',

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { useTranslation } from '@/hooks/useTranslation';
 import { NotificationCenter } from './NotificationCenter';
 
 interface NotificationBellProps {
@@ -9,6 +10,7 @@ interface NotificationBellProps {
 }
 
 export function NotificationBell({ placement = 'bottom' }: NotificationBellProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const unreadCount = useNotificationStore((state) => state.unreadCount);
@@ -19,9 +21,9 @@ export function NotificationBell({ placement = 'bottom' }: NotificationBellProps
         ref={buttonRef}
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        aria-label={`Notifications (${unreadCount} unread)`}
+        aria-label={t('notifications.bell_aria_label', { count: unreadCount })}
         aria-expanded={isOpen}
-        title="View Notifications"
+        title={t('notifications.view_notifications')}
         style={{
           position: 'relative',
           background: isOpen ? 'var(--color-surface-hover, rgba(15, 76, 92, 0.08))' : 'transparent',

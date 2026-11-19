@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SystemUpdateStatus } from '@/utils/api';
 import { Spinner, RefreshIcon, LightningIcon } from '@/components/icons';
 import { SettingsHeader } from '../SettingsHeader';
@@ -83,11 +84,14 @@ function parseInlineMarkdown(text: string): React.ReactNode[] {
   });
 }
 
-function renderReleaseNotes(markdown: string | null | undefined): React.ReactNode {
+function renderReleaseNotes(
+  markdown: string | null | undefined,
+  t: (key: string, params?: Record<string, string | number>) => string
+): React.ReactNode {
   if (!markdown) {
     return (
       <p className="text-muted font-mono" style={{ margin: 0, fontSize: '11px' }}>
-        No release notes provided.
+        {t('config.no_release_notes')}
       </p>
     );
   }
@@ -217,10 +221,20 @@ export function SystemSection({
   handleDownloadUpdate,
   handleToggleAutoUpdate,
 }: SystemSectionProps) {
+  const { t, locale } = useTranslation();
+
+  const downloadStatusUpper = (updaterStatus?.download_status || 'idle').toUpperCase();
+  const downloadStatusMap: Record<string, string> = {
+    IDLE: t('config.status_idle_upper'),
+    DOWNLOADING: t('config.status_downloading_upper'),
+    DOWNLOADED: t('config.status_downloaded_upper'),
+    FAILED: t('config.status_failed_upper'),
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <SettingsHeader
-        title={subTab === 'telemetry' ? 'Sovereign Docker Telemetry' : 'System Updates & Sovereign Infrastructure'}
+        title={subTab === 'telemetry' ? t('config.telemetry_header_title') : t('config.updates_header_title')}
         onBackToOverview={onBackToOverview}
         actions={
           subTab !== 'telemetry' ? (
@@ -245,7 +259,7 @@ export function SystemSection({
               }}
             >
               {updaterChecking ? <Spinner size={12} /> : <RefreshIcon size={12} />}
-              {updaterChecking ? 'CHECKING...' : 'CHECK FOR UPDATES'}
+              {updaterChecking ? t('config.checking_upper') : t('config.check_for_updates_upper')}
             </button>
           ) : undefined
         }
@@ -264,7 +278,7 @@ export function SystemSection({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
           <div>
             <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
-              System Updates &amp; Auto-Updater
+              {t('config.system_updates_title')}
             </h3>
           </div>
 
@@ -292,12 +306,12 @@ export function SystemSection({
                 {updaterDownloading || updaterStatus?.download_status === 'downloading' ? (
                   <>
                     <Spinner size={12} />
-                    <span>DOWNLOADING...</span>
+                    <span>{t('config.downloading_upper')}</span>
                   </>
                 ) : (
                   <>
                     <LightningIcon size={12} />
-                    <span>DOWNLOAD LATEST (v{updaterStatus?.latest_version})</span>
+                    <span>{t('config.download_latest_upper', { version: updaterStatus?.latest_version ?? '' })}</span>
                   </>
                 )}
               </button>
@@ -366,14 +380,17 @@ export function SystemSection({
                       fontWeight: 700,
                     }}
                   >
-                    NEW UPDATE AVAILABLE
+                    {t('config.new_update_available_upper')}
                   </span>
                   <h4 className="font-display" style={{ fontSize: '1.25rem', margin: 0 }}>
-                    {updaterStatus.release_title || `Paladio v${updaterStatus.latest_version}`}
+                    {updaterStatus.release_title || t('config.paladio_version_title', { version: updaterStatus.latest_version })}
                   </h4>
                 </div>
                 <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
-                  Installed version: v{updaterStatus.current_version} → Latest version: v{updaterStatus.latest_version}
+                  {t('config.installed_vs_latest_version', {
+                    current: updaterStatus.current_version,
+                    latest: updaterStatus.latest_version,
+                  })}
                 </p>
               </div>
 
@@ -392,7 +409,7 @@ export function SystemSection({
                     cursor: 'pointer',
                   }}
                 >
-                  REMIND ME LATER
+                  {t('config.remind_me_later_upper')}
                 </button>
                 <button
                   type="button"
@@ -416,12 +433,12 @@ export function SystemSection({
                   {updaterDownloading || updaterStatus.download_status === 'downloading' ? (
                     <>
                       <Spinner size={12} color="#1a1815" />
-                      <span>DOWNLOADING &amp; INSTALLING...</span>
+                      <span>{t('config.downloading_installing_upper')}</span>
                     </>
                   ) : (
                     <>
                       <LightningIcon size={12} />
-                      <span>INSTALL UPDATE NOW (v{updaterStatus.latest_version})</span>
+                      <span>{t('config.install_update_now_upper', { version: updaterStatus.latest_version })}</span>
                     </>
                   )}
                 </button>
@@ -431,7 +448,7 @@ export function SystemSection({
             {/* Features and Patch Notes */}
             <div style={{ marginTop: '0.75rem' }}>
               <p className="font-mono text-muted" style={{ fontSize: '10px', marginBottom: '6px', fontWeight: 600 }}>
-                NEW FEATURES &amp; PATCH NOTES:
+                {t('config.new_features_patch_notes_upper')}
               </p>
               <div
                 style={{
@@ -443,10 +460,10 @@ export function SystemSection({
                   overflowY: 'auto',
                 }}
               >
-                {renderReleaseNotes(updaterStatus.release_notes)}
+                {renderReleaseNotes(updaterStatus.release_notes, t)}
               </div>
               <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '8px', marginBottom: 0 }}>
-                Would you like to install this update? Click &quot;INSTALL UPDATE NOW&quot; to download and apply the latest release.
+                {t('config.install_update_prompt_hint')}
               </p>
             </div>
           </div>
@@ -464,7 +481,7 @@ export function SystemSection({
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>INSTALLED VERSION</span>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>{t('config.installed_version_upper')}</span>
               <span
                 className="font-mono"
                 style={{
@@ -479,7 +496,7 @@ export function SystemSection({
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>REMOTE RELEASE</span>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>{t('config.remote_release_upper')}</span>
               <span
                 className="font-mono"
                 style={{
@@ -495,7 +512,7 @@ export function SystemSection({
               </span>
             </div>
             <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '12px', marginBottom: 0 }}>
-              GITHUB REPO: {updaterStatus?.github_repo || 'Leandro-Juan/paladio'}
+              {t('config.github_repo_label', { repo: updaterStatus?.github_repo || 'Leandro-Juan/paladio' })}
             </p>
           </div>
 
@@ -513,7 +530,7 @@ export function SystemSection({
           >
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span className="font-mono text-muted" style={{ fontSize: '11px' }}>AUTOMATIC UPDATES</span>
+                <span className="font-mono text-muted" style={{ fontSize: '11px' }}>{t('config.automatic_updates_upper')}</span>
                 <span
                   data-testid="auto-update-status-badge"
                   className="font-mono"
@@ -527,13 +544,13 @@ export function SystemSection({
                     border: '1px solid var(--color-border-subtle)',
                   }}
                 >
-                  {updaterStatus?.auto_update_enabled ? 'ACTIVE' : 'DISABLED'}
+                  {updaterStatus?.auto_update_enabled ? t('config.badge_active_upper') : t('config.badge_disabled_upper')}
                 </span>
               </div>
               <p className="font-mono text-muted" style={{ fontSize: '10px', margin: 0 }}>
                 {updaterStatus?.auto_update_enabled
-                  ? 'System automatically downloads and installs new releases in the background.'
-                  : 'Automatic updates are off by default. Paladio will notify you with patch notes and ask before installing.'}
+                  ? t('config.auto_update_active_desc')
+                  : t('config.auto_update_disabled_desc')}
               </p>
             </div>
 
@@ -564,9 +581,9 @@ export function SystemSection({
                 {updaterToggling ? (
                   <Spinner size={10} />
                 ) : updaterStatus?.auto_update_enabled ? (
-                  'DISABLE AUTOMATIC UPDATES'
+                  t('config.disable_auto_updates_upper')
                 ) : (
-                  'ENABLE AUTOMATIC UPDATES'
+                  t('config.enable_auto_updates_upper')
                 )}
               </button>
             </div>
@@ -582,7 +599,7 @@ export function SystemSection({
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>DOWNLOAD STATUS</span>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>{t('config.download_status_upper')}</span>
               <span
                 className="font-mono"
                 style={{
@@ -604,15 +621,15 @@ export function SystemSection({
                       : 'var(--color-text-muted)',
                 }}
               >
-                {(updaterStatus?.download_status || 'idle').toUpperCase()}
+                {downloadStatusMap[downloadStatusUpper] || downloadStatusUpper}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>LAST CHECKED</span>
+              <span className="font-mono text-muted" style={{ fontSize: '11px' }}>{t('config.last_checked_upper')}</span>
               <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
                 {updaterStatus?.last_checked_at
-                  ? new Date(updaterStatus.last_checked_at).toLocaleDateString()
-                  : 'Pending'}
+                  ? new Date(updaterStatus.last_checked_at).toLocaleDateString(locale === 'en' ? undefined : locale)
+                  : t('config.status_pending')}
               </span>
             </div>
             {updaterStatus?.file_sha256 && (
@@ -643,7 +660,7 @@ export function SystemSection({
                 gap: '6px',
               }}
             >
-              <span>{showReleaseNotes ? '▼ HIDE RELEASE NOTES & CHANGELOG' : '▶ VIEW RELEASE NOTES & CHANGELOG'}</span>
+              <span>{showReleaseNotes ? t('config.hide_release_notes_upper') : t('config.view_release_notes_upper')}</span>
             </button>
 
             {showReleaseNotes && (
@@ -658,7 +675,7 @@ export function SystemSection({
                   overflowY: 'auto',
                 }}
               >
-                {renderReleaseNotes(updaterStatus.release_notes)}
+                {renderReleaseNotes(updaterStatus.release_notes, t)}
               </div>
             )}
           </div>
@@ -676,19 +693,19 @@ export function SystemSection({
         }}
       >
         <h3 className="font-display" style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>
-          Sovereign Docker Telemetry
+          {t('config.telemetry_header_title')}
         </h3>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
           {[
-            { name: 'FastAPI Gateway', port: '8000', status: 'ONLINE', target: 'Semantic Gateway / Swarm Router' },
-            { name: 'TimescaleDB / Vector', port: '5432', status: 'ONLINE', target: 'PostgreSQL 16 Storage (pgdata)' },
-            { name: 'Redis Cache / Broker', port: '6379', status: 'ONLINE', target: 'Celery Broker & Cache (redisdata)' },
-            { name: 'Local Ollama LLM', port: '11434', status: 'ONLINE', target: 'Qwen 2.5 7B & nomic-embed-text' },
-            { name: 'Valhalla Routing', port: '8002', status: 'ONLINE', target: 'Deterministic Transit Node' },
+            { name: t('config.node_fastapi_name'), port: '8000', status: t('config.status_online_upper'), target: t('config.node_fastapi_target') },
+            { name: t('config.node_timescaledb_name'), port: '5432', status: t('config.status_online_upper'), target: t('config.node_timescaledb_target') },
+            { name: t('config.node_redis_name'), port: '6379', status: t('config.status_online_upper'), target: t('config.node_redis_target') },
+            { name: t('config.node_ollama_name'), port: '11434', status: t('config.status_online_upper'), target: t('config.node_ollama_target') },
+            { name: t('config.node_valhalla_name'), port: '8002', status: t('config.status_online_upper'), target: t('config.node_valhalla_target') },
           ].map((node) => (
             <div
-              key={node.name}
+              key={node.port}
               style={{
                 background: 'var(--color-surface-card)',
                 border: '1px solid var(--color-border-subtle)',
@@ -713,7 +730,7 @@ export function SystemSection({
                 </span>
               </div>
               <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '6px' }}>
-                PORT {node.port} — {node.target}
+                {t('config.docker_port_line', { port: node.port, target: node.target })}
               </p>
             </div>
           ))}

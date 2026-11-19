@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   PlusIcon,
   EditIcon,
@@ -43,6 +44,7 @@ export function TripSpeedDial({
   spatialCircle = null,
   onClearSpatialCircle,
 }: TripSpeedDialProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
   const [isTriggerHovered, setIsTriggerHovered] = useState(false);
@@ -97,14 +99,14 @@ export function TripSpeedDial({
   const actions = [
     {
       id: 'edit',
-      label: isEditMode ? 'EDITING ACTIVE' : 'EDIT ROUTE',
-      sublabel: 'Reorder & locks',
+      label: isEditMode ? t('workspace.speed_dial_editing_active') : t('workspace.speed_dial_edit_route'),
+      sublabel: t('workspace.speed_dial_reorder_locks'),
       icon: <EditIcon size={16} color={isEditMode ? '#FFFFFF' : 'currentColor'} />,
       onClick: handleEditClick,
       isActive: isEditMode,
       disabled: false,
       testId: 'speed-dial-edit-mode',
-      title: isEditMode ? 'Exit route editing mode' : 'Enter route editing mode (reorder POIs, days, and locks)',
+      title: isEditMode ? t('workspace.speed_dial_exit_edit') : t('workspace.speed_dial_enter_edit'),
       dx: 0,
       dy: isLeft ? -64 : -70,
       delayOpen: '0ms',
@@ -113,15 +115,15 @@ export function TripSpeedDial({
     {
       id: 'waypoint',
       label: isDroppingWaypoint
-        ? 'CANCEL PLACEMENT'
+        ? t('workspace.speed_dial_cancel_placement')
         : spatialCircle
-        ? `CLEAR AREA (${spatialCircle.radiusMeters}M)`
-        : 'DROP WAYPOINT',
+        ? t('workspace.speed_dial_clear_area', { radius: spatialCircle.radiusMeters })
+        : t('workspace.speed_dial_drop_waypoint'),
       sublabel: isDroppingWaypoint
-        ? 'Click map to place'
+        ? t('workspace.speed_dial_click_map')
         : spatialCircle
-        ? 'Click to clear filter'
-        : 'Radius search filter',
+        ? t('workspace.speed_dial_click_clear')
+        : t('workspace.speed_dial_radius_filter'),
       icon: (
         <PinIcon
           size={16}
@@ -141,10 +143,10 @@ export function TripSpeedDial({
       disabled: false,
       testId: 'speed-dial-waypoint',
       title: isDroppingWaypoint
-        ? 'Cancel waypoint placement mode'
+        ? t('workspace.speed_dial_cancel_placement_title')
         : spatialCircle
-        ? `Active radius: ${spatialCircle.radiusMeters}m (Click to clear filter)`
-        : 'Drop waypoint on map to filter POIs and transit by radius',
+        ? t('workspace.speed_dial_active_radius', { radius: spatialCircle.radiusMeters })
+        : t('workspace.speed_dial_drop_waypoint_title'),
       dx: isLeft ? 46 : -50,
       dy: isLeft ? -46 : -50,
       delayOpen: '30ms',
@@ -152,14 +154,14 @@ export function TripSpeedDial({
     },
     {
       id: 'view',
-      label: transitMode === 'detailed' ? 'VIEW: DETAILED' : 'VIEW: SIMPLE',
-      sublabel: transitMode === 'detailed' ? 'Full transit steps' : 'Compact waypoints',
+      label: transitMode === 'detailed' ? t('workspace.speed_dial_view_detailed') : t('workspace.speed_dial_view_simple'),
+      sublabel: transitMode === 'detailed' ? t('workspace.speed_dial_full_transit') : t('workspace.speed_dial_compact_waypoints'),
       icon: <LayersViewIcon size={16} color={transitMode === 'detailed' ? '#FFFFFF' : 'currentColor'} />,
       onClick: handleViewToggleClick,
       isActive: transitMode === 'detailed',
       disabled: false,
       testId: 'speed-dial-view-toggle',
-      title: `Switch to ${transitMode === 'simple' ? 'detailed' : 'simple'} view`,
+      title: transitMode === 'simple' ? t('workspace.speed_dial_switch_detailed') : t('workspace.speed_dial_switch_simple'),
       dx: isLeft ? 64 : -70,
       dy: 0,
       delayOpen: '60ms',
@@ -179,7 +181,7 @@ export function TripSpeedDial({
         zIndex: 1050,
         pointerEvents: 'none',
       }}
-      aria-label="Trip Route Actions Dial"
+      aria-label={t('workspace.speed_dial_aria')}
     >
       <style>{`
         @keyframes activePopPulse {
@@ -335,7 +337,7 @@ export function TripSpeedDial({
           data-testid="speed-dial-trigger"
           onClick={toggleDial}
           aria-expanded={isOpen}
-          aria-label={isOpen ? 'Close route actions menu' : 'Open route actions menu'}
+          aria-label={isOpen ? t('workspace.speed_dial_close_menu') : t('workspace.speed_dial_open_menu')}
           onMouseEnter={() => setIsTriggerHovered(true)}
           onMouseLeave={() => setIsTriggerHovered(false)}
           style={{

@@ -1,5 +1,26 @@
+"use client";
+
 import React from 'react';
-import { SUPPORTED_CURRENCY_LIST } from '@/utils/currencyResolver';
+import { getLocalizedCurrencyCountry, SUPPORTED_CURRENCY_LIST } from '@/utils/currencyResolver';
+import { useTranslation } from '@/hooks/useTranslation';
+
+function localizeRegionTitle(code: string, englishFallback: string, locale: string): string {
+  if (!locale || locale === 'en') return englishFallback;
+  const clean = (code || '').toUpperCase().trim();
+  const regionCode = clean === 'UK' ? 'GB' : clean;
+  if (regionCode.length === 2 && typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+    try {
+      const displayNames = new Intl.DisplayNames([locale], { type: 'region' });
+      const localized = displayNames.of(regionCode);
+      if (localized && localized !== regionCode) {
+        return localized;
+      }
+    } catch {
+      // fall back to English fallback
+    }
+  }
+  return englishFallback;
+}
 
 interface FlagIconProps {
   countryCode: string;
@@ -40,7 +61,9 @@ export function FlagIcon({
   className,
   style,
 }: FlagIconProps) {
+  const { locale } = useTranslation();
   const code = (countryCode || '').toUpperCase().trim();
+  const tTitle = (englishTitle: string) => localizeRegionTitle(code, englishTitle, locale);
 
   const containerStyle: React.CSSProperties = {
     display: 'inline-flex',
@@ -60,7 +83,7 @@ export function FlagIcon({
   switch (code) {
     case 'EU': // European Union: 12 crisp 5-point yellow stars on blue field
       return (
-        <span style={containerStyle} className={className} title="European Union">
+        <span style={containerStyle} className={className} title={tTitle('European Union')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#003399" />
             {Array.from({ length: 12 }).map((_, i) => {
@@ -75,7 +98,7 @@ export function FlagIcon({
 
     case 'ES': // Spain: Red, gold, red with royal crown crest
       return (
-        <span style={containerStyle} className={className} title="Spain">
+        <span style={containerStyle} className={className} title={tTitle('Spain')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="120" fill="#AA151B" />
             <rect y="120" width="640" height="240" fill="#F1BF00" />
@@ -93,7 +116,7 @@ export function FlagIcon({
 
     case 'US': // United States: 13 stripes + blue canton with star grid
       return (
-        <span style={containerStyle} className={className} title="United States">
+        <span style={containerStyle} className={className} title={tTitle('United States')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#B22234" />
             {Array.from({ length: 6 }).map((_, i) => (
@@ -117,7 +140,7 @@ export function FlagIcon({
     case 'GB': // United Kingdom: Union Jack
     case 'UK':
       return (
-        <span style={containerStyle} className={className} title="United Kingdom">
+        <span style={containerStyle} className={className} title={tTitle('United Kingdom')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#012169" />
             <path d="M0 0l640 480M640 0L0 480" stroke="#FFFFFF" strokeWidth="80" />
@@ -130,7 +153,7 @@ export function FlagIcon({
 
     case 'JP': // Japan: White field with crimson sun disc
       return (
-        <span style={containerStyle} className={className} title="Japan">
+        <span style={containerStyle} className={className} title={tTitle('Japan')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#FFFFFF" />
             <circle cx="320" cy="240" r="144" fill="#BC002D" />
@@ -140,7 +163,7 @@ export function FlagIcon({
 
     case 'FR': // France
       return (
-        <span style={containerStyle} className={className} title="France">
+        <span style={containerStyle} className={className} title={tTitle('France')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="213" height="480" fill="#002654" />
             <rect x="213" width="214" height="480" fill="#FFFFFF" />
@@ -151,7 +174,7 @@ export function FlagIcon({
 
     case 'DE': // Germany
       return (
-        <span style={containerStyle} className={className} title="Germany">
+        <span style={containerStyle} className={className} title={tTitle('Germany')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="160" fill="#000000" />
             <rect y="160" width="640" height="160" fill="#DD0000" />
@@ -162,7 +185,7 @@ export function FlagIcon({
 
     case 'IT': // Italy
       return (
-        <span style={containerStyle} className={className} title="Italy">
+        <span style={containerStyle} className={className} title={tTitle('Italy')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="213" height="480" fill="#009246" />
             <rect x="213" width="214" height="480" fill="#FFFFFF" />
@@ -173,7 +196,7 @@ export function FlagIcon({
 
     case 'PL': // Poland
       return (
-        <span style={containerStyle} className={className} title="Poland">
+        <span style={containerStyle} className={className} title={tTitle('Poland')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="240" fill="#FFFFFF" />
             <rect y="240" width="640" height="240" fill="#DC143C" />
@@ -183,7 +206,7 @@ export function FlagIcon({
 
     case 'CH': // Switzerland
       return (
-        <span style={containerStyle} className={className} title="Switzerland">
+        <span style={containerStyle} className={className} title={tTitle('Switzerland')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#D52B1E" />
             <rect x="270" y="110" width="100" height="260" rx="4" fill="#FFFFFF" />
@@ -194,7 +217,7 @@ export function FlagIcon({
 
     case 'NO': // Norway
       return (
-        <span style={containerStyle} className={className} title="Norway">
+        <span style={containerStyle} className={className} title={tTitle('Norway')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#BA0C2F" />
             <path d="M0 240h640M200 0v480" stroke="#FFFFFF" strokeWidth="80" />
@@ -205,7 +228,7 @@ export function FlagIcon({
 
     case 'SE': // Sweden
       return (
-        <span style={containerStyle} className={className} title="Sweden">
+        <span style={containerStyle} className={className} title={tTitle('Sweden')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#006AA7" />
             <path d="M0 240h640M220 0v480" stroke="#FECC00" strokeWidth="60" />
@@ -215,7 +238,7 @@ export function FlagIcon({
 
     case 'DK': // Denmark
       return (
-        <span style={containerStyle} className={className} title="Denmark">
+        <span style={containerStyle} className={className} title={tTitle('Denmark')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#C60C30" />
             <path d="M0 240h640M200 0v480" stroke="#FFFFFF" strokeWidth="60" />
@@ -225,7 +248,7 @@ export function FlagIcon({
 
     case 'CA': // Canada
       return (
-        <span style={containerStyle} className={className} title="Canada">
+        <span style={containerStyle} className={className} title={tTitle('Canada')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="160" height="480" fill="#FF0000" />
             <rect x="160" width="320" height="480" fill="#FFFFFF" />
@@ -241,7 +264,7 @@ export function FlagIcon({
 
     case 'AU': // Australia
       return (
-        <span style={containerStyle} className={className} title="Australia">
+        <span style={containerStyle} className={className} title={tTitle('Australia')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#00008B" />
             {/* Mini Union Jack canton */}
@@ -266,7 +289,7 @@ export function FlagIcon({
 
     case 'NZ': // New Zealand
       return (
-        <span style={containerStyle} className={className} title="New Zealand">
+        <span style={containerStyle} className={className} title={tTitle('New Zealand')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#00247D" />
             <g transform="scale(0.5)">
@@ -286,7 +309,7 @@ export function FlagIcon({
 
     case 'CN': // China
       return (
-        <span style={containerStyle} className={className} title="China">
+        <span style={containerStyle} className={className} title={tTitle('China')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#EE1C25" />
             <polygon points={createStarPoints(120, 120, 45, 18)} fill="#FFFF00" />
@@ -300,7 +323,7 @@ export function FlagIcon({
 
     case 'IN': // India
       return (
-        <span style={containerStyle} className={className} title="India">
+        <span style={containerStyle} className={className} title={tTitle('India')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="160" fill="#FF9933" />
             <rect y="160" width="640" height="160" fill="#FFFFFF" />
@@ -325,7 +348,7 @@ export function FlagIcon({
 
     case 'BR': // Brazil
       return (
-        <span style={containerStyle} className={className} title="Brazil">
+        <span style={containerStyle} className={className} title={tTitle('Brazil')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#009B3A" />
             <polygon points="320,60 580,240 320,420 60,240" fill="#FEDF00" />
@@ -337,7 +360,7 @@ export function FlagIcon({
 
     case 'MX': // Mexico
       return (
-        <span style={containerStyle} className={className} title="Mexico">
+        <span style={containerStyle} className={className} title={tTitle('Mexico')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="213" height="480" fill="#006847" />
             <rect x="213" width="214" height="480" fill="#FFFFFF" />
@@ -350,7 +373,7 @@ export function FlagIcon({
 
     case 'TR': // Turkey
       return (
-        <span style={containerStyle} className={className} title="Turkey">
+        <span style={containerStyle} className={className} title={tTitle('Turkey')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#E30A17" />
             <circle cx="280" cy="240" r="110" fill="#FFFFFF" />
@@ -362,7 +385,7 @@ export function FlagIcon({
 
     case 'TH': // Thailand
       return (
-        <span style={containerStyle} className={className} title="Thailand">
+        <span style={containerStyle} className={className} title={tTitle('Thailand')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="80" fill="#A51931" />
             <rect y="80" width="640" height="80" fill="#F4F5F8" />
@@ -375,7 +398,7 @@ export function FlagIcon({
 
     case 'CZ': // Czech Republic
       return (
-        <span style={containerStyle} className={className} title="Czechia">
+        <span style={containerStyle} className={className} title={tTitle('Czechia')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="240" fill="#FFFFFF" />
             <rect y="240" width="640" height="240" fill="#D7141A" />
@@ -386,7 +409,7 @@ export function FlagIcon({
 
     case 'HU': // Hungary: Red, White, Green
       return (
-        <span style={containerStyle} className={className} title="Hungary">
+        <span style={containerStyle} className={className} title={tTitle('Hungary')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="160" fill="#CE2939" />
             <rect y="160" width="640" height="160" fill="#FFFFFF" />
@@ -397,7 +420,7 @@ export function FlagIcon({
 
     case 'SG': // Singapore
       return (
-        <span style={containerStyle} className={className} title="Singapore">
+        <span style={containerStyle} className={className} title={tTitle('Singapore')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="240" fill="#ED2939" />
             <rect y="240" width="640" height="240" fill="#FFFFFF" />
@@ -414,7 +437,7 @@ export function FlagIcon({
 
     case 'KR': // South Korea
       return (
-        <span style={containerStyle} className={className} title="South Korea">
+        <span style={containerStyle} className={className} title={tTitle('South Korea')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="480" fill="#FFFFFF" />
             <circle cx="320" cy="240" r="90" fill="#CD2E3A" />
@@ -429,7 +452,7 @@ export function FlagIcon({
 
     case 'PT': // Portugal
       return (
-        <span style={containerStyle} className={className} title="Portugal">
+        <span style={containerStyle} className={className} title={tTitle('Portugal')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="250" height="480" fill="#006600" />
             <rect x="250" width="390" height="480" fill="#FF0000" />
@@ -440,7 +463,7 @@ export function FlagIcon({
 
     case 'AE': // United Arab Emirates
       return (
-        <span style={containerStyle} className={className} title="United Arab Emirates">
+        <span style={containerStyle} className={className} title={tTitle('United Arab Emirates')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="160" fill="#00732F" />
             <rect y="160" width="640" height="160" fill="#FFFFFF" />
@@ -452,7 +475,7 @@ export function FlagIcon({
 
     case 'NL': // Netherlands
       return (
-        <span style={containerStyle} className={className} title="Netherlands">
+        <span style={containerStyle} className={className} title={tTitle('Netherlands')}>
           <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
             <rect width="640" height="160" fill="#AE1C28" />
             <rect y="160" width="640" height="160" fill="#FFFFFF" />
@@ -464,7 +487,7 @@ export function FlagIcon({
     default: {
       if (code === 'EU' || !code) {
         return (
-          <span style={containerStyle} className={className} title="European Union">
+          <span style={containerStyle} className={className} title={localizeRegionTitle('EU', 'European Union', locale)}>
             <svg viewBox="0 0 640 480" preserveAspectRatio="none" style={svgStyle}>
               <rect width="640" height="480" fill="#003399" />
               {Array.from({ length: 12 }).map((_, i) => {
@@ -488,7 +511,7 @@ export function FlagIcon({
               userSelect: 'none',
             }}
             className={className}
-            title={match.country || code}
+            title={match.country ? getLocalizedCurrencyCountry(match.countryCode, match.country, locale) : code}
           >
             {match.flag}
           </span>

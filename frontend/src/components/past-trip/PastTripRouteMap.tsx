@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { getDayColor } from '@/components/trip-workspace/TripMapView';
 import type { Map as LeafletMap, Polyline as LeafletPolyline, Marker as LeafletMarker } from 'leaflet';
 
@@ -32,6 +33,7 @@ export function PastTripRouteMap({
   height = '300px',
 }: PastTripRouteMapProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<LeafletMap | null>(null);
   const layersRef = useRef<{ polylines: LeafletPolyline[]; markers: LeafletMarker[] }>({
@@ -75,7 +77,7 @@ export function PastTripRouteMap({
             const lng = p?.location?.longitude ?? p?.lng;
             if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
               const poiItem: RoutePoi = {
-                name: p?.name || `Waypoint ${stepIdx + 1}`,
+                name: p?.name || t('vault.waypoint_numbered', { index: stepIdx + 1 }),
                 lat,
                 lng,
                 day: dayNum,
@@ -91,7 +93,7 @@ export function PastTripRouteMap({
     }
 
     return { pois: list, dayGroups: groups };
-  }, [itineraryData]);
+  }, [itineraryData, t]);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -227,7 +229,7 @@ export function PastTripRouteMap({
         });
 
         const marker = L.marker([poi.lat, poi.lng], { icon })
-          .bindTooltip(`<b>D${poi.day} · ${poi.name}</b>`, {
+          .bindTooltip(`<b>${t('vault.day_short_prefix', { day: poi.day })} · ${poi.name}</b>`, {
             direction: 'top',
             offset: [0, -12],
             className: 'recap-map-tooltip',
@@ -244,7 +246,7 @@ export function PastTripRouteMap({
         });
       }
     });
-  }, [mapLoaded, pois, dayGroups, selectedDay]);
+  }, [mapLoaded, pois, dayGroups, selectedDay, t]);
 
   const handleBack = () => {
     if (onBack) {
@@ -277,7 +279,7 @@ export function PastTripRouteMap({
       <button
         type="button"
         onClick={handleBack}
-        aria-label="Back to Vault"
+        aria-label={t('vault.back_to_vault')}
         style={{
           position: 'absolute',
           top: '16px',
@@ -359,7 +361,7 @@ export function PastTripRouteMap({
             textTransform: 'uppercase',
           }}
         >
-          {country || 'Mission Route Telemetry'}
+          {country || t('vault.mission_route_telemetry')}
         </span>
       </div>
     </div>

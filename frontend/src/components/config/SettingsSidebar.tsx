@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SETTINGS_CATEGORIES, SettingsTabId, SettingCardItem } from './settingsData';
 import { SettingsIconRenderer } from './SettingsIconRenderer';
 import styles from '@/app/config/config.module.css';
@@ -25,41 +26,56 @@ interface SettingsSuggestionItem {
   score: number;
 }
 
-function getSettingsSuggestions(query: string, isAdmin: boolean): SettingsSuggestionItem[] {
+function getSettingsSuggestions(
+  query: string,
+  isAdmin: boolean,
+  t: (key: string, params?: Record<string, string | number>) => string
+): SettingsSuggestionItem[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
 
   const list: SettingsSuggestionItem[] = [];
+  const overviewTitle = t('config.overview_title');
+  const overviewLower = overviewTitle.toLowerCase();
 
   // Check overview
-  if ('overview'.includes(q) || 'dashboard'.includes(q) || 'home'.includes(q)) {
+  if ('overview'.includes(q) || 'dashboard'.includes(q) || 'home'.includes(q) || overviewLower.includes(q)) {
     list.push({
       id: 'overview',
       tabId: 'overview',
-      title: 'Overview',
-      subtitle: 'Workspace & system configuration overview',
-      category: 'General',
+      title: overviewTitle,
+      subtitle: t('config.overview_suggestion_subtitle'),
+      category: t('config.general_category'),
       iconName: 'layout',
-      score: 'overview'.startsWith(q) ? 100 : 60,
+      score: 'overview'.startsWith(q) || overviewLower.startsWith(q) ? 100 : 60,
     });
   }
 
   for (const cat of SETTINGS_CATEGORIES) {
+    const localizedCatTitle = t(cat.title);
+    const catLower = cat.title.toLowerCase();
+    const localizedCatLower = localizedCatTitle.toLowerCase();
+
     for (const item of cat.items) {
       if (item.requiresAdmin && !isAdmin) continue;
 
+      const localizedItemTitle = t(item.title);
+      const localizedItemDesc = t(item.description);
       const titleLower = item.title.toLowerCase();
+      const localizedTitleLower = localizedItemTitle.toLowerCase();
       const descLower = item.description.toLowerCase();
-      const catLower = cat.title.toLowerCase();
+      const localizedDescLower = localizedItemDesc.toLowerCase();
 
       // Check if any subtab matches
-      let matchedSubTab: { id: string; label: string } | null = null;
+      let matchedSubTab: { id: string; label: string; localizedLabel: string } | null = null;
       if (item.subTabs) {
         for (const st of item.subTabs) {
+          const localizedStLabel = t(st.label);
           const stLabelLower = st.label.toLowerCase();
+          const localizedStLabelLower = localizedStLabel.toLowerCase();
           const stIdLower = st.id.toLowerCase();
-          if (stLabelLower.includes(q) || stIdLower.includes(q)) {
-            matchedSubTab = st;
+          if (stLabelLower.includes(q) || localizedStLabelLower.includes(q) || stIdLower.includes(q)) {
+            matchedSubTab = { ...st, localizedLabel: localizedStLabel };
             break;
           }
         }
@@ -67,28 +83,32 @@ function getSettingsSuggestions(query: string, isAdmin: boolean): SettingsSugges
 
       // Check item itself
       let score = 0;
-      let subtitle = cat.title;
+      let subtitle = localizedCatTitle;
 
-      if (titleLower.startsWith(q)) {
+      if (titleLower.startsWith(q) || localizedTitleLower.startsWith(q)) {
         score = 100;
-        subtitle = cat.title;
-      } else if (titleLower.includes(q)) {
+        subtitle = localizedCatTitle;
+      } else if (titleLower.includes(q) || localizedTitleLower.includes(q)) {
         score = 80;
-        subtitle = cat.title;
+        subtitle = localizedCatTitle;
       } else if (matchedSubTab) {
-        score = matchedSubTab.label.toLowerCase().startsWith(q) ? 90 : 80;
-        subtitle = `${matchedSubTab.label} · ${cat.title}`;
+        score =
+          matchedSubTab.label.toLowerCase().startsWith(q) ||
+          matchedSubTab.localizedLabel.toLowerCase().startsWith(q)
+            ? 90
+            : 80;
+        subtitle = `${matchedSubTab.localizedLabel} · ${localizedCatTitle}`;
       } else {
         const matchedKeyword = item.keywords.find((k) => k.toLowerCase().includes(q));
         if (matchedKeyword) {
           score = matchedKeyword.toLowerCase().startsWith(q) ? 75 : 65;
-          subtitle = `${matchedKeyword} · ${cat.title}`;
-        } else if (descLower.includes(q)) {
+          subtitle = `${matchedKeyword} · ${localizedCatTitle}`;
+        } else if (descLower.includes(q) || localizedDescLower.includes(q)) {
           score = 50;
-          subtitle = item.description;
-        } else if (catLower.includes(q)) {
+          subtitle = localizedItemDesc;
+        } else if (catLower.includes(q) || localizedCatLower.includes(q)) {
           score = 35;
-          subtitle = cat.title;
+          subtitle = localizedCatTitle;
         }
       }
 
@@ -97,9 +117,9 @@ function getSettingsSuggestions(query: string, isAdmin: boolean): SettingsSugges
           id: item.id,
           tabId: item.id,
           subTabId: matchedSubTab?.id,
-          title: item.title,
+          title: localizedItemTitle,
           subtitle,
-          category: cat.title,
+          category: localizedCatTitle,
           iconName: item.iconName,
           iconTone: item.iconTone,
           score,
@@ -128,14 +148,15 @@ export function SettingsSidebar({
   searchQuery,
   onSearchChange,
 }: SettingsSidebarProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const suggestions = useMemo(() => {
-    return getSettingsSuggestions(searchQuery, isAdmin);
-  }, [searchQuery, isAdmin]);
+    return getSettingsSuggestions(searchQuery, isAdmin, t);
+  }, [searchQuery, isAdmin, t]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -188,10 +209,10 @@ export function SettingsSidebar({
   };
 
   return (
-    <aside className={styles.settingsSidebar} aria-label="Settings Navigation">
+    <aside className={styles.settingsSidebar} aria-label={t('config.settings_navigation_aria')}>
       {/* Sidebar Header */}
       <div className={styles.sidebarHeader}>
-        <h2 className={styles.sidebarTitle}>Settings</h2>
+        <h2 className={styles.sidebarTitle}>{t('nav.config')}</h2>
       </div>
 
       {/* Quick Search */}
@@ -226,9 +247,9 @@ export function SettingsSidebar({
             }
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Search..."
+          placeholder={t('common.search')}
           className={styles.sidebarSearchInput}
-          aria-label="Filter settings"
+          aria-label={t('config.filter_settings_aria')}
           role="combobox"
           aria-autocomplete="list"
           aria-expanded={isOpen && Boolean(searchQuery.trim())}
@@ -243,7 +264,7 @@ export function SettingsSidebar({
               setIsOpen(false);
               inputRef.current?.focus();
             }}
-            aria-label="Clear search"
+            aria-label={t('config.clear_search_aria')}
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -258,7 +279,7 @@ export function SettingsSidebar({
             <div className={styles.searchDropdownList}>
               {suggestions.length === 0 ? (
                 <div className={styles.searchDropdownEmpty}>
-                  No matching settings found for &quot;{searchQuery}&quot;
+                  {t('config.no_matching_settings', { query: searchQuery })}
                 </div>
               ) : (
                 suggestions.map((item, idx) => {
@@ -322,7 +343,7 @@ export function SettingsSidebar({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <SettingsIconRenderer name="layout" size={14} color={activeTab === 'overview' ? 'var(--color-accent-secondary)' : 'currentColor'} />
-          <span>Overview</span>
+          <span>{t('config.overview_title')}</span>
         </div>
       </button>
 
@@ -333,7 +354,7 @@ export function SettingsSidebar({
 
         return (
           <div key={cat.id} className={styles.navGroup}>
-            <div className={styles.navGroupTitle}>{cat.title}</div>
+            <div className={styles.navGroupTitle}>{t(cat.title)}</div>
             {visibleItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
@@ -350,7 +371,7 @@ export function SettingsSidebar({
                       size={14}
                       color={isActive ? 'var(--color-accent-teal)' : 'var(--color-text-muted)'}
                     />
-                    <span>{item.title}</span>
+                    <span>{t(item.title)}</span>
                   </div>
                 </button>
               );

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { useTranslation } from '@/hooks/useTranslation';
 import { HotelIcon, PinIcon, CheckIcon, ClockIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
 import { CustomHourPickerModal } from './CustomHourPickerModal';
@@ -89,6 +90,7 @@ export function HotelStayAnchorBar({
   onChange,
   disabled = false,
 }: HotelStayAnchorBarProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState(hotelArea);
   const [results, setResults] = useState<HotelSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -231,7 +233,7 @@ export function HotelStayAnchorBar({
             color: 'var(--color-text-muted)',
           }}
         >
-          Hotel / Stay Anchor
+          {t('engine.hotel_stay_anchor_label')}
         </label>
       </div>
 
@@ -283,7 +285,7 @@ export function HotelStayAnchorBar({
                 }
               }
             }}
-            placeholder="Search hotel by name or neighborhood anchor..."
+            placeholder={t('engine.hotel_search_placeholder')}
             style={{
               background: 'transparent',
               border: 'none',
@@ -299,7 +301,11 @@ export function HotelStayAnchorBar({
           {/* Tick Indicator on the right to the hotel name showing that it correctly found it */}
           {isPinned && query.trim().length > 0 && (
             <span
-              title={`Hotel verified: ${hotelAddress || query} (${hotelLat?.toFixed(4)}, ${hotelLng?.toFixed(4)})`}
+              title={t('engine.hotel_verified_tooltip', {
+                address: hotelAddress || query,
+                lat: hotelLat?.toFixed(4) ?? '',
+                lng: hotelLng?.toFixed(4) ?? '',
+              })}
               data-testid="hotel-verified-tick"
               style={{
                 display: 'inline-flex',
@@ -328,7 +334,7 @@ export function HotelStayAnchorBar({
             setIsMenuOpen(false);
             setIsMapModalOpen(true);
           }}
-          title="Locate hotel or stay on map"
+          title={t('engine.locate_hotel_tooltip')}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -360,7 +366,7 @@ export function HotelStayAnchorBar({
                 : 'var(--color-text-muted)'
             }
           />
-          <span>{isPinned ? 'View Map' : 'Locate on Map'}</span>
+          <span>{isPinned ? t('engine.view_map') : t('engine.locate_on_map')}</span>
         </button>
       </div>
 
@@ -397,12 +403,12 @@ export function HotelStayAnchorBar({
                   color: 'var(--color-text-muted)',
                 }}
               >
-                Check-In
+                {t('engine.check_in_label')}
               </span>
               {onCheckInDateChange ? (
                 <input
                   type="date"
-                  aria-label="Hotel check-in date"
+                  aria-label={t('engine.hotel_checkin_date_aria')}
                   disabled={disabled}
                   value={checkInDate || tripStartDate || ''}
                   min={tripStartDate || undefined}
@@ -423,7 +429,7 @@ export function HotelStayAnchorBar({
                 />
               ) : (
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11.5px', fontWeight: 600 }}>
-                  {checkInDate || tripStartDate || 'Arrival'}
+                  {checkInDate || tripStartDate || t('engine.arrival_fallback')}
                 </span>
               )}
             </div>
@@ -431,7 +437,7 @@ export function HotelStayAnchorBar({
               <button
                 type="button"
                 disabled={disabled}
-                aria-label="Hotel check-in time"
+                aria-label={t('engine.hotel_checkin_time_aria')}
                 data-testid="hotel-checkin-time-btn"
                 onClick={() => setActiveHourPicker('checkin')}
                 style={{
@@ -449,7 +455,7 @@ export function HotelStayAnchorBar({
                   color: 'var(--color-text-primary, #1A1A1A)',
                   flexShrink: 0,
                 }}
-                title="Click to customize hotel check-in time"
+                title={t('engine.hotel_checkin_time_title')}
               >
                 <ClockIcon size={12} color="var(--color-accent-primary, #0F4C5C)" />
                 <span>{checkInHour || '15:00'}</span>
@@ -480,12 +486,12 @@ export function HotelStayAnchorBar({
                   color: 'var(--color-text-muted)',
                 }}
               >
-                Check-Out
+                {t('engine.check_out_label')}
               </span>
               {onCheckOutDateChange ? (
                 <input
                   type="date"
-                  aria-label="Hotel check-out date"
+                  aria-label={t('engine.hotel_checkout_date_aria')}
                   disabled={disabled}
                   value={checkOutDate || tripEndDate || ''}
                   min={checkInDate || tripStartDate || undefined}
@@ -506,7 +512,7 @@ export function HotelStayAnchorBar({
                 />
               ) : (
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11.5px', fontWeight: 600 }}>
-                  {checkOutDate || tripEndDate || 'Departure'}
+                  {checkOutDate || tripEndDate || t('engine.departure_fallback')}
                 </span>
               )}
             </div>
@@ -514,7 +520,7 @@ export function HotelStayAnchorBar({
               <button
                 type="button"
                 disabled={disabled}
-                aria-label="Hotel check-out time"
+                aria-label={t('engine.hotel_checkout_time_aria')}
                 data-testid="hotel-checkout-time-btn"
                 onClick={() => setActiveHourPicker('checkout')}
                 style={{
@@ -532,7 +538,7 @@ export function HotelStayAnchorBar({
                   color: 'var(--color-text-primary, #1A1A1A)',
                   flexShrink: 0,
                 }}
-                title="Click to customize hotel check-out time"
+                title={t('engine.hotel_checkout_time_title')}
               >
                 <ClockIcon size={12} color="var(--color-accent-primary, #0F4C5C)" />
                 <span>{checkOutHour || '11:00'}</span>
@@ -581,7 +587,11 @@ export function HotelStayAnchorBar({
                 }}
               >
                 <HotelIcon size={14} color="var(--color-accent-teal, #0F4C5C)" />
-                <span>Searching hotels in {destination || 'destination'}...</span>
+                <span>
+                  {t('engine.searching_hotels_in', {
+                    destination: destination || t('engine.destination_lower'),
+                  })}
+                </span>
               </div>
             )}
 
@@ -594,7 +604,7 @@ export function HotelStayAnchorBar({
                   color: 'var(--color-text-muted, #71717A)',
                 }}
               >
-                No matching hotels found for &quot;{query}&quot;
+                {t('engine.no_matching_hotels', { query })}
               </div>
             )}
 
@@ -642,7 +652,7 @@ export function HotelStayAnchorBar({
                       </span>
                       {typeof item.lat === 'number' && typeof item.lng === 'number' && (
                         <span
-                          title="Verified Hotel Location"
+                          title={t('engine.verified_hotel_location')}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -695,7 +705,7 @@ export function HotelStayAnchorBar({
                       letterSpacing: '0.04em',
                     }}
                   >
-                    {getHotelCategoryBadge(item)}
+                    {t(`engine.lodging_type_${getHotelCategoryBadge(item).toLowerCase()}`)}
                   </span>
                 </div>
               ))}
@@ -729,7 +739,11 @@ export function HotelStayAnchorBar({
             onCheckOutHourChange?.(newVal);
           }
         }}
-        anchorLabel={activeHourPicker === 'checkin' ? 'Hotel Check-In Time' : 'Hotel Check-Out Time'}
+        anchorLabel={
+          activeHourPicker === 'checkin'
+            ? t('engine.hotel_checkin_time_label')
+            : t('engine.hotel_checkout_time_label')
+        }
       />
     </div>
   );

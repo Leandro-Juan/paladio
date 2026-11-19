@@ -7,6 +7,7 @@ import { TravelDocumentDraft, TicketType } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { CustomSelect } from '../parts/CustomSelect';
 import { AlertTriangleIcon, CloseIcon } from '@/components/icons';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ScanReviewModalProps {
   isOpen: boolean;
@@ -65,6 +66,7 @@ function ScanReviewDialog({
   rawTextExcerpt?: string;
   onConfirmDrafts: (drafts: TravelDocumentDraft[], uploadId?: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [editedDrafts, setEditedDrafts] = useState<TravelDocumentDraft[]>(drafts);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(
     new Set(drafts.map((_, idx) => idx))
@@ -103,7 +105,7 @@ function ScanReviewDialog({
   const handleConfirm = async () => {
     const toConfirm = editedDrafts.filter((_, idx) => selectedIndices.has(idx));
     if (toConfirm.length === 0) {
-      setErrorMsg('Please select at least one ticket draft to add.');
+      setErrorMsg(t('wallet.err_select_draft'));
       return;
     }
 
@@ -113,16 +115,16 @@ function ScanReviewDialog({
       await onConfirmDrafts(toConfirm, uploadId);
       onClose();
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to import drafts to wallet');
+      setErrorMsg(err instanceof Error ? err.message : t('wallet.err_import_drafts'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const typeOptions = (Object.keys(TICKET_TYPE_CONFIG) as TicketType[]).map((t) => ({
-    value: t,
-    label: TICKET_TYPE_CONFIG[t].label,
-    badge: TICKET_TYPE_CONFIG[t].renderIcon({ size: 13, color: TICKET_TYPE_CONFIG[t].accentColor }),
+  const typeOptions = (Object.keys(TICKET_TYPE_CONFIG) as TicketType[]).map((typeKey) => ({
+    value: typeKey,
+    label: t(TICKET_TYPE_CONFIG[typeKey].labelKey),
+    badge: TICKET_TYPE_CONFIG[typeKey].renderIcon({ size: 13, color: TICKET_TYPE_CONFIG[typeKey].accentColor }),
   }));
 
   const inputStyle: React.CSSProperties = {
@@ -192,16 +194,16 @@ function ScanReviewDialog({
         >
           <div>
             <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'var(--font-display, "Jost", sans-serif)', color: 'var(--color-text-main)' }}>
-              REVIEW SCANNED CREDENTIALS ({editedDrafts.length})
+              {t('wallet.review_scanned_title', { count: editedDrafts.length })}
             </h3>
             <p className="font-mono text-muted text-xs" style={{ margin: '3px 0 0 0', color: 'var(--color-text-muted)' }}>
-              {'VERIFY EXTRACTED FIELDS BEFORE PERSISTING TO WALLET'}
+              {t('wallet.review_scanned_subtitle')}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Discard scan"
+            aria-label={t('wallet.discard_scan_aria')}
             style={{
               background: 'var(--color-surface-card)',
               border: '1px solid var(--color-border-subtle)',
@@ -279,7 +281,7 @@ function ScanReviewDialog({
                       style={{ cursor: 'pointer', accentColor: 'var(--color-accent-primary, #1E3A8A)' }}
                     />
                     <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
-                      INCLUDE DRAFT #{idx + 1}
+                      {t('wallet.include_draft', { number: idx + 1 })}
                     </span>
                   </label>
 
@@ -288,7 +290,7 @@ function ScanReviewDialog({
                       value={draft.ticket_type}
                       onChange={(newT) => handleTypeChange(idx, newT)}
                       options={typeOptions}
-                      label="Ticket Type"
+                      label={t('wallet.ticket_type_aria')}
                     />
                   </div>
                 </div>
@@ -319,7 +321,7 @@ function ScanReviewDialog({
 
                 {/* Title */}
                 <div>
-                  <label style={labelStyle}>TITLE</label>
+                  <label style={labelStyle}>{t('wallet.field_title')}</label>
                   <input
                     type="text"
                     value={draft.title}
@@ -332,10 +334,10 @@ function ScanReviewDialog({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                      <label style={labelStyle}>PROVIDER</label>
+                      <label style={labelStyle}>{t('wallet.field_provider')}</label>
                       {confidenceMap.provider != null && (
                         <span style={{ fontSize: '9px', color: '#059669', fontWeight: 600 }}>
-                          {Math.round(confidenceMap.provider * 100)}% conf
+                          {t('wallet.confidence_pct', { pct: Math.round(confidenceMap.provider * 100) })}
                         </span>
                       )}
                     </div>
@@ -349,10 +351,10 @@ function ScanReviewDialog({
 
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                      <label style={labelStyle}>REFERENCE / PNR</label>
+                      <label style={labelStyle}>{t('wallet.field_reference_pnr')}</label>
                       {confidenceMap.booking_reference != null && (
                         <span style={{ fontSize: '9px', color: '#059669', fontWeight: 600 }}>
-                          {Math.round(confidenceMap.booking_reference * 100)}% conf
+                          {t('wallet.confidence_pct', { pct: Math.round(confidenceMap.booking_reference * 100) })}
                         </span>
                       )}
                     </div>
@@ -368,7 +370,7 @@ function ScanReviewDialog({
                 {/* Seat/Room & Code */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px' }}>
                   <div>
-                    <label style={labelStyle}>SEAT / ROOM</label>
+                    <label style={labelStyle}>{t('wallet.field_seat_room')}</label>
                     <input
                       type="text"
                       value={draft.seat_or_room || ''}
@@ -380,7 +382,7 @@ function ScanReviewDialog({
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
                       <label style={labelStyle}>
-                        {draft.access_code ? 'DOOR ACCESS CODE / PIN' : 'DECODED BARCODE'}
+                        {draft.access_code ? t('wallet.field_door_access_code') : t('wallet.field_decoded_barcode')}
                       </label>
                       {draft.barcode_format && (
                         <span style={{ fontSize: '9px', color: '#0284C7', fontWeight: 600 }}>
@@ -428,7 +430,7 @@ function ScanReviewDialog({
                   fontWeight: 600,
                 }}
               >
-                Inspect OCR / Parser Raw Excerpt
+                {t('wallet.inspect_raw_excerpt')}
               </summary>
               <pre
                 style={{
@@ -464,7 +466,7 @@ function ScanReviewDialog({
           }}
         >
           <span style={{ fontSize: '11px', color: 'var(--color-text-muted, #64748B)' }}>
-            {selectedIndices.size} of {editedDrafts.length} credentials selected
+            {t('wallet.drafts_selected_count', { selected: selectedIndices.size, total: editedDrafts.length })}
           </span>
 
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -482,7 +484,7 @@ function ScanReviewDialog({
                 cursor: 'pointer',
               }}
             >
-              CANCEL
+              {t('wallet.cancel_upper')}
             </button>
             <button
               type="button"
@@ -500,7 +502,7 @@ function ScanReviewDialog({
                 boxShadow: '0 2px 6px rgba(30, 58, 138, 0.25)',
               }}
             >
-              {isSubmitting ? 'PERSISTING TO WALLET…' : `CONFIRM & ADD (${selectedIndices.size})`}
+              {isSubmitting ? t('wallet.persisting_to_wallet') : t('wallet.confirm_and_add_count', { count: selectedIndices.size })}
             </button>
           </div>
         </div>

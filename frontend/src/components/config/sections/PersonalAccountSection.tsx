@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User } from '@/types/auth';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getLocaleInfo } from '@/utils/locales';
-import { getCurrencyInfo } from '@/utils/currencyResolver';
+import { getCurrencyInfo, getLocalizedCurrencyName } from '@/utils/currencyResolver';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { LanguagePickerModal } from '@/components/common/LanguagePickerModal';
@@ -107,7 +107,7 @@ export function PersonalAccountSection({
   refreshUser,
   getSafeAvatarUrl,
 }: PersonalAccountSectionProps) {
-  const { locale } = useTranslation();
+  const { locale, t } = useTranslation();
   const [isLanguagePickerOpen, setIsLanguagePickerOpen] = useState(false);
   const [isCurrencyWheelOpen, setIsCurrencyWheelOpen] = useState(false);
   const [isCountryWheelOpen, setIsCountryWheelOpen] = useState(false);
@@ -194,7 +194,10 @@ export function PersonalAccountSection({
               const code = item.code.toUpperCase().trim();
               return {
                 code,
-                name: item.name && item.name !== item.code ? item.name : getCountryDisplayName(code, item.name),
+                name:
+                  locale === 'en' && item.name && item.name !== item.code
+                    ? item.name
+                    : getCountryDisplayName(code, item.name, locale),
               };
             });
           setSupportedCountries(normalized);
@@ -207,7 +210,7 @@ export function PersonalAccountSection({
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [locale]);
 
   // City search debounce
   useEffect(() => {
@@ -266,7 +269,10 @@ export function PersonalAccountSection({
   const handleCountryChange = (code: string, countryName?: string) => {
     setHomeCountry(code);
     const found = supportedCountries.find((c) => c.code.toUpperCase() === code.toUpperCase());
-    const resolvedName = countryName || (found && found.name && found.name !== found.code ? found.name : getCountryDisplayName(code));
+    const resolvedName =
+      locale === 'en'
+        ? countryName || (found && found.name && found.name !== found.code ? found.name : getCountryDisplayName(code, undefined, locale))
+        : getCountryDisplayName(code, countryName || found?.name, locale);
     setHomeCountryName(resolvedName);
     void handleAutoSaveProfile({ country: code, countryName: resolvedName });
   };
@@ -276,12 +282,12 @@ export function PersonalAccountSection({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      notify.error('Invalid File', 'Please select an image file (PNG, JPEG, WEBP, GIF).');
+      notify.error(t('config.invalid_file_title'), t('config.invalid_image_file_personal'));
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      notify.error('File Too Large', 'Avatar image must be under 2MB.');
+      notify.error(t('config.file_too_large_title'), t('config.avatar_too_large_2mb'));
       return;
     }
 
@@ -290,7 +296,7 @@ export function PersonalAccountSection({
       const dataUrl = event.target?.result as string;
       setAvatarUrl(dataUrl);
       void handleAutoSaveProfile({ avatarUrl: dataUrl });
-      notify.success('Avatar Updated', 'Profile photo uploaded and saved.');
+      notify.success(t('config.avatar_updated_title'), t('config.avatar_updated_msg'));
     };
     reader.readAsDataURL(file);
   };
@@ -298,12 +304,17 @@ export function PersonalAccountSection({
   // Safe avatar URL
   const safeAvatar = getSafeAvatarUrl(avatarUrl);
   const activeLocaleInfo = getLocaleInfo(locale);
+  const activeLocaleName = (() => {
+    const langKey = `languages.${activeLocaleInfo?.code || locale}`;
+    const translated = t(langKey);
+    return translated === langKey ? activeLocaleInfo?.name || locale : translated;
+  })();
   const activeCurrencyInfo = getCurrencyInfo(selectedCurrency);
   const activeCountryName = useMemo(() => {
     const found = supportedCountries.find((c) => c.code.toUpperCase() === (homeCountry || '').toUpperCase());
-    if (found && found.name && found.name !== found.code) return found.name;
-    return getCountryDisplayName(homeCountry, homeCountryName || 'Spain');
-  }, [supportedCountries, homeCountry, homeCountryName]);
+    if (locale === 'en' && found && found.name && found.name !== found.code) return found.name;
+    return getCountryDisplayName(homeCountry, found?.name || homeCountryName || 'Spain', locale);
+  }, [supportedCountries, homeCountry, homeCountryName, locale]);
 
   const handleAutoSaveProfile = async (patch: {
     username?: string;
@@ -396,10 +407,10 @@ export function PersonalAccountSection({
       setConfirmPassword('');
       setShowPassword(false);
       setShowConfirmPassword(false);
-      notify.success('Security Updated', 'Password updated successfully.');
+      notify.success(t('config.security_updated_title'), t('config.password_updated_msg'));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update password';
-      notify.error('Update Failed', msg);
+      const msg = err instanceof Error ? err.message : t('config.password_update_failed');
+      notify.error(t('config.update_failed_title'), msg);
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -408,20 +419,20 @@ export function PersonalAccountSection({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <SettingsHeader
-        title="Personal Account"
+        title={t('config.item_profile_title')}
         onBackToOverview={onBackToOverview}
       />
 
       {/* 1. Active Account Identity Card */}
       <SettingsCardFrame
-        title="Personal Account Profile"
-        subtitle="Your sovereign traveler identity, avatar, display credentials, and session credentials"
-        innerTitle="Active Account Identity"
+        title={t('config.personal_profile_card_title')}
+        subtitle={t('config.personal_profile_card_subtitle')}
+        innerTitle={t('config.personal_profile_inner_title')}
         menuItems={[
           {
             id: 'export_data',
-            label: 'Export Account Data',
-            onClick: () => notify.info('Account Export', 'Account archive generated and ready for download.'),
+            label: t('config.export_account_data_menu'),
+            onClick: () => notify.info(t('config.account_export_title'), t('config.account_export_msg')),
           },
         ]}
       >
@@ -441,7 +452,7 @@ export function PersonalAccountSection({
             }}
           >
             {safeAvatar ? (
-              <img src={safeAvatar} alt={username || 'Avatar'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={safeAvatar} alt={username || t('config.avatar_alt')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
               <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-accent-teal)' }}>
                 {(username || 'U')[0].toUpperCase()}
@@ -452,11 +463,11 @@ export function PersonalAccountSection({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '200px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                {currentUser?.username || 'Authenticated Traveler'}
+                {currentUser?.username || t('config.authenticated_traveler')}
               </span>
             </div>
             <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
-              {currentUser?.email || 'No email attached'}
+              {currentUser?.email || t('config.no_email_attached')}
             </span>
           </div>
         </div>
@@ -464,14 +475,14 @@ export function PersonalAccountSection({
 
       {/* 2. Inline Credentials & Security Form */}
       <SettingsCardFrame
-        title="Traveler Credentials & Security"
-        subtitle="Manage your authentication credentials, login email, security passphrase, and avatar representation"
+        title={t('config.credentials_security_title')}
+        subtitle={t('config.credentials_security_subtitle')}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Avatar Edit Controls */}
           <div>
             <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '8px', textTransform: 'uppercase' }}>
-              Profile Avatar / Picture
+              {t('config.profile_avatar_label')}
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
               <div
@@ -494,7 +505,7 @@ export function PersonalAccountSection({
                 {safeAvatar ? (
                   <img
                     src={safeAvatar}
-                    alt={username || 'Avatar'}
+                    alt={username || t('config.avatar_alt')}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
@@ -526,7 +537,7 @@ export function PersonalAccountSection({
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    Upload Photo
+                    {t('workspace.upload_photo')}
                   </button>
                   {avatarUrl && (
                     <button
@@ -534,7 +545,7 @@ export function PersonalAccountSection({
                       onClick={() => {
                         setAvatarUrl('');
                         void handleAutoSaveProfile({ avatarUrl: '' });
-                        notify.info('Avatar Removed', 'Profile photo removed.');
+                        notify.info(t('config.avatar_removed_title'), t('config.avatar_removed_msg'));
                       }}
                       style={{
                         padding: '6px 12px',
@@ -547,7 +558,7 @@ export function PersonalAccountSection({
                         fontWeight: 600,
                       }}
                     >
-                      Remove Photo
+                      {t('config.remove_photo_btn')}
                     </button>
                   )}
                 </div>
@@ -556,7 +567,7 @@ export function PersonalAccountSection({
                   value={avatarUrl}
                   onChange={(e) => setAvatarUrl(e.target.value)}
                   onBlur={() => void handleAutoSaveProfile({ avatarUrl })}
-                  placeholder="Or enter direct image URL (https://...)"
+                  placeholder={t('config.avatar_url_placeholder')}
                   style={{
                     padding: '8px 12px',
                     borderRadius: '8px',
@@ -578,7 +589,7 @@ export function PersonalAccountSection({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
             <div>
               <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '6px', textTransform: 'uppercase' }}>
-                Username
+                {t('auth.username_placeholder')}
               </label>
               <input
                 type="text"
@@ -586,7 +597,7 @@ export function PersonalAccountSection({
                 onChange={(e) => setUsername(e.target.value)}
                 onBlur={() => void handleAutoSaveProfile({ username })}
                 required
-                placeholder="Traveler username"
+                placeholder={t('config.traveler_username_placeholder')}
                 style={{
                   width: '100%',
                   padding: '9px 12px',
@@ -603,7 +614,7 @@ export function PersonalAccountSection({
 
             <div>
               <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '6px', textTransform: 'uppercase' }}>
-                Email Address
+                {t('config.email_address_label')}
               </label>
               <input
                 type="email"
@@ -630,14 +641,14 @@ export function PersonalAccountSection({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
             <div>
               <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '6px', textTransform: 'uppercase' }}>
-                New Security Passphrase
+                {t('config.new_passphrase_label')}
               </label>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Leave blank to keep unchanged"
+                  placeholder={t('config.leave_blank_unchanged_placeholder')}
                   autoComplete="new-password"
                   style={{
                     width: '100%',
@@ -654,8 +665,8 @@ export function PersonalAccountSection({
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? 'Hide passphrase' : 'Show passphrase'}
-                  title={showPassword ? 'Hide passphrase' : 'Show passphrase'}
+                  aria-label={showPassword ? t('config.hide_passphrase_aria') : t('config.show_passphrase_aria')}
+                  title={showPassword ? t('config.hide_passphrase_aria') : t('config.show_passphrase_aria')}
                   style={{
                     position: 'absolute',
                     right: '8px',
@@ -679,14 +690,14 @@ export function PersonalAccountSection({
 
             <div>
               <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '6px', textTransform: 'uppercase' }}>
-                Confirm Passphrase
+                {t('config.confirm_passphrase_label')}
               </label>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm passphrase"
+                  placeholder={t('config.confirm_passphrase_placeholder')}
                   autoComplete="new-password"
                   style={{
                     width: '100%',
@@ -705,8 +716,8 @@ export function PersonalAccountSection({
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  aria-label={showConfirmPassword ? 'Hide confirm passphrase' : 'Show confirm passphrase'}
-                  title={showConfirmPassword ? 'Hide confirm passphrase' : 'Show confirm passphrase'}
+                  aria-label={showConfirmPassword ? t('config.hide_confirm_passphrase_aria') : t('config.show_confirm_passphrase_aria')}
+                  title={showConfirmPassword ? t('config.hide_confirm_passphrase_aria') : t('config.show_confirm_passphrase_aria')}
                   style={{
                     position: 'absolute',
                     right: '8px',
@@ -740,7 +751,7 @@ export function PersonalAccountSection({
                     fontFamily: 'var(--font-mono, monospace)',
                   }}
                 >
-                  The passwords don&apos;t match
+                  {t('config.passwords_dont_match')}
                 </span>
               ) : isPasswordTooShort ? (
                 <span
@@ -752,7 +763,7 @@ export function PersonalAccountSection({
                     fontFamily: 'var(--font-mono, monospace)',
                   }}
                 >
-                  Password must be at least 6 characters long
+                  {t('config.password_min_length_long')}
                 </span>
               ) : null}
             </div>
@@ -782,7 +793,7 @@ export function PersonalAccountSection({
                 boxShadow: isPasswordValid ? '0 2px 6px rgba(15, 76, 92, 0.25)' : 'none',
               }}
             >
-              SAVE
+              {t('config.save_upper')}
             </button>
           </div>
         </div>
@@ -790,9 +801,9 @@ export function PersonalAccountSection({
 
       {/* 3. Display Language & Locales Card */}
       <SettingsCardFrame
-        title="Display Language & Locales"
-        subtitle="Configure your interface display language, script direction, and locale formatting"
-        innerTitle="Active Interface Language"
+        title={t('config.display_language_title')}
+        subtitle={t('config.display_language_subtitle')}
+        innerTitle={t('config.display_language_inner')}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -811,10 +822,15 @@ export function PersonalAccountSection({
             </span>
             <div>
               <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                {activeLocaleInfo?.name || locale}
+                {activeLocaleName}
               </span>
               <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', display: 'block' }}>
-                Direction: {activeLocaleInfo?.direction === 'rtl' ? 'Right-to-Left (RTL)' : 'Left-to-Right (LTR)'}
+                {t('config.direction_label', {
+                  direction:
+                    activeLocaleInfo?.direction === 'rtl'
+                      ? t('config.direction_rtl')
+                      : t('config.direction_ltr'),
+                })}
               </span>
             </div>
           </div>
@@ -834,23 +850,23 @@ export function PersonalAccountSection({
               cursor: 'pointer',
             }}
           >
-            Change Language
+            {t('nav.change_language')}
           </button>
         </div>
       </SettingsCardFrame>
 
       {/* 4. Home Jurisdiction & Statutory Holidays Card */}
       <SettingsCardFrame
-        title="Home Jurisdiction & Statutory Holidays"
-        subtitle="Configure your home city and country to automatically resolve and sync official public holidays in the calendar"
-        innerTitle="Statutory Holiday Calendar"
+        title={t('config.home_jurisdiction_title')}
+        subtitle={t('config.home_jurisdiction_subtitle')}
+        innerTitle={t('config.home_jurisdiction_inner')}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
             {/* City Autocomplete */}
             <div ref={cityContainerRef} style={{ position: 'relative' }}>
               <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '6px', textTransform: 'uppercase' }}>
-                Home City Anchor
+                {t('config.home_city_anchor_label')}
               </label>
               <div style={{ position: 'relative' }}>
                 <input
@@ -873,7 +889,7 @@ export function PersonalAccountSection({
                     setIsCityFocused(true);
                     if (citySuggestions.length > 0) setIsCityDropdownOpen(true);
                   }}
-                  placeholder="e.g. Madrid, Paris, Tokyo..."
+                  placeholder={t('config.home_city_placeholder')}
                   style={{
                     width: '100%',
                     padding: '9px 12px',
@@ -898,7 +914,7 @@ export function PersonalAccountSection({
                       fontFamily: 'monospace',
                     }}
                   >
-                    SEARCHING...
+                    {t('config.searching_upper')}
                   </span>
                 )}
               </div>
@@ -942,7 +958,7 @@ export function PersonalAccountSection({
                     >
                       <span style={{ fontWeight: 600 }}>{item.city}</span>
                       <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>
-                        {item.country_name || item.country}
+                        {item.country ? getCountryDisplayName(item.country, item.country_name || item.country, locale) : item.country_name}
                       </span>
                     </button>
                   ))}
@@ -953,7 +969,7 @@ export function PersonalAccountSection({
             {/* Country Selector */}
             <div>
               <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '6px', textTransform: 'uppercase' }}>
-                Statutory Country Calendar
+                {t('config.statutory_country_label')}
               </label>
               <button
                 type="button"
@@ -975,7 +991,7 @@ export function PersonalAccountSection({
                   textAlign: 'left',
                 }}
                 className="hover:border-primary transition-colors"
-                title="Change statutory country"
+                title={t('config.change_statutory_country_title')}
                 data-testid="statutory-country-button"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
@@ -995,9 +1011,9 @@ export function PersonalAccountSection({
 
       {/* 5. Currency & Monetary Conventions Card */}
       <SettingsCardFrame
-        title="Currency & Monetary Conventions"
-        subtitle="Your sovereign calculation currency for travel itineraries, expenses, budgeting, and live conversions"
-        innerTitle="Traveler Base Currency"
+        title={t('config.currency_conventions_title')}
+        subtitle={t('config.currency_conventions_subtitle')}
+        innerTitle={t('config.currency_conventions_inner')}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1006,10 +1022,10 @@ export function PersonalAccountSection({
             </div>
             <div>
               <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                {activeCurrencyInfo.code} — {activeCurrencyInfo.name}
+                {activeCurrencyInfo.code} — {getLocalizedCurrencyName(activeCurrencyInfo.code, locale)}
               </span>
               <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', display: 'block' }}>
-                Symbol: {activeCurrencyInfo.symbol} · ISO 4217 Standard
+                {t('config.currency_symbol_iso', { symbol: activeCurrencyInfo.symbol })}
               </span>
             </div>
           </div>
@@ -1028,38 +1044,38 @@ export function PersonalAccountSection({
               cursor: 'pointer',
             }}
           >
-            Change Base Currency
+            {t('config.change_base_currency_btn')}
           </button>
         </div>
       </SettingsCardFrame>
 
       {/* 6. Units & Time Standards Card */}
       <SettingsCardFrame
-        title="Units & Time Standards"
-        subtitle="Configure distance measurements, temperature telemetry, 24h tactical clock, and calendar date display conventions"
-        innerTitle="Measurement & Time Conventions"
+        title={t('config.units_time_title')}
+        subtitle={t('config.units_time_subtitle')}
+        innerTitle={t('config.units_time_inner')}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {/* Distance Standard */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
             <div>
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', display: 'block' }}>
-                Distance Standard
+                {t('config.distance_standard_title')}
               </span>
               <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                Applied to walking radius, solver distances, and route legs
+                {t('config.distance_standard_desc')}
               </span>
             </div>
             <SegmentedPill
-              ariaLabel="Distance unit"
+              ariaLabel={t('config.distance_unit_aria')}
               value={distanceUnit}
               onChange={(val) => {
                 setDistanceUnit(val);
                 void handleAutoSaveProfile({ distance: val });
               }}
               options={[
-                { value: 'km', label: 'Metric', sublabel: 'km / m' },
-                { value: 'mi', label: 'Imperial', sublabel: 'mi / ft' },
+                { value: 'km', label: t('config.unit_metric_title'), sublabel: t('config.unit_metric_sublabel') },
+                { value: 'mi', label: t('config.unit_imperial_title'), sublabel: t('config.unit_imperial_sublabel') },
               ]}
             />
           </div>
@@ -1068,22 +1084,22 @@ export function PersonalAccountSection({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', paddingTop: '10px', borderTop: '1px solid var(--color-border-subtle)' }}>
             <div>
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', display: 'block' }}>
-                Temperature Standard
+                {t('config.temperature_standard_title')}
               </span>
               <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                Applied to weather forecast telemetry and climatic packing suggestions
+                {t('config.temperature_standard_desc')}
               </span>
             </div>
             <SegmentedPill
-              ariaLabel="Temperature unit"
+              ariaLabel={t('config.temperature_unit_aria')}
               value={tempUnit}
               onChange={(val) => {
                 setTempUnit(val);
                 void handleAutoSaveProfile({ temp: val });
               }}
               options={[
-                { value: 'C', label: 'Celsius', sublabel: '°C' },
-                { value: 'F', label: 'Fahrenheit', sublabel: '°F' },
+                { value: 'C', label: t('config.temp_celsius_label'), sublabel: '°C' },
+                { value: 'F', label: t('config.temp_fahrenheit_label'), sublabel: '°F' },
               ]}
             />
           </div>
@@ -1092,22 +1108,22 @@ export function PersonalAccountSection({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', paddingTop: '10px', borderTop: '1px solid var(--color-border-subtle)' }}>
             <div>
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', display: 'block' }}>
-                Tactical Clock Presentation
+                {t('config.clock_presentation_title')}
               </span>
               <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                24-hour military/aviation clock or standard 12-hour AM/PM format
+                {t('config.clock_presentation_desc')}
               </span>
             </div>
             <SegmentedPill
-              ariaLabel="Clock format"
+              ariaLabel={t('config.clock_format_aria')}
               value={clockFormat}
               onChange={(val) => {
                 setClockFormat(val);
                 void handleAutoSaveProfile({ clock: val });
               }}
               options={[
-                { value: '24h', label: '24-Hour', sublabel: '14:30' },
-                { value: '12h', label: '12-Hour', sublabel: '2:30 PM' },
+                { value: '24h', label: t('config.clock_24h_label'), sublabel: '14:30' },
+                { value: '12h', label: t('config.clock_12h_label'), sublabel: t('config.clock_12h_example') },
               ]}
             />
           </div>
@@ -1116,21 +1132,21 @@ export function PersonalAccountSection({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', paddingTop: '10px', borderTop: '1px solid var(--color-border-subtle)' }}>
             <div>
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', display: 'block' }}>
-                Calendar Date Format
+                {t('config.date_format_title')}
               </span>
               <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                Display standard across itinerary dates, ticket dates, and exports
+                {t('config.date_format_desc')}
               </span>
             </div>
             <SegmentedPill
-              ariaLabel="Date format"
+              ariaLabel={t('config.date_format_aria')}
               value={dateFormat}
               onChange={(val) => {
                 setDateFormat(val);
                 void handleAutoSaveProfile({ date: val });
               }}
               options={[
-                { value: 'YYYY-MM-DD', label: 'ISO Standard', sublabel: 'YYYY-MM-DD' },
+                { value: 'YYYY-MM-DD', label: t('config.date_iso_label'), sublabel: 'YYYY-MM-DD' },
                 { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
                 { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
               ]}

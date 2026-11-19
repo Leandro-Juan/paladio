@@ -25,20 +25,19 @@ interface SavedCollectionsSectionProps {
 }
 
 const PALADIO_COLORS = [
-  { hex: '#0F4C5C', label: 'Pacific Teal' },
-  { hex: '#E36414', label: 'Warm Amber' },
-  { hex: '#2A9D8F', label: 'Sage Teal' },
-  { hex: '#6366F1', label: 'Indigo' },
-  { hex: '#E11D48', label: 'Crimson Rose' },
-  { hex: '#F59E0B', label: 'Gold' },
+  { hex: '#0F4C5C', labelKey: 'dashboard.color_pacific_teal' },
+  { hex: '#E36414', labelKey: 'dashboard.color_warm_amber' },
+  { hex: '#2A9D8F', labelKey: 'dashboard.color_sage_teal' },
+  { hex: '#6366F1', labelKey: 'dashboard.color_indigo' },
+  { hex: '#E11D48', labelKey: 'dashboard.color_crimson_rose' },
+  { hex: '#F59E0B', labelKey: 'dashboard.color_gold' },
 ];
 
-const regionDisplayNames =
-  typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function'
-    ? new Intl.DisplayNames(['en'], { type: 'region' })
-    : null;
-
-function resolveCountryName(countryCode?: string | null, country?: string | null): string | null {
+function resolveCountryName(
+  countryCode?: string | null,
+  country?: string | null,
+  displayNames?: Intl.DisplayNames | null
+): string | null {
   const trimmedCountry = country?.trim();
   if (trimmedCountry && trimmedCountry.length > 2) {
     return trimmedCountry;
@@ -48,9 +47,9 @@ function resolveCountryName(countryCode?: string | null, country?: string | null
   )
     .trim()
     .toUpperCase();
-  if (code && code.length === 2 && regionDisplayNames) {
+  if (code && code.length === 2 && displayNames) {
     try {
-      const resolved = regionDisplayNames.of(code);
+      const resolved = displayNames.of(code);
       if (resolved && resolved.toUpperCase() !== code) return resolved;
     } catch {
       // Ignore invalid region codes
@@ -59,10 +58,13 @@ function resolveCountryName(countryCode?: string | null, country?: string | null
   return trimmedCountry || code || null;
 }
 
-function formatCityCountry(poi?: CollectionPoiSummary | null): string | null {
+function formatCityCountry(
+  poi?: CollectionPoiSummary | null,
+  displayNames?: Intl.DisplayNames | null
+): string | null {
   if (!poi) return null;
   const city = poi.city?.trim() || null;
-  const country = resolveCountryName(poi.country_code, poi.country);
+  const country = resolveCountryName(poi.country_code, poi.country, displayNames);
   if (city && country) {
     if (city.toLowerCase() === country.toLowerCase()) return city;
     return `${city}, ${country}`;
@@ -135,7 +137,15 @@ export function SavedCollectionsSection({
   loading: externalLoading,
   trips = [],
 }: SavedCollectionsSectionProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const regionDisplayNames = useMemo(() => {
+    if (typeof Intl === 'undefined' || typeof Intl.DisplayNames !== 'function') return null;
+    try {
+      return new Intl.DisplayNames([locale === 'en' ? 'en' : locale], { type: 'region' });
+    } catch {
+      return new Intl.DisplayNames(['en'], { type: 'region' });
+    }
+  }, [locale]);
   const {
     collections: fetchedCollections,
     loading: hookLoading,
@@ -193,7 +203,10 @@ export function SavedCollectionsSection({
     if (!trimmed || isSubmitting) return;
 
     if (collections.some((c) => c.name.trim().toLowerCase() === trimmed.toLowerCase())) {
-      notify.warning('Duplicate Collection Name', `A collection named "${trimmed}" already exists.`);
+      notify.warning(
+        t('dashboard.duplicate_collection_title'),
+        t('dashboard.duplicate_collection_msg', { name: trimmed })
+      );
       return;
     }
 
@@ -205,14 +218,17 @@ export function SavedCollectionsSection({
         newColColor
       );
       if (created) {
-        notify.success('Collection Created', `Created collection "${created.name}"`);
+        notify.success(
+          t('dashboard.collection_created_title'),
+          t('dashboard.collection_created_msg', { name: created.name })
+        );
         setNewColName('');
         setNewColDesc('');
         setShowCreateForm(false);
       }
     } catch (err: any) {
-      const msg = err?.data?.detail || err?.message || 'Failed to create collection.';
-      notify.warning('Collection Warning', msg);
+      const msg = err?.data?.detail || err?.message || t('dashboard.create_collection_failed');
+      notify.warning(t('dashboard.collection_warning_title'), msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -223,17 +239,20 @@ export function SavedCollectionsSection({
     if (!trimmed) return;
 
     if (collections.some((c) => c.id !== colId && c.name.trim().toLowerCase() === trimmed.toLowerCase())) {
-      notify.warning('Duplicate Collection Name', `A collection named "${trimmed}" already exists.`);
+      notify.warning(
+        t('dashboard.duplicate_collection_title'),
+        t('dashboard.duplicate_collection_msg', { name: trimmed })
+      );
       return;
     }
 
     try {
       await updateCollection(colId, { name: trimmed, color: editColor });
-      notify.success('Collection Updated', 'Updated collection details.');
+      notify.success(t('dashboard.collection_updated_title'), t('dashboard.collection_updated_msg'));
       setEditingColId(null);
     } catch (err: any) {
-      const msg = err?.data?.detail || err?.message || 'Failed to update collection.';
-      notify.warning('Collection Warning', msg);
+      const msg = err?.data?.detail || err?.message || t('dashboard.update_collection_failed');
+      notify.warning(t('dashboard.collection_warning_title'), msg);
     }
   };
 
@@ -242,10 +261,13 @@ export function SavedCollectionsSection({
     setIsDeletingCol(true);
     try {
       await deleteCollection(pendingDeleteCol.id);
-      notify.info('Collection Deleted', `Deleted "${pendingDeleteCol.name}"`);
+      notify.info(
+        t('dashboard.collection_deleted_title'),
+        t('dashboard.collection_deleted_msg', { name: pendingDeleteCol.name })
+      );
       setPendingDeleteCol(null);
     } catch {
-      notify.error('Error', 'Failed to delete collection.');
+      notify.error(t('dashboard.error_title'), t('dashboard.delete_collection_failed'));
     } finally {
       setIsDeletingCol(false);
     }
@@ -258,18 +280,27 @@ export function SavedCollectionsSection({
   ) => {
     try {
       await addItemToCollection(collectionId, poiId, summary);
-      notify.success('Added to Collection', `Added "${summary.name}"`);
+      notify.success(
+        t('dashboard.added_to_collection_title'),
+        t('dashboard.added_to_collection_msg', { name: summary.name })
+      );
     } catch {
-      notify.error('Action Failed', `Failed to add "${summary.name}"`);
+      notify.error(
+        t('dashboard.action_failed_title'),
+        t('dashboard.add_to_collection_failed', { name: summary.name })
+      );
     }
   };
 
   const handleRemovePoi = async (collectionId: string, poiId: string, poiName: string) => {
     try {
       await removeItemFromCollection(collectionId, poiId);
-      notify.info('Place Removed', `Removed "${poiName}" from collection.`);
+      notify.info(
+        t('dashboard.place_removed_title'),
+        t('dashboard.place_removed_msg', { name: poiName })
+      );
     } catch {
-      notify.error('Error', 'Failed to remove place from collection.');
+      notify.error(t('dashboard.error_title'), t('dashboard.remove_place_failed'));
     }
   };
 
@@ -288,7 +319,7 @@ export function SavedCollectionsSection({
         <div className={styles.titleArea}>
           <h2 className={styles.title}>{t('dashboard.saved_collections')}</h2>
           <span className={styles.countBadge} data-testid="saved-collections-count">
-            {loading ? t('common.loading') : `${collections.length} CURATED`}
+            {loading ? t('common.loading') : t('dashboard.curated_count', { count: collections.length })}
           </span>
         </div>
 
@@ -298,7 +329,7 @@ export function SavedCollectionsSection({
           onClick={() => setShowCreateForm((prev) => !prev)}
           className={showCreateForm ? styles.secondaryBtn : styles.primaryBtn}
         >
-          {showCreateForm ? 'Cancel' : '+ New Collection'}
+          {showCreateForm ? t('common.cancel') : t('dashboard.new_collection_btn')}
         </button>
       </div>
 
@@ -309,7 +340,7 @@ export function SavedCollectionsSection({
           data-testid="dashboard-create-collection-form"
           className={styles.createForm}
         >
-          <div className={styles.createFormTitle}>NEW COLLECTION</div>
+          <div className={styles.createFormTitle}>{t('dashboard.new_collection_title')}</div>
 
           <div className={styles.createFormFields}>
             <input
@@ -317,7 +348,7 @@ export function SavedCollectionsSection({
               data-testid="dashboard-new-collection-name"
               value={newColName}
               onChange={(e) => setNewColName(e.target.value)}
-              placeholder="Collection name (e.g. Hidden Gems, Bucket List)"
+              placeholder={t('dashboard.collection_name_placeholder')}
               maxLength={60}
               required
               autoFocus
@@ -337,7 +368,7 @@ export function SavedCollectionsSection({
                   padding: '2px 4px',
                 }}
               >
-                <span>⚠ A collection named &quot;{newColName.trim()}&quot; already exists</span>
+                <span>{t('dashboard.duplicate_collection_alert', { name: newColName.trim() })}</span>
               </div>
             )}
             <input
@@ -345,7 +376,7 @@ export function SavedCollectionsSection({
               data-testid="dashboard-new-collection-desc"
               value={newColDesc}
               onChange={(e) => setNewColDesc(e.target.value)}
-              placeholder="Description (optional)"
+              placeholder={t('dashboard.collection_desc_placeholder')}
               maxLength={120}
               className={styles.textInput}
             />
@@ -353,13 +384,13 @@ export function SavedCollectionsSection({
 
           <div className={styles.createFormFooter}>
             <div className={styles.colorRow}>
-              <span className={styles.colorLabel}>Color:</span>
+              <span className={styles.colorLabel}>{t('dashboard.color_label')}</span>
               <div className={styles.colorSwatches}>
                 {PALADIO_COLORS.map((c) => (
                   <button
                     key={c.hex}
                     type="button"
-                    title={c.label}
+                    title={t(c.labelKey)}
                     onClick={() => setNewColColor(c.hex)}
                     style={{
                       width: '20px',
@@ -382,7 +413,7 @@ export function SavedCollectionsSection({
                 onClick={() => setShowCreateForm(false)}
                 className={styles.secondaryBtn}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
@@ -390,7 +421,7 @@ export function SavedCollectionsSection({
                 disabled={!newColName.trim() || isSubmitting}
                 className={styles.primaryBtn}
               >
-                {isSubmitting ? 'Creating...' : 'Create Collection'}
+                {isSubmitting ? t('dashboard.creating') : t('dashboard.create_collection')}
               </button>
             </div>
           </div>
@@ -425,7 +456,7 @@ export function SavedCollectionsSection({
             onClick={() => setShowCreateForm(true)}
             className={styles.primaryBtn}
           >
-            + Create First Collection
+            {t('dashboard.create_first_collection')}
           </button>
         </div>
       ) : (
@@ -474,7 +505,7 @@ export function SavedCollectionsSection({
                           onClick={() => handleSaveEdit(col.id)}
                           className={styles.editSaveBtn}
                         >
-                          Save
+                          {t('common.save')}
                         </button>
                         <button
                           type="button"
@@ -498,7 +529,7 @@ export function SavedCollectionsSection({
                         <div className={styles.cardActions}>
                           <button
                             type="button"
-                            title="Edit collection name"
+                            title={t('dashboard.edit_collection_name')}
                             data-testid={`edit-collection-btn-${col.id}`}
                             onClick={() => {
                               setEditingColId(col.id);
@@ -524,7 +555,7 @@ export function SavedCollectionsSection({
 
                           <button
                             type="button"
-                            title="Delete collection"
+                            title={t('dashboard.delete_collection_title')}
                             data-testid={`delete-collection-btn-${col.id}`}
                             onClick={() => setPendingDeleteCol(col)}
                             className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
@@ -560,7 +591,7 @@ export function SavedCollectionsSection({
                       onClick={() => setTripsPickerCol(col)}
                       className={styles.addPoiBtn}
                     >
-                      + From Trips
+                      {t('dashboard.from_trips_btn')}
                     </button>
                     <button
                       type="button"
@@ -568,27 +599,27 @@ export function SavedCollectionsSection({
                       onClick={() => setManualAddCol(col)}
                       className={styles.addPoiBtn}
                     >
-                      + Add Manually
+                      {t('dashboard.add_manually_btn')}
                     </button>
                   </div>
 
                   {/* Collection Items List (matching Trip Details CollectionsTab) */}
                   {uniqueItems.length === 0 ? (
                     <div className={styles.emptyItemsHint}>
-                      No places in this collection yet. Add from your trips or create one manually.
+                      {t('dashboard.empty_collection_hint')}
                     </div>
                   ) : (
                     <div className={styles.itemsList}>
                       {uniqueItems.map((item: CollectionItem) => {
                         const poiName = item.poi?.name || item.poi_id;
-                        const poiCategory = item.poi?.category || 'place';
+                        const poiCategory = item.poi?.category || t('dashboard.place_fallback');
                         const poiPhoto = item.poi?.thumbnail_url || item.poi?.photo_url;
                         const durationMins = item.poi?.duration_mins || 60;
                         const costEur = item.poi?.cost_eur ?? 0;
                         const visitStatus: CollectionItemVisitStatus =
                           item.visit_status === 'visited' ? 'visited' : 'want_to_go';
                         const isVisited = visitStatus === 'visited';
-                        const cityCountryLabel = formatCityCountry(item.poi);
+                        const cityCountryLabel = formatCityCountry(item.poi, regionDisplayNames);
 
                         const handleToggleVisitStatus = async () => {
                           const nextStatus: CollectionItemVisitStatus = isVisited
@@ -597,7 +628,7 @@ export function SavedCollectionsSection({
                           try {
                             await updateItemVisitStatus(col.id, item.poi_id, nextStatus);
                           } catch {
-                            notify.error('Error', 'Failed to update place status.');
+                            notify.error(t('dashboard.error_title'), t('dashboard.update_place_status_failed'));
                           }
                         };
 
@@ -626,8 +657,8 @@ export function SavedCollectionsSection({
                                   </div>
                                 )}
                                 <div className={styles.poiRowMeta}>
-                                  {poiCategory} · {durationMins}m ·{' '}
-                                  {costEur === 0 ? 'Free' : `€${costEur}`}
+                                  {poiCategory} · {t('dashboard.duration_mins_short', { mins: durationMins })} ·{' '}
+                                  {costEur === 0 ? t('workspace.free') : `€${costEur}`}
                                 </div>
                               </div>
                             </div>
@@ -639,8 +670,8 @@ export function SavedCollectionsSection({
                                 data-testid={`collection-item-status-${item.poi_id}`}
                                 title={
                                   isVisited
-                                    ? 'Visited — click to mark as Want to go'
-                                    : 'Want to go — click to mark as Visited'
+                                    ? t('dashboard.visited_toggle_title')
+                                    : t('dashboard.want_to_go_toggle_title')
                                 }
                                 aria-pressed={isVisited}
                                 onClick={handleToggleVisitStatus}
@@ -693,13 +724,13 @@ export function SavedCollectionsSection({
                                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                                   </svg>
                                 )}
-                                <span>{isVisited ? 'Visited' : 'Want to go'}</span>
+                                <span>{isVisited ? t('dashboard.visited_label') : t('dashboard.want_to_go_label')}</span>
                               </button>
 
                               {/* Remove from Collection */}
                               <button
                                 type="button"
-                                title="Remove from collection"
+                                title={t('dashboard.remove_from_collection')}
                                 data-testid={`remove-collection-item-${item.poi_id}`}
                                 onClick={() => handleRemovePoi(col.id, item.poi_id, poiName)}
                                 className={styles.removePoiBtn}
@@ -728,7 +759,9 @@ export function SavedCollectionsSection({
 
                 <div className={styles.cardFooter}>
                   <span className={styles.footerCount}>
-                    {uniqueItems.length} {uniqueItems.length === 1 ? 'place' : 'places'}
+                    {uniqueItems.length === 1
+                      ? t('dashboard.place_singular')
+                      : t('dashboard.places_plural', { count: uniqueItems.length })}
                   </span>
                 </div>
               </div>
@@ -819,7 +852,7 @@ export function SavedCollectionsSection({
                       fontFamily: 'var(--font-display, inherit)',
                     }}
                   >
-                    Delete collection?
+                    {t('dashboard.delete_collection_confirm_title')}
                   </h3>
                   <p
                     style={{
@@ -829,11 +862,21 @@ export function SavedCollectionsSection({
                       color: 'var(--color-text-muted)',
                     }}
                   >
-                    Are you sure you want to delete{' '}
-                    <strong style={{ color: 'var(--color-text-primary)' }}>
-                      &ldquo;{pendingDeleteCol.name}&rdquo;
-                    </strong>
-                    ? This action cannot be undone.
+                    {(() => {
+                      const marker = '__COL_NAME__';
+                      const text = t('dashboard.delete_collection_confirm_body', { name: marker });
+                      const parts = text.split(marker);
+                      if (parts.length !== 2) return text;
+                      return (
+                        <>
+                          {parts[0]}
+                          <strong style={{ color: 'var(--color-text-primary)' }}>
+                            {pendingDeleteCol.name}
+                          </strong>
+                          {parts[1]}
+                        </>
+                      );
+                    })()}
                   </p>
                 </div>
               </div>
@@ -861,7 +904,7 @@ export function SavedCollectionsSection({
                     cursor: isDeletingCol ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -880,7 +923,7 @@ export function SavedCollectionsSection({
                     opacity: isDeletingCol ? 0.7 : 1,
                   }}
                 >
-                  {isDeletingCol ? 'Deleting...' : 'Delete'}
+                  {isDeletingCol ? t('dashboard.deleting') : t('common.delete')}
                 </button>
               </div>
             </div>
@@ -921,7 +964,13 @@ export function SavedCollectionsSection({
               country: createdPoi.country || null,
             });
           } catch {
-            notify.error('Action Failed', `Created "${createdPoi.name}", but failed to add it to "${manualAddCol.name}".`);
+            notify.error(
+              t('dashboard.action_failed_title'),
+              t('dashboard.created_poi_add_failed', {
+                poiName: createdPoi.name,
+                colName: manualAddCol.name,
+              })
+            );
           }
         }}
       />

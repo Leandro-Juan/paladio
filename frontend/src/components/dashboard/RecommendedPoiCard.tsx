@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { classifyPoiCategory } from '@/utils/poiCategory';
 import { CategoryIcon } from '@/components/PoiCategoryBadge';
 import styles from './RecommendedPoiCard.module.css';
@@ -42,6 +43,7 @@ export function RecommendedPoiCard({
   tripId,
   onDismiss,
 }: RecommendedPoiCardProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [imgFailed, setImgFailed] = React.useState(false);
   const categoryMeta = useMemo(() => {
@@ -53,7 +55,8 @@ export function RecommendedPoiCard({
     return null;
   }
 
-  const defaultDesc = `Prominent destination waypoint in ${city}, matched to your sovereign travel profile and schedule.`;
+  const localizedCategoryLabel = t(`dashboard.poi_cat_${categoryMeta.type}`);
+  const defaultDesc = t('dashboard.poi_default_desc', { city });
   const displayDesc = description && description.trim().length > 0 ? description : defaultDesc;
 
   const handleDismiss = (e: React.MouseEvent) => {
@@ -117,7 +120,7 @@ export function RecommendedPoiCard({
                 opacity: 0.8,
               }}
             >
-              {categoryMeta.label}
+              {localizedCategoryLabel}
             </span>
           </div>
         )}
@@ -150,7 +153,7 @@ export function RecommendedPoiCard({
               <svg className={`${styles.badgeIcon} ${styles.tasteMatchIcon}`} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
               </svg>
-              <span>{tasteMatchPct}% Taste Match</span>
+              <span>{t('workspace.taste_match_pct', { pct: tasteMatchPct })}</span>
             </span>
 
             {/* POI Type / Category Badge with Custom Aesthetic Tooltip (Title Case) */}
@@ -158,11 +161,11 @@ export function RecommendedPoiCard({
               <span
                 className={`${styles.badgePill} ${styles.categoryIconPill} ${styles.tooltipTrigger}`}
                 data-testid="poi-category-pill"
-                aria-label={categoryMeta.label}
+                aria-label={localizedCategoryLabel}
               >
                 <CategoryIcon type={categoryMeta.type} size={12} className={styles.badgeIcon} />
                 <span className={styles.customTooltip} role="tooltip">
-                  {formatCategoryLabel(categoryMeta.label)}
+                  {formatCategoryLabel(localizedCategoryLabel)}
                 </span>
               </span>
             )}
@@ -176,7 +179,7 @@ export function RecommendedPoiCard({
               type="button"
               className={`${styles.actionButton} ${styles.dismissButton}`}
               onClick={handleDismiss}
-              aria-label="Dismiss waypoint and find next best match"
+              aria-label={t('dashboard.dismiss_poi_aria')}
               data-testid="poi-dismiss-btn"
             >
               <svg
@@ -193,7 +196,7 @@ export function RecommendedPoiCard({
               </svg>
             </button>
             <span className={styles.customTooltip} role="tooltip">
-              Dismiss waypoint
+              {t('dashboard.dismiss_poi_tooltip')}
             </span>
           </div>
 
@@ -202,7 +205,7 @@ export function RecommendedPoiCard({
               type="button"
               className={`${styles.actionButton} ${styles.heartButton}`}
               onClick={handleInspect}
-              aria-label="View waypoint in trip details"
+              aria-label={t('dashboard.view_poi_in_trip')}
               data-testid="poi-heart-btn"
               data-href={destinationHref}
             >
@@ -217,7 +220,7 @@ export function RecommendedPoiCard({
               </svg>
             </button>
             <span className={styles.customTooltip} role="tooltip">
-              View waypoint in trip details
+              {t('dashboard.view_poi_in_trip')}
             </span>
           </div>
         </div>

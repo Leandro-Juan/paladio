@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { HELP_CATEGORIES, HelpCategory, HelpArticle } from './helpData';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface HelpSidebarProps {
   selectedCategoryId: string;
@@ -16,6 +17,7 @@ export function HelpSidebar({
   onSelectCategory,
   onSelectArticle,
 }: HelpSidebarProps) {
+  const { t } = useTranslation();
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -62,8 +64,8 @@ export function HelpSidebar({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search guides and tips..."
-            aria-label="Search guides"
+            placeholder={t('help.search_sidebar_placeholder')}
+            aria-label={t('help.search_guides_aria')}
             style={{
               width: '100%',
               padding: '8px 28px 8px 32px',
@@ -93,7 +95,7 @@ export function HelpSidebar({
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
-              aria-label="Clear search"
+              aria-label={t('config.clear_search_aria')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -110,24 +112,24 @@ export function HelpSidebar({
           const isCategoryActive = selectedCategoryId === cat.id;
           const isCollapsed = Boolean(collapsedCategories[cat.id]);
 
-          // Filter articles by searchQuery if user typed something
+          // Filter articles by searchQuery across English originals and active translations
           const q = searchQuery.trim().toLowerCase();
+          const matchesQuery = (text?: string) =>
+            Boolean(text && (text.toLowerCase().includes(q) || t(text).toLowerCase().includes(q)));
           const articles = q
             ? cat.articles.filter(
                 (a) =>
-                  a.title.toLowerCase().includes(q) ||
-                  a.excerpt.toLowerCase().includes(q) ||
-                  a.tldr.toLowerCase().includes(q) ||
-                  (a.badge && a.badge.toLowerCase().includes(q)) ||
+                  matchesQuery(a.title) ||
+                  matchesQuery(a.excerpt) ||
+                  matchesQuery(a.tldr) ||
+                  matchesQuery(a.badge) ||
                   a.sections.some(
                     (s) =>
-                      s.heading.toLowerCase().includes(q) ||
-                      s.content.some((p) => p.toLowerCase().includes(q)) ||
+                      matchesQuery(s.heading) ||
+                      s.content.some((p) => matchesQuery(p)) ||
                       (s.parameterTable &&
                         s.parameterTable.some(
-                          (pt) =>
-                            pt.term.toLowerCase().includes(q) ||
-                            pt.meaning.toLowerCase().includes(q)
+                          (pt) => matchesQuery(pt.term) || matchesQuery(pt.meaning)
                         ))
                   )
               )
@@ -170,7 +172,7 @@ export function HelpSidebar({
                       alignItems: 'center',
                       color: 'inherit',
                     }}
-                    aria-label={`Toggle ${cat.title}`}
+                    aria-label={t('help.toggle_category_aria', { title: t(cat.title) })}
                   >
                     <svg
                       width="12"
@@ -190,7 +192,7 @@ export function HelpSidebar({
                     </svg>
                   </button>
                   <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                    {cat.title}
+                    {t(cat.title)}
                   </span>
                 </div>
 
@@ -255,7 +257,7 @@ export function HelpSidebar({
                               paddingRight: '6px',
                             }}
                           >
-                            {article.title}
+                            {t(article.title)}
                           </span>
 
                           {article.badge && (
@@ -274,7 +276,7 @@ export function HelpSidebar({
                                 fontWeight: 700,
                               }}
                             >
-                              {article.badge}
+                              {t(article.badge)}
                             </span>
                           )}
                         </button>
@@ -300,7 +302,7 @@ export function HelpSidebar({
           color: 'var(--color-text-muted, #566B76)',
         }}
       >
-        <span>Paladio Travel Guides</span>
+        <span>{t('help.travel_guides_brand')}</span>
         <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>v2.0.0</span>
       </div>
     </aside>

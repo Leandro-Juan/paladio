@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { VaultConfigData, testPhotoSyncApi, syncAllVaultPhotosApi } from '@/utils/api';
 import { TacticalToggle } from '../TacticalToggle';
 import { Spinner } from '@/components/icons';
@@ -13,6 +14,7 @@ interface PhotoSyncSettingsCardProps {
 }
 
 export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSettingsCardProps) {
+  const { t } = useTranslation();
   const [testingImmich, setTestingImmich] = useState(false);
   const [immichMessage, setImmichMessage] = useState<{ success: boolean; text: string } | null>(null);
 
@@ -76,7 +78,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
   const handleTestImmich = async () => {
     const targetUrl = immichUrlDraft || config.immich_url;
     if (!targetUrl) {
-      notify.warning('Missing URL', 'Please specify the Immich instance URL first');
+      notify.warning(t('config.missing_url_title'), t('config.immich_missing_url_msg'));
       return;
     }
     setTestingImmich(true);
@@ -88,16 +90,16 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
         api_key: immichKeyDraft || config.immich_api_key,
       });
       if (res.success) {
-        setImmichMessage({ success: true, text: res.message || 'Connected successfully' });
-        notify.success('Immich Connected', res.message || 'Immich verification successful');
+        setImmichMessage({ success: true, text: res.message || t('config.connected_successfully_msg') });
+        notify.success(t('config.immich_connected_title'), res.message || t('config.immich_verified_msg'));
       } else {
-        setImmichMessage({ success: false, text: res.error || 'Connection failed' });
-        notify.error('Immich Error', res.error || 'Failed to authenticate with Immich');
+        setImmichMessage({ success: false, text: res.error || t('config.connection_failed_msg') });
+        notify.error(t('config.immich_error_title'), res.error || t('config.immich_auth_failed'));
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Connection error';
+      const msg = e instanceof Error ? e.message : t('config.connection_error_msg');
       setImmichMessage({ success: false, text: msg });
-      notify.error('Immich Error', msg);
+      notify.error(t('config.immich_error_title'), msg);
     } finally {
       setTestingImmich(false);
     }
@@ -106,7 +108,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
   const handleTestSynology = async () => {
     const targetUrl = synologyUrlDraft || config.synology_url;
     if (!targetUrl) {
-      notify.warning('Missing URL', 'Please specify the Synology endpoint URL first');
+      notify.warning(t('config.missing_url_title'), t('config.synology_missing_url_msg'));
       return;
     }
     setTestingSynology(true);
@@ -120,16 +122,16 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
         destination_path: synologyDestDraft || config.synology_destination_path,
       });
       if (res.success) {
-        setSynologyMessage({ success: true, text: res.message || 'Connected successfully' });
-        notify.success('Synology Connected', res.message || 'Synology verification successful');
+        setSynologyMessage({ success: true, text: res.message || t('config.connected_successfully_msg') });
+        notify.success(t('config.synology_connected_title'), res.message || t('config.synology_verified_msg'));
       } else {
-        setSynologyMessage({ success: false, text: res.error || 'Connection failed' });
-        notify.error('Synology Error', res.error || 'Failed to authenticate with Synology');
+        setSynologyMessage({ success: false, text: res.error || t('config.connection_failed_msg') });
+        notify.error(t('config.synology_error_title'), res.error || t('config.synology_auth_failed'));
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Connection error';
+      const msg = e instanceof Error ? e.message : t('config.connection_error_msg');
       setSynologyMessage({ success: false, text: msg });
-      notify.error('Synology Error', msg);
+      notify.error(t('config.synology_error_title'), msg);
     } finally {
       setTestingSynology(false);
     }
@@ -141,15 +143,20 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
       const res = await syncAllVaultPhotosApi();
       if (res.success) {
         notify.success(
-          'Photo Sync Complete',
-          `Scanned ${res.total_scanned} photo(s). Synced: Immich (${res.synced_immich}), Synology (${res.synced_synology}). Failures: ${res.failures}.`
+          t('config.photo_sync_complete_title'),
+          t('config.photo_sync_complete_msg', {
+            total: res.total_scanned,
+            immich: res.synced_immich,
+            syno: res.synced_synology,
+            failures: res.failures,
+          })
         );
       } else {
-        notify.error('Sync Error', res.error || 'Failed to run full vault sync');
+        notify.error(t('config.sync_error_title'), res.error || t('config.photo_sync_run_failed'));
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Photo sync failed';
-      notify.error('Sync Error', msg);
+      const msg = e instanceof Error ? e.message : t('config.photo_sync_failed');
+      notify.error(t('config.sync_error_title'), msg);
     } finally {
       setSyncingAll(false);
     }
@@ -168,7 +175,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
         }}
       >
         <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-muted)' }}>
-          Photo sync configurations require administrator privileges.
+          {t('config.photo_sync_admin_required')}
         </span>
       </div>
     );
@@ -191,10 +198,10 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
       >
         <div>
           <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-            Automatic Photo Synchronization
+            {t('config.auto_photo_sync_title')}
           </span>
           <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
-            When enabled, all photos and videos uploaded to itinerary vaults are automatically synced in the background.
+            {t('config.auto_photo_sync_desc')}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -202,7 +209,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
             checked={config.sync_on_upload ?? true}
             onChange={(checked) => onChange({ sync_on_upload: checked })}
             tone="teal"
-            ariaLabel="Toggle automatic photo sync on upload"
+            ariaLabel={t('config.toggle_auto_photo_sync_aria')}
           />
         </div>
       </div>
@@ -223,7 +230,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                Immich Photo Sync
+                {t('config.immich_title')}
               </span>
               <span
                 style={{
@@ -235,29 +242,29 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
                   color: config.immich_enabled ? 'var(--color-accent-teal, #4A9E8F)' : 'var(--color-text-muted)',
                 }}
               >
-                {config.immich_enabled ? 'Enabled' : 'Disabled'}
+                {config.immich_enabled ? t('config.badge_enabled') : t('config.badge_disabled')}
               </span>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
-              Self-hosted high-performance backup to your personal Immich asset vault and albums.
+              {t('config.immich_desc')}
             </p>
           </div>
           <TacticalToggle
             checked={Boolean(config.immich_enabled)}
             onChange={(checked) => onChange({ immich_enabled: checked })}
             tone="teal"
-            ariaLabel="Toggle Immich synchronization"
+            ariaLabel={t('config.toggle_immich_aria')}
           />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-              Immich Instance URL
+              {t('config.immich_url_label')}
             </label>
             <input
               type="text"
-              placeholder="https://immich.home.arpa or http://192.168.1.50:2283"
+              placeholder={t('config.immich_url_placeholder')}
               value={immichUrlDraft}
               onChange={(e) => setImmichUrlDraft(e.target.value)}
               style={{
@@ -275,7 +282,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-              Target Album Name
+              {t('config.immich_album_label')}
             </label>
             <input
               type="text"
@@ -296,12 +303,12 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
 
           <div style={{ gridColumn: '1 / -1' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-              Immich API Key
+              {t('config.immich_api_key_label')}
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
                 type={showImmichKey ? 'text' : 'password'}
-                placeholder="Paste Immich API key generated from Account Settings"
+                placeholder={t('config.immich_api_key_placeholder')}
                 value={immichKeyDraft}
                 onChange={(e) => setImmichKeyDraft(e.target.value)}
                 style={{
@@ -329,7 +336,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
                   fontWeight: 600,
                 }}
               >
-                {showImmichKey ? 'Hide' : 'Reveal'}
+                {showImmichKey ? t('config.hide_btn') : t('config.reveal_btn')}
               </button>
               <button
                 type="button"
@@ -353,7 +360,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
                 }}
               >
                 {savingImmich && <Spinner size={12} color="#FFFFFF" />}
-                <span>SAVE KEY</span>
+                <span>{t('config.save_key_upper')}</span>
               </button>
             </div>
           </div>
@@ -361,7 +368,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid var(--color-border)' }}>
           <div style={{ fontSize: '12px', color: immichMessage ? (immichMessage.success ? 'var(--color-accent-teal)' : 'var(--color-danger, #E06C75)') : 'var(--color-text-muted)' }}>
-            {immichMessage?.text || 'Verify your Immich server connection before triggering sync'}
+            {immichMessage?.text || t('config.immich_test_hint')}
           </div>
           <button
             type="button"
@@ -383,7 +390,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
             }}
           >
             {testingImmich && <Spinner size={12} />}
-            Test Immich Connection
+            {t('config.immich_test_btn')}
           </button>
         </div>
       </div>
@@ -404,7 +411,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                Synology Photos & WebDAV Sync
+                {t('config.synology_title')}
               </span>
               <span
                 style={{
@@ -416,29 +423,29 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
                   color: config.synology_enabled ? 'var(--color-accent-coral, #D9836B)' : 'var(--color-text-muted)',
                 }}
               >
-                {config.synology_enabled ? 'Enabled' : 'Disabled'}
+                {config.synology_enabled ? t('config.badge_enabled') : t('config.badge_disabled')}
               </span>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
-              Archive full-resolution vacation photos directly to your Synology NAS volume via WebDAV or DSM Photos.
+              {t('config.synology_desc')}
             </p>
           </div>
           <TacticalToggle
             checked={Boolean(config.synology_enabled)}
             onChange={(checked) => onChange({ synology_enabled: checked })}
             tone="coral"
-            ariaLabel="Toggle Synology synchronization"
+            ariaLabel={t('config.toggle_synology_aria')}
           />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-              Synology NAS / WebDAV URL
+              {t('config.synology_url_label')}
             </label>
             <input
               type="text"
-              placeholder="https://nas.local:5006 or https://nas.quickconnect.to"
+              placeholder={t('config.synology_url_placeholder')}
               value={synologyUrlDraft}
               onChange={(e) => setSynologyUrlDraft(e.target.value)}
               style={{
@@ -456,7 +463,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-              Destination Path
+              {t('config.synology_dest_label')}
             </label>
             <input
               type="text"
@@ -478,7 +485,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-              DSM Username
+              {t('config.synology_user_label')}
             </label>
             <input
               type="text"
@@ -499,12 +506,12 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-              DSM Password or App Credential
+              {t('config.synology_pass_label')}
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
                 type={showSynoPass ? 'text' : 'password'}
-                placeholder="Password"
+                placeholder={t('auth.password_placeholder')}
                 value={synologyPassDraft}
                 onChange={(e) => setSynologyPassDraft(e.target.value)}
                 style={{
@@ -531,7 +538,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
                   fontWeight: 600,
                 }}
               >
-                {showSynoPass ? 'Hide' : 'Reveal'}
+                {showSynoPass ? t('config.hide_btn') : t('config.reveal_btn')}
               </button>
               <button
                 type="button"
@@ -555,7 +562,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
                 }}
               >
                 {savingSynology && <Spinner size={12} color="#FFFFFF" />}
-                <span>SAVE CREDENTIALS</span>
+                <span>{t('config.save_credentials_upper')}</span>
               </button>
             </div>
           </div>
@@ -563,7 +570,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid var(--color-border)' }}>
           <div style={{ fontSize: '12px', color: synologyMessage ? (synologyMessage.success ? 'var(--color-accent-teal)' : 'var(--color-danger, #E06C75)') : 'var(--color-text-muted)' }}>
-            {synologyMessage?.text || 'Verify NAS reachability and folder authorization'}
+            {synologyMessage?.text || t('config.synology_test_hint')}
           </div>
           <button
             type="button"
@@ -585,7 +592,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
             }}
           >
             {testingSynology && <Spinner size={12} />}
-            Test Synology Connection
+            {t('config.synology_test_btn')}
           </button>
         </div>
       </div>
@@ -605,10 +612,10 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
       >
         <div>
           <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-            Sync All Vault Photos Now
+            {t('config.sync_all_photos_title')}
           </span>
           <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
-            Scans all recorded trip itineraries in the database and uploads any missing photos to active external providers.
+            {t('config.sync_all_photos_desc')}
           </p>
         </div>
         <button
@@ -631,7 +638,7 @@ export function PhotoSyncSettingsCard({ config, onChange, isAdmin }: PhotoSyncSe
           }}
         >
           {syncingAll && <Spinner size={14} color="#FFFFFF" />}
-          {syncingAll ? 'Synchronizing...' : 'Sync Vault Photos Now'}
+          {syncingAll ? t('config.synchronizing_btn') : t('config.sync_vault_photos_btn')}
         </button>
       </div>
     </div>

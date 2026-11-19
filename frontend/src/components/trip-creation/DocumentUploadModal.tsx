@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   BoardingPassTacticalIllustration,
   HotelBookingTacticalIllustration,
@@ -55,6 +56,7 @@ export function DocumentUploadModal({
   onExtracted,
   disabled = false,
 }: DocumentUploadModalProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
@@ -108,7 +110,7 @@ export function DocumentUploadModal({
 
   const processTripPackage = async (file: File) => {
     setIsScanning(true);
-    setScanMessage('Unpacking and restoring Paladio .trip archive...');
+    setScanMessage(t('engine.unpacking_trip_archive'));
     setScanError(null);
     setExtractedResult(null);
     setImportedTrip(null);
@@ -124,7 +126,7 @@ export function DocumentUploadModal({
       });
 
       if (!res.ok) {
-        let errMessage = 'Failed to import .trip package.';
+        let errMessage = t('engine.import_trip_failed');
         try {
           const errData = await res.json();
           if (errData.detail) errMessage = errData.detail;
@@ -141,10 +143,10 @@ export function DocumentUploadModal({
         destination_city: tripData.destination,
         departure_date: tripData.start_date,
         return_date: tripData.end_date,
-        excerpt: `Imported complete Paladio trip archive for ${tripData.destination}`,
+        excerpt: t('engine.imported_trip_excerpt', { destination: tripData.destination }),
       });
     } catch (err: unknown) {
-      setScanError(err instanceof Error ? err.message : 'Error importing .trip package.');
+      setScanError(err instanceof Error ? err.message : t('engine.import_trip_error'));
     } finally {
       setIsScanning(false);
       setScanMessage(null);
@@ -157,7 +159,7 @@ export function DocumentUploadModal({
     }
 
     setIsScanning(true);
-    setScanMessage('Decoding telemetry & extracting document...');
+    setScanMessage(t('engine.decoding_telemetry'));
     setScanError(null);
     setExtractedResult(null);
     setImportedTrip(null);
@@ -170,7 +172,7 @@ export function DocumentUploadModal({
       } else if (rawText && rawText.trim()) {
         formData.append('raw_text', rawText.trim());
       } else {
-        throw new Error('Please select a document file or paste confirmation text.');
+        throw new Error(t('engine.doc_empty_error'));
       }
       formData.append('document_hint', targetType);
 
@@ -180,7 +182,7 @@ export function DocumentUploadModal({
       });
 
       if (!res.ok) {
-        let errMessage = 'Failed to extract document telemetry.';
+        let errMessage = t('engine.doc_extract_failed');
         try {
           const errData = await res.json();
           if (errData.detail) errMessage = errData.detail;
@@ -199,41 +201,39 @@ export function DocumentUploadModal({
         !data.destination_iata &&
         !data.hotel_name
       ) {
-        throw new Error(
-          'Could not extract travel details from the provided document. Please check the document or enter details manually.'
-        );
+        throw new Error(t('engine.doc_no_details'));
       }
 
       const today = new Date().toISOString().split('T')[0];
       if (data.departure_date && data.departure_date < today) {
-        throw new Error(
-          `The uploaded pass contains an invalid departure date (${data.departure_date}) that precedes today's date (${today}). Past dates cannot be used for trip creation.`
-        );
+        throw new Error(t('engine.doc_past_departure', { date: data.departure_date, today }));
       }
       if (data.check_in_date && data.check_in_date < today) {
-        throw new Error(
-          `The uploaded pass contains an invalid check-in date (${data.check_in_date}) that precedes today's date (${today}). Past dates cannot be used for trip creation.`
-        );
+        throw new Error(t('engine.doc_past_checkin', { date: data.check_in_date, today }));
       }
       if (data.return_date && data.return_date < today) {
-        throw new Error(
-          `The uploaded pass contains an invalid return date (${data.return_date}) that precedes today's date (${today}). Past dates cannot be used for trip creation.`
-        );
+        throw new Error(t('engine.doc_past_return', { date: data.return_date, today }));
       }
       if (data.return_date && data.departure_date && data.return_date < data.departure_date) {
         throw new Error(
-          `The uploaded pass return date (${data.return_date}) cannot precede the departure date (${data.departure_date}).`
+          t('engine.doc_return_before_departure', {
+            returnDate: data.return_date,
+            departureDate: data.departure_date,
+          })
         );
       }
       if (data.check_out_date && data.check_in_date && data.check_out_date < data.check_in_date) {
         throw new Error(
-          `The uploaded pass check-out date (${data.check_out_date}) cannot precede the check-in date (${data.check_in_date}).`
+          t('engine.doc_checkout_before_checkin', {
+            checkOutDate: data.check_out_date,
+            checkInDate: data.check_in_date,
+          })
         );
       }
 
       setExtractedResult(data);
     } catch (err: unknown) {
-      setScanError(err instanceof Error ? err.message : 'Error scanning document.');
+      setScanError(err instanceof Error ? err.message : t('engine.doc_scan_error'));
     } finally {
       setIsScanning(false);
       setScanMessage(null);
@@ -284,11 +284,15 @@ export function DocumentUploadModal({
     if (extractedResult) {
       const today = new Date().toISOString().split('T')[0];
       if (extractedResult.departure_date && extractedResult.departure_date < today) {
-        setScanError(`Cannot use pass: Departure date (${extractedResult.departure_date}) precedes today's date (${today}).`);
+        setScanError(
+          t('engine.doc_apply_past_departure', { date: extractedResult.departure_date, today })
+        );
         return;
       }
       if (extractedResult.check_in_date && extractedResult.check_in_date < today) {
-        setScanError(`Cannot use pass: Check-in date (${extractedResult.check_in_date}) precedes today's date (${today}).`);
+        setScanError(
+          t('engine.doc_apply_past_checkin', { date: extractedResult.check_in_date, today })
+        );
         return;
       }
       onExtracted(extractedResult);
@@ -402,7 +406,7 @@ export function DocumentUploadModal({
                   letterSpacing: '-0.01em',
                 }}
               >
-                Upload Travel Documents
+                {t('engine.upload_travel_documents')}
               </h2>
             </div>
           </div>
@@ -423,7 +427,7 @@ export function DocumentUploadModal({
               justifyContent: 'center',
               transition: 'background 0.15s ease',
             }}
-            aria-label="Close document upload window"
+            aria-label={t('engine.close_doc_upload_aria')}
           >
             <CloseIcon size={18} />
           </button>
@@ -457,10 +461,10 @@ export function DocumentUploadModal({
                     letterSpacing: '0.05em',
                   }}
                 >
-                  {scanMessage || 'PROCESSING TRAVEL DOCUMENT // IN PROGRESS'}
+                  {scanMessage || t('engine.processing_travel_document')}
                 </p>
                 <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                  Extracting schedule, coordinates, and trip telemetry...
+                  {t('engine.extracting_schedule_coords')}
                 </p>
               </div>
             </div>
@@ -496,7 +500,7 @@ export function DocumentUploadModal({
                   textDecoration: 'underline',
                 }}
               >
-                Dismiss
+                {t('engine.dismiss')}
               </button>
             </div>
           )}
@@ -533,8 +537,13 @@ export function DocumentUploadModal({
                   </div>
                   <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                     {importedTrip
-                      ? 'Paladio .trip Package Restored'
-                      : `Extracted Travel Telemetry (${extractedResult.document_type === 'hotel' ? 'Hotel Booking' : 'Flight Itinerary'})`}
+                      ? t('engine.trip_package_restored')
+                      : t('engine.extracted_travel_telemetry', {
+                          type:
+                            extractedResult.document_type === 'hotel'
+                              ? t('engine.doc_type_hotel')
+                              : t('engine.doc_type_flight'),
+                        })}
                   </h4>
                 </div>
                 <button
@@ -552,7 +561,7 @@ export function DocumentUploadModal({
                     textDecoration: 'underline',
                   }}
                 >
-                  Scan Another Document
+                  {t('engine.scan_another_doc')}
                 </button>
               </div>
 
@@ -571,7 +580,7 @@ export function DocumentUploadModal({
                 {extractedResult.origin_city && (
                   <div>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
-                      ORIGIN
+                      {t('engine.doc_origin_label')}
                     </span>
                     <strong style={{ color: 'var(--color-text-primary)' }}>
                       {extractedResult.origin_city} {extractedResult.origin_iata ? `(${extractedResult.origin_iata})` : ''}
@@ -582,7 +591,7 @@ export function DocumentUploadModal({
                 {extractedResult.destination_city && (
                   <div>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
-                      DESTINATION
+                      {t('engine.doc_destination_label')}
                     </span>
                     <strong style={{ color: 'var(--color-text-primary)' }}>
                       {extractedResult.destination_city} {extractedResult.destination_iata ? `(${extractedResult.destination_iata})` : ''}
@@ -593,7 +602,7 @@ export function DocumentUploadModal({
                 {extractedResult.departure_date && (
                   <div>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
-                      TRAVEL DATES
+                      {t('engine.doc_travel_dates_label')}
                     </span>
                     <strong style={{ color: 'var(--color-text-primary)' }}>
                       {extractedResult.departure_date}
@@ -605,10 +614,10 @@ export function DocumentUploadModal({
                 {extractedResult.document_type !== 'hotel' && (
                   <div>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
-                      TIME WINDOWS
+                      {t('engine.doc_time_windows_label')}
                     </span>
                     <strong style={{ color: 'var(--color-text-primary)' }}>
-                      Arr: {extractedResult.departure_hour || '09:00'} | Dep: {extractedResult.arrival_hour || '20:00'}
+                      {t('engine.arr_short')} {extractedResult.departure_hour || '09:00'} | {t('engine.dep_short')} {extractedResult.arrival_hour || '20:00'}
                     </strong>
                   </div>
                 )}
@@ -616,7 +625,7 @@ export function DocumentUploadModal({
                 {extractedResult.flight_number && (
                   <div>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
-                      FLIGHT #
+                      {t('engine.doc_flight_number_label')}
                     </span>
                     <strong style={{ color: 'var(--color-text-primary)' }}>
                       {extractedResult.flight_number} {extractedResult.carrier ? `(${extractedResult.carrier})` : ''}
@@ -627,7 +636,7 @@ export function DocumentUploadModal({
                 {extractedResult.hotel_name && (
                   <div>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
-                      HOTEL ACCOMMODATION
+                      {t('engine.doc_hotel_accommodation_label')}
                     </span>
                     <strong style={{ color: 'var(--color-text-primary)' }}>
                       {extractedResult.hotel_name}
@@ -638,7 +647,7 @@ export function DocumentUploadModal({
                 {(extractedResult.check_in_date || extractedResult.check_in_hour) && (
                   <div>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
-                      HOTEL CHECK-IN
+                      {t('engine.doc_hotel_checkin_label')}
                     </span>
                     <strong style={{ color: 'var(--color-text-primary)' }}>
                       {[extractedResult.check_in_date, extractedResult.check_in_hour].filter(Boolean).join(' · ')}
@@ -649,7 +658,7 @@ export function DocumentUploadModal({
                 {(extractedResult.check_out_date || extractedResult.check_out_hour) && (
                   <div>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', display: 'block' }}>
-                      HOTEL CHECK-OUT
+                      {t('engine.doc_hotel_checkout_label')}
                     </span>
                     <strong style={{ color: 'var(--color-text-primary)' }}>
                       {[extractedResult.check_out_date, extractedResult.check_out_hour].filter(Boolean).join(' · ')}
@@ -680,7 +689,7 @@ export function DocumentUploadModal({
                       transition: 'opacity 0.15s ease',
                     }}
                   >
-                    <span>Open Restored Trip Workspace</span>
+                    <span>{t('engine.open_restored_workspace')}</span>
                     <ChevronRightIcon size={14} />
                   </button>
                 )}
@@ -704,7 +713,11 @@ export function DocumentUploadModal({
                   }}
                 >
                   <CheckIcon size={16} />
-                  <span>{importedTrip ? 'Apply Dates & Destination to Form' : 'Apply Extracted Details to Route'}</span>
+                  <span>
+                    {importedTrip
+                      ? t('engine.apply_dates_dest_to_form')
+                      : t('engine.apply_extracted_to_route')}
+                  </span>
                 </button>
               </div>
             </div>
@@ -741,10 +754,10 @@ export function DocumentUploadModal({
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  Flights & Boarding Passes
+                  {t('engine.flights_boarding_passes_title')}
                 </h3>
                 <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                  Upload Apple Wallet (.pkpass), boarding pass PDF, or confirmation screenshot
+                  {t('engine.flights_boarding_passes_desc')}
                 </p>
               </div>
 
@@ -783,10 +796,10 @@ export function DocumentUploadModal({
               >
                 <PlaneIcon size={20} color="var(--color-accent-teal-deep, #0F4C5C)" />
                 <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  Drag & Drop Flight Ticket or Pass
+                  {t('engine.drag_drop_flight')}
                 </span>
                 <span className="font-mono text-xs text-muted" style={{ fontSize: '11px' }}>
-                  Supports PDF, Apple Wallet .pkpass, PNG, JPG, WebP
+                  {t('engine.flight_supported_formats')}
                 </span>
                 <button
                   type="button"
@@ -807,7 +820,7 @@ export function DocumentUploadModal({
                     cursor: 'pointer',
                   }}
                 >
-                  Browse Flight Files
+                  {t('engine.browse_flight_files')}
                 </button>
               </div>
 
@@ -826,7 +839,9 @@ export function DocumentUploadModal({
                     textDecoration: 'underline',
                   }}
                 >
-                  {showFlightPaste ? 'Hide text intake' : <>Or paste barcode text / airline email <ChevronRightIcon size={11} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} /></>}
+                  {showFlightPaste
+                    ? t('engine.hide_text_intake')
+                    : <>{t('engine.paste_flight_text_prompt')} <ChevronRightIcon size={11} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} /></>}
                 </button>
 
                 {showFlightPaste && (
@@ -835,7 +850,7 @@ export function DocumentUploadModal({
                       rows={3}
                       value={flightPastedText}
                       onChange={(e) => setFlightPastedText(e.target.value)}
-                      placeholder="Paste IATA barcode (e.g. M1GARCIA...) or flight confirmation email text..."
+                      placeholder={t('engine.paste_flight_text_placeholder')}
                       style={{
                         width: '100%',
                         padding: '8px 10px',
@@ -862,7 +877,7 @@ export function DocumentUploadModal({
                         alignSelf: 'flex-end',
                       }}
                     >
-                      Process Flight Text
+                      {t('engine.process_flight_text')}
                     </button>
                   </div>
                 )}
@@ -891,10 +906,10 @@ export function DocumentUploadModal({
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  Hotel & Lodging Confirmations
+                  {t('engine.hotel_lodging_title')}
                 </h3>
                 <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                  Upload booking invoice (PDF), reservation email, or hotel app screenshot
+                  {t('engine.hotel_lodging_desc')}
                 </p>
               </div>
 
@@ -948,10 +963,10 @@ export function DocumentUploadModal({
                   H
                 </div>
                 <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  Drag & Drop Hotel Screenshot or PDF
+                  {t('engine.drag_drop_hotel')}
                 </span>
                 <span className="font-mono text-xs text-muted" style={{ fontSize: '11px' }}>
-                  Supports PDF documents, and phone screenshots (PNG, JPG, WebP)
+                  {t('engine.hotel_supported_formats')}
                 </span>
                 <button
                   type="button"
@@ -972,7 +987,7 @@ export function DocumentUploadModal({
                     cursor: 'pointer',
                   }}
                 >
-                  Browse Hotel Files
+                  {t('engine.browse_hotel_files')}
                 </button>
               </div>
 
@@ -991,7 +1006,9 @@ export function DocumentUploadModal({
                     textDecoration: 'underline',
                   }}
                 >
-                  {showHotelPaste ? 'Hide email intake' : <>Or paste hotel confirmation email text <ChevronRightIcon size={11} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} /></>}
+                  {showHotelPaste
+                    ? t('engine.hide_email_intake')
+                    : <>{t('engine.paste_hotel_text_prompt')} <ChevronRightIcon size={11} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} /></>}
                 </button>
 
                 {showHotelPaste && (
@@ -1000,7 +1017,7 @@ export function DocumentUploadModal({
                       rows={3}
                       value={hotelPastedText}
                       onChange={(e) => setHotelPastedText(e.target.value)}
-                      placeholder="Paste hotel booking confirmation email text or door code instructions..."
+                      placeholder={t('engine.paste_hotel_text_placeholder')}
                       style={{
                         width: '100%',
                         padding: '8px 10px',
@@ -1027,7 +1044,7 @@ export function DocumentUploadModal({
                         alignSelf: 'flex-end',
                       }}
                     >
-                      Process Hotel Text
+                      {t('engine.process_hotel_text')}
                     </button>
                   </div>
                 )}
@@ -1056,10 +1073,10 @@ export function DocumentUploadModal({
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  Trip Package (.trip)
+                  {t('engine.trip_package_title')}
                 </h3>
                 <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                  Restore full trip itinerary, route polylines, tickets, and expenses from a .trip file
+                  {t('engine.trip_package_desc')}
                 </p>
               </div>
 
@@ -1114,10 +1131,10 @@ export function DocumentUploadModal({
                   .TRIP
                 </div>
                 <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  Drag & Drop .trip Archive
+                  {t('engine.drag_drop_trip_archive')}
                 </span>
                 <span className="font-mono text-xs text-muted" style={{ fontSize: '11px' }}>
-                  Supports self-contained Paladio .trip packages
+                  {t('engine.trip_supported_formats')}
                 </span>
                 <button
                   type="button"
@@ -1138,13 +1155,13 @@ export function DocumentUploadModal({
                     cursor: 'pointer',
                   }}
                 >
-                  Browse .trip Files
+                  {t('engine.browse_trip_files')}
                 </button>
               </div>
 
               <div style={{ textAlign: 'center', marginTop: 'auto' }}>
                 <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                  Air-gapped, offline-ready package
+                  {t('engine.air_gapped_offline_pkg')}
                 </span>
               </div>
             </div>

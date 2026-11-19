@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ThinkingScreenProps {
   message: string;
@@ -15,6 +16,7 @@ export function ThinkingScreen({
   error,
   onDismissError,
 }: ThinkingScreenProps) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -118,7 +120,7 @@ export function ThinkingScreen({
               color: 'var(--color-danger, #EF4444)',
             }}
           >
-            Generation Encountered An Issue
+            {t('engine.thinking_error_heading')}
           </h4>
 
           <p
@@ -148,7 +150,7 @@ export function ThinkingScreen({
                 transition: 'opacity 0.15s ease',
               }}
             >
-              Back to Trip Editor
+              {t('engine.back_to_trip_editor')}
             </button>
           )}
         </div>

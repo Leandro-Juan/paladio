@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Trip } from '@/hooks/useTrips';
 import type { TripCollection, CollectionPoiSummary } from '@/hooks/useTripCollections';
 import { PoiCategoryIcon } from '@/components/PoiCategoryBadge';
@@ -37,6 +38,7 @@ export function AddPoiFromTripsModal({
   trips,
   onAddPoi,
 }: AddPoiFromTripsModalProps) {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTripId, setSelectedTripId] = useState<string>('all');
   const [addingIds, setAddingIds] = useState<Set<string>>(new Set());
@@ -55,10 +57,10 @@ export function AddPoiFromTripsModal({
       .filter((trip): trip is Trip & { id: string } => Boolean(trip.id))
       .map((trip) => ({
         id: trip.id,
-        label: extractTripTitle(trip) || trip.destination || 'Trip',
+        label: extractTripTitle(trip) || trip.destination || t('dashboard.trip_fallback'),
         destination: trip.destination || '',
       }));
-  }, [trips]);
+  }, [trips, t]);
 
   const candidates = useMemo(() => {
     const list: TripPoiCandidate[] = [];
@@ -68,7 +70,7 @@ export function AddPoiFromTripsModal({
       if (!trip.id) continue;
       if (selectedTripId !== 'all' && trip.id !== selectedTripId) continue;
 
-      const tripLabel = extractTripTitle(trip) || trip.destination || 'Trip';
+      const tripLabel = extractTripTitle(trip) || trip.destination || t('dashboard.trip_fallback');
       const tripDestination = trip.destination || '';
       const itin = trip.itinerary_data as {
         days?: Array<{
@@ -140,7 +142,7 @@ export function AddPoiFromTripsModal({
     }
 
     return list;
-  }, [trips, selectedTripId]);
+  }, [trips, selectedTripId, t]);
 
   const filteredCandidates = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -237,16 +239,28 @@ export function AddPoiFromTripsModal({
                 fontFamily: 'var(--font-display, inherit)',
               }}
             >
-              Add Places from Your Trips
+              {t('dashboard.add_places_from_trips_title')}
             </h2>
             <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-              Adding to <strong>{collection.name}</strong>
+              {(() => {
+                const marker = '__COL_NAME__';
+                const text = t('dashboard.adding_to_collection', { name: marker });
+                const parts = text.split(marker);
+                if (parts.length !== 2) return text;
+                return (
+                  <>
+                    {parts[0]}
+                    <strong>{collection.name}</strong>
+                    {parts[1]}
+                  </>
+                );
+              })()}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('common.close')}
             style={{
               background: 'transparent',
               border: 'none',
@@ -291,7 +305,7 @@ export function AddPoiFromTripsModal({
               data-testid="add-from-trips-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search places by name, category, city, or trip..."
+              placeholder={t('dashboard.search_places_placeholder')}
               autoFocus
               style={{
                 width: '100%',
@@ -328,7 +342,7 @@ export function AddPoiFromTripsModal({
                   color: selectedTripId === 'all' ? '#FFFFFF' : 'var(--color-text-secondary)',
                 }}
               >
-                All Trips
+                {t('trips.all_trips')}
               </button>
               {tripOptions.map((trip) => (
                 <button
@@ -380,8 +394,8 @@ export function AddPoiFromTripsModal({
               }}
             >
               {trips.length === 0
-                ? 'You have no trips yet. Add a place manually instead!'
-                : 'No matching places found in your trips.'}
+                ? t('dashboard.no_trips_add_manually')
+                : t('dashboard.no_matching_places_in_trips')}
             </div>
           ) : (
             filteredCandidates.map((cand) => {
@@ -461,7 +475,9 @@ export function AddPoiFromTripsModal({
                       >
                         {cand.tripLabel}
                         {cand.summary.category ? ` · ${cand.summary.category}` : ''}
-                        {cand.summary.duration_mins ? ` · ${cand.summary.duration_mins}m` : ''}
+                        {cand.summary.duration_mins
+                          ? ` · ${t('dashboard.duration_mins_short', { mins: cand.summary.duration_mins })}`
+                          : ''}
                       </div>
                     </div>
                   </div>
@@ -482,7 +498,7 @@ export function AddPoiFromTripsModal({
                       }}
                     >
                       <CheckIcon size={12} />
-                      Added
+                      {t('dashboard.added')}
                     </span>
                   ) : (
                     <button
@@ -507,7 +523,7 @@ export function AddPoiFromTripsModal({
                       }}
                     >
                       <PlusIcon size={12} />
-                      {isAdding ? 'Adding...' : 'Add'}
+                      {isAdding ? t('dashboard.adding') : t('dashboard.add')}
                     </button>
                   )}
                 </div>

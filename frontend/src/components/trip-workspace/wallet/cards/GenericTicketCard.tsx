@@ -7,6 +7,7 @@ import { CodeRenderer } from '../codes/CodeRenderer';
 import { CopyButton } from '../parts/CopyButton';
 import { DocumentIcon, PinIcon, PaperclipIcon } from '@/components/icons';
 import { formatTicketDateTime } from '@/lib/wallet/format';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface GenericTicketCardProps {
   ticket: TripTicket;
@@ -23,6 +24,7 @@ export function GenericTicketCard({
   onViewDetail,
   onAttachFile,
 }: GenericTicketCardProps) {
+  const { t, locale } = useTranslation();
   const provider = ticket.provider || '';
   const venueOrLocation = ticket.location_or_venue || '';
 
@@ -51,7 +53,7 @@ export function GenericTicketCard({
             </div>
             {ticket.reference_code && (
               <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
-                REF: {ticket.reference_code}
+                {t('wallet.ref_prefix', { code: ticket.reference_code })}
               </span>
             )}
           </div>
@@ -75,7 +77,7 @@ export function GenericTicketCard({
               className="font-mono text-center"
               style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)', fontWeight: 600, lineHeight: 1.2 }}
             >
-              VOUCHER PASS
+              {t('wallet.voucher_pass')}
             </span>
             {onAttachFile && (
               <button
@@ -94,7 +96,7 @@ export function GenericTicketCard({
                   marginTop: '4px',
                 }}
               >
-                + ATTACH DOC
+                {t('wallet.attach_doc_btn')}
               </button>
             )}
           </div>
@@ -151,10 +153,10 @@ export function GenericTicketCard({
           {ticket.start_time && (
             <div>
               <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-                SCHEDULE / START
+                {t('wallet.schedule_start')}
               </div>
               <div className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
-                {formatTicketDateTime(ticket.start_time, ticket.start_tz)}
+                {formatTicketDateTime(ticket.start_time, ticket.start_tz, locale)}
               </div>
             </div>
           )}
@@ -162,10 +164,10 @@ export function GenericTicketCard({
           {ticket.end_time && (
             <div>
               <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-                EXPIRY / END
+                {t('wallet.expiry_end')}
               </div>
               <div className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
-                {formatTicketDateTime(ticket.end_time, ticket.end_tz)}
+                {formatTicketDateTime(ticket.end_time, ticket.end_tz, locale)}
               </div>
             </div>
           )}
@@ -177,7 +179,7 @@ export function GenericTicketCard({
         {ticket.booking_reference && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span className="font-mono text-muted" style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
-              REF:
+              {t('wallet.ref_label')}
             </span>
             <CopyButton value={ticket.booking_reference} label={ticket.booking_reference} />
           </div>
@@ -185,7 +187,7 @@ export function GenericTicketCard({
 
         {ticket.seat_or_room && (
           <span className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
-            ASSIGNMENT: {ticket.seat_or_room}
+            {t('wallet.assignment_prefix', { value: ticket.seat_or_room })}
           </span>
         )}
       </div>
@@ -194,7 +196,7 @@ export function GenericTicketCard({
       {ticket.attachments && ticket.attachments.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
           <PaperclipIcon size={12} color="var(--color-text-muted, #64748B)" />
-          <span className="font-mono">ATTACHED DOCUMENT AVAILABLE</span>
+          <span className="font-mono">{t('wallet.attached_doc_available')}</span>
         </div>
       )}
     </TicketShell>

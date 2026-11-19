@@ -161,13 +161,24 @@ class PoiDocumentBuilder:
 
         lines = [line1]
 
-        # 2. Grounded description
-        raw_desc = (
-            get_field("description")
-            or tags.get("description")
-            or metadata.get("description")
-        )
-        if raw_desc and isinstance(raw_desc, str) and raw_desc.strip():
+        # 2. Grounded English description (prefer explicit English tag; skip known non-English prose)
+        from app.services.translation_service import detect_language
+
+        raw_desc_candidates = [
+            tags.get("description:en"),
+            get_field("description"),
+            tags.get("description"),
+            metadata.get("description"),
+        ]
+        raw_desc = None
+        for cand in raw_desc_candidates:
+            if cand and isinstance(cand, str) and cand.strip():
+                detected = detect_language(cand)
+                if detected in (None, "en"):
+                    raw_desc = cand
+                    break
+
+        if raw_desc:
             # Clean noise & anti-boilerplate filters
             clean_desc = raw_desc.strip()
             # Strip numeric prices or opening hours if present

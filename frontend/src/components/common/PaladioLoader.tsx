@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import styles from './PaladioLoader.module.css';
 
 export interface PaladioLoaderProps {
@@ -36,6 +37,7 @@ export function PaladioLoader({
   className = '',
   message,
 }: PaladioLoaderProps) {
+  const { t } = useTranslation();
   // Determine effective size based on variant if not explicitly provided
   const effectiveSize = size || (variant === 'card' ? 'sm' : 'md');
 
@@ -70,12 +72,12 @@ export function PaladioLoader({
         <div className={styles.logoWrapper}>
           <img
             src="/logo-horizontal.png"
-            alt="Paladio Logo"
+            alt={t('common.paladio_logo')}
             className={`${styles.logoImage} brand-logo-light`}
           />
           <img
             src="/logo-horizontal-dark.png"
-            alt="Paladio Logo"
+            alt={t('common.paladio_logo')}
             className={`${styles.logoImage} brand-logo-dark`}
             style={{ display: 'none' }}
           />
@@ -112,7 +114,7 @@ export function PaladioLoader({
 
       {message && (
         <div className={styles.messageWrapper}>
-          {message}
+          {typeof message === 'string' ? t(message) : message}
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DealPackage } from '@/hooks/useRouteMonitoring';
 import { TrendingDownIcon, ChevronRightIcon } from '@/components/icons';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
@@ -17,6 +18,7 @@ interface DealPackageNavigatorProps {
 
 export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPackageNavigatorProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [currentIndex, setCurrentIndex] = useState<number>(0);
 
   const validDeals = (deals || []).filter((d) => Boolean(d.flight && d.return_flight));
@@ -57,12 +59,14 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
   };
 
   return (
-    <section className={styles.container} aria-label="Top verified deal packages navigator">
+    <section className={styles.container} aria-label={t('monitoring.top_deals_navigator_aria')}>
       {/* Navigator Top Control Header */}
       <div className={styles.navTopBar}>
         <div className={styles.badgeGroup}>
           <span className={styles.rankBadge}>
-            {safeIndex === 0 ? `★ TOP DEAL 1 OF ${validDeals.length} · BEST VALUE` : `OPTION ${safeIndex + 1} OF ${validDeals.length}`}
+            {safeIndex === 0
+              ? t('monitoring.top_deal_badge', { total: validDeals.length })
+              : t('monitoring.option_of_badge', { index: safeIndex + 1, total: validDeals.length })}
           </span>
         </div>
 
@@ -73,8 +77,8 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
             className={styles.carouselArrowBtn}
             onClick={handlePrev}
             disabled={safeIndex === 0}
-            aria-label="Previous deal package"
-            data-tooltip="Previous deal package"
+            aria-label={t('monitoring.prev_deal_package')}
+            data-tooltip={t('monitoring.prev_deal_package')}
             data-tooltip-position="top"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -91,8 +95,8 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
             className={styles.carouselArrowBtn}
             onClick={handleNext}
             disabled={safeIndex === validDeals.length - 1}
-            aria-label="Next deal package"
-            data-tooltip="Next deal package"
+            aria-label={t('monitoring.next_deal_package')}
+            data-tooltip={t('monitoring.next_deal_package')}
             data-tooltip-position="top"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -115,46 +119,49 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
               <span className={styles.routeIata}>({deal.destination_code})</span>
             </h3>
             <span className={styles.dealDatesSub}>
-              {deal.depart_date} → {deal.return_date} · {deal.nights} Nights Stay & Flight{deal.travelers && deal.travelers > 1 ? ` · ${deal.travelers} Travelers` : ''}
+              {deal.depart_date} → {deal.return_date} · {t('monitoring.nights_stay_flight', { nights: deal.nights })}
+              {deal.travelers && deal.travelers > 1 ? ` · ${t('monitoring.travelers_count_label', { count: deal.travelers })}` : ''}
             </span>
           </div>
 
           <div className={styles.priceComparisonBox}>
             <div className={styles.priceItem}>
-              <span className={styles.priceLabel}>Landed Package</span>
+              <span className={styles.priceLabel}>{t('monitoring.landed_package')}</span>
               <span className={styles.currentPrice}>
                 {formatCurrencyAmount(isMultiTraveler ? unitPrice : deal.total_price_eur, activeCurrency)}
-                {isMultiTraveler && <span className={styles.unitSuffix}> / person</span>}
+                {isMultiTraveler && <span className={styles.unitSuffix}> {t('workspace.per_person')}</span>}
               </span>
               {isMultiTraveler && (
                 <span className={styles.totalPriceSub}>
-                  {formatCurrencyAmount(deal.total_price_eur, activeCurrency)} total
+                  {t('monitoring.amount_total', { amount: formatCurrencyAmount(deal.total_price_eur, activeCurrency) })}
                 </span>
               )}
             </div>
             <div className={styles.priceItem}>
-              <span className={styles.priceLabel}>Typical Benchmark</span>
+              <span className={styles.priceLabel}>{t('monitoring.typical_benchmark')}</span>
               <span className={styles.medianPrice}>
                 {formatCurrencyAmount(isMultiTraveler ? unitMedian : deal.baseline_median_eur, activeCurrency)}
-                {isMultiTraveler && <span className={styles.unitSuffix}> / pers</span>}
+                {isMultiTraveler && <span className={styles.unitSuffix}> {t('monitoring.per_pers')}</span>}
               </span>
               {isMultiTraveler && (
                 <span className={styles.totalPriceSub}>
-                  {formatCurrencyAmount(deal.baseline_median_eur, activeCurrency)} total
+                  {t('monitoring.amount_total', { amount: formatCurrencyAmount(deal.baseline_median_eur, activeCurrency) })}
                 </span>
               )}
             </div>
             <div className={styles.savingsBox}>
               <span className={styles.savingsPill}>
                 <TrendingDownIcon size={13} color="#FFFFFF" />
-                {(deal.discount_pct ?? 0).toFixed(0)}% OFF
+                {t('monitoring.pct_off', { pct: (deal.discount_pct ?? 0).toFixed(0) })}
               </span>
               <span className={styles.savingsAmountText}>
-                Save {formatCurrencyAmount(isMultiTraveler ? unitSavings : deal.savings_eur, activeCurrency)} {isMultiTraveler ? '/ person' : 'vs typical'}
+                {isMultiTraveler
+                  ? t('monitoring.save_per_person', { amount: formatCurrencyAmount(unitSavings, activeCurrency) })
+                  : t('monitoring.save_vs_typical', { amount: formatCurrencyAmount(deal.savings_eur, activeCurrency) })}
               </span>
               {isMultiTraveler && (
                 <span className={styles.totalSavingsSub}>
-                  ({formatCurrencyAmount(deal.savings_eur, activeCurrency)} total savings)
+                  {t('monitoring.total_savings_parens', { amount: formatCurrencyAmount(deal.savings_eur, activeCurrency) })}
                 </span>
               )}
             </div>
@@ -170,25 +177,28 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
                 </svg>
-                Flight Corridor
+                {t('monitoring.flight_corridor')}
               </span>
               <span className={styles.carrierBadge}>
-                {deal.flight?.airline || 'Direct'} {deal.flight?.flight_number ? `· ${deal.flight.flight_number}` : ''}
+                {deal.flight?.airline || t('monitoring.direct')} {deal.flight?.flight_number ? `· ${deal.flight.flight_number}` : ''}
               </span>
             </div>
             <div className={styles.componentDetails}>
               {/* Outbound Flight */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className={styles.componentMainName}>
-                  Outbound: {deal.origin_name} ({deal.origin_iata}) → {deal.destination_name} ({deal.destination_code})
+                  {t('monitoring.outbound_route', {
+                    origin: `${deal.origin_name} (${deal.origin_iata})`,
+                    dest: `${deal.destination_name} (${deal.destination_code})`,
+                  })}
                 </span>
                 {isMultiTraveler ? (
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
-                      {formatCurrencyAmount(outboundUnit, activeCurrency)} <span className={styles.unitSuffix}>/ pers</span>
+                      {formatCurrencyAmount(outboundUnit, activeCurrency)} <span className={styles.unitSuffix}>{t('monitoring.per_pers')}</span>
                     </div>
                     <div className={styles.totalPriceSub}>
-                      {formatCurrencyAmount(outboundTotal, activeCurrency)} total
+                      {t('monitoring.amount_total', { amount: formatCurrencyAmount(outboundTotal, activeCurrency) })}
                     </div>
                   </div>
                 ) : (
@@ -199,7 +209,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
               </div>
               <span className={styles.componentSubText}>
                 {deal.flight?.depart_time && deal.flight?.arrival_time
-                  ? `${deal.depart_date} · ${deal.flight.depart_time.slice(11, 16)} → ${deal.flight.arrival_time.slice(11, 16)} · Direct (${deal.flight?.airline || 'Direct'})`
+                  ? `${deal.depart_date} · ${deal.flight.depart_time.slice(11, 16)} → ${deal.flight.arrival_time.slice(11, 16)} · ${t('monitoring.direct_airline', { airline: deal.flight?.airline || t('monitoring.direct') })}`
                   : deal.depart_date}
               </span>
 
@@ -208,15 +218,18 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed var(--color-border, #E2D9CC)' }}>
                     <span className={styles.componentMainName}>
-                      Return: {deal.destination_name} ({deal.destination_code}) → {deal.origin_name} ({deal.origin_iata})
+                      {t('monitoring.return_route', {
+                        dest: `${deal.destination_name} (${deal.destination_code})`,
+                        origin: `${deal.origin_name} (${deal.origin_iata})`,
+                      })}
                     </span>
                     {isMultiTraveler ? (
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary, #1A2B32)', fontFamily: 'var(--font-code, monospace)' }}>
-                          {formatCurrencyAmount(returnUnit, activeCurrency)} <span className={styles.unitSuffix}>/ pers</span>
+                          {formatCurrencyAmount(returnUnit, activeCurrency)} <span className={styles.unitSuffix}>{t('monitoring.per_pers')}</span>
                         </div>
                         <div className={styles.totalPriceSub}>
-                          {formatCurrencyAmount(returnTotal, activeCurrency)} total
+                          {t('monitoring.amount_total', { amount: formatCurrencyAmount(returnTotal, activeCurrency) })}
                         </div>
                       </div>
                     ) : (
@@ -227,7 +240,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
                   </div>
                   <span className={styles.componentSubText}>
                     {deal.return_flight?.depart_time && deal.return_flight?.arrival_time
-                      ? `${deal.return_date} · ${deal.return_flight.depart_time.slice(11, 16)} → ${deal.return_flight.arrival_time.slice(11, 16)} · Direct (${deal.return_flight?.airline || 'Direct'})`
+                      ? `${deal.return_date} · ${deal.return_flight.depart_time.slice(11, 16)} → ${deal.return_flight.arrival_time.slice(11, 16)} · ${t('monitoring.direct_airline', { airline: deal.return_flight?.airline || t('monitoring.direct') })}`
                       : deal.return_date}
                   </span>
                 </>
@@ -236,8 +249,12 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
             <div className={styles.componentPriceRow}>
               <span className={styles.componentPrice}>
                 {isMultiTraveler
-                  ? `${formatCurrencyAmount(flightsUnit, activeCurrency)} / pers · ${formatCurrencyAmount(flightsTotal, activeCurrency)} total (${travelerCount} travelers)`
-                  : `${formatCurrencyAmount(flightsTotal, activeCurrency)} Roundtrip Flights`}
+                  ? t('monitoring.flights_multi_summary', {
+                      unit: formatCurrencyAmount(flightsUnit, activeCurrency),
+                      total: formatCurrencyAmount(flightsTotal, activeCurrency),
+                      count: travelerCount,
+                    })
+                  : t('monitoring.roundtrip_flights_price', { total: formatCurrencyAmount(flightsTotal, activeCurrency) })}
               </span>
               {deal.flight?.booking_url && (
                 <a
@@ -246,7 +263,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
                   rel="noopener noreferrer"
                   className={styles.directLinkBtn}
                 >
-                  Book Flights ↗
+                  {t('monitoring.book_flights')}
                 </a>
               )}
             </div>
@@ -265,7 +282,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
                 className={styles.discardBtn}
                 onClick={() => onDiscardDeal(deal.id)}
               >
-                Discard Offer
+                {t('monitoring.discard_offer')}
               </button>
             )}
             <button
@@ -273,7 +290,7 @@ export function DealPackageNavigator({ deals, currency, onDiscardDeal }: DealPac
               className={styles.makeTripBtn}
               onClick={handleMakeTrip}
             >
-              Make it a Trip <ChevronRightIcon size={14} />
+              {t('monitoring.make_it_a_trip')} <ChevronRightIcon size={14} />
             </button>
           </div>
         </div>

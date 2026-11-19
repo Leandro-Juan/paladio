@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { BoardingPassTacticalIllustration } from '@/components/illustrations';
 import { Spinner, CheckIcon, ChevronRightIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
@@ -30,6 +31,7 @@ export function BoardingPassUploadIntake({
   onExtracted,
   disabled = false,
 }: BoardingPassUploadIntakeProps) {
+  const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export function BoardingPassUploadIntake({
       } else if (rawText && rawText.trim()) {
         formData.append('raw_text', rawText.trim());
       } else {
-        throw new Error('Please select a boarding pass file or paste text.');
+        throw new Error(t('engine.boarding_pass_empty_error'));
       }
 
       const res = await fetch(`${baseUrl}/trips/scan-boarding-pass`, {
@@ -61,7 +63,7 @@ export function BoardingPassUploadIntake({
       });
 
       if (!res.ok) {
-        let errMessage = 'Failed to scan boarding pass document.';
+        let errMessage = t('engine.boarding_pass_scan_failed');
         try {
           const errData = await res.json();
           if (errData.detail) errMessage = errData.detail;
@@ -74,30 +76,33 @@ export function BoardingPassUploadIntake({
       const data: BoardingPassExtractedData = await res.json();
 
       if (!data.origin_city && !data.destination_city && (!data.drafts || data.drafts.length === 0)) {
-        throw new Error('Could not identify departure flight telemetry. Please verify the document or try manual entry.');
+        throw new Error(t('engine.boarding_pass_no_telemetry'));
       }
 
       const today = new Date().toISOString().split('T')[0];
       if (data.departure_date && data.departure_date < today) {
         throw new Error(
-          `The uploaded boarding pass contains an invalid departure date (${data.departure_date}) that precedes today's date (${today}). Past dates cannot be used for trip creation.`
+          t('engine.boarding_pass_past_departure', { date: data.departure_date, today })
         );
       }
       if (data.return_date && data.return_date < today) {
         throw new Error(
-          `The uploaded boarding pass contains an invalid return date (${data.return_date}) that precedes today's date (${today}). Past dates cannot be used for trip creation.`
+          t('engine.boarding_pass_past_return', { date: data.return_date, today })
         );
       }
       if (data.return_date && data.departure_date && data.return_date < data.departure_date) {
         throw new Error(
-          `The uploaded pass return date (${data.return_date}) cannot precede departure date (${data.departure_date}).`
+          t('engine.boarding_pass_return_before_departure', {
+            returnDate: data.return_date,
+            departureDate: data.departure_date,
+          })
         );
       }
 
       setExtractedResult(data);
       onExtracted(data);
     } catch (err: unknown) {
-      setScanError(err instanceof Error ? err.message : 'Error scanning document.');
+      setScanError(err instanceof Error ? err.message : t('engine.doc_scan_error'));
     } finally {
       setIsScanning(false);
     }
@@ -152,7 +157,7 @@ export function BoardingPassUploadIntake({
         }}
         role="button"
         tabIndex={0}
-        aria-label="Upload boarding pass file or screenshot"
+        aria-label={t('engine.upload_boarding_pass_aria')}
         style={{
           border: `2px dashed ${
             isDragOver
@@ -187,7 +192,7 @@ export function BoardingPassUploadIntake({
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
             <Spinner size={24} color="var(--color-accent-primary, #0F4C5C)" />
             <span className="font-mono text-xs" style={{ fontWeight: 600, color: 'var(--color-accent-primary, #0F4C5C)' }}>
-              DECODING BOARDING PASS // SCANNING BARCODE & SCREENSHOT TELEMETRY...
+              {t('engine.decoding_boarding_pass')}
             </span>
           </div>
         ) : (
@@ -202,13 +207,13 @@ export function BoardingPassUploadIntake({
                   fontFamily: 'var(--font-sans)',
                 }}
               >
-                Drop your Boarding Pass or Phone Screenshot here
+                {t('engine.drop_boarding_pass_title')}
               </p>
               <p
                 className="font-mono text-xs text-muted"
                 style={{ margin: '4px 0 0 0', letterSpacing: '0.02em' }}
               >
-                Supports PDF documents, Apple Wallet (.pkpass), and screenshot images (PNG, JPG, WebP)
+                {t('engine.boarding_pass_supported_formats')}
               </p>
             </div>
 
@@ -233,7 +238,7 @@ export function BoardingPassUploadIntake({
                 transition: 'all 0.15s ease',
               }}
             >
-              Browse Files or Photo Library
+              {t('engine.browse_files_or_photos')}
             </button>
           </>
         )}
@@ -253,7 +258,9 @@ export function BoardingPassUploadIntake({
             padding: '4px 8px',
           }}
         >
-          {showPasteBox ? 'Hide raw barcode / confirmation text intake' : <>Or paste IATA barcode string / confirmation text <ChevronRightIcon size={11} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} /></>}
+          {showPasteBox
+            ? t('engine.hide_raw_barcode_intake')
+            : <>{t('engine.paste_iata_barcode_prompt')} <ChevronRightIcon size={11} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} /></>}
         </button>
 
         {showPasteBox && (
@@ -271,7 +278,7 @@ export function BoardingPassUploadIntake({
               rows={3}
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
-              placeholder="Paste raw IATA BCBP barcode string (e.g. M1GARCIA/CARLOS... ) or flight booking confirmation email text"
+              placeholder={t('engine.paste_iata_barcode_placeholder')}
               style={{
                 width: '100%',
                 background: 'var(--color-surface-raised, #FFFFFF)',
@@ -300,7 +307,7 @@ export function BoardingPassUploadIntake({
                   cursor: isScanning || !pastedText.trim() ? 'not-allowed' : 'pointer',
                 }}
               >
-                Scan Text Telemetry
+                {t('engine.scan_text_telemetry')}
               </button>
             </div>
           </div>
@@ -321,7 +328,7 @@ export function BoardingPassUploadIntake({
             fontFamily: 'var(--font-mono)',
           }}
         >
-          [SCAN ERROR]: {scanError}
+          {t('engine.scan_error_prefix')} {scanError}
         </div>
       )}
 
@@ -358,12 +365,15 @@ export function BoardingPassUploadIntake({
             </div>
             <div>
               <div style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--color-text-primary, #1A1A1A)' }}>
-                Flight Telemetry Decoded: {extractedResult.origin_city || extractedResult.origin_iata} → {extractedResult.destination_city || extractedResult.destination_iata}
+                {t('engine.flight_telemetry_decoded', {
+                  origin: extractedResult.origin_city || extractedResult.origin_iata || '',
+                  destination: extractedResult.destination_city || extractedResult.destination_iata || '',
+                })}
               </div>
               <div className="font-mono text-xs text-muted" style={{ marginTop: '2px' }}>
-                {extractedResult.departure_date ? `Departure: ${extractedResult.departure_date}` : ''}
-                {extractedResult.flight_number ? ` • Flight: ${extractedResult.flight_number}` : ''}
-                {extractedResult.holder_name ? ` • Passenger: ${extractedResult.holder_name}` : ''}
+                {extractedResult.departure_date ? t('engine.bp_departure_label', { date: extractedResult.departure_date }) : ''}
+                {extractedResult.flight_number ? ` • ${t('engine.bp_flight_label', { flight: extractedResult.flight_number })}` : ''}
+                {extractedResult.holder_name ? ` • ${t('engine.bp_passenger_label', { name: extractedResult.holder_name })}` : ''}
               </div>
             </div>
           </div>
@@ -379,7 +389,7 @@ export function BoardingPassUploadIntake({
               flexShrink: 0,
             }}
           >
-            APPLIED TO TRIP
+            {t('engine.applied_to_trip')}
           </span>
         </div>
       )}

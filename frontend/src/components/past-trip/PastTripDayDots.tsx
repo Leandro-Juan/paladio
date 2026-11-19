@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface PastTripDayDotsProps {
   totalDays: number;
@@ -13,6 +14,8 @@ export function PastTripDayDots({
   selectedDay,
   onSelectDay,
 }: PastTripDayDotsProps) {
+  const { t } = useTranslation();
+
   if (totalDays <= 0) return null;
 
   return (
@@ -25,14 +28,14 @@ export function PastTripDayDots({
         padding: '0.65rem 0',
       }}
       role="tablist"
-      aria-label="Filter itinerary by day"
+      aria-label={t('vault.filter_itinerary_by_day')}
     >
       {/* "All" button / dot */}
       <button
         type="button"
         role="tab"
         onClick={() => onSelectDay(null)}
-        title="View All Days"
+        title={t('vault.view_all_days')}
         aria-selected={selectedDay === null}
         style={{
           height: '7px',
@@ -60,7 +63,7 @@ export function PastTripDayDots({
             type="button"
             role="tab"
             onClick={() => onSelectDay(dayNum)}
-            title={`Day ${dayNum}`}
+            title={t('trips.day_label', { number: dayNum })}
             aria-selected={isActive}
             style={{
               height: '7px',

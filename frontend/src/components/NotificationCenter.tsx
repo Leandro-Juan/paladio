@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { useTranslation } from '@/hooks/useTranslation';
 import { NotificationItem, NotificationType } from '@/types/notification';
 import { formatFullDateTime, formatRelativeTime } from '@/utils/date';
 import { EmptyState } from './EmptyState';
@@ -19,14 +20,15 @@ interface NotificationCenterProps {
   triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
-const TYPE_STYLES: Record<NotificationType, { color: string; bg: string; label: string; icon: React.ReactNode }> = {
-  info: { color: 'var(--color-link)', bg: 'rgba(15, 76, 92, 0.08)', label: 'INFO', icon: <InfoIcon size={12} /> },
-  success: { color: 'var(--color-success)', bg: 'rgba(31, 122, 77, 0.1)', label: 'SUCCESS', icon: <CheckIcon size={12} /> },
-  warning: { color: 'var(--color-accent-warning)', bg: 'var(--color-accent-warning-bg)', label: 'ALERT', icon: <AlertTriangleIcon size={12} /> },
-  error: { color: 'var(--color-danger)', bg: 'rgba(179, 38, 30, 0.1)', label: 'ERROR', icon: <CloseIcon size={12} /> },
+const TYPE_STYLES: Record<NotificationType, { color: string; bg: string; icon: React.ReactNode }> = {
+  info: { color: 'var(--color-link)', bg: 'rgba(15, 76, 92, 0.08)', icon: <InfoIcon size={12} /> },
+  success: { color: 'var(--color-success)', bg: 'rgba(31, 122, 77, 0.1)', icon: <CheckIcon size={12} /> },
+  warning: { color: 'var(--color-accent-warning)', bg: 'var(--color-accent-warning-bg)', icon: <AlertTriangleIcon size={12} /> },
+  error: { color: 'var(--color-danger)', bg: 'rgba(179, 38, 30, 0.1)', icon: <CloseIcon size={12} /> },
 };
 
 export function NotificationCenter({ isOpen, onClose, placement = 'bottom', triggerRef }: NotificationCenterProps) {
+  const { t, locale } = useTranslation();
   const {
     notifications,
     unreadCount,
@@ -152,7 +154,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
     <div
       ref={panelRef}
       role="dialog"
-      aria-label="Notifications"
+      aria-label={t('nav.notifications')}
       aria-modal="false"
       style={{
         ...stylePos,
@@ -178,7 +180,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <h2 className="font-display" style={{ fontSize: '14px', fontWeight: 600, margin: 0 }}>
-            Notifications
+            {t('nav.notifications')}
           </h2>
           {unreadCount > 0 && (
             <span
@@ -192,7 +194,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                 fontWeight: 600,
               }}
             >
-              {unreadCount} new
+              {t('notifications.new_count', { count: unreadCount })}
             </span>
           )}
         </div>
@@ -202,7 +204,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
             <button
               onClick={markAllAsRead}
               className="font-mono"
-              title="Mark all as read"
+              title={t('notifications.mark_all_read')}
               style={{
                 fontSize: '11px',
                 background: 'transparent',
@@ -213,7 +215,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                 borderRadius: '4px',
               }}
             >
-              Read all
+              {t('notifications.read_all')}
             </button>
           )}
 
@@ -221,7 +223,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
             <button
               onClick={clearAll}
               className="font-mono"
-              title="Clear all notifications"
+              title={t('notifications.clear_all_title')}
               style={{
                 fontSize: '11px',
                 background: 'transparent',
@@ -232,7 +234,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                 borderRadius: '4px',
               }}
             >
-              Clear
+              {t('common.clear')}
             </button>
           )}
         </div>
@@ -249,8 +251,8 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
         {notifications.length === 0 ? (
           <EmptyState
             type="no-notifications"
-            title="No Notifications Yet"
-            description="Engine alerts and telemetry updates will appear here."
+            title={t('notifications.empty_title')}
+            description={t('notifications.empty_description')}
             style={{ border: 'none', background: 'transparent', padding: '2rem 1rem' }}
           />
         ) : (
@@ -312,7 +314,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                           color: 'var(--color-text-primary)',
                         }}
                       >
-                        {item.title}
+                        {t(item.title)}
                       </span>
                       {!item.read && (
                         <span
@@ -330,7 +332,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                     {/* Relative timestamp */}
                     <span
                       className="font-mono"
-                      title={formatFullDateTime(item.timestamp)}
+                      title={formatFullDateTime(item.timestamp, locale)}
                       style={{
                         fontSize: '10px',
                         color: 'var(--color-text-muted)',
@@ -338,7 +340,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                         flexShrink: 0,
                       }}
                     >
-                      {formatRelativeTime(item.timestamp)}
+                      {formatRelativeTime(item.timestamp, locale)}
                     </span>
                   </div>
 
@@ -352,7 +354,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                       wordBreak: 'break-word',
                     }}
                   >
-                    {item.message}
+                    {t(item.message)}
                   </p>
 
                   {/* Full Date & Time metadata */}
@@ -365,7 +367,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                       marginBottom: item.actionLink ? '6px' : '0',
                     }}
                   >
-                    {formatFullDateTime(item.timestamp)}
+                    {formatFullDateTime(item.timestamp, locale)}
                   </div>
 
                   {/* Optional Action Button */}
@@ -393,7 +395,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                           textDecoration: 'none',
                         }}
                       >
-                        {item.actionLabel || 'View Details'} <ChevronRightIcon size={10} />
+                        {item.actionLabel ? t(item.actionLabel) : t('notifications.view_details')} <ChevronRightIcon size={10} />
                       </Link>
                     </div>
                   )}
@@ -405,7 +407,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
                     e.stopPropagation();
                     removeNotification(item.id);
                   }}
-                  title="Remove notification"
+                  title={t('notifications.remove_notification')}
                   style={{
                     background: 'transparent',
                     border: 'none',

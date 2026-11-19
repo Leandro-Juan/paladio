@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Trip } from '@/hooks/useTrips';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 import { getCountryForDestination } from '@/components/VaultMap';
@@ -24,6 +25,7 @@ interface DestinationEngagement {
 interface MonthlyStat {
   monthKey: string;
   monthLabel: string;
+  monthName: string;
   tripsCount: number;
   daysCount: number;
   poisCount: number;
@@ -150,6 +152,8 @@ export default function VaultStatsTab({
   onSelectDestination,
   getTripCoordinates,
 }: VaultStatsTabProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const [isOpen, setIsOpen] = useState(true);
 
   const completedCount = completedTrips.length;
@@ -270,11 +274,13 @@ export default function VaultStatsTab({
         const d = new Date(trip.start_date);
         if (!isNaN(d.getTime())) {
           const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-          const mLabel = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+          const mLabel = d.toLocaleString(intlLocale, { month: 'long', year: 'numeric' });
+          const mName = d.toLocaleString(intlLocale, { month: 'long' });
           if (!monthMap.has(mKey)) {
             monthMap.set(mKey, {
               monthKey: mKey,
               monthLabel: mLabel,
+              monthName: mName,
               tripsCount: 0,
               daysCount: 0,
               poisCount: 0,
@@ -304,7 +310,7 @@ export default function VaultStatsTab({
       visitedCountriesCount: uniqueCountries.size,
       totalKmTraveled: Math.round(kmAcc),
     };
-  }, [completedTrips, getTripCoordinates]);
+  }, [completedTrips, getTripCoordinates, intlLocale]);
 
   // Percentage of world countries (195 recognized sovereign countries)
   const countryVisitedRate = ((visitedCountriesCount / 195) * 100).toFixed(1);
@@ -319,10 +325,10 @@ export default function VaultStatsTab({
 
   const formattedEarthTraversed = useMemo(() => {
     if (totalKmTraveled >= 1000) {
-      return `${(totalKmTraveled / 1000).toFixed(1)}k km`;
+      return t('vault.km_thousands', { val: (totalKmTraveled / 1000).toFixed(1) });
     }
-    return `${totalKmTraveled.toLocaleString()} km`;
-  }, [totalKmTraveled]);
+    return t('vault.km_exact', { val: totalKmTraveled.toLocaleString(intlLocale) });
+  }, [totalKmTraveled, t, intlLocale]);
 
   return (
     <div
@@ -343,8 +349,8 @@ export default function VaultStatsTab({
           type="button"
           data-testid="stats-expand-btn"
           onClick={() => setIsOpen(true)}
-          aria-label="Open travel statistics"
-          title="Open travel statistics"
+          aria-label={t('vault.open_travel_stats')}
+          title={t('vault.open_travel_stats')}
           style={{
             pointerEvents: 'auto',
             position: 'absolute',
@@ -378,8 +384,8 @@ export default function VaultStatsTab({
           type="button"
           data-testid="stats-collapse-btn"
           onClick={() => setIsOpen(false)}
-          aria-label="Close travel statistics"
-          title="Close travel statistics"
+          aria-label={t('vault.close_travel_stats')}
+          title={t('vault.close_travel_stats')}
           style={{
             pointerEvents: 'auto',
             alignSelf: 'flex-start',
@@ -430,7 +436,7 @@ export default function VaultStatsTab({
           display: 'flex',
           flexDirection: 'column',
         }}
-        aria-label="Travel statistics panel"
+        aria-label={t('vault.travel_stats_panel')}
       >
         {/* Scrollable Content Container */}
         <div
@@ -455,7 +461,7 @@ export default function VaultStatsTab({
                 letterSpacing: '-0.02em',
               }}
             >
-              General statistics
+              {t('vault.general_statistics')}
             </h1>
           </div>
 
@@ -477,7 +483,7 @@ export default function VaultStatsTab({
                   color: 'var(--color-text-muted)',
                 }}
               >
-                All missions
+                {t('vault.all_missions')}
               </span>
             </div>
 
@@ -492,10 +498,10 @@ export default function VaultStatsTab({
                   lineHeight: 1,
                 }}
               >
-                {totalDays > 0 ? totalDays.toLocaleString() : completedCount}
+                {totalDays > 0 ? totalDays.toLocaleString(intlLocale) : completedCount}
               </span>
               <span className="font-mono text-muted text-xs">
-                {totalDays > 0 ? 'DAYS LOGGED' : 'TRIPS RECORDED'}
+                {totalDays > 0 ? t('vault.days_logged') : t('vault.trips_recorded')}
               </span>
             </div>
 
@@ -508,11 +514,11 @@ export default function VaultStatsTab({
                 gap: '0.75rem',
               }}
             >
-              <span><strong>{completedCount}</strong> completed</span>
+              <span><strong>{completedCount}</strong> {t('vault.stat_completed')}</span>
               <span>•</span>
-              <span><strong>{totalPois}</strong> sites visited</span>
+              <span><strong>{totalPois}</strong> {t('vault.stat_sites_visited')}</span>
               <span>•</span>
-              <span><strong>{engagements.length}</strong> countries</span>
+              <span><strong>{engagements.length}</strong> {t('vault.stat_countries')}</span>
             </div>
           </div>
 
@@ -578,7 +584,7 @@ export default function VaultStatsTab({
                   {visitedCountriesCount}
                 </div>
                 <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
-                  Countries visited
+                  {t('vault.countries_visited')}
                 </div>
               </div>
             </div>
@@ -586,7 +592,11 @@ export default function VaultStatsTab({
             {/* Gauge 2: Earth Circumnavigated (% of Equator) */}
             <div
               data-testid="stats-earth-gauge"
-              title={`${Math.round(totalKmTraveled).toLocaleString()} km (${Math.round(totalKmTraveled * 0.621371).toLocaleString()} mi) traversed • ${earthVisitedRate}% of Earth's 40,075 km equator`}
+              title={t('vault.earth_gauge_tooltip', {
+                km: Math.round(totalKmTraveled).toLocaleString(intlLocale),
+                mi: Math.round(totalKmTraveled * 0.621371).toLocaleString(intlLocale),
+                pct: earthVisitedRate,
+              })}
               style={{
                 background: 'var(--color-surface-page)',
                 border: '1px solid var(--color-border-subtle)',
@@ -639,7 +649,7 @@ export default function VaultStatsTab({
                   {formattedEarthTraversed}
                 </div>
                 <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
-                  Earth traversed
+                  {t('vault.earth_traversed')}
                 </div>
               </div>
             </div>
@@ -661,10 +671,10 @@ export default function VaultStatsTab({
                   borderBottom: '1px solid var(--color-border-subtle)',
                 }}
               >
-                <span>Month</span>
-                <span style={{ textAlign: 'right' }}>Missions</span>
-                <span style={{ textAlign: 'right' }}>Days</span>
-                <span style={{ textAlign: 'right' }}>Sites</span>
+                <span>{t('vault.col_month')}</span>
+                <span style={{ textAlign: 'right' }}>{t('vault.col_missions')}</span>
+                <span style={{ textAlign: 'right' }}>{t('vault.col_days')}</span>
+                <span style={{ textAlign: 'right' }}>{t('vault.col_sites')}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.4rem' }}>
                 {monthlyStats.slice(0, 3).map((m) => (
@@ -677,7 +687,7 @@ export default function VaultStatsTab({
                       alignItems: 'center',
                     }}
                   >
-                    <span style={{ fontWeight: 500 }}>{m.monthLabel.split(' ')[0]}</span>
+                    <span style={{ fontWeight: 500 }}>{m.monthName}</span>
                     <span className="font-mono" style={{ textAlign: 'right', color: 'var(--color-text-muted)' }}>
                       {m.tripsCount}
                     </span>
@@ -712,7 +722,7 @@ export default function VaultStatsTab({
                   color: 'var(--color-text-primary)',
                 }}
               >
-                Most engaged
+                {t('vault.most_engaged')}
               </h2>
               <span
                 className="font-mono"
@@ -723,7 +733,7 @@ export default function VaultStatsTab({
                   letterSpacing: '0.05em',
                 }}
               >
-                SEE ALL ({engagements.length})
+                {t('vault.see_all_count', { count: engagements.length })}
               </span>
             </div>
 
@@ -740,17 +750,18 @@ export default function VaultStatsTab({
                     border: '1px dashed var(--color-border-subtle)',
                   }}
                 >
-                  NO ENGAGED COUNTRIES RECORDED
+                  {t('vault.no_engaged_countries')}
                 </div>
               ) : (
                 engagements.map((item, idx) => {
                   const color = PILL_COLORS[idx % PILL_COLORS.length];
+                  const displayCountryName = item.name === 'International' ? t('vault.international') : item.name;
                   return (
                     <button
                       key={item.name}
                       type="button"
                       onClick={() => onSelectDestination && onSelectDestination(item.coords)}
-                      title={`Focus map on ${item.name}`}
+                      title={t('vault.focus_map_on', { name: displayCountryName })}
                       style={{
                         background: color,
                         border: 'none',
@@ -802,7 +813,7 @@ export default function VaultStatsTab({
                             letterSpacing: '-0.01em',
                           }}
                         >
-                          {item.name}
+                          {displayCountryName}
                         </span>
                       </div>
 
@@ -818,7 +829,7 @@ export default function VaultStatsTab({
                               lineHeight: 1,
                             }}
                           >
-                            {item.totalDays}d
+                            {t('vault.days_short', { count: item.totalDays })}
                           </span>
                           <span
                             className="font-mono"
@@ -829,7 +840,7 @@ export default function VaultStatsTab({
                               marginTop: '2px',
                             }}
                           >
-                            +{item.tripsCount} trips
+                            {t('vault.plus_trips', { count: item.tripsCount })}
                           </span>
                         </div>
                         {/* Sub-badge icon */}

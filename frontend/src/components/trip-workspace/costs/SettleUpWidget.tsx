@@ -4,6 +4,7 @@ import React from 'react';
 import { SettlementTransfer } from '@/hooks/useTrips';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
 import { ArrowRightIcon } from '@/components/icons';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SettleUpWidgetProps {
   transfers: SettlementTransfer[];
@@ -22,6 +23,7 @@ export function SettleUpWidget({
   onAddPayment,
   onSettleFlow,
 }: SettleUpWidgetProps) {
+  const { t } = useTranslation();
   const curInfo = getCurrencyInfo(currency);
   const isSettled = transfers.length === 0;
 
@@ -54,14 +56,14 @@ export function SettleUpWidget({
               color: 'var(--color-text-main)',
             }}
           >
-            SETTLE UP · <span style={{ color: 'var(--color-accent-primary)' }}>{transfers.length}</span>
+            {t('costs.settle_up_header')} · <span style={{ color: 'var(--color-accent-primary)' }}>{transfers.length}</span>
           </div>
 
           {onToggleSimplified && (
             <button
               type="button"
               onClick={onToggleSimplified}
-              title={isSimplified ? "Currently using simplified net transfers. Click to switch to direct pairwise debts." : "Currently using direct pairwise debts. Click to simplify into minimal transactions."}
+              title={isSimplified ? t('costs.simplify_debts_tooltip_on') : t('costs.simplify_debts_tooltip_off')}
               style={{
                 fontSize: '0.68rem',
                 fontFamily: 'var(--font-mono, monospace)',
@@ -78,7 +80,7 @@ export function SettleUpWidget({
                 transition: 'all 0.15s ease',
               }}
             >
-              {isSimplified ? 'Simplified' : 'Direct'}
+              {isSimplified ? t('costs.simplified') : t('costs.direct')}
             </button>
           )}
         </div>
@@ -107,7 +109,7 @@ export function SettleUpWidget({
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Add payment
+            {t('costs.add_payment')}
           </button>
         )}
       </div>
@@ -147,15 +149,15 @@ export function SettleUpWidget({
                 color: 'var(--color-text-main)',
               }}
             >
-              Everyone&apos;s square
+              {t('costs.everyones_square')}
             </div>
           </div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {transfers.map((t, idx) => (
+          {transfers.map((tr, idx) => (
             <div
-              key={`${t.sender_id}-${t.receiver_id}-${idx}`}
+              key={`${tr.sender_id}-${tr.receiver_id}-${idx}`}
               style={{
                 background: 'var(--color-surface-subtle, var(--color-surface-card))',
                 border: '1px solid var(--color-border-subtle)',
@@ -176,9 +178,9 @@ export function SettleUpWidget({
                     color: 'var(--color-text-main)',
                   }}
                 >
-                  <span>{t.sender_name || 'Traveler'}</span>
+                  <span>{tr.sender_name || t('costs.traveler_fallback')}</span>
                   <ArrowRightIcon size={12} color="var(--color-text-muted)" style={{ margin: '0 6px' }} />
-                  <span>{t.receiver_name || 'Traveler'}</span>
+                  <span>{tr.receiver_name || t('costs.traveler_fallback')}</span>
                 </div>
                 <div
                   style={{
@@ -188,7 +190,7 @@ export function SettleUpWidget({
                     marginTop: '2px',
                   }}
                 >
-                  DEBT SETTLEMENT
+                  {t('costs.debt_settlement')}
                 </div>
               </div>
 
@@ -202,13 +204,13 @@ export function SettleUpWidget({
                     color: 'var(--color-danger)',
                   }}
                 >
-                  {curInfo.symbol}{t.amount.toFixed(2)}
+                  {curInfo.symbol}{tr.amount.toFixed(2)}
                 </span>
 
                 {onSettleFlow && (
                   <button
                     type="button"
-                    onClick={() => onSettleFlow(t)}
+                    onClick={() => onSettleFlow(tr)}
                     style={{
                       border: 'none',
                       background: 'var(--color-accent-primary)',
@@ -221,7 +223,7 @@ export function SettleUpWidget({
                       cursor: 'pointer',
                     }}
                   >
-                    Settle
+                    {t('costs.settle_btn')}
                   </button>
                 )}
               </div>

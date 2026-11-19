@@ -58,7 +58,9 @@ import {
   NoSmokingIcon,
   RestroomIcon,
   UploadIcon,
+  LanguagesIcon,
 } from '@/components/icons';
+import { isDescriptionInLocale } from '@/utils/languageDetect';
 import { startCustomDragPreview } from '@/utils/dragPreview';
 import { notify } from '@/utils/notify';
 import { useTripCollections } from '@/hooks/useTripCollections';
@@ -451,6 +453,14 @@ export function PoiDetailView({
   const [showPlaceExportMenu, setShowPlaceExportMenu] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  // On-demand Overview Translation State (keyed to current POI, locale, and source description)
+  const [translationState, setTranslationState] = useState<{
+    key: string;
+    text: string;
+    showingTranslated: boolean;
+  } | null>(null);
+  const [isTranslating, setIsTranslating] = useState<boolean>(false);
+
   const startEditing = useCallback(() => {
     if (!poi) return;
     setEditName(poi.name || '');
@@ -535,9 +545,10 @@ export function PoiDetailView({
         photos: updatedPhotos,
       };
 
+      let savedPoi: PoiDetail | null = null;
       const baseUrl = getApiBaseUrl();
       try {
-        await fetch(`${baseUrl}/pois/${encodeURIComponent(poi.id)}`, {
+        const res = await fetch(`${baseUrl}/pois/${encodeURIComponent(poi.id)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -558,17 +569,25 @@ export function PoiDetailView({
             })),
           }),
         });
+        if (res.ok) {
+          savedPoi = await res.json();
+        }
       } catch (e) {
         console.warn('Backend update failed, maintaining local state:', e);
       }
 
-      setPoi(updatedPoiData);
+      const finalPoiData: PoiDetail = {
+        ...updatedPoiData,
+        description_lang: savedPoi?.description_lang ?? null,
+      };
+      setTranslationState(null);
+      setPoi(finalPoiData);
       setActivePhotoIdx(0);
       if (onUpdatePoi) {
-        onUpdatePoi(updatedPoiData);
+        onUpdatePoi(finalPoiData);
       }
-      window.dispatchEvent(new CustomEvent('paladio:poi-updated', { detail: updatedPoiData }));
-      notify.success('Place Updated', `Updated "${updatedPoiData.name}"`);
+      window.dispatchEvent(new CustomEvent('paladio:poi-updated', { detail: finalPoiData }));
+      notify.success('Place Updated', `Updated "${finalPoiData.name}"`);
       setIsEditing(false);
     } catch (err) {
       console.error('Error saving POI:', err);
@@ -1157,36 +1176,103 @@ export function PoiDetailView({
     }
   }, [activeTransitLine, onSelectTransitLine, poi, fallbackPoi, city, stationDetail, poiId]);
 
-  const overviewDescription = useMemo(() => {
-    const rawDesc = poi?.description?.trim() || fallbackPoi?.description?.trim() || '';
+  const { text: overviewDescription, lang: overviewDescriptionLang } = useMemo(() => {
+    const poiDesc = poi?.description?.trim() || '';
+    const fbDesc = fallbackPoi?.description?.trim() || '';
+    const rawDesc = poiDesc || fbDesc;
+    const rawDescLang = poiDesc ? (poi?.description_lang ?? null) : (fallbackPoi?.description_lang ?? null);
     const loc = poi?.city || fallbackPoi?.city || city;
 
     if (isHotel) {
       if (!rawDesc || rawDesc.includes('is a notable attraction') || rawDesc.includes('entry is free of charge') || rawDesc.includes('Recommended visit duration')) {
-        return `${poi?.name || fallbackPoi?.name || 'Hotel'} provides lodging accommodations and base camp facilities${loc ? ` for your stay in ${loc}` : ''}.`;
+        return {
+          text: `${poi?.name || fallbackPoi?.name || 'Hotel'} provides lodging accommodations and base camp facilities${loc ? ` for your stay in ${loc}` : ''}.`,
+          lang: 'en',
+        };
       }
     }
     if (isAirport) {
       if (!rawDesc || rawDesc.includes('is a notable attraction') || rawDesc.includes('entry is free of charge') || rawDesc.includes('Recommended visit duration')) {
-        return `${poi?.name || fallbackPoi?.name || 'Airport'} serves as an aviation hub and flight transport gateway${loc ? ` for ${loc}` : ''}.`;
+        return {
+          text: `${poi?.name || fallbackPoi?.name || 'Airport'} serves as an aviation hub and flight transport gateway${loc ? ` for ${loc}` : ''}.`,
+          lang: 'en',
+        };
       }
     }
 
     if (rawDesc) {
       if (isTransit && rawDesc.toLowerCase().startsWith('public transit station')) {
-        return '';
+        return { text: '', lang: null };
       }
-      return rawDesc;
+      return { text: rawDesc, lang: rawDescLang };
     }
     if (isTransit) {
-      return '';
+      return { text: '', lang: null };
     }
     if (poi?.name) {
       const cat = (poi.category || fallbackPoi?.category || 'waypoint').toLowerCase();
-      return `${poi.name} is a notable ${cat}${loc ? ` located in ${loc}` : ''}.`;
+      return {
+        text: `${poi.name} is a notable ${cat}${loc ? ` located in ${loc}` : ''}.`,
+        lang: 'en',
+      };
     }
-    return '';
+    return { text: '', lang: null };
   }, [poi, fallbackPoi, city, isTransit, isHotel, isAirport]);
+
+  const isDescriptionInUserLang = useMemo(
+    () => isDescriptionInLocale(overviewDescription, locale, overviewDescriptionLang),
+    [overviewDescription, locale, overviewDescriptionLang]
+  );
+
+  const translationKey = `${effectivePoiId}::${locale}::${overviewDescription}`;
+  const activeTranslation = translationState?.key === translationKey ? translationState : null;
+  const translatedDescription = activeTranslation?.text ?? null;
+  const showTranslated = Boolean(activeTranslation?.showingTranslated);
+
+  const handleToggleTranslateDescription = useCallback(async () => {
+    if (!overviewDescription || isTranslating) return;
+    if (activeTranslation) {
+      setTranslationState({
+        ...activeTranslation,
+        showingTranslated: !activeTranslation.showingTranslated,
+      });
+      return;
+    }
+
+    setIsTranslating(true);
+    try {
+      const baseUrl = getApiBaseUrl();
+      const targetId = effectivePoiId || 'ad-hoc';
+      const res = await fetch(`${baseUrl}/pois/${encodeURIComponent(targetId)}/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target_lang: locale,
+          text: overviewDescription,
+          source_lang: overviewDescriptionLang || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const errPayload = await res.json().catch(() => null);
+        throw new Error(errPayload?.detail || `Translation failed (${res.status})`);
+      }
+      const data = await res.json();
+      if (data?.translated_text) {
+        setTranslationState({
+          key: translationKey,
+          text: data.translated_text,
+          showingTranslated: true,
+        });
+      } else {
+        throw new Error('Empty translation response');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unable to translate description.';
+      notify.error(t('workspace.translation_error'), msg);
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [overviewDescription, overviewDescriptionLang, isTranslating, activeTranslation, translationKey, effectivePoiId, locale, t]);
 
   // Load POI details and real photos whenever poiId or fallbackPoi changes
   useEffect(() => {
@@ -1408,6 +1494,7 @@ export function PoiDetailView({
             lng: resolvedLng,
             photos: resolvedPhotos,
             description: data.description || fallbackPoi?.description || '',
+            description_lang: data.description ? (data.description_lang ?? null) : (fallbackPoi?.description_lang ?? null),
             category: data.category || fallbackPoi?.category || 'attraction',
             duration_mins: data.duration_mins || fallbackPoi?.duration_mins || 60,
             cost_eur: data.cost_eur ?? fallbackPoi?.cost_eur ?? 0,
@@ -3007,18 +3094,73 @@ export function PoiDetailView({
               {/* Description Overview */}
               {(overviewDescription || isEditing) && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span
+                  <div
                     style={{
-                      fontFamily: 'var(--font-code, monospace)',
-                      fontSize: '9.5px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      color: 'var(--color-text-muted)',
-                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
                     }}
                   >
-                    {t('workspace.overview')}
-                  </span>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-code, monospace)',
+                        fontSize: '9.5px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        color: 'var(--color-text-muted)',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {t('workspace.overview')}
+                    </span>
+                    {!isEditing && overviewDescription && !isDescriptionInUserLang && (
+                      <button
+                        type="button"
+                        onClick={handleToggleTranslateDescription}
+                        disabled={isTranslating}
+                        data-testid="translate-poi-description-btn"
+                        aria-pressed={showTranslated}
+                        aria-label={
+                          isTranslating
+                            ? t('workspace.translating')
+                            : showTranslated
+                            ? t('workspace.show_original')
+                            : t('workspace.translate_description')
+                        }
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '2px 7px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--color-border)',
+                          background: showTranslated ? 'var(--color-surface-card)' : 'transparent',
+                          color: 'var(--color-accent, #0F766E)',
+                          fontSize: '10.5px',
+                          fontWeight: 600,
+                          fontFamily: 'var(--font-body, inherit)',
+                          cursor: isTranslating ? 'wait' : 'pointer',
+                          opacity: isTranslating ? 0.7 : 1,
+                          lineHeight: 1.3,
+                          transition: 'background 0.15s ease, border-color 0.15s ease',
+                        }}
+                      >
+                        {isTranslating ? (
+                          <Spinner size={11} />
+                        ) : (
+                          <LanguagesIcon size={11} />
+                        )}
+                        <span>
+                          {isTranslating
+                            ? t('workspace.translating')
+                            : showTranslated
+                            ? t('workspace.show_original')
+                            : t('workspace.translate_description')}
+                        </span>
+                      </button>
+                    )}
+                  </div>
                   {isEditing ? (
                     <textarea
                       rows={4}
@@ -3043,6 +3185,7 @@ export function PoiDetailView({
                     />
                   ) : (
                     <p
+                      data-testid="poi-overview-description"
                       style={{
                         margin: 0,
                         fontSize: '12.5px',
@@ -3051,7 +3194,7 @@ export function PoiDetailView({
                         fontFamily: 'var(--font-body, inherit)',
                       }}
                     >
-                      {overviewDescription}
+                      {showTranslated && translatedDescription ? translatedDescription : overviewDescription}
                     </p>
                   )}
                 </div>

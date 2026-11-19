@@ -3,6 +3,7 @@
 import React from 'react';
 import { getCostCategoryMeta } from './costsCategories';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export interface DisplayExpenseItem {
   id: string;
@@ -41,6 +42,8 @@ export function ExpenseRow({
   onMarkPaid,
   onMarkUnpaid,
 }: ExpenseRowProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const meta = getCostCategoryMeta(item.category);
   const Icon = meta.icon;
   const isUnfinished = item.isUnfinished || !item.payerId || item.source === 'itinerary';
@@ -121,7 +124,7 @@ export function ExpenseRow({
                     textTransform: 'uppercase',
                   }}
                 >
-                  Unpaid
+                  {t('costs.status_unpaid')}
                 </span>
               ) : (
                 <span
@@ -142,7 +145,7 @@ export function ExpenseRow({
                     textTransform: 'uppercase',
                   }}
                 >
-                  Paid
+                  {t('costs.status_paid')}
                 </span>
               )
             ) : (
@@ -165,7 +168,7 @@ export function ExpenseRow({
                     textTransform: 'uppercase',
                   }}
                 >
-                  Unfinished
+                  {t('costs.status_unfinished')}
                 </span>
               )
             )}
@@ -185,19 +188,26 @@ export function ExpenseRow({
           >
             {isSingleTraveler ? (
               !isUnfinished ? (
-                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>Paid</span>
+                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>{t('costs.status_paid')}</span>
               ) : (
                 <span style={{ color: 'var(--color-accent-secondary)' }}>
-                  {item.source === 'itinerary' ? 'ROUTE ESTIMATE' : 'UNPAID'}
+                  {item.source === 'itinerary' ? t('costs.route_estimate') : t('costs.status_unpaid_upper')}
                 </span>
               )
             ) : item.payerName ? (
-              <span>
-                Paid by <b style={{ color: 'var(--color-text-main)' }}>{item.payerName}</b>
-              </span>
+              (() => {
+                const [before, after] = t('costs.paid_by_name', { name: '__PAYER__' }).split('__PAYER__');
+                return (
+                  <span>
+                    {before}
+                    <b style={{ color: 'var(--color-text-main)' }}>{item.payerName}</b>
+                    {after}
+                  </span>
+                );
+              })()
             ) : (
               <span style={{ color: 'var(--color-accent-secondary)' }}>
-                {item.source === 'itinerary' ? 'ROUTE ESTIMATE (UNASSIGNED)' : 'NEEDS A PAYER'}
+                {item.source === 'itinerary' ? t('costs.route_estimate_unassigned') : t('costs.needs_payer')}
               </span>
             )}
 
@@ -231,7 +241,7 @@ export function ExpenseRow({
               letterSpacing: '-0.02em',
             }}
           >
-            {activeCurInfo.symbol}{displayAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {activeCurInfo.symbol}{displayAmount.toLocaleString(intlLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div
             style={{
@@ -241,7 +251,9 @@ export function ExpenseRow({
             }}
           >
             {isDifferentCurrency
-              ? `Paid: ${origCurInfo.symbol}${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
+              ? t('costs.paid_original_currency', {
+                  amount: `${origCurInfo.symbol}${item.amount.toLocaleString(intlLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`,
+                })
               : viewCurrency}
           </div>
         </div>
@@ -254,7 +266,7 @@ export function ExpenseRow({
                 <button
                   type="button"
                   onClick={() => (onMarkPaid ? onMarkPaid(item) : onClaim?.(item))}
-                  title="Mark as Paid"
+                  title={t('costs.mark_as_paid_title')}
                   style={{
                     border: '1px solid var(--color-accent-primary)',
                     background: 'var(--color-surface-card)',
@@ -268,7 +280,7 @@ export function ExpenseRow({
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  Mark paid
+                  {t('costs.mark_paid')}
                 </button>
               )}
 
@@ -276,7 +288,7 @@ export function ExpenseRow({
                 <button
                   type="button"
                   onClick={() => onMarkUnpaid(item)}
-                  title="Mark as Unpaid"
+                  title={t('costs.mark_as_unpaid_title')}
                   style={{
                     border: '1px solid var(--color-border-subtle)',
                     background: 'var(--color-surface-card)',
@@ -290,7 +302,7 @@ export function ExpenseRow({
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  Mark unpaid
+                  {t('costs.mark_unpaid')}
                 </button>
               )}
             </>
@@ -300,7 +312,7 @@ export function ExpenseRow({
               <button
                 type="button"
                 onClick={() => onClaim(item)}
-                title="Assign Payer"
+                title={t('costs.assign_payer_title')}
                 style={{
                   border: '1px solid var(--color-accent-primary)',
                   background: 'var(--color-surface-card)',
@@ -314,7 +326,7 @@ export function ExpenseRow({
                   transition: 'all 0.15s ease',
                 }}
               >
-                Assign
+                {t('costs.assign_btn')}
               </button>
             )
           )}
@@ -323,7 +335,7 @@ export function ExpenseRow({
             <button
               type="button"
               onClick={() => onEdit(item)}
-              title="Edit Expense"
+              title={t('costs.edit_expense')}
               style={{
                 border: '1px solid var(--color-border-subtle)',
                 background: 'var(--color-surface-card)',
@@ -346,7 +358,7 @@ export function ExpenseRow({
             <button
               type="button"
               onClick={() => onDelete(item)}
-              title="Delete Expense"
+              title={t('costs.delete_expense')}
               style={{
                 border: '1px solid var(--color-danger)',
                 background: 'transparent',

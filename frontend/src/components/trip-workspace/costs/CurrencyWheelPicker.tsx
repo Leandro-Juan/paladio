@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import { CurrencyInfo, SUPPORTED_CURRENCY_LIST } from '@/utils/currencyResolver';
+import { useTranslation } from '@/hooks/useTranslation';
+import {
+  CurrencyInfo,
+  SUPPORTED_CURRENCY_LIST,
+  getLocalizedCurrencyCountry,
+  getLocalizedCurrencyName,
+} from '@/utils/currencyResolver';
 import { FlagIcon } from './FlagIcon';
 import { WheelDialPicker } from '@/components/common/WheelDialPicker';
 
@@ -20,10 +26,13 @@ export function CurrencyWheelPicker({
   onClose,
   selectedCurrency,
   onSelectCurrency,
-  title = 'Select Currency',
+  title,
   defaultCurrency,
   destinationCurrency,
 }: CurrencyWheelPickerProps) {
+  const { t, locale } = useTranslation();
+  const resolvedTitle = title !== undefined ? t(title) : t('config.select_currency');
+
   // Currencies list: 1st is default currency, 2nd is destination currency, followed by rest alphabetically
   const items = useMemo(() => {
     const list = [...SUPPORTED_CURRENCY_LIST];
@@ -35,27 +44,34 @@ export function CurrencyWheelPicker({
 
     const remaining = list
       .filter((i) => i.code.toUpperCase() !== defCode && (!destCode || i.code.toUpperCase() !== destCode))
-      .sort((a, b) => a.country.localeCompare(b.country));
+      .sort((a, b) =>
+        getLocalizedCurrencyCountry(a.countryCode, a.country, locale).localeCompare(
+          getLocalizedCurrencyCountry(b.countryCode, b.country, locale),
+          locale
+        )
+      );
 
     const result: CurrencyInfo[] = [];
     if (defItem) result.push(defItem);
     if (destItem) result.push(destItem);
     result.push(...remaining);
     return result;
-  }, [defaultCurrency, destinationCurrency]);
+  }, [defaultCurrency, destinationCurrency, locale]);
 
   return (
     <WheelDialPicker<CurrencyInfo>
       isOpen={isOpen}
       onClose={onClose}
-      title={title}
-      subtitle="Drag, scroll, or search to spin wheel"
-      searchPlaceholder="Search country or currency..."
+      title={resolvedTitle}
+      subtitle={t('config.wheel_subtitle')}
+      searchPlaceholder={t('config.search_currency_placeholder')}
       items={items}
       selectedId={selectedCurrency}
       getItemId={(item) => item.code}
       keyExtractor={(item) => `${item.code}-${item.country}`}
-      getItemSearchText={(item) => `${item.country} ${item.code} ${item.name}`}
+      getItemSearchText={(item) =>
+        `${item.country} ${getLocalizedCurrencyCountry(item.countryCode, item.country, locale)} ${item.code} ${item.name} ${getLocalizedCurrencyName(item.code, locale)}`
+      }
       onSelect={onSelectCurrency}
       renderItem={(item, isCenter) => (
         <>
@@ -74,7 +90,7 @@ export function CurrencyWheelPicker({
                   : 'var(--color-text-muted, #6B7280)',
               }}
             >
-              {item.country}
+              {getLocalizedCurrencyCountry(item.countryCode, item.country, locale)}
             </span>
             <span
               style={{
@@ -100,7 +116,11 @@ export function CurrencyWheelPicker({
               textOverflow: 'ellipsis',
             }}
           >
-            Use {item.country} — {item.code} ({item.symbol})
+            {t('config.use_currency_action', {
+              country: getLocalizedCurrencyCountry(item.countryCode, item.country, locale),
+              code: item.code,
+              symbol: item.symbol,
+            })}
           </span>
         </>
       )}

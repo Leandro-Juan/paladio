@@ -24,6 +24,8 @@ import { TicketFormModal } from './modals/TicketFormModal';
 import { TicketDetailModal } from './modals/TicketDetailModal';
 import { ScanReviewModal } from './modals/ScanReviewModal';
 import { EmptyState } from '@/components/EmptyState';
+import { TICKET_TYPE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface TripWalletViewProps {
   tripId: string;
@@ -31,6 +33,7 @@ interface TripWalletViewProps {
 }
 
 export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
+  const { t } = useTranslation();
   const {
     tickets,
     isLoading,
@@ -98,19 +101,19 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
     setIsFormModalOpen(true);
   };
 
-  const handleEditTicket = (t: TripTicket) => {
-    setEditingTicket(t);
-    setFormDefaultType(t.ticket_type);
+  const handleEditTicket = (ticket: TripTicket) => {
+    setEditingTicket(ticket);
+    setFormDefaultType(ticket.ticket_type);
     setIsFormModalOpen(true);
   };
 
-  const handleViewDetail = (t: TripTicket) => {
-    setDetailTicket(t);
+  const handleViewDetail = (ticket: TripTicket) => {
+    setDetailTicket(ticket);
   };
 
-  const handleAttachFile = (t: TripTicket) => {
-    setEditingTicket(t);
-    setFormDefaultType(t.ticket_type);
+  const handleAttachFile = (ticket: TripTicket) => {
+    setEditingTicket(ticket);
+    setFormDefaultType(ticket.ticket_type);
     setIsFormModalOpen(true);
   };
 
@@ -151,19 +154,19 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
 
   // Filter & Search Tickets
   const filteredTickets = useMemo(() => {
-    return tickets.filter((t) => {
+    return tickets.filter((tk) => {
       // Category match
-      if (category !== 'all' && t.ticket_type !== category) {
+      if (category !== 'all' && tk.ticket_type !== category) {
         return false;
       }
       // Search match
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const matchesTitle = t.title.toLowerCase().includes(query);
-        const matchesRef = (t.booking_reference || '').toLowerCase().includes(query);
-        const matchesProvider = (t.provider || '').toLowerCase().includes(query);
-        const matchesVenue = (t.location_or_venue || '').toLowerCase().includes(query);
-        const matchesCode = (t.barcode_value || '').toLowerCase().includes(query);
+        const matchesTitle = tk.title.toLowerCase().includes(query);
+        const matchesRef = (tk.booking_reference || '').toLowerCase().includes(query);
+        const matchesProvider = (tk.provider || '').toLowerCase().includes(query);
+        const matchesVenue = (tk.location_or_venue || '').toLowerCase().includes(query);
+        const matchesCode = (tk.barcode_value || '').toLowerCase().includes(query);
         return matchesTitle || matchesRef || matchesProvider || matchesVenue || matchesCode;
       }
       return true;
@@ -171,20 +174,20 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
   }, [tickets, category, searchQuery]);
 
   // Section grouping
-  const flightTickets = useMemo(() => filteredTickets.filter((t) => t.ticket_type === 'flight'), [filteredTickets]);
-  const hotelTickets = useMemo(() => filteredTickets.filter((t) => t.ticket_type === 'hotel'), [filteredTickets]);
-  const attractionTickets = useMemo(() => filteredTickets.filter((t) => t.ticket_type === 'attraction'), [filteredTickets]);
-  const transitTickets = useMemo(() => filteredTickets.filter((t) => t.ticket_type === 'transit'), [filteredTickets]);
-  const otherTickets = useMemo(() => filteredTickets.filter((t) => t.ticket_type === 'other'), [filteredTickets]);
+  const flightTickets = useMemo(() => filteredTickets.filter((tk) => tk.ticket_type === 'flight'), [filteredTickets]);
+  const hotelTickets = useMemo(() => filteredTickets.filter((tk) => tk.ticket_type === 'hotel'), [filteredTickets]);
+  const attractionTickets = useMemo(() => filteredTickets.filter((tk) => tk.ticket_type === 'attraction'), [filteredTickets]);
+  const transitTickets = useMemo(() => filteredTickets.filter((tk) => tk.ticket_type === 'transit'), [filteredTickets]);
+  const otherTickets = useMemo(() => filteredTickets.filter((tk) => tk.ticket_type === 'other'), [filteredTickets]);
 
   const counts: Record<string, number> = useMemo(() => {
     return {
       all: tickets.length,
-      flight: tickets.filter((t) => t.ticket_type === 'flight').length,
-      hotel: tickets.filter((t) => t.ticket_type === 'hotel').length,
-      attraction: tickets.filter((t) => t.ticket_type === 'attraction').length,
-      transit: tickets.filter((t) => t.ticket_type === 'transit').length,
-      other: tickets.filter((t) => t.ticket_type === 'other').length,
+      flight: tickets.filter((tk) => tk.ticket_type === 'flight').length,
+      hotel: tickets.filter((tk) => tk.ticket_type === 'hotel').length,
+      attraction: tickets.filter((tk) => tk.ticket_type === 'attraction').length,
+      transit: tickets.filter((tk) => tk.ticket_type === 'transit').length,
+      other: tickets.filter((tk) => tk.ticket_type === 'other').length,
     };
   }, [tickets]);
 
@@ -203,7 +206,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
       {/* Header Banner */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <p className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
-          {'BOARDING PASSES, HOTEL PINS, ENTRY TICKETS & TRANSIT PASSES'}
+          {t('wallet.header_subtitle')}
         </p>
       </div>
 
@@ -264,7 +267,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
-              {'FLIGHT BOARDING PASSES'}
+              {t(TICKET_TYPE_CONFIG.flight.sectionTitleKey)}
             </h3>
             <button
               type="button"
@@ -279,7 +282,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 fontWeight: 600,
               }}
             >
-              + ADD FLIGHT
+              {t('wallet.add_flight_btn')}
             </button>
           </div>
 
@@ -296,7 +299,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              No flight passes in wallet. Drop a PDF boarding pass or add one manually.
+              {t('wallet.empty_flights')}
             </div>
           ) : (
             <div
@@ -306,10 +309,10 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 gap: '1.25rem',
               }}
             >
-              {flightTickets.map((t) => (
+              {flightTickets.map((tk) => (
                 <FlightBoardingPassCard
-                  key={t.id}
-                  ticket={t}
+                  key={tk.id}
+                  ticket={tk}
                   onEdit={handleEditTicket}
                   onDelete={deleteTicket}
                   onViewDetail={handleViewDetail}
@@ -326,7 +329,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
-              {'LODGING & ACCESS CODES'}
+              {t(TICKET_TYPE_CONFIG.hotel.sectionTitleKey)}
             </h3>
             <button
               type="button"
@@ -341,7 +344,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 fontWeight: 600,
               }}
             >
-              + ADD STAY
+              {t('wallet.add_stay_btn')}
             </button>
           </div>
 
@@ -358,7 +361,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              No accommodations recorded. Add door codes, key PINs, or Wi-Fi passwords here.
+              {t('wallet.empty_hotels')}
             </div>
           ) : (
             <div
@@ -368,10 +371,10 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 gap: '1.25rem',
               }}
             >
-              {hotelTickets.map((t) => (
+              {hotelTickets.map((tk) => (
                 <HotelAccessCard
-                  key={t.id}
-                  ticket={t}
+                  key={tk.id}
+                  ticket={tk}
                   onEdit={handleEditTicket}
                   onDelete={deleteTicket}
                   onViewDetail={handleViewDetail}
@@ -388,7 +391,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
-              {'MUSEUMS & ATTRACTION PASSES'}
+              {t(TICKET_TYPE_CONFIG.attraction.sectionTitleKey)}
             </h3>
             <button
               type="button"
@@ -403,7 +406,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 fontWeight: 600,
               }}
             >
-              + ADD ATTRACTION PASS
+              {t('wallet.add_attraction_btn')}
             </button>
           </div>
 
@@ -420,7 +423,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              No museum passes or entry tickets. Tickets synced from itinerary will appear here.
+              {t('wallet.empty_attractions')}
             </div>
           ) : (
             <div
@@ -430,10 +433,10 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 gap: '1.25rem',
               }}
             >
-              {attractionTickets.map((t) => (
+              {attractionTickets.map((tk) => (
                 <AttractionPassCard
-                  key={t.id}
-                  ticket={t}
+                  key={tk.id}
+                  ticket={tk}
                   onEdit={handleEditTicket}
                   onDelete={deleteTicket}
                   onViewDetail={handleViewDetail}
@@ -450,7 +453,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
-              {'PUBLIC TRANSIT & RAIL TICKETS'}
+              {t(TICKET_TYPE_CONFIG.transit.sectionTitleKey)}
             </h3>
             <button
               type="button"
@@ -465,7 +468,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 fontWeight: 600,
               }}
             >
-              + ADD TRANSIT PASS
+              {t('wallet.add_transit_btn')}
             </button>
           </div>
 
@@ -482,7 +485,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              No rail or transit passes. Train tickets, metro passes and regional rail tickets appear here.
+              {t('wallet.empty_transit')}
             </div>
           ) : (
             <div
@@ -492,10 +495,10 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 gap: '1.25rem',
               }}
             >
-              {transitTickets.map((t) => (
+              {transitTickets.map((tk) => (
                 <TransitTicketCard
-                  key={t.id}
-                  ticket={t}
+                  key={tk.id}
+                  ticket={tk}
                   onEdit={handleEditTicket}
                   onDelete={deleteTicket}
                   onViewDetail={handleViewDetail}
@@ -512,7 +515,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 className="font-mono text-xs" style={{ margin: 0, color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}>
-              {'GENERAL VOUCHERS & CREDENTIALS'}
+              {t(TICKET_TYPE_CONFIG.other.sectionTitleKey)}
             </h3>
             <button
               type="button"
@@ -527,7 +530,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 fontWeight: 600,
               }}
             >
-              + ADD VOUCHER
+              {t('wallet.add_voucher_btn')}
             </button>
           </div>
 
@@ -538,10 +541,10 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
               gap: '1.25rem',
             }}
           >
-            {otherTickets.map((t) => (
+            {otherTickets.map((tk) => (
               <GenericTicketCard
-                key={t.id}
-                ticket={t}
+                key={tk.id}
+                ticket={tk}
                 onEdit={handleEditTicket}
                 onDelete={deleteTicket}
                 onViewDetail={handleViewDetail}
@@ -558,9 +561,9 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
         onAddDayPass={(rec) => {
           createTicket({
             ticket_type: 'transit',
-            title: '24h Transit Travel Day Pass',
+            title: t('wallet.day_pass_24h_title'),
             status: 'planned',
-            provider: 'Public Transport Authority',
+            provider: t('wallet.public_transport_authority'),
             price: rec.pass_price_eur != null ? rec.pass_price_eur : undefined,
             currency: 'EUR',
             notes: rec.message || undefined,
@@ -572,8 +575,8 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
       {tickets.length === 0 && !isLoading && (
         <EmptyState
           type="no-tickets"
-          title="YOUR TRIP WALLET IS EMPTY"
-          description="Drop documents above, sync from itinerary, or create credentials manually."
+          title={t('wallet.empty_wallet_title')}
+          description={t('wallet.empty_wallet_desc')}
           action={
             <button
               type="button"
@@ -590,7 +593,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
                 boxShadow: 'var(--shadow-sm)',
               }}
             >
-              + ADD FIRST TICKET
+              {t('wallet.add_first_ticket_btn')}
             </button>
           }
         />

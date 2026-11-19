@@ -1,7 +1,11 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useCallback, useMemo } from 'react';
-import { useLocaleStore } from '@/stores/localeStore';
+import {
+  buildEnglishToKeyMap,
+  translateFromDictionaries,
+  useLocaleStore,
+} from '@/stores/localeStore';
 import { DEFAULT_LOCALE } from '@/utils/locales';
 
 interface I18nContextValue {
@@ -17,56 +21,32 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-function resolveKey(dict: Record<string, unknown> | undefined, path: string): string | undefined {
-  if (!dict) return undefined;
-  const parts = path.split('.');
-  let current: unknown = dict;
-  for (const part of parts) {
-    if (current && typeof current === 'object' && part in (current as Record<string, unknown>)) {
-      current = (current as Record<string, unknown>)[part];
-    } else {
-      return undefined;
-    }
-  }
-  return typeof current === 'string' ? current : undefined;
-}
-
-function interpolate(text: string, params?: Record<string, string | number>): string {
-  if (!params) return text;
-  return text.replace(/\{(\w+)\}/g, (match, paramName) => {
-    return paramName in params ? String(params[paramName]) : match;
-  });
-}
-
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const { currentLocale, direction, isLoading, dictionaries, setLocale, loadDictionary } = useLocaleStore();
 
-  // Ensure current locale & default locale (for fallback) are loaded on mount
+  // Ensure current locale dictionary is loaded and DOM lang/dir attributes stay synced
   useEffect(() => {
     loadDictionary(DEFAULT_LOCALE);
     if (currentLocale !== DEFAULT_LOCALE) {
       loadDictionary(currentLocale);
     }
-  }, [currentLocale, loadDictionary]);
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('lang', currentLocale);
+      document.documentElement.setAttribute('dir', direction);
+    }
+  }, [currentLocale, direction, loadDictionary]);
 
-  const activeDict = dictionaries[currentLocale];
   const defaultDict = dictionaries[DEFAULT_LOCALE];
+  const englishMap = useMemo(
+    () => (defaultDict ? buildEnglishToKeyMap(defaultDict) : undefined),
+    [defaultDict]
+  );
 
   const t = useCallback(
     (key: string, params?: Record<string, string | number>): string => {
-      // 1. Try active locale
-      let text = resolveKey(activeDict, key);
-      // 2. Fall back to default (English) if missing
-      if (!text && defaultDict) {
-        text = resolveKey(defaultDict, key);
-      }
-      // 3. Fall back to the key itself if still not found
-      if (!text) {
-        return key;
-      }
-      return interpolate(text, params);
+      return translateFromDictionaries(dictionaries, currentLocale, key, params, englishMap);
     },
-    [activeDict, defaultDict]
+    [dictionaries, currentLocale, englishMap]
   );
 
   const formatDate = useCallback(

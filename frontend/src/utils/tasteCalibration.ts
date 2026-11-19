@@ -1,4 +1,5 @@
 import { User } from '@/types/auth';
+import { translate } from '@/stores/localeStore';
 
 export const TASTE_TAG_KEYS = [
   'art_culture',
@@ -59,67 +60,67 @@ export function isTasteVectorNeutral(user: User | null | undefined): boolean {
 export const CALIBRATION_QUESTIONS: CalibrationQuestion[] = [
   {
     id: 'first_morning',
-    trackTitle: 'First Morning Ritual',
-    dimensionLabel: 'CULTURE & HERITAGE',
-    prompt: 'You land in a new city with one free morning. Where do you head first?',
+    trackTitle: 'taste_calibration.questions.first_morning.track_title',
+    dimensionLabel: 'taste_calibration.questions.first_morning.dimension',
+    prompt: 'taste_calibration.questions.first_morning.prompt',
     options: [
       {
         id: 'A',
-        label: 'A quiet, world-class museum or gallery',
-        sublabel: 'Curated collections before the crowds arrive',
+        label: 'taste_calibration.questions.first_morning.opt_a_label',
+        sublabel: 'taste_calibration.questions.first_morning.opt_a_sublabel',
         deltas: { art_culture: 0.3, history_heritage: 0.15, nightlife: -0.05 },
       },
       {
         id: 'B',
-        label: 'The oldest historic quarter & ruins',
-        sublabel: 'Cobblestones, cathedrals, and centuries of stories',
+        label: 'taste_calibration.questions.first_morning.opt_b_label',
+        sublabel: 'taste_calibration.questions.first_morning.opt_b_sublabel',
         deltas: { history_heritage: 0.3, architecture: 0.15 },
       },
       {
         id: 'C',
-        label: 'A bustling local market & espresso bar',
-        sublabel: 'Street-level flavors and neighborhood energy',
+        label: 'taste_calibration.questions.first_morning.opt_c_label',
+        sublabel: 'taste_calibration.questions.first_morning.opt_c_sublabel',
         deltas: { food_culinary: 0.28, shopping: 0.12 },
       },
       {
         id: 'D',
-        label: 'A hilltop park or waterfront promenade',
-        sublabel: 'Fresh air, wide horizons, and morning light',
+        label: 'taste_calibration.questions.first_morning.opt_d_label',
+        sublabel: 'taste_calibration.questions.first_morning.opt_d_sublabel',
         deltas: { scenic_views: 0.25, nature_outdoors: 0.25 },
       },
     ],
   },
   {
     id: 'afternoon_pace',
-    trackTitle: 'Itinerary Cadence',
-    dimensionLabel: 'TRAVEL PACE',
-    prompt: 'How should your ideal afternoon schedule feel on a multi-day trip?',
+    trackTitle: 'taste_calibration.questions.afternoon_pace.track_title',
+    dimensionLabel: 'taste_calibration.questions.afternoon_pace.dimension',
+    prompt: 'taste_calibration.questions.afternoon_pace.prompt',
     options: [
       {
         id: 'A',
-        label: 'Unhurried & spacious',
-        sublabel: 'One anchor stop, long café breaks, zero rush',
+        label: 'taste_calibration.questions.afternoon_pace.opt_a_label',
+        sublabel: 'taste_calibration.questions.afternoon_pace.opt_a_sublabel',
         deltas: { food_culinary: 0.1, scenic_views: 0.1 },
         pace: 'leisurely',
       },
       {
         id: 'B',
-        label: 'Balanced rhythm',
-        sublabel: 'Two or three key highlights with breathing room',
+        label: 'taste_calibration.questions.afternoon_pace.opt_b_label',
+        sublabel: 'taste_calibration.questions.afternoon_pace.opt_b_sublabel',
         deltas: { art_culture: 0.08, history_heritage: 0.08 },
         pace: 'balanced',
       },
       {
         id: 'C',
-        label: 'High-density explorer',
-        sublabel: 'Pack in landmarks, transit hops, and hidden corners',
+        label: 'taste_calibration.questions.afternoon_pace.opt_c_label',
+        sublabel: 'taste_calibration.questions.afternoon_pace.opt_c_sublabel',
         deltas: { architecture: 0.12, history_heritage: 0.12 },
         pace: 'intense',
       },
       {
         id: 'D',
-        label: 'Spontaneous wandering',
-        sublabel: 'Follow interesting streets and viewpoints on foot',
+        label: 'taste_calibration.questions.afternoon_pace.opt_d_label',
+        sublabel: 'taste_calibration.questions.afternoon_pace.opt_d_sublabel',
         deltas: { scenic_views: 0.12, shopping: 0.1 },
         pace: 'balanced',
       },
@@ -127,102 +128,102 @@ export const CALIBRATION_QUESTIONS: CalibrationQuestion[] = [
   },
   {
     id: 'urban_form',
-    trackTitle: 'Skyline & Landscape',
-    dimensionLabel: 'ARCHITECTURE & NATURE',
-    prompt: 'Which visual backdrop makes a destination unforgettable for you?',
+    trackTitle: 'taste_calibration.questions.urban_form.track_title',
+    dimensionLabel: 'taste_calibration.questions.urban_form.dimension',
+    prompt: 'taste_calibration.questions.urban_form.prompt',
     options: [
       {
         id: 'A',
-        label: 'Bold modern & monumental architecture',
-        sublabel: 'Bridges, civic plazas, and iconic facades',
+        label: 'taste_calibration.questions.urban_form.opt_a_label',
+        sublabel: 'taste_calibration.questions.urban_form.opt_a_sublabel',
         deltas: { architecture: 0.32, art_culture: 0.1 },
       },
       {
         id: 'B',
-        label: 'Botanical gardens, trails & coastlines',
-        sublabel: 'Green escapes and natural terrain inside the city',
+        label: 'taste_calibration.questions.urban_form.opt_b_label',
+        sublabel: 'taste_calibration.questions.urban_form.opt_b_sublabel',
         deltas: { nature_outdoors: 0.34, scenic_views: 0.12 },
       },
       {
         id: 'C',
-        label: 'Elevated miradors & rooftop horizons',
-        sublabel: 'Panoramic viewpoints at golden hour',
+        label: 'taste_calibration.questions.urban_form.opt_c_label',
+        sublabel: 'taste_calibration.questions.urban_form.opt_c_sublabel',
         deltas: { scenic_views: 0.34, architecture: 0.08 },
       },
       {
         id: 'D',
-        label: 'Layered medieval & classical streetscapes',
-        sublabel: 'Preserved heritage districts and stone facades',
+        label: 'taste_calibration.questions.urban_form.opt_d_label',
+        sublabel: 'taste_calibration.questions.urban_form.opt_d_sublabel',
         deltas: { history_heritage: 0.22, architecture: 0.2 },
       },
     ],
   },
   {
     id: 'dining_style',
-    trackTitle: 'Culinary Philosophy',
-    dimensionLabel: 'FOOD & GASTRONOMY',
-    prompt: 'When it comes to eating on the road, what is your default move?',
+    trackTitle: 'taste_calibration.questions.dining_style.track_title',
+    dimensionLabel: 'taste_calibration.questions.dining_style.dimension',
+    prompt: 'taste_calibration.questions.dining_style.prompt',
     options: [
       {
         id: 'A',
-        label: 'Street stalls & neighborhood holes-in-the-wall',
-        sublabel: 'Authentic local staples at everyday prices',
+        label: 'taste_calibration.questions.dining_style.opt_a_label',
+        sublabel: 'taste_calibration.questions.dining_style.opt_a_sublabel',
         deltas: { food_culinary: 0.28, nightlife: 0.05 },
         budget_tier: 'budget',
       },
       {
         id: 'B',
-        label: 'Bistros, tapas bars & regional kitchens',
-        sublabel: 'Thoughtful local menus with great atmosphere',
+        label: 'taste_calibration.questions.dining_style.opt_b_label',
+        sublabel: 'taste_calibration.questions.dining_style.opt_b_sublabel',
         deltas: { food_culinary: 0.32, art_culture: 0.05 },
         budget_tier: 'balanced',
       },
       {
         id: 'C',
-        label: 'Destination tasting menus & wine pairings',
-        sublabel: 'Memorable fine dining as a centerpiece of the trip',
+        label: 'taste_calibration.questions.dining_style.opt_c_label',
+        sublabel: 'taste_calibration.questions.dining_style.opt_c_sublabel',
         deltas: { food_culinary: 0.35, nightlife: 0.08 },
         budget_tier: 'luxury',
       },
       {
         id: 'D',
-        label: 'Quick fuel between sights',
-        sublabel: 'Keep meals simple so more time goes to exploring',
+        label: 'taste_calibration.questions.dining_style.opt_d_label',
+        sublabel: 'taste_calibration.questions.dining_style.opt_d_sublabel',
         deltas: { food_culinary: -0.15, history_heritage: 0.08, nature_outdoors: 0.08 },
       },
     ],
   },
   {
     id: 'after_sunset',
-    trackTitle: 'After Sunset Energy',
-    dimensionLabel: 'NIGHTLIFE & EVENING',
-    prompt: 'It is 9:30 PM after dinner. How does your ideal evening continue?',
+    trackTitle: 'taste_calibration.questions.after_sunset.track_title',
+    dimensionLabel: 'taste_calibration.questions.after_sunset.dimension',
+    prompt: 'taste_calibration.questions.after_sunset.prompt',
     options: [
       {
         id: 'A',
-        label: 'Cocktail speakeasies, live jazz, or late bars',
-        sublabel: 'Social energy and curated late-night spots',
+        label: 'taste_calibration.questions.after_sunset.opt_a_label',
+        sublabel: 'taste_calibration.questions.after_sunset.opt_a_sublabel',
         deltas: { nightlife: 0.36, food_culinary: 0.06 },
         crowd_tolerance: 0.75,
       },
       {
         id: 'B',
-        label: 'An evening stroll to a lit-up viewpoint',
-        sublabel: 'Quiet city lights and night photography',
+        label: 'taste_calibration.questions.after_sunset.opt_b_label',
+        sublabel: 'taste_calibration.questions.after_sunset.opt_b_sublabel',
         deltas: { scenic_views: 0.24, architecture: 0.12, nightlife: -0.12 },
         crowd_tolerance: 0.3,
       },
       {
         id: 'C',
-        label: 'Night market or late-opening cultural venue',
-        sublabel: 'Evening browsing, galleries, or performances',
+        label: 'taste_calibration.questions.after_sunset.opt_c_label',
+        sublabel: 'taste_calibration.questions.after_sunset.opt_c_sublabel',
         deltas: { art_culture: 0.16, shopping: 0.14, nightlife: 0.1 },
         crowd_tolerance: 0.6,
       },
       {
         id: 'D',
-        label: 'Back to the hotel to recharge for tomorrow',
-        sublabel: 'Early nights for fresh early mornings',
+        label: 'taste_calibration.questions.after_sunset.opt_d_label',
+        sublabel: 'taste_calibration.questions.after_sunset.opt_d_sublabel',
         deltas: { nightlife: -0.28, nature_outdoors: 0.1 },
         crowd_tolerance: 0.25,
       },
@@ -230,67 +231,67 @@ export const CALIBRATION_QUESTIONS: CalibrationQuestion[] = [
   },
   {
     id: 'markets_craft',
-    trackTitle: 'Markets & Objects',
-    dimensionLabel: 'SHOPPING & ARTISANS',
-    prompt: 'How much space do markets, design shops, and local crafts get in your itinerary?',
+    trackTitle: 'taste_calibration.questions.markets_craft.track_title',
+    dimensionLabel: 'taste_calibration.questions.markets_craft.dimension',
+    prompt: 'taste_calibration.questions.markets_craft.prompt',
     options: [
       {
         id: 'A',
-        label: 'High priority — independent boutiques & vintage',
-        sublabel: 'Hunting for local design, ceramics, and rare finds',
+        label: 'taste_calibration.questions.markets_craft.opt_a_label',
+        sublabel: 'taste_calibration.questions.markets_craft.opt_a_sublabel',
         deltas: { shopping: 0.34, art_culture: 0.12 },
       },
       {
         id: 'B',
-        label: 'Food & artisan bazaars only',
-        sublabel: 'Open-air markets with regional crafts and snacks',
+        label: 'taste_calibration.questions.markets_craft.opt_b_label',
+        sublabel: 'taste_calibration.questions.markets_craft.opt_b_sublabel',
         deltas: { shopping: 0.22, food_culinary: 0.16 },
       },
       {
         id: 'C',
-        label: 'Occasional stop if we pass by',
-        sublabel: 'A quick browse without dedicating a whole block',
+        label: 'taste_calibration.questions.markets_craft.opt_c_label',
+        sublabel: 'taste_calibration.questions.markets_craft.opt_c_sublabel',
         deltas: { shopping: 0.05 },
       },
       {
         id: 'D',
-        label: 'Skip shopping altogether',
-        sublabel: 'Save every hour for sights, nature, and culture',
+        label: 'taste_calibration.questions.markets_craft.opt_d_label',
+        sublabel: 'taste_calibration.questions.markets_craft.opt_d_sublabel',
         deltas: { shopping: -0.26, nature_outdoors: 0.1, history_heritage: 0.1 },
       },
     ],
   },
   {
     id: 'budget_strategy',
-    trackTitle: 'Budget Strategy',
-    dimensionLabel: 'COST & COMFORT',
-    prompt: 'Which spending philosophy should Paladio optimize your routes around?',
+    trackTitle: 'taste_calibration.questions.budget_strategy.track_title',
+    dimensionLabel: 'taste_calibration.questions.budget_strategy.dimension',
+    prompt: 'taste_calibration.questions.budget_strategy.prompt',
     options: [
       {
         id: 'A',
-        label: 'Lean & resourceful',
-        sublabel: 'Free viewpoints, public transit, high-value local eats',
+        label: 'taste_calibration.questions.budget_strategy.opt_a_label',
+        sublabel: 'taste_calibration.questions.budget_strategy.opt_a_sublabel',
         deltas: { nature_outdoors: 0.1, scenic_views: 0.1 },
         budget_tier: 'budget',
       },
       {
         id: 'B',
-        label: 'Smart middle ground',
-        sublabel: 'Pay for standout museums and meals, save on filler',
+        label: 'taste_calibration.questions.budget_strategy.opt_b_label',
+        sublabel: 'taste_calibration.questions.budget_strategy.opt_b_sublabel',
         deltas: { art_culture: 0.08, food_culinary: 0.08 },
         budget_tier: 'balanced',
       },
       {
         id: 'C',
-        label: 'Comfort & curated experiences',
-        sublabel: 'Skip-the-line access, prime locations, zero friction',
+        label: 'taste_calibration.questions.budget_strategy.opt_c_label',
+        sublabel: 'taste_calibration.questions.budget_strategy.opt_c_sublabel',
         deltas: { food_culinary: 0.12, shopping: 0.1 },
         budget_tier: 'luxury',
       },
       {
         id: 'D',
-        label: 'Splurge on food & culture, frugal everywhere else',
-        sublabel: 'Save on transit and shopping to fund great tables and art',
+        label: 'taste_calibration.questions.budget_strategy.opt_d_label',
+        sublabel: 'taste_calibration.questions.budget_strategy.opt_d_sublabel',
         deltas: { food_culinary: 0.16, art_culture: 0.14, shopping: -0.1 },
         budget_tier: 'balanced',
       },
@@ -298,41 +299,57 @@ export const CALIBRATION_QUESTIONS: CalibrationQuestion[] = [
   },
   {
     id: 'crowd_discovery',
-    trackTitle: 'Crowd & Discovery',
-    dimensionLabel: 'ATMOSPHERE',
-    prompt: 'What is your tolerance for famous must-see landmarks versus off-beat detours?',
+    trackTitle: 'taste_calibration.questions.crowd_discovery.track_title',
+    dimensionLabel: 'taste_calibration.questions.crowd_discovery.dimension',
+    prompt: 'taste_calibration.questions.crowd_discovery.prompt',
     options: [
       {
         id: 'A',
-        label: 'Hit the iconic landmarks—crowds are worth it',
-        sublabel: 'Do not miss the headline monuments and major museums',
+        label: 'taste_calibration.questions.crowd_discovery.opt_a_label',
+        sublabel: 'taste_calibration.questions.crowd_discovery.opt_a_sublabel',
         deltas: { history_heritage: 0.18, art_culture: 0.16 },
         crowd_tolerance: 0.85,
       },
       {
         id: 'B',
-        label: 'Mix icons with quiet neighborhood detours',
-        sublabel: 'One major landmark, then slip into side streets',
+        label: 'taste_calibration.questions.crowd_discovery.opt_b_label',
+        sublabel: 'taste_calibration.questions.crowd_discovery.opt_b_sublabel',
         deltas: { architecture: 0.12, scenic_views: 0.12 },
         crowd_tolerance: 0.5,
       },
       {
         id: 'C',
-        label: 'Avoid crowds—seek hidden parks and quiet corners',
-        sublabel: 'Serene viewpoints, lesser-known galleries, calm trails',
+        label: 'taste_calibration.questions.crowd_discovery.opt_c_label',
+        sublabel: 'taste_calibration.questions.crowd_discovery.opt_c_sublabel',
         deltas: { nature_outdoors: 0.2, scenic_views: 0.16, nightlife: -0.1 },
         crowd_tolerance: 0.2,
       },
       {
         id: 'D',
-        label: 'Follow local buzz—lively plazas and social districts',
-        sublabel: 'Energy, street life, and vibrant evening quarters',
+        label: 'taste_calibration.questions.crowd_discovery.opt_d_label',
+        sublabel: 'taste_calibration.questions.crowd_discovery.opt_d_sublabel',
         deltas: { nightlife: 0.18, food_culinary: 0.14 },
         crowd_tolerance: 0.75,
       },
     ],
   },
 ];
+
+export function getCalibrationQuestions(
+  translateFn: (key: string) => string = (key) => translate(key)
+): CalibrationQuestion[] {
+  return CALIBRATION_QUESTIONS.map((q) => ({
+    ...q,
+    trackTitle: translateFn(q.trackTitle),
+    dimensionLabel: translateFn(q.dimensionLabel),
+    prompt: translateFn(q.prompt),
+    options: q.options.map((opt) => ({
+      ...opt,
+      label: translateFn(opt.label),
+      sublabel: translateFn(opt.sublabel),
+    })) as CalibrationQuestion['options'],
+  }));
+}
 
 function clampAffinity(val: number): number {
   return Math.round(Math.min(0.95, Math.max(0.1, val)) * 100) / 100;
@@ -398,7 +415,7 @@ export function computeCalibratedPreferences(
   const sortedTop = [...TASTE_TAG_KEYS]
     .sort((a, b) => normalizedAffinities[b] - normalizedAffinities[a])
     .slice(0, 3)
-    .map((k) => k.replace(/_/g, ' '));
+    .map((k) => translate(`taste_calibration.tag_${k}`));
 
   const crowdTolerance =
     crowdToleranceCount > 0
@@ -413,6 +430,10 @@ export function computeCalibratedPreferences(
     budget_tier: budgetTier,
     crowd_tolerance: crowdTolerance,
     tag_affinities: normalizedAffinities,
-    taste_bio: `Calibrated ${pace} traveler (${budgetTier} tier) gravitating toward ${sortedTop.join(', ')}.`,
+    taste_bio: translate('taste_calibration.taste_bio', {
+      pace: translate(`taste_calibration.pace_${pace}`),
+      budgetTier: translate(`taste_calibration.budget_${budgetTier}`),
+      topTags: sortedTop.join(', '),
+    }),
   };
 }

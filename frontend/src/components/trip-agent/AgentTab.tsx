@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { WorkspaceContextData } from './types/agent';
 import { useTripAgent } from './useTripAgent';
 import { ContextChip } from './ContextChip';
@@ -21,6 +22,7 @@ export interface AgentTabProps {
 }
 
 export function AgentTab({ tripId, uiContext, onTripUpdated, onInspectPoi }: AgentTabProps) {
+  const { t } = useTranslation();
   const [clearedContext, setClearedContext] = useState<WorkspaceContextData | null>(null);
   const activeContext = clearedContext === uiContext ? undefined : uiContext;
   const [llmInfo, setLlmInfo] = useState<{ provider: string; model: string } | null>(null);
@@ -61,11 +63,11 @@ export function AgentTab({ tripId, uiContext, onTripUpdated, onInspectPoi }: Age
         const provName = res.config.supported_providers?.[res.config.provider]?.name || res.config.provider;
         setLlmInfo({ provider: provName, model: res.config.model });
         setIsSwitcherOpen(false);
-        notify.success('Agent Engine Switched', `Active model: ${model} (${provName})`);
+        notify.success(t('trip_agent.engine_switched_title'), t('trip_agent.engine_switched_msg', { model, provider: provName }));
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to switch agent engine';
-      notify.error('Switch Failed', msg);
+      const msg = err instanceof Error ? err.message : t('trip_agent.switch_failed_msg');
+      notify.error(t('trip_agent.switch_failed_title'), msg);
     } finally {
       setSwitching(false);
     }
@@ -106,17 +108,17 @@ export function AgentTab({ tripId, uiContext, onTripUpdated, onInspectPoi }: Age
           </div>
 
           <div className={styles.agentHeading}>
-            <span className={styles.agentName}>Paladio Agent</span>
+            <span className={styles.agentName}>{t('trip_agent.paladio_agent')}</span>
             <span className={styles.connectionStatus}>
               {isConnected ? (
                 <span className={styles.statusOnline}>
                   <span className={styles.statusDot} />
-                  Connected
+                  {t('trip_agent.connected')}
                 </span>
               ) : (
                 <span className={styles.statusConnecting}>
                   <span className={styles.statusDotOrange} />
-                  Connecting...
+                  {t('trip_agent.connecting')}
                 </span>
               )}
             </span>
@@ -129,7 +131,7 @@ export function AgentTab({ tripId, uiContext, onTripUpdated, onInspectPoi }: Age
             type="button"
             onClick={() => setIsSwitcherOpen(true)}
             className={styles.enginePillBtn}
-            title="Switch AI model family"
+            title={t('trip_agent.switch_model_family')}
             data-testid="agent-model-selector-btn"
           >
             <span className={styles.engineModelText}>
@@ -145,8 +147,8 @@ export function AgentTab({ tripId, uiContext, onTripUpdated, onInspectPoi }: Age
             type="button"
             className={styles.iconActionBtn}
             onClick={clearHistory}
-            title="Clear Chat History"
-            aria-label="Clear Chat History"
+            title={t('trip_agent.clear_chat_history')}
+            aria-label={t('trip_agent.clear_chat_history')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="3 6 5 6 21 6" />

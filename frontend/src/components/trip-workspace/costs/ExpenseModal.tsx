@@ -13,6 +13,7 @@ import { getApiBaseUrl, getAuthToken } from '@/utils/api';
 import { CalendarIcon, CloseIcon } from '@/components/icons';
 import { PaladioSingleDatePicker } from '@/components/trip-creation/PaladioSingleDatePicker';
 import { CustomSelect } from '../wallet/parts/CustomSelect';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ExpenseModalProps {
   tripId?: string;
@@ -44,6 +45,8 @@ export function ExpenseModal({
   onClose,
   onSave,
 }: ExpenseModalProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const isMounted = useIsMounted();
 
   useEffect(() => {
@@ -127,7 +130,7 @@ export function ExpenseModal({
       });
       if (!res.ok) {
         const msg = await res.text();
-        throw new Error(msg || `Receipt scan failed (${res.status})`);
+        throw new Error(msg || t('costs.err_receipt_scan_status', { status: res.status }));
       }
       const data = (await res.json()) as {
         description?: string;
@@ -147,10 +150,10 @@ export function ExpenseModal({
       if (data.warnings && data.warnings.length > 0) {
         setScanNotice(data.warnings[0]);
       } else {
-        setScanNotice('Receipt scanned — verify fields before saving.');
+        setScanNotice(t('costs.receipt_scanned_notice'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to scan receipt.');
+      setError(err instanceof Error ? err.message : t('costs.err_receipt_scan_failed'));
     } finally {
       setIsScanning(false);
     }
@@ -168,11 +171,11 @@ export function ExpenseModal({
 
     const parsed = parseFloat(amount);
     if (!description.trim()) {
-      setError('Please provide an expense description.');
+      setError(t('costs.err_missing_description'));
       return;
     }
     if (isNaN(parsed) || parsed <= 0) {
-      setError('Please enter a valid positive amount.');
+      setError(t('costs.err_invalid_amount'));
       return;
     }
     const effectivePayerId = isSingleTraveler
@@ -180,7 +183,7 @@ export function ExpenseModal({
       : payerId;
 
     if (!effectivePayerId) {
-      setError('Please select who paid for this expense.');
+      setError(t('costs.err_missing_payer'));
       return;
     }
 
@@ -189,7 +192,7 @@ export function ExpenseModal({
       finalSplits = [{ participant_id: effectivePayerId, amount: parsed }];
     } else if (splitType === 'equal') {
       if (selectedParticipants.length === 0) {
-        setError('At least one traveler must be included in the split.');
+        setError(t('costs.err_empty_split'));
         return;
       }
       const splitAmount = parsed / selectedParticipants.length;
@@ -209,7 +212,10 @@ export function ExpenseModal({
 
       if (Math.abs(sum - parsed) > 0.05) {
         setError(
-          `Custom split total (${curInfo.symbol}${sum.toFixed(2)}) must match the expense amount (${curInfo.symbol}${parsed.toFixed(2)}).`
+          t('costs.err_custom_split_mismatch', {
+            splitTotal: `${curInfo.symbol}${sum.toFixed(2)}`,
+            expenseAmount: `${curInfo.symbol}${parsed.toFixed(2)}`,
+          })
         );
         return;
       }
@@ -230,10 +236,10 @@ export function ExpenseModal({
       if (ok) {
         onClose();
       } else {
-        setError('Failed to record expense. Please try again.');
+        setError(t('costs.err_record_expense_failed'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setError(err instanceof Error ? err.message : t('costs.err_unexpected'));
     } finally {
       setIsSubmitting(false);
     }
@@ -290,14 +296,14 @@ export function ExpenseModal({
             <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, fontFamily: 'var(--font-display, "Jost", sans-serif)', color: 'var(--color-text-main)' }}>
               {isSingleTraveler
                 ? prefill
-                  ? 'Edit Expense'
-                  : 'Add Trip Expense'
+                  ? t('costs.edit_expense')
+                  : t('costs.add_trip_expense')
                 : prefill
-                ? 'Assign / Edit Expense'
-                : 'Add Trip Expense'}
+                ? t('costs.assign_edit_expense')
+                : t('costs.add_trip_expense')}
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-              {isSingleTraveler ? 'Log your trip expense' : 'Log shared costs and update balances'}
+              {isSingleTraveler ? t('costs.log_solo_subtitle') : t('costs.log_shared_subtitle')}
             </p>
           </div>
           <button
@@ -354,7 +360,7 @@ export function ExpenseModal({
                 }}
               >
                 <div style={{ fontSize: '0.76rem', color: 'var(--color-text-muted)' }}>
-                  {scanNotice || 'Auto-fill from a receipt photo or PDF'}
+                  {scanNotice || t('costs.receipt_autofill_hint')}
                 </div>
                 <input
                   ref={receiptInputRef}
@@ -383,7 +389,7 @@ export function ExpenseModal({
                     flexShrink: 0,
                   }}
                 >
-                  {isScanning ? 'Scanning…' : 'Scan Receipt'}
+                  {isScanning ? t('costs.scanning_receipt') : t('costs.scan_receipt')}
                 </button>
               </div>
             )}
@@ -391,12 +397,12 @@ export function ExpenseModal({
             {/* Description */}
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
-                Description
+                {t('costs.description_label')}
               </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. 4x4 hire, ten days"
+                placeholder={t('costs.description_placeholder')}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 style={{
@@ -417,17 +423,17 @@ export function ExpenseModal({
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)' }}>
-                    Amount
+                    {t('costs.amount_label')}
                   </label>
                   <span style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono, monospace)' }}>
-                    Payment currency
+                    {t('costs.payment_currency')}
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <button
                     type="button"
                     onClick={() => setIsCurrencyPickerOpen(true)}
-                    title="Change payment currency"
+                    title={t('costs.change_payment_currency')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -505,10 +511,10 @@ export function ExpenseModal({
                     <span>≈</span>
                     <span>
                       {defaultCurInfo.symbol}
-                      {convertedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {convertedAmount.toLocaleString(intlLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                     <span style={{ color: 'var(--color-text-muted)' }}>
-                      in default currency ({resolvedDefaultCurrency})
+                      {t('costs.in_default_currency', { currency: resolvedDefaultCurrency })}
                     </span>
                   </div>
                 )}
@@ -516,12 +522,12 @@ export function ExpenseModal({
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
-                  Date
+                  {t('common.date')}
                 </label>
                 <button
                   type="button"
                   onClick={() => setIsDatePickerOpen(true)}
-                  aria-label="Select expense date"
+                  aria-label={t('costs.select_expense_date')}
                   aria-expanded={isDatePickerOpen}
                   style={{
                     width: '100%',
@@ -542,12 +548,12 @@ export function ExpenseModal({
                   <CalendarIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
                     {expenseDate
-                      ? new Date(`${expenseDate}T12:00:00`).toLocaleDateString('en-US', {
+                      ? new Date(`${expenseDate}T12:00:00`).toLocaleDateString(intlLocale, {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric',
                         })
-                      : 'Select date'}
+                      : t('costs.select_date')}
                   </span>
                 </button>
               </div>
@@ -557,13 +563,13 @@ export function ExpenseModal({
             <div style={{ display: 'grid', gridTemplateColumns: isSingleTraveler ? '1fr' : '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
-                  Category
+                  {t('workspace.category')}
                 </label>
                 <CustomSelect
                   value={category}
                   onChange={(val) => setCategory(val as CostCategoryKey)}
-                  label="Category"
-                  options={COST_CATEGORY_LIST.map((c) => ({ value: c.key, label: c.label }))}
+                  label={t('workspace.category')}
+                  options={COST_CATEGORY_LIST.map((c) => ({ value: c.key, label: t(c.labelKey) }))}
                   style={{ fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                   buttonStyle={{
                     padding: '10px 12px',
@@ -578,12 +584,12 @@ export function ExpenseModal({
               {!isSingleTraveler && (
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
-                    Paid By
+                    {t('costs.paid_by_label')}
                   </label>
                   <CustomSelect
                     value={payerId}
                     onChange={setPayerId}
-                    label="Paid By"
+                    label={t('costs.paid_by_label')}
                     options={participants.map((p) => ({ value: p.id, label: p.name }))}
                     style={{ fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                     buttonStyle={{
@@ -602,7 +608,7 @@ export function ExpenseModal({
             {!isSingleTraveler && (
               <div style={{ borderTop: '1px solid var(--color-border-subtle)', paddingTop: '14px' }}>
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '8px' }}>
-                Split Method
+                {t('costs.split_method')}
               </label>
 
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
@@ -621,7 +627,7 @@ export function ExpenseModal({
                     cursor: 'pointer',
                   }}
                 >
-                  Split Equally
+                  {t('costs.split_equally')}
                 </button>
                 <button
                   type="button"
@@ -638,14 +644,14 @@ export function ExpenseModal({
                     cursor: 'pointer',
                   }}
                 >
-                  Custom Amounts
+                  {t('costs.custom_amounts')}
                 </button>
               </div>
 
               {splitType === 'equal' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                    Select participants to share cost:
+                    {t('costs.select_participants_share')}
                   </span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {participants.map((p) => {
@@ -754,7 +760,7 @@ export function ExpenseModal({
                 cursor: 'pointer',
               }}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -770,7 +776,7 @@ export function ExpenseModal({
                 cursor: 'pointer',
               }}
             >
-              {isSubmitting ? 'Saving...' : 'Save Expense'}
+              {isSubmitting ? t('costs.saving') : t('costs.save_expense')}
             </button>
           </div>
         </form>
@@ -808,7 +814,7 @@ export function ExpenseModal({
           }}
         >
           <PaladioSingleDatePicker
-            title="EXPENSE DATE"
+            title={t('costs.expense_date_title')}
             selectedDate={expenseDate}
             onChange={(d) => {
               if (d) setExpenseDate(d);

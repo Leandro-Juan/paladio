@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
+import { useTranslation } from '@/hooks/useTranslation';
 import { CloseIcon, PinIcon, SearchIcon, CheckIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
 
@@ -17,9 +18,9 @@ export interface PoiLocationPickerModalProps {
   onConfirm: (loc: { lat: number; lng: number; address?: string; suggestedName?: string }) => void;
 }
 
-const PoiMapPickerInner = dynamic(() => import('./PoiMapPickerInner'), {
-  ssr: false,
-  loading: () => (
+function PoiMapPickerLoadingFallback() {
+  const { t } = useTranslation();
+  return (
     <div
       style={{
         width: '100%',
@@ -34,9 +35,14 @@ const PoiMapPickerInner = dynamic(() => import('./PoiMapPickerInner'), {
         color: 'var(--color-text-muted)',
       }}
     >
-      INITIALIZING MAP...
+      {t('poi_picker.initializing_map')}
     </div>
-  ),
+  );
+}
+
+const PoiMapPickerInner = dynamic(() => import('./PoiMapPickerInner'), {
+  ssr: false,
+  loading: () => <PoiMapPickerLoadingFallback />,
 });
 
 interface PlaceSearchResult {
@@ -59,6 +65,7 @@ export function PoiLocationPickerModal({
   initialAddress = '',
   onConfirm,
 }: PoiLocationPickerModalProps) {
+  const { t } = useTranslation();
   const hasValidInitial =
     typeof initialLat === 'number' && !isNaN(initialLat) && typeof initialLng === 'number' && !isNaN(initialLng);
 
@@ -159,7 +166,11 @@ export function PoiLocationPickerModal({
 
       if (active) {
         setIsLocating(false);
-        setLocationError(`Could not automatically center map on "${fullQuery || 'destination'}". Use the street search above.`);
+        setLocationError(
+          fullQuery
+            ? t('poi_picker.center_error', { target: fullQuery })
+            : t('poi_picker.center_error_no_target')
+        );
       }
     };
 
@@ -167,7 +178,7 @@ export function PoiLocationPickerModal({
     return () => {
       active = false;
     };
-  }, [isOpen, hasValidInitial, city, country]);
+  }, [isOpen, hasValidInitial, city, country, t]);
 
   // Dismiss search dropdown on outside click
   useEffect(() => {
@@ -244,7 +255,7 @@ export function PoiLocationPickerModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Pick Place Location on Map"
+      aria-label={t('poi_picker.dialog_aria')}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -305,10 +316,10 @@ export function PoiLocationPickerModal({
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                Locate on Map
+                {t('poi_picker.title')}
               </h3>
               <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                Search a street, address, or landmark in {city || 'destination'}, or click on the map to drop a pin
+                {city ? t('poi_picker.subtitle', { city }) : t('poi_picker.subtitle_no_city')}
               </p>
             </div>
           </div>
@@ -316,7 +327,7 @@ export function PoiLocationPickerModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close map picker"
+            aria-label={t('poi_picker.close_aria')}
             style={{
               background: 'transparent',
               border: 'none',
@@ -348,7 +359,7 @@ export function PoiLocationPickerModal({
             <input
               type="text"
               data-testid="poi-map-street-search-input"
-              placeholder={`Search street, square, or place in ${city || 'city'}...`}
+              placeholder={city ? t('poi_picker.search_placeholder', { city }) : t('poi_picker.search_placeholder_no_city')}
               value={searchQuery}
               onChange={(e) => {
                 const val = e.target.value;
@@ -366,7 +377,7 @@ export function PoiLocationPickerModal({
             />
             {isSearching && (
               <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
-                Searching...
+                {t('poi_picker.searching')}
               </span>
             )}
           </div>
@@ -434,7 +445,7 @@ export function PoiLocationPickerModal({
                 color: 'var(--color-text-muted)',
               }}
             >
-              RESOLVING CITY COORDINATES...
+              {t('poi_picker.resolving_coords')}
             </div>
           ) : center ? (
             <PoiMapPickerInner
@@ -459,7 +470,7 @@ export function PoiLocationPickerModal({
                 color: 'var(--color-text-muted)',
               }}
             >
-              {locationError || 'Search a street or place above to position the map.'}
+              {locationError || t('poi_picker.search_hint')}
             </div>
           )}
         </div>
@@ -481,7 +492,7 @@ export function PoiLocationPickerModal({
             {pinPos ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  {isReverseLoading ? 'Resolving street address...' : resolvedAddress || 'Pinned Location'}
+                  {isReverseLoading ? t('poi_picker.resolving_address') : resolvedAddress || t('poi_picker.pinned_location')}
                 </span>
                 <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
                   {pinPos[0].toFixed(6)}, {pinPos[1].toFixed(6)}
@@ -489,7 +500,7 @@ export function PoiLocationPickerModal({
               </div>
             ) : (
               <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                Click anywhere on the map or select a search result to pin the place.
+                {t('poi_picker.click_to_pin_hint')}
               </span>
             )}
           </div>
@@ -509,7 +520,7 @@ export function PoiLocationPickerModal({
                 cursor: 'pointer',
               }}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -540,7 +551,7 @@ export function PoiLocationPickerModal({
               }}
             >
               <CheckIcon size={14} color="#FFFFFF" />
-              Use This Location
+              {t('poi_picker.use_this_location')}
             </button>
           </div>
         </div>

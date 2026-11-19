@@ -13,6 +13,7 @@ export type CostCategoryKey =
 export interface CostCategoryMeta {
   key: CostCategoryKey;
   label: string;
+  labelKey: string;
   color: string;
   bgLight: string;
   borderColor: string;
@@ -24,6 +25,7 @@ export const COST_CATEGORIES: Record<CostCategoryKey, CostCategoryMeta> = {
   transport: {
     key: 'transport',
     label: 'Transport',
+    labelKey: 'costs.categories.transport',
     color: '#0891B2', // Matches poiCategory transit
     bgLight: 'rgba(8, 145, 178, 0.08)',
     borderColor: 'rgba(8, 145, 178, 0.25)',
@@ -49,6 +51,7 @@ export const COST_CATEGORIES: Record<CostCategoryKey, CostCategoryMeta> = {
   flights: {
     key: 'flights',
     label: 'Flights',
+    labelKey: 'costs.categories.flights',
     color: '#0F4C5C', // Pacific Jazz Deep Teal
     bgLight: 'rgba(15, 76, 92, 0.08)',
     borderColor: 'rgba(15, 76, 92, 0.25)',
@@ -71,6 +74,7 @@ export const COST_CATEGORIES: Record<CostCategoryKey, CostCategoryMeta> = {
   accommodation: {
     key: 'accommodation',
     label: 'Accommodation',
+    labelKey: 'costs.categories.accommodation',
     color: '#14788D', // Pacific Jazz Mid Teal
     bgLight: 'rgba(20, 120, 141, 0.08)',
     borderColor: 'rgba(20, 120, 141, 0.25)',
@@ -97,6 +101,7 @@ export const COST_CATEGORIES: Record<CostCategoryKey, CostCategoryMeta> = {
   food: {
     key: 'food',
     label: 'Food & Drink',
+    labelKey: 'costs.categories.food',
     color: '#D97706', // Paladio Warm Amber
     bgLight: 'rgba(217, 119, 6, 0.08)',
     borderColor: 'rgba(217, 119, 6, 0.25)',
@@ -122,6 +127,7 @@ export const COST_CATEGORIES: Record<CostCategoryKey, CostCategoryMeta> = {
   groceries: {
     key: 'groceries',
     label: 'Groceries',
+    labelKey: 'costs.categories.groceries',
     color: '#166534', // Matches poiCategory park / green
     bgLight: 'rgba(22, 101, 52, 0.08)',
     borderColor: 'rgba(22, 101, 52, 0.25)',
@@ -146,6 +152,7 @@ export const COST_CATEGORIES: Record<CostCategoryKey, CostCategoryMeta> = {
   activities: {
     key: 'activities',
     label: 'Activities',
+    labelKey: 'costs.categories.activities',
     color: '#E2B33C', // Pacific Jazz Mustard Gold
     bgLight: 'rgba(226, 179, 60, 0.08)',
     borderColor: 'rgba(226, 179, 60, 0.25)',
@@ -172,6 +179,7 @@ export const COST_CATEGORIES: Record<CostCategoryKey, CostCategoryMeta> = {
   sightseeing: {
     key: 'sightseeing',
     label: 'Sightseeing',
+    labelKey: 'costs.categories.sightseeing',
     color: '#7C3AED', // Matches poiCategory landmark
     bgLight: 'rgba(124, 58, 237, 0.08)',
     borderColor: 'rgba(124, 58, 237, 0.25)',
@@ -195,6 +203,7 @@ export const COST_CATEGORIES: Record<CostCategoryKey, CostCategoryMeta> = {
   other: {
     key: 'other',
     label: 'Other',
+    labelKey: 'costs.categories.other',
     color: '#64748B', // Paladio Neutral Slate
     bgLight: 'rgba(100, 116, 139, 0.08)',
     borderColor: 'rgba(100, 116, 139, 0.25)',

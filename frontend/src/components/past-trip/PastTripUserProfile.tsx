@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { TripParticipant } from '@/hooks/useTrips';
 
 interface PastTripUserProfileProps {
@@ -16,12 +17,13 @@ export function PastTripUserProfile({
   totalWaypoints,
   totalDays,
 }: PastTripUserProfileProps) {
+  const { t } = useTranslation();
   const displayName =
-    primaryParticipant?.name || currentUsername || 'Expedition Lead';
+    primaryParticipant?.name || currentUsername || t('vault.expedition_lead');
   const roleLabel =
     primaryParticipant?.role === 'organizer'
-      ? 'Mission Commander'
-      : 'Sovereign Explorer';
+      ? t('vault.mission_commander')
+      : t('vault.sovereign_explorer');
 
   const initial = displayName.charAt(0).toUpperCase();
 
@@ -157,7 +159,7 @@ export function PastTripUserProfile({
               letterSpacing: '0.02em',
             }}
           >
-            {totalDays === 1 ? 'Day' : 'Days'}
+            {totalDays === 1 ? t('vault.day_singular') : t('vault.day_plural')}
           </span>
         </div>
 
@@ -205,7 +207,7 @@ export function PastTripUserProfile({
               letterSpacing: '0.02em',
             }}
           >
-            Waypoints
+            {t('dashboard.waypoints')}
           </span>
         </div>
       </div>

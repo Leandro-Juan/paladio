@@ -42,7 +42,7 @@ export function UpcomingTripsSection({ upcomingTrips, loading, onDeleteTrip }: U
         <div className={styles.titleArea}>
           <h2 className={styles.title}>{t('dashboard.upcoming_trips')}</h2>
           <span className={styles.countBadge}>
-            {loading ? t('common.loading') : `${upcomingTrips.length} SCHEDULED`}
+            {loading ? t('common.loading') : t('dashboard.scheduled_count', { count: upcomingTrips.length })}
           </span>
         </div>
       </div>
@@ -87,10 +87,10 @@ export function UpcomingTripsSection({ upcomingTrips, loading, onDeleteTrip }: U
       {/* Abort Trip Modal */}
       <Modal
         isOpen={tripToDelete !== null}
-        title="ABORT MISSION?"
-        message="Are you sure you want to delete this itinerary? This action cannot be undone and the route data will be permanently purged from the system."
-        confirmText="CONFIRM ABORT"
-        cancelText="CANCEL"
+        title={t('dashboard.abort_mission')}
+        message={t('dashboard.abort_mission_message')}
+        confirmText={t('dashboard.confirm_abort')}
+        cancelText={t('dashboard.cancel_upper')}
         isDanger={true}
         onConfirm={async () => {
           if (tripToDelete && onDeleteTrip) {

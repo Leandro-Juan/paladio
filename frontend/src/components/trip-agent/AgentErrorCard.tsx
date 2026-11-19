@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { AgentErrorInfo } from './types/agent';
 import styles from './AgentErrorCard.module.css';
 
@@ -11,6 +12,7 @@ interface AgentErrorCardProps {
 }
 
 export function AgentErrorCard({ error, onSwitchModel, onRetry }: AgentErrorCardProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -99,12 +101,12 @@ export function AgentErrorCard({ error, onSwitchModel, onRetry }: AgentErrorCard
         </div>
 
         <div className={styles.titleArea}>
-          <h4 className={styles.title}>{error.title}</h4>
+          <h4 className={styles.title}>{t(error.title)}</h4>
 
           <div className={styles.badgeStrip}>
             {error.statusCode && (
               <span className={`${styles.badge} ${styles.statusBadge}`}>
-                HTTP {error.statusCode}
+                {t('trip_agent.http_status', { code: error.statusCode })}
               </span>
             )}
             {error.modelName && (
@@ -121,7 +123,7 @@ export function AgentErrorCard({ error, onSwitchModel, onRetry }: AgentErrorCard
         </div>
       </div>
 
-      <p className={styles.description}>{error.description}</p>
+      <p className={styles.description}>{t(error.description)}</p>
 
       {error.suggestedFix && (
         <div className={styles.suggestedFixBox}>
@@ -141,7 +143,7 @@ export function AgentErrorCard({ error, onSwitchModel, onRetry }: AgentErrorCard
             <line x1="12" y1="16" x2="12" y2="12" />
             <line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
-          <span>{error.suggestedFix}</span>
+          <span>{t(error.suggestedFix)}</span>
         </div>
       )}
 
@@ -166,7 +168,7 @@ export function AgentErrorCard({ error, onSwitchModel, onRetry }: AgentErrorCard
               <line x1="1" y1="9" x2="4" y2="9" />
               <line x1="1" y1="14" x2="4" y2="14" />
             </svg>
-            Switch Engine
+            {t('trip_agent.switch_engine')}
           </button>
         )}
 
@@ -181,7 +183,7 @@ export function AgentErrorCard({ error, onSwitchModel, onRetry }: AgentErrorCard
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
-            Retry
+            {t('common.retry')}
           </button>
         )}
       </div>
@@ -189,20 +191,20 @@ export function AgentErrorCard({ error, onSwitchModel, onRetry }: AgentErrorCard
       {/* Collapsible raw diagnostics */}
       {error.rawMessage && (
         <details className={styles.detailsWrapper}>
-          <summary className={styles.summary}>Technical Diagnostics</summary>
+          <summary className={styles.summary}>{t('trip_agent.technical_diagnostics')}</summary>
           <div className={styles.diagnosticBlock}>
             <button
               type="button"
               className={styles.copyBtn}
               onClick={handleCopy}
-              title="Copy diagnostics to clipboard"
+              title={t('trip_agent.copy_diagnostics_title')}
             >
               {copied ? (
                 <>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" strokeWidth="2.5">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  <span>Copied</span>
+                  <span>{t('trip_agent.copied')}</span>
                 </>
               ) : (
                 <>
@@ -210,7 +212,7 @@ export function AgentErrorCard({ error, onSwitchModel, onRetry }: AgentErrorCard
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
-                  <span>Copy</span>
+                  <span>{t('common.copy')}</span>
                 </>
               )}
             </button>

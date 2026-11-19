@@ -2,6 +2,7 @@
 
 import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Trip } from '@/hooks/useTrips';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { RecommendedPoiCard } from './RecommendedPoiCard';
@@ -51,6 +52,7 @@ function calculateTasteMatch(poi: Record<string, unknown>, userSeed: string): nu
 const DISMISSED_POIS_STORAGE_KEY = 'paladio_dismissed_poi_keys';
 
 export function RecommendedPoisSection({ trips, upcomingTrips, loading }: RecommendedPoisSectionProps) {
+  const { t } = useTranslation();
   const [enrichedDescriptions, setEnrichedDescriptions] = useState<Record<string, string>>({});
   const [dismissedPoiKeys, setDismissedPoiKeys] = useState<Set<string>>(() => {
     if (typeof window !== 'undefined') {
@@ -239,7 +241,7 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
       if (seenNames.has(normName)) return;
       seenNames.add(normName);
 
-      const city = p.city || tripDestination || targetCity || 'Destination';
+      const city = p.city || tripDestination || targetCity || t('dashboard.destination_fallback');
       const matchPct = calculateTasteMatch(p as unknown as Record<string, unknown>, tripId || 'paladio');
       const rawLat = p.lat ?? p.latitude ?? p.location?.latitude ?? p.location?.lat;
       const rawLng = p.lng ?? p.longitude ?? p.location?.longitude ?? p.location?.lng;
@@ -318,7 +320,7 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
 
     // Sort descending by taste match score across all unvisited, non-itinerary candidate waypoints
     return candidates.sort((a, b) => b.tasteMatchPct - a.tasteMatchPct);
-  }, [trips, upcomingTrips, visitedOrInItineraryKeys, dynamicCityPois, targetCity, targetTripId]);
+  }, [trips, upcomingTrips, visitedOrInItineraryKeys, dynamicCityPois, targetCity, targetTripId, t]);
 
   // Hook for batch photo retrieval on top candidate pool with expanded pre-fetch depth
   const candidatePool = useMemo(() => candidatePois.slice(0, 60), [candidatePois]);
@@ -403,12 +405,12 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
     const hasUpcomingTrips = upcomingTrips.length > 0;
 
     return (
-      <section className={styles.container} aria-label="Top taste-matched destination recommendations">
+      <section className={styles.container} aria-label={t('dashboard.recommended_pois_aria')}>
         <div className={styles.headerRow}>
           <div className={styles.sectionTitleBlock}>
-            <h3 className={styles.sectionTitle}>Recommended POIs</h3>
+            <h3 className={styles.sectionTitle}>{t('dashboard.recommended_pois_title')}</h3>
           </div>
-          <span className={styles.standbyPill}>STANDBY</span>
+          <span className={styles.standbyPill}>{t('dashboard.standby_pill')}</span>
         </div>
 
         <div className={styles.standbyCard}>
@@ -442,24 +444,24 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
           <div className={styles.standbyContent}>
             <span className={styles.standbyTag}>
               {hasDismissals
-                ? '// TASTE ENGINE TELEMETRY'
+                ? t('dashboard.taste_engine_telemetry_tag')
                 : hasUpcomingTrips
-                ? '// DESTINATION SCAN'
-                : '// OPERATIONAL STANDBY'}
+                ? t('dashboard.destination_scan_tag')
+                : t('dashboard.operational_standby_tag')}
             </span>
             <h4 className={styles.standbyTitle}>
               {hasDismissals
-                ? 'All Queued Recommendations Reviewed'
+                ? t('dashboard.all_recommendations_reviewed')
                 : hasUpcomingTrips
-                ? 'No Verified Photography in Corridor'
-                : 'No Upcoming Missions Queued'}
+                ? t('dashboard.no_verified_photography')
+                : t('dashboard.no_upcoming_missions_queued')}
             </h4>
             <p className={styles.standbyDesc}>
               {hasDismissals
-                ? 'You have reviewed all available recommendations for your missions. You can reset dismissed waypoints to explore them again.'
+                ? t('dashboard.all_recommendations_reviewed_desc')
                 : hasUpcomingTrips
-                ? 'Waypoints in this destination corridor are awaiting verified visual telemetry. Add places in your trip workspace or explore new destinations.'
-                : 'Initialize your next expedition protocol to generate sovereign, taste-matched waypoint recommendations with authentic photography.'}
+                ? t('dashboard.no_verified_photography_desc')
+                : t('dashboard.no_upcoming_missions_queued_desc')}
             </p>
             <div className={styles.standbyActionsRow}>
               {hasDismissals && (
@@ -468,7 +470,7 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
                   onClick={handleResetDismissed}
                   className={styles.standbySecondaryBtn}
                 >
-                  Reset Recommendations
+                  {t('dashboard.reset_recommendations')}
                 </button>
               )}
               <Link href="/engine" className={styles.standbyPrimaryBtn}>
@@ -484,7 +486,7 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                <span>Initialize Mission</span>
+                <span>{t('dashboard.initialize_mission')}</span>
               </Link>
             </div>
           </div>
@@ -494,10 +496,10 @@ export function RecommendedPoisSection({ trips, upcomingTrips, loading }: Recomm
   }
 
   return (
-    <section className={styles.container} aria-label="Top taste-matched destination recommendations">
+    <section className={styles.container} aria-label={t('dashboard.recommended_pois_aria')}>
       <div className={styles.headerRow}>
         <div className={styles.sectionTitleBlock}>
-          <h3 className={styles.sectionTitle}>Recommended POIs</h3>
+          <h3 className={styles.sectionTitle}>{t('dashboard.recommended_pois_title')}</h3>
         </div>
       </div>
 

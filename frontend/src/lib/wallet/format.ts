@@ -3,7 +3,18 @@
  * Defect #2 fix: Never display raw ISO strings like "DEP: 2026-10-18T10:00:00".
  */
 
-export function formatTicketDateTime(isoString?: string | null, timeZone?: string | null): string {
+import { translate, useLocaleStore } from '@/stores/localeStore';
+
+function resolveWalletIntlLocale(localeOverride?: string): string {
+  const active = localeOverride || useLocaleStore.getState().currentLocale || 'en';
+  return active === 'en' ? 'en-GB' : active;
+}
+
+export function formatTicketDateTime(
+  isoString?: string | null,
+  timeZone?: string | null,
+  localeOverride?: string
+): string {
   if (!isoString) return '--:--';
   try {
     const d = new Date(isoString);
@@ -19,14 +30,20 @@ export function formatTicketDateTime(isoString?: string | null, timeZone?: strin
       ...(timeZone ? { timeZone } : {}),
     };
 
-    const formatted = new Intl.DateTimeFormat('en-GB', options).format(d).toUpperCase();
+    const formatted = new Intl.DateTimeFormat(resolveWalletIntlLocale(localeOverride), options)
+      .format(d)
+      .toUpperCase();
     return formatted.replace(',', ' ·');
   } catch {
     return isoString.replace('T', ' ').substring(0, 16);
   }
 }
 
-export function formatTicketDate(isoString?: string | null, timeZone?: string | null): string {
+export function formatTicketDate(
+  isoString?: string | null,
+  timeZone?: string | null,
+  localeOverride?: string
+): string {
   if (!isoString) return '--';
   try {
     const d = new Date(isoString);
@@ -40,13 +57,19 @@ export function formatTicketDate(isoString?: string | null, timeZone?: string | 
       ...(timeZone ? { timeZone } : {}),
     };
 
-    return new Intl.DateTimeFormat('en-GB', options).format(d).toUpperCase();
+    return new Intl.DateTimeFormat(resolveWalletIntlLocale(localeOverride), options)
+      .format(d)
+      .toUpperCase();
   } catch {
     return isoString.substring(0, 10);
   }
 }
 
-export function formatTicketTime(isoString?: string | null, timeZone?: string | null): string {
+export function formatTicketTime(
+  isoString?: string | null,
+  timeZone?: string | null,
+  localeOverride?: string
+): string {
   if (!isoString) return '--:--';
   try {
     const d = new Date(isoString);
@@ -59,14 +82,14 @@ export function formatTicketTime(isoString?: string | null, timeZone?: string | 
       ...(timeZone ? { timeZone } : {}),
     };
 
-    return new Intl.DateTimeFormat('en-GB', options).format(d);
+    return new Intl.DateTimeFormat(resolveWalletIntlLocale(localeOverride), options).format(d);
   } catch {
     if (isoString.includes('T')) return isoString.split('T')[1].substring(0, 5);
     return isoString.substring(0, 5);
   }
 }
 
-export function formatRelativeSlot(isoString?: string | null): string | null {
+export function formatRelativeSlot(isoString?: string | null, localeOverride?: string): string | null {
   if (!isoString) return null;
   try {
     const target = new Date(isoString);
@@ -75,13 +98,13 @@ export function formatRelativeSlot(isoString?: string | null): string | null {
     const diffHrs = Math.round(diffMs / (1000 * 60 * 60));
 
     if (diffHrs > 0 && diffHrs <= 24) {
-      return `in ${diffHrs}h`;
+      return translate('wallet.slot_in_hours', { hours: diffHrs }, localeOverride);
     }
     if (diffHrs > 24 && diffHrs <= 48) {
-      return 'tomorrow';
+      return translate('wallet.slot_tomorrow', undefined, localeOverride);
     }
     if (diffHrs < 0 && diffHrs >= -24) {
-      return 'today (earlier)';
+      return translate('wallet.slot_today_earlier', undefined, localeOverride);
     }
     return null;
   } catch {
@@ -96,7 +119,8 @@ export function calculateDuration(
   start?: string | null,
   end?: string | null,
   startTz?: string | null,
-  endTz?: string | null
+  endTz?: string | null,
+  localeOverride?: string
 ): string | null {
   if (!start || !end) return null;
   // If timezones are not specified or naive, return null rather than wrong duration
@@ -112,9 +136,9 @@ export function calculateDuration(
 
     const h = Math.floor(diffMins / 60);
     const m = diffMins % 60;
-    if (h === 0) return `${m}m`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
+    if (h === 0) return translate('wallet.duration_minutes', { minutes: m }, localeOverride);
+    if (m === 0) return translate('wallet.duration_hours', { hours: h }, localeOverride);
+    return translate('wallet.duration_hours_minutes', { hours: h, minutes: m }, localeOverride);
   } catch {
     return null;
   }

@@ -9,6 +9,7 @@ import { CustomSelect } from '../parts/CustomSelect';
 import { AlertTriangleIcon, CalendarIcon, ClockIcon, CloseIcon } from '@/components/icons';
 import { PaladioSingleDatePicker } from '@/components/trip-creation/PaladioSingleDatePicker';
 import { CustomHourPickerModal } from '@/components/trip-creation/CustomHourPickerModal';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface TicketFormModalProps {
   isOpen: boolean;
@@ -62,6 +63,8 @@ function TicketFormDialog({
   initialTicket?: TripTicket | null;
   defaultType?: TicketType;
 }) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const isEditing = Boolean(initialTicket);
   const meta = initialTicket?.metadata || {};
 
@@ -105,10 +108,10 @@ function TicketFormDialog({
   const getDatePart = (dt: string) => (dt && dt.includes('T') ? dt.split('T')[0] : dt ? dt.slice(0, 10) : '');
   const getTimePart = (dt: string) => (dt && dt.includes('T') ? dt.split('T')[1].slice(0, 5) : '');
   const formatShortDate = (dateStr: string) => {
-    if (!dateStr) return 'Select date';
+    if (!dateStr) return t('wallet.select_date');
     const [y, m, d] = dateStr.split('-').map((n) => parseInt(n, 10));
     if (!y || !m || !d) return dateStr;
-    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    return new Date(y, m - 1, d).toLocaleDateString(intlLocale, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -125,7 +128,7 @@ function TicketFormDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setErrorMsg('Ticket title is required.');
+      setErrorMsg(t('wallet.err_title_required'));
       return;
     }
 
@@ -174,7 +177,7 @@ function TicketFormDialog({
       await onSubmit(payload);
       onClose();
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to save ticket');
+      setErrorMsg(err instanceof Error ? err.message : t('wallet.err_save_ticket'));
     } finally {
       setIsSubmitting(false);
     }
@@ -182,20 +185,20 @@ function TicketFormDialog({
 
   const statusOptions = (Object.keys(STATUS_BADGE_CONFIG) as TicketStatus[]).map((st) => ({
     value: st,
-    label: STATUS_BADGE_CONFIG[st].label,
+    label: t(STATUS_BADGE_CONFIG[st].labelKey),
   }));
 
   const barcodeFormatOptions = [
-    { value: 'qr' as const, label: 'QR Code' },
-    { value: 'aztec' as const, label: 'Aztec' },
-    { value: 'pdf417' as const, label: 'PDF417' },
-    { value: 'code128' as const, label: 'Code 128' },
-    { value: 'datamatrix' as const, label: 'Data Matrix' },
+    { value: 'qr' as const, label: t('wallet.barcode_qr') },
+    { value: 'aztec' as const, label: t('wallet.barcode_aztec') },
+    { value: 'pdf417' as const, label: t('wallet.barcode_pdf417') },
+    { value: 'code128' as const, label: t('wallet.barcode_code128') },
+    { value: 'datamatrix' as const, label: t('wallet.barcode_datamatrix') },
   ];
 
   const visibilityOptions = [
-    { value: 'trip' as const, label: 'Shared with Trip Members' },
-    { value: 'private' as const, label: 'Private (Visible only to you)' },
+    { value: 'trip' as const, label: t('wallet.visibility_trip') },
+    { value: 'private' as const, label: t('wallet.visibility_private') },
   ];
 
   const inputStyle: React.CSSProperties = {
@@ -264,16 +267,16 @@ function TicketFormDialog({
         >
           <div>
             <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-text-primary)' }}>
-              {isEditing ? 'EDIT TICKET CREDENTIAL' : 'ADD TICKET TO WALLET'}
+              {isEditing ? t('wallet.edit_ticket_title') : t('wallet.add_ticket_title')}
             </h3>
             <p className="font-mono text-muted text-xs" style={{ margin: '3px 0 0 0', color: 'var(--color-text-muted)' }}>
-              {'VERIFIED WALLET PASS SPECIFICATION'}
+              {t('wallet.ticket_form_subtitle')}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close modal"
+            aria-label={t('wallet.close_modal_aria')}
             style={{
               background: 'transparent',
               border: '1px solid var(--color-border-subtle)',
@@ -324,7 +327,7 @@ function TicketFormDialog({
 
           {/* Ticket Type Selector */}
           <div>
-            <label style={labelStyle}>TICKET TYPE</label>
+            <label style={labelStyle}>{t('wallet.field_ticket_type')}</label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
               {(Object.keys(TICKET_TYPE_CONFIG) as TicketType[]).map((type) => {
                 const conf = TICKET_TYPE_CONFIG[type];
@@ -351,7 +354,7 @@ function TicketFormDialog({
                     }}
                   >
                     <span>{conf.renderIcon({ size: 16, color: isSelected ? conf.accentColor : 'var(--color-text-muted)' })}</span>
-                    <span style={{ fontSize: '10px' }}>{conf.label}</span>
+                    <span style={{ fontSize: '10px' }}>{t(conf.labelKey)}</span>
                   </button>
                 );
               })}
@@ -361,7 +364,7 @@ function TicketFormDialog({
           {/* Title & Status */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
             <div>
-              <label style={labelStyle}>TITLE *</label>
+              <label style={labelStyle}>{t('wallet.field_title_required')}</label>
               <input
                 type="text"
                 required
@@ -369,24 +372,24 @@ function TicketFormDialog({
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={
                   ticketType === 'flight'
-                    ? 'e.g. Madrid → Seville Flight'
+                    ? t('wallet.placeholder_title_flight')
                     : ticketType === 'hotel'
-                    ? 'e.g. Hotel Alfonso XIII'
+                    ? t('wallet.placeholder_title_hotel')
                     : ticketType === 'attraction'
-                    ? 'e.g. Prado Museum General Pass'
-                    : 'Ticket Title'
+                    ? t('wallet.placeholder_title_attraction')
+                    : t('wallet.placeholder_title_default')
                 }
                 style={inputStyle}
               />
             </div>
 
             <div>
-              <label style={labelStyle}>STATUS</label>
+              <label style={labelStyle}>{t('wallet.field_status')}</label>
               <CustomSelect<TicketStatus>
                 value={status}
                 onChange={(newSt) => setStatus(newSt)}
                 options={statusOptions}
-                label="Ticket Status"
+                label={t('wallet.ticket_status_aria')}
               />
             </div>
           </div>
@@ -394,34 +397,34 @@ function TicketFormDialog({
           {/* Provider, Booking Reference & Holder Name */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
             <div>
-              <label style={labelStyle}>PROVIDER / CARRIER</label>
+              <label style={labelStyle}>{t('wallet.field_provider_carrier')}</label>
               <input
                 type="text"
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
-                placeholder="e.g. Airline, Rail, or Transit Operator"
+                placeholder={t('wallet.placeholder_provider')}
                 style={inputStyle}
               />
             </div>
 
             <div>
-              <label style={labelStyle}>BOOKING REF / PNR</label>
+              <label style={labelStyle}>{t('wallet.field_booking_ref_pnr')}</label>
               <input
                 type="text"
                 value={bookingRef}
                 onChange={(e) => setBookingRef(e.target.value.toUpperCase())}
-                placeholder="e.g. ABC123XYZ"
+                placeholder={t('wallet.placeholder_pnr')}
                 style={inputStyle}
               />
             </div>
 
             <div>
-              <label style={labelStyle}>HOLDER NAME</label>
+              <label style={labelStyle}>{t('wallet.field_holder_name')}</label>
               <input
                 type="text"
                 value={holderName}
                 onChange={(e) => setHolderName(e.target.value)}
-                placeholder="e.g. John Doe"
+                placeholder={t('wallet.placeholder_holder_name')}
                 style={inputStyle}
               />
             </div>
@@ -442,7 +445,7 @@ function TicketFormDialog({
             >
               <div>
                 <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-teal)', marginBottom: '2px', fontWeight: 600 }}>
-                  ORIGIN (IATA)
+                  {t('wallet.field_origin_iata')}
                 </label>
                 <input
                   type="text"
@@ -456,7 +459,7 @@ function TicketFormDialog({
 
               <div>
                 <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-teal)', marginBottom: '2px', fontWeight: 600 }}>
-                  DEST (IATA)
+                  {t('wallet.field_dest_iata')}
                 </label>
                 <input
                   type="text"
@@ -470,7 +473,7 @@ function TicketFormDialog({
 
               <div>
                 <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-teal)', marginBottom: '2px', fontWeight: 600 }}>
-                  FLIGHT #
+                  {t('wallet.field_flight_num')}
                 </label>
                 <input
                   type="text"
@@ -483,7 +486,7 @@ function TicketFormDialog({
 
               <div>
                 <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-teal)', marginBottom: '2px', fontWeight: 600 }}>
-                  TERMINAL
+                  {t('wallet.terminal_label')}
                 </label>
                 <input
                   type="text"
@@ -496,7 +499,7 @@ function TicketFormDialog({
 
               <div>
                 <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-teal)', marginBottom: '2px', fontWeight: 600 }}>
-                  GATE
+                  {t('wallet.gate')}
                 </label>
                 <input
                   type="text"
@@ -524,7 +527,7 @@ function TicketFormDialog({
             >
               <div>
                 <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-gold)', marginBottom: '2px', fontWeight: 700 }}>
-                  DOOR ACCESS CODE / PIN
+                  {t('wallet.field_door_access_code')}
                 </label>
                 <input
                   type="text"
@@ -537,7 +540,7 @@ function TicketFormDialog({
 
               <div>
                 <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-gold)', marginBottom: '2px', fontWeight: 600 }}>
-                  WIFI SSID
+                  {t('wallet.field_wifi_ssid')}
                 </label>
                 <input
                   type="text"
@@ -550,7 +553,7 @@ function TicketFormDialog({
 
               <div>
                 <label style={{ display: 'block', fontSize: '10px', color: 'var(--color-accent-gold)', marginBottom: '2px', fontWeight: 600 }}>
-                  WIFI PASSWORD
+                  {t('wallet.field_wifi_password')}
                 </label>
                 <input
                   type="text"
@@ -569,7 +572,7 @@ function TicketFormDialog({
               [
                 {
                   key: 'start' as const,
-                  label: 'START / DEPARTURE / CHECK-IN',
+                  label: t('wallet.field_start_departure_checkin'),
                   value: startTime,
                   setter: setStartTime,
                   tz: departureTz,
@@ -577,7 +580,7 @@ function TicketFormDialog({
                 },
                 {
                   key: 'end' as const,
-                  label: 'END / ARRIVAL / CHECK-OUT',
+                  label: t('wallet.field_end_arrival_checkout'),
                   value: endTime,
                   setter: setEndTime,
                   tz: arrivalTz,
@@ -595,7 +598,7 @@ function TicketFormDialog({
                       <button
                         type="button"
                         onClick={() => field.setter('')}
-                        aria-label={`Clear ${field.key} date and time`}
+                        aria-label={field.key === 'start' ? t('wallet.clear_start_datetime_aria') : t('wallet.clear_end_datetime_aria')}
                         style={{
                           background: 'transparent',
                           border: 'none',
@@ -605,7 +608,7 @@ function TicketFormDialog({
                           padding: '0 2px',
                         }}
                       >
-                        Clear
+                        {t('common.clear')}
                       </button>
                     )}
                   </div>
@@ -613,7 +616,7 @@ function TicketFormDialog({
                     <button
                       type="button"
                       onClick={() => setActiveDateField(field.key)}
-                      aria-label={`Select ${field.key} date`}
+                      aria-label={field.key === 'start' ? t('wallet.select_start_date_aria') : t('wallet.select_end_date_aria')}
                       style={{
                         ...inputStyle,
                         display: 'flex',
@@ -632,7 +635,7 @@ function TicketFormDialog({
                     <button
                       type="button"
                       onClick={() => setActiveTimeField(field.key)}
-                      aria-label={`Select ${field.key} time`}
+                      aria-label={field.key === 'start' ? t('wallet.select_start_time_aria') : t('wallet.select_end_time_aria')}
                       style={{
                         ...inputStyle,
                         width: 'auto',
@@ -653,7 +656,7 @@ function TicketFormDialog({
                     type="text"
                     value={field.tz}
                     onChange={(e) => field.setTz(e.target.value)}
-                    placeholder="Timezone (e.g. Europe/Madrid)"
+                    placeholder={t('wallet.placeholder_timezone')}
                     style={{ ...inputStyle, marginTop: '4px', padding: '4px 8px', fontSize: '10px' }}
                   />
                 </div>
@@ -664,23 +667,23 @@ function TicketFormDialog({
           {/* Seat/Room & Venue */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px' }}>
             <div>
-              <label style={labelStyle}>{ticketType === 'hotel' ? 'ROOM #' : 'SEAT / COACH'}</label>
+              <label style={labelStyle}>{ticketType === 'hotel' ? t('wallet.field_room_num') : t('wallet.field_seat_coach')}</label>
               <input
                 type="text"
                 value={seatOrRoom}
                 onChange={(e) => setSeatOrRoom(e.target.value)}
-                placeholder="e.g. 14A, Room 302"
+                placeholder={t('wallet.placeholder_seat_room')}
                 style={inputStyle}
               />
             </div>
 
             <div>
-              <label style={labelStyle}>LOCATION / VENUE / ADDRESS</label>
+              <label style={labelStyle}>{t('wallet.field_location_venue_address')}</label>
               <input
                 type="text"
                 value={locationOrVenue}
                 onChange={(e) => setLocationOrVenue(e.target.value)}
-                placeholder="e.g. Calle San Fernando 2, Sevilla"
+                placeholder={t('wallet.placeholder_address')}
                 style={inputStyle}
               />
             </div>
@@ -689,23 +692,23 @@ function TicketFormDialog({
           {/* Barcode Payload & Custom Format Select */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
             <div>
-              <label style={labelStyle}>BARCODE / QR PAYLOAD (ENCRYPTED AT REST)</label>
+              <label style={labelStyle}>{t('wallet.field_barcode_payload')}</label>
               <input
                 type="text"
                 value={barcodeValue}
                 onChange={(e) => setBarcodeValue(e.target.value)}
-                placeholder="Paste ticket barcode or QR string..."
+                placeholder={t('wallet.placeholder_barcode')}
                 style={inputStyle}
               />
             </div>
 
             <div>
-              <label style={labelStyle}>FORMAT</label>
+              <label style={labelStyle}>{t('wallet.field_format')}</label>
               <CustomSelect<'qr' | 'aztec' | 'pdf417' | 'code128' | 'datamatrix'>
                 value={barcodeFormat}
                 onChange={(newFmt) => setBarcodeFormat(newFmt)}
                 options={barcodeFormatOptions}
-                label="Barcode format"
+                label={t('wallet.barcode_format_aria')}
               />
             </div>
           </div>
@@ -713,7 +716,7 @@ function TicketFormDialog({
           {/* Price & Currency */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
-              <label style={labelStyle}>PRICE (PAID)</label>
+              <label style={labelStyle}>{t('wallet.field_price_paid')}</label>
               <input
                 type="number"
                 step="0.01"
@@ -725,7 +728,7 @@ function TicketFormDialog({
             </div>
 
             <div>
-              <label style={labelStyle}>CURRENCY</label>
+              <label style={labelStyle}>{t('wallet.field_currency')}</label>
               <input
                 type="text"
                 maxLength={3}
@@ -739,24 +742,24 @@ function TicketFormDialog({
 
           {/* Notes */}
           <div>
-            <label style={labelStyle}>NOTES & SPECIAL INSTRUCTIONS</label>
+            <label style={labelStyle}>{t('wallet.field_notes')}</label>
             <textarea
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Present ID upon entry, non-refundable"
+              placeholder={t('wallet.placeholder_notes')}
               style={{ ...inputStyle, resize: 'vertical' }}
             />
           </div>
 
           {/* Visibility Custom Select */}
           <div>
-            <label style={labelStyle}>VISIBILITY</label>
+            <label style={labelStyle}>{t('wallet.field_visibility')}</label>
             <CustomSelect<'trip' | 'private'>
               value={visibility}
               onChange={(newVis) => setVisibility(newVis)}
               options={visibilityOptions}
-              label="Visibility"
+              label={t('wallet.visibility_aria')}
             />
           </div>
 
@@ -785,7 +788,7 @@ function TicketFormDialog({
                 cursor: 'pointer',
               }}
             >
-              CANCEL
+              {t('wallet.cancel_upper')}
             </button>
             <button
               type="submit"
@@ -802,7 +805,7 @@ function TicketFormDialog({
                 boxShadow: 'var(--shadow-sm)',
               }}
             >
-              {isSubmitting ? 'SAVING PASS…' : isEditing ? 'UPDATE PASS' : 'ADD PASS'}
+              {isSubmitting ? t('wallet.saving_pass') : isEditing ? t('wallet.update_pass') : t('wallet.add_pass')}
             </button>
           </div>
         </form>
@@ -826,7 +829,7 @@ function TicketFormDialog({
           }}
         >
           <PaladioSingleDatePicker
-            title={activeDateField === 'start' ? 'START / DEPARTURE DATE' : 'END / ARRIVAL DATE'}
+            title={activeDateField === 'start' ? t('wallet.start_departure_date') : t('wallet.end_arrival_date')}
             selectedDate={getDatePart(activeDateField === 'start' ? startTime : endTime)}
             onChange={(d) => {
               const current = activeDateField === 'start' ? startTime : endTime;
@@ -859,7 +862,7 @@ function TicketFormDialog({
           const existingDate = getDatePart(current) || getTodayLocalDate();
           setter(`${existingDate}T${newHHmm}`);
         }}
-        anchorLabel={activeTimeField === 'start' ? 'Start Time' : 'End Time'}
+        anchorLabel={activeTimeField === 'start' ? t('wallet.start_time_label') : t('wallet.end_time_label')}
         zIndex={10050}
       />
     </div>

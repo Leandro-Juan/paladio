@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useTripCollections, CollectionPoiSummary } from '@/hooks/useTripCollections';
 import { notify } from '@/utils/notify';
 
@@ -24,12 +25,12 @@ interface SaveToCollectionMenuProps {
 }
 
 const PALADIO_COLORS = [
-  { hex: '#0F4C5C', label: 'Pacific Teal' },
-  { hex: '#E36414', label: 'Warm Amber' },
-  { hex: '#2A9D8F', label: 'Sage Teal' },
-  { hex: '#6366F1', label: 'Indigo' },
-  { hex: '#E11D48', label: 'Crimson Rose' },
-  { hex: '#F59E0B', label: 'Gold' },
+  { hex: '#0F4C5C', labelKey: 'collections.color_pacific_teal' },
+  { hex: '#E36414', labelKey: 'collections.color_warm_amber' },
+  { hex: '#2A9D8F', labelKey: 'collections.color_sage_teal' },
+  { hex: '#6366F1', labelKey: 'collections.color_indigo' },
+  { hex: '#E11D48', labelKey: 'collections.color_crimson_rose' },
+  { hex: '#F59E0B', labelKey: 'collections.color_gold' },
 ];
 
 export function SaveToCollectionMenu({
@@ -40,6 +41,7 @@ export function SaveToCollectionMenu({
   align = 'right',
   anchorRect,
 }: SaveToCollectionMenuProps) {
+  const { t } = useTranslation();
   const {
     collections,
     loading,
@@ -94,12 +96,12 @@ export function SaveToCollectionMenu({
       };
       const isSaved = await togglePoiInCollection(collectionId, poi.id, summary);
       if (isSaved) {
-        notify.success('Saved to Collection', `"${poi.name}" saved to "${colName}"`);
+        notify.success(t('collections.saved_toast_title'), t('collections.saved_toast_desc', { name: poi.name, collection: colName }));
       } else {
-        notify.info('Removed from Collection', `"${poi.name}" removed from "${colName}"`);
+        notify.info(t('collections.removed_toast_title'), t('collections.removed_toast_desc', { name: poi.name, collection: colName }));
       }
     } catch {
-      notify.error('Action Failed', 'Could not update collection.');
+      notify.error(t('collections.action_failed_title'), t('collections.could_not_update'));
     } finally {
       setTogglingColId(null);
     }
@@ -111,7 +113,7 @@ export function SaveToCollectionMenu({
     if (!trimmed || isCreating) return;
 
     if (collections.some((c) => c.name.trim().toLowerCase() === trimmed.toLowerCase())) {
-      notify.warning('Duplicate Collection Name', `A collection named "${trimmed}" already exists.`);
+      notify.warning(t('collections.duplicate_name_title'), t('collections.duplicate_name_desc', { name: trimmed }));
       return;
     }
 
@@ -131,13 +133,13 @@ export function SaveToCollectionMenu({
           rating: poi.rating,
         };
         await togglePoiInCollection(created.id, poi.id, summary);
-        notify.success('Collection Created', `Created "${created.name}" and saved "${poi.name}"`);
+        notify.success(t('collections.created_toast_title'), t('collections.created_saved_desc', { collection: created.name, name: poi.name }));
         setNewCollectionName('');
         setShowCreateInput(false);
       }
     } catch (err: any) {
-      const msg = err?.data?.detail || err?.message || 'Could not create new collection.';
-      notify.warning('Collection Warning', msg);
+      const msg = err?.data?.detail || err?.message || t('collections.could_not_create');
+      notify.warning(t('collections.warning_title'), msg);
     } finally {
       setIsCreating(false);
     }
@@ -218,7 +220,7 @@ export function SaveToCollectionMenu({
               fontWeight: 700,
             }}
           >
-            Collections
+            {t('collections.title')}
           </div>
           <div
             style={{
@@ -237,7 +239,7 @@ export function SaveToCollectionMenu({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t('common.close')}
           style={{
             background: 'transparent',
             border: 'none',
@@ -270,7 +272,7 @@ export function SaveToCollectionMenu({
       >
         {loading && collections.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--color-text-muted)', fontSize: '12px' }}>
-            Loading collections...
+            {t('collections.loading')}
           </div>
         ) : collections.length === 0 ? (
           <div
@@ -283,7 +285,7 @@ export function SaveToCollectionMenu({
               borderRadius: '10px',
             }}
           >
-            No collections yet. Create your first one below!
+            {t('collections.empty_menu')}
           </div>
         ) : (
           collections.map((col) => {
@@ -335,7 +337,9 @@ export function SaveToCollectionMenu({
                       {col.name}
                     </div>
                     <div style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
-                      {col.items_count} {col.items_count === 1 ? 'place' : 'places'}
+                      {col.items_count === 1
+                        ? t('collections.places_singular', { count: col.items_count })
+                        : t('collections.places_plural', { count: col.items_count })}
                     </div>
                   </div>
                 </div>
@@ -346,8 +350,16 @@ export function SaveToCollectionMenu({
                   data-testid={`menu-toggle-btn-${col.id}`}
                   onClick={() => handleToggle(col.id, col.name)}
                   disabled={isToggling}
-                  title={isSavedInCol ? `Remove from ${col.name}` : `Add to ${col.name}`}
-                  aria-label={isSavedInCol ? `Remove from ${col.name}` : `Add to ${col.name}`}
+                  title={
+                    isSavedInCol
+                      ? t('collections.remove_from_collection', { name: col.name })
+                      : t('collections.add_to_collection', { name: col.name })
+                  }
+                  aria-label={
+                    isSavedInCol
+                      ? t('collections.remove_from_collection', { name: col.name })
+                      : t('collections.add_to_collection', { name: col.name })
+                  }
                   style={{
                     width: '26px',
                     height: '26px',
@@ -430,7 +442,7 @@ export function SaveToCollectionMenu({
               gap: '6px',
             }}
           >
-            <span>+ Create New Collection</span>
+            <span>{t('collections.create_new_btn')}</span>
           </button>
         ) : (
           <form
@@ -443,7 +455,7 @@ export function SaveToCollectionMenu({
                 data-testid="menu-new-collection-name-input"
                 value={newCollectionName}
                 onChange={(e) => setNewCollectionName(e.target.value)}
-                placeholder="Collection name..."
+                placeholder={t('collections.name_placeholder')}
                 maxLength={50}
                 autoFocus
                 style={{
@@ -472,7 +484,7 @@ export function SaveToCollectionMenu({
                   opacity: !newCollectionName.trim() || isCreating ? 0.6 : 1,
                 }}
               >
-                {isCreating ? '...' : '+ Add'}
+                {isCreating ? '...' : t('collections.add_btn')}
               </button>
               <button
                 type="button"
@@ -493,13 +505,13 @@ export function SaveToCollectionMenu({
 
             {/* Color Swatches */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>Color:</span>
+              <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{t('collections.color_label')}</span>
               <div style={{ display: 'flex', gap: '5px' }}>
                 {PALADIO_COLORS.map((c) => (
                   <button
                     key={c.hex}
                     type="button"
-                    title={c.label}
+                    title={t(c.labelKey)}
                     onClick={() => setSelectedColor(c.hex)}
                     style={{
                       width: '16px',

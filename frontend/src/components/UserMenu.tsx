@@ -51,6 +51,11 @@ export function UserMenu({ isCollapsed = false, dockMode = false, placement = 't
   if (!user) return null;
 
   const isAdmin = user.role === 'admin';
+  const roleBadge = isAdmin
+    ? t('nav.admin_badge')
+    : user.role === 'user'
+    ? t('nav.user_role_upper')
+    : user.role.toUpperCase();
   const initial = (user.username || 'U').charAt(0).toUpperCase();
   const avatarUrl = (user.preferences?.avatar_url || user.preferences?.pfp) as string | undefined;
 
@@ -75,8 +80,8 @@ export function UserMenu({ isCollapsed = false, dockMode = false, placement = 't
       {isCollapsed || dockMode ? (
         <button
           onClick={() => setIsOpen(!isOpen)}
-          title={`${user.username} (${user.role.toUpperCase()})`}
-          aria-label="User menu"
+          title={`${user.username} (${roleBadge})`}
+          aria-label={t('nav.user_menu')}
           aria-expanded={isOpen}
           style={{
             background: isOpen ? 'rgba(255, 255, 255, 0.22)' : 'transparent',
@@ -120,7 +125,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false, placement = 't
       ) : (
         <button
           onClick={() => setIsOpen(!isOpen)}
-          aria-label="User menu"
+          aria-label={t('nav.user_menu')}
           aria-expanded={isOpen}
           style={{
             width: '100%',
@@ -198,7 +203,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false, placement = 't
                     flexShrink: 0,
                   }}
                 >
-                  ADMIN
+                  {t('nav.admin_badge')}
                 </span>
               )}
             </div>
@@ -229,7 +234,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false, placement = 't
       {isOpen && (
         <div
           role="menu"
-          aria-label="User navigation"
+          aria-label={t('nav.user_navigation')}
           style={{
             position: 'absolute',
             top: placement === 'bottom' ? 'calc(100% + 8px)' : 'auto',
@@ -303,7 +308,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false, placement = 't
                       flexShrink: 0,
                     }}
                   >
-                    ADMIN
+                    {t('nav.admin_badge')}
                   </span>
                 )}
               </div>
@@ -317,7 +322,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false, placement = 't
                   textOverflow: 'ellipsis',
                 }}
               >
-                {user.email || 'No email configured'}
+                {user.email || t('nav.no_email_configured')}
               </div>
             </div>
           </div>
@@ -392,7 +397,7 @@ export function UserMenu({ isCollapsed = false, dockMode = false, placement = 't
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
               </svg>
-              <span>Help</span>
+              <span>{t('nav.help')}</span>
             </button>
 
             {/* Log out */}

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { RadarIcon, CloseIcon } from '@/components/icons';
 import type { SpatialCircleFilter } from './TripMapView';
 
@@ -27,6 +28,7 @@ export function SpatialFilterCard({
   onToggleDropWaypoint,
   onClearSpatialCircle,
 }: SpatialFilterCardProps) {
+  const { t } = useTranslation();
   if (!spatialCircle && !isDroppingWaypoint) {
     return null;
   }
@@ -57,10 +59,10 @@ export function SpatialFilterCard({
                 color: 'var(--color-accent-primary, #0F4C5C)',
               }}
             >
-              Drop Waypoint Mode Active
+              {t('workspace.drop_waypoint_active')}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-              Click anywhere on the map to place radius center
+              {t('workspace.drop_waypoint_hint')}
             </div>
           </div>
         </div>
@@ -79,7 +81,7 @@ export function SpatialFilterCard({
               cursor: 'pointer',
             }}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
         )}
       </div>
@@ -125,7 +127,7 @@ export function SpatialFilterCard({
               textTransform: 'uppercase',
             }}
           >
-            Waypoint Area Filter
+            {t('workspace.waypoint_area_filter')}
           </span>
           <span
             style={{
@@ -164,10 +166,10 @@ export function SpatialFilterCard({
               cursor: 'pointer',
               transition: 'color 0.15s ease',
             }}
-            title="Clear waypoint area filter"
+            title={t('workspace.clear_waypoint_filter')}
           >
             <CloseIcon size={11} />
-            <span>Clear</span>
+            <span>{t('common.clear')}</span>
           </button>
         )}
       </div>
@@ -184,10 +186,10 @@ export function SpatialFilterCard({
         }}
       >
         <span>
-          Center: {spatialCircle.lat.toFixed(4)}, {spatialCircle.lng.toFixed(4)}
+          {t('workspace.center_coords', { lat: spatialCircle.lat.toFixed(4), lng: spatialCircle.lng.toFixed(4) })}
         </span>
         <span style={{ fontSize: '10px', fontStyle: 'italic', fontFamily: 'inherit' }}>
-          Drag handle on map to resize
+          {t('workspace.drag_handle_resize')}
         </span>
       </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { apiFetch, triggerGtfsCompileApi } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { BookmarkIcon, CompassIcon, ChevronLeftIcon, ChevronRightIcon, RadarIcon } from '@/components/icons';
@@ -142,6 +143,7 @@ export function TripTransitTab({
   onToggleDropWaypoint,
   onClearSpatialCircle,
 }: TripTransitTabProps) {
+  const { t } = useTranslation();
   const [subView, setSubView] = useState<TransitSubView>(() => (spatialCircle ? 'nearby' : 'directions'));
 
   // Switch to nearby subview when spatial circle filter is activated
@@ -406,13 +408,16 @@ export function TripTransitTab({
       const res = await triggerGtfsCompileApi(destinationCity);
       if (res?.status === 'unavailable') {
         setTransitStatus('UNAVAILABLE');
-        notify.info('Transit Unavailable', res.message || `No GTFS schedule exists for ${destinationCity}.`);
+        notify.info(
+          t('transit.unavailable_title'),
+          res.message || t('transit.no_gtfs_for_city', { city: destinationCity })
+        );
         return;
       }
       await fetchAvailability();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to start transit download';
-      notify.error('Download failed', msg);
+      const msg = err instanceof Error ? err.message : t('transit.download_start_failed');
+      notify.error(t('transit.download_failed_title'), msg);
       setTransitStatus('FAILED');
     } finally {
       setIsDownloading(false);
@@ -484,7 +489,7 @@ export function TripTransitTab({
 
   // Drill-in Station Subview (Within tab)
   if (drillStationId && stationDetail) {
-    const sName = (stationDetail.name as string) || 'Station';
+    const sName = (stationDetail.name as string) || t('transit.station_fallback');
     const sOrigName = stationDetail.original_name as string | null;
     const sLines = (stationDetail.serving_lines as Array<Record<string, unknown>>) || [];
     const sWheelchair = stationDetail.wheelchair_boarding as number | null;
@@ -512,7 +517,7 @@ export function TripTransitTab({
             cursor: 'pointer',
           }}
         >
-          <ChevronLeftIcon size={12} /> Back to {subView === 'nearby' ? 'Nearby' : 'Lines'}
+          <ChevronLeftIcon size={12} /> {subView === 'nearby' ? t('transit.back_to_nearby') : t('transit.back_to_lines')}
         </button>
 
         {/* Station Header */}
@@ -538,7 +543,7 @@ export function TripTransitTab({
               color: isStationSaved ? '#F59E0B' : 'var(--color-text-muted)',
               cursor: 'pointer',
             }}
-            title={isStationSaved ? 'Saved' : 'Save Station'}
+            title={isStationSaved ? t('transit.saved_title') : t('transit.save_station_title')}
           >
             <BookmarkIcon size={14} fill={isStationSaved ? '#F59E0B' : 'none'} />
           </button>
@@ -557,7 +562,7 @@ export function TripTransitTab({
               fontWeight: 700,
             }}
           >
-            ♿ Wheelchair Accessible
+            {t('transit.wheelchair_accessible')}
           </div>
         )}
 
@@ -565,7 +570,7 @@ export function TripTransitTab({
         {sLines.length > 0 && (
           <div>
             <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
-              Serving Lines
+              {t('transit.serving_lines')}
             </div>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {sLines.map((sl, idx) => {
@@ -587,7 +592,7 @@ export function TripTransitTab({
                       fontSize: '11px',
                       fontWeight: 700,
                     }}
-                    title={headsign ? `Towards ${headsign}` : undefined}
+                    title={headsign ? t('transit.towards_space', { headsign }) : undefined}
                   >
                     <span>{sNameShort}</span>
                     {headsign && <span style={{ opacity: 0.85, fontWeight: 500, fontSize: '10px' }}>→ {headsign}</span>}
@@ -602,7 +607,9 @@ export function TripTransitTab({
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '4px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-              Scheduled Departures ({selectedDay === 'all' ? 'All Days' : `Day ${selectedDay}`})
+              {selectedDay === 'all'
+                ? t('transit.scheduled_departures_all_days')
+                : t('transit.scheduled_departures_day', { day: selectedDay })}
             </div>
             <div style={{ display: 'flex', gap: '3px' }}>
               {[
@@ -636,7 +643,7 @@ export function TripTransitTab({
             </div>
           </div>
           {isLoadingDrill ? (
-            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Loading scheduled departures...</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{t('transit.loading_departures')}</div>
           ) : departures.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {departures.map((dep, idx) => (
@@ -667,7 +674,7 @@ export function TripTransitTab({
                       {dep.line_short_name}
                     </span>
                     <span style={{ color: 'var(--color-text-primary)' }}>
-                      {dep.headsign ? `Towards ${dep.headsign}` : dep.mode}
+                      {dep.headsign ? t('transit.towards_space', { headsign: dep.headsign }) : dep.mode}
                     </span>
                   </div>
                   <span style={{ fontFamily: 'var(--font-code, monospace)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
@@ -678,7 +685,9 @@ export function TripTransitTab({
             </div>
           ) : (
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-              No further scheduled departures for {selectedDay === 'all' ? 'all days' : `Day ${selectedDay}`}.
+              {selectedDay === 'all'
+                ? t('transit.no_departures_all_days')
+                : t('transit.no_departures_day', { day: selectedDay })}
             </div>
           )}
         </div>
@@ -701,7 +710,7 @@ export function TripTransitTab({
             color: '#D97706',
           }}
         >
-          ⚠️ Schedule feed covered {coveredRange.start} to {coveredRange.end}. Typical service headways shown.
+          {t('transit.schedule_expired_notice', { start: coveredRange.start, end: coveredRange.end })}
         </div>
       )}
 
@@ -709,14 +718,20 @@ export function TripTransitTab({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
           <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-            Transit & Directions
+            {t('transit.tab_title')}
           </div>
           {onToggleDropWaypoint && (
             <button
               type="button"
               onClick={onToggleDropWaypoint}
-              title={spatialCircle ? 'Adjust Waypoint Radius Filter' : isDroppingWaypoint ? 'Cancel Waypoint Placement' : 'Drop Waypoint on Map'}
-              aria-label="Area Filter"
+              title={
+                spatialCircle
+                  ? t('transit.adjust_radius_title')
+                  : isDroppingWaypoint
+                  ? t('transit.cancel_waypoint_title')
+                  : t('transit.drop_waypoint_title')
+              }
+              aria-label={t('transit.area_filter_label')}
               data-testid="transit-toggle-waypoint-btn"
               style={{
                 display: 'inline-flex',
@@ -745,7 +760,7 @@ export function TripTransitTab({
               }}
             >
               <RadarIcon size={13} color={isDroppingWaypoint ? '#FFFFFF' : 'var(--color-accent-primary, #0F4C5C)'} />
-              <span>{spatialCircle ? 'Area Filter' : isDroppingWaypoint ? 'Click Map' : 'Area Filter'}</span>
+              <span>{spatialCircle ? t('transit.area_filter_label') : isDroppingWaypoint ? t('transit.click_map_btn') : t('transit.area_filter_label')}</span>
             </button>
           )}
         </div>
@@ -794,7 +809,7 @@ export function TripTransitTab({
             cursor: 'pointer',
           }}
         >
-          Directions
+          {t('transit.subview_directions')}
         </button>
         <button
           type="button"
@@ -821,7 +836,7 @@ export function TripTransitTab({
             cursor: 'pointer',
           }}
         >
-          Lines
+          {t('transit.subview_lines')}
         </button>
         <button
           type="button"
@@ -848,7 +863,7 @@ export function TripTransitTab({
             cursor: 'pointer',
           }}
         >
-          Nearby
+          {t('transit.subview_nearby')}
         </button>
       </div>
 
@@ -874,7 +889,7 @@ export function TripTransitTab({
                   cursor: 'pointer',
                 }}
               >
-                {mode}
+                {t(`transit.mode_${mode}`)}
               </button>
             );
           })}
@@ -900,17 +915,17 @@ export function TripTransitTab({
         />
       ) : transitStatus === 'CHECKING' ? (
         <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-          <div style={{ fontSize: '13px', fontWeight: 500 }}>Checking transit network availability...</div>
+          <div style={{ fontSize: '13px', fontWeight: 500 }}>{t('transit.checking_availability')}</div>
         </div>
       ) : isDownloading || transitStatus === 'BUILDING' || transitStatus === 'QUEUED' ? (
         <div style={{ padding: '24px 16px', borderRadius: '12px', border: '1px solid var(--color-border)', background: 'var(--color-surface-card)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '32px', height: '32px', border: '3px solid var(--color-border)', borderTopColor: 'var(--color-accent-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
           <div>
             <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              {transitStatus === 'QUEUED' ? 'Transit Download Queued' : 'Downloading Transit Data'}
+              {transitStatus === 'QUEUED' ? t('transit.download_queued_title') : t('transit.downloading_data_title')}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-              Retrieving lines, routes, and station stops for {destinationCity}...
+              {t('transit.retrieving_for_city', { city: destinationCity })}
             </div>
           </div>
         </div>
@@ -945,10 +960,10 @@ export function TripTransitTab({
           </div>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              Transit Feed Unavailable
+              {t('transit.feed_unavailable_title')}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px', lineHeight: 1.4 }}>
-              A public transit GTFS schedule does not exist or could not be fetched for {destinationCity}. Point-to-point transit directions remain active via Transitous, but schedule lines and station stops cannot be downloaded.
+              {t('transit.feed_unavailable_desc', { city: destinationCity })}
             </div>
           </div>
           <button
@@ -967,7 +982,7 @@ export function TripTransitTab({
               opacity: 0.6,
             }}
           >
-            Feed Unavailable
+            {t('transit.feed_unavailable_btn')}
           </button>
         </div>
       ) : transitStatus === 'FAILED' ? (
@@ -1001,10 +1016,10 @@ export function TripTransitTab({
           </div>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              Download or Derivation Failed
+              {t('transit.derivation_failed_title')}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px', lineHeight: 1.4 }}>
-              Processing transit data for {destinationCity} encountered an error. You can retry the download.
+              {t('transit.derivation_failed_desc', { city: destinationCity })}
             </div>
           </div>
           <button
@@ -1023,7 +1038,7 @@ export function TripTransitTab({
               cursor: isDownloading ? 'not-allowed' : 'pointer',
             }}
           >
-            {isDownloading ? 'Retrying...' : 'Retry Download'}
+            {isDownloading ? t('transit.retrying_btn') : t('transit.retry_download_btn')}
           </button>
         </div>
       ) : !['READY', 'EXPIRED'].includes(transitStatus) ? (
@@ -1033,10 +1048,10 @@ export function TripTransitTab({
           </div>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              GTFS Feed Not Downloaded
+              {t('transit.not_downloaded_title')}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px', lineHeight: 1.4 }}>
-              Point-to-point transit directions are fully active via Transitous. Download the GTFS feed to browse lines and nearby station clusters.
+              {t('transit.not_downloaded_desc')}
             </div>
           </div>
           <button
@@ -1062,30 +1077,32 @@ export function TripTransitTab({
             {isDownloading && (
               <span style={{ width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#FFFFFF', borderRadius: '50%', display: 'inline-block', animation: 'spin 1s linear infinite' }} />
             )}
-            {isDownloading ? `Downloading ${destinationCity} GTFS...` : `Download ${destinationCity} GTFS`}
+            {isDownloading
+              ? t('transit.downloading_city_gtfs', { city: destinationCity })
+              : t('transit.download_city_gtfs', { city: destinationCity })}
           </button>
         </div>
       ) : isLoadingData ? (
         <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '12px' }}>
-          Loading {subView === 'nearby' ? 'nearby stations...' : 'network lines...'}
+          {subView === 'nearby' ? t('transit.loading_nearby_stations') : t('transit.loading_network_lines')}
         </div>
       ) : subView === 'nearby' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {nearbyGroups.length === 0 ? (
             <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '12px' }}>
               {spatialCircle
-                ? `No transit stations found within ${spatialCircle.radiusMeters}m of waypoint.`
-                : `No transit stations found within 800m of today's stops.`}
+                ? t('transit.no_stations_within_radius', { radius: spatialCircle.radiusMeters })
+                : t('transit.no_stations_within_stops')}
             </div>
           ) : (
             nearbyGroups.map((grp) => (
               <div key={grp.anchor_id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   {grp.anchor_type === 'waypoint'
-                    ? `Near Waypoint Radius (${spatialCircle?.radiusMeters || 800}m)`
+                    ? t('transit.near_waypoint_radius', { radius: spatialCircle?.radiusMeters || 800 })
                     : grp.anchor_type === 'lodging'
-                    ? 'Near your hotel'
-                    : `Near ${grp.anchor_name}`}
+                    ? t('transit.near_your_hotel')
+                    : t('transit.near_anchor', { name: grp.anchor_name })}
                 </div>
                 {grp.stations.map((st) => {
                   const stableId = `gtfs:${destinationCity}:${st.id}`;
@@ -1131,7 +1148,7 @@ export function TripTransitTab({
                             color: isSaved ? '#F59E0B' : 'var(--color-text-muted)',
                             cursor: 'pointer',
                           }}
-                          title={isSaved ? 'Saved' : 'Save Station'}
+                          title={isSaved ? t('transit.saved_title') : t('transit.save_station_title')}
                         >
                           <BookmarkIcon size={13} fill={isSaved ? '#F59E0B' : 'none'} />
                         </button>
@@ -1164,7 +1181,7 @@ export function TripTransitTab({
 
                         {/* Walking distance & time */}
                         <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                          ~{st.walk_mins} min walk ({st.distance_meters}m)
+                          {t('transit.walk_distance', { mins: st.walk_mins ?? 0, meters: st.distance_meters ?? 0 })}
                         </div>
                       </div>
                     </div>
@@ -1179,7 +1196,7 @@ export function TripTransitTab({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {lines.length === 0 ? (
             <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '12px' }}>
-              No transit lines available.
+              {t('transit.no_lines_available')}
             </div>
           ) : (
             lines.map((l) => (
@@ -1215,7 +1232,7 @@ export function TripTransitTab({
                       {l.long_name || l.short_name}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                      {l.mode} • {l.station_count} stations
+                      {t('transit.line_mode_stations', { mode: l.mode, count: l.station_count })}
                     </div>
                   </div>
                 </div>

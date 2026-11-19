@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { CopyButton } from './CopyButton';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SecretFieldProps {
   value: string;
@@ -11,6 +12,7 @@ interface SecretFieldProps {
 }
 
 export function SecretField({ value, label, highlight = false }: SecretFieldProps) {
+  const { t } = useTranslation();
   const [isRevealed, setIsRevealed] = useState(false);
 
   if (!value) return null;
@@ -56,8 +58,8 @@ export function SecretField({ value, label, highlight = false }: SecretFieldProp
       <button
         type="button"
         onClick={() => setIsRevealed((prev) => !prev)}
-        aria-label={isRevealed ? 'Hide secret value' : 'Reveal secret value'}
-        title={isRevealed ? 'Hide' : 'Reveal'}
+        aria-label={isRevealed ? t('wallet.hide_secret_aria') : t('wallet.reveal_secret_aria')}
+        title={isRevealed ? t('wallet.hide_label') : t('wallet.reveal_label')}
         style={{
           background: 'none',
           border: 'none',
@@ -84,7 +86,7 @@ export function SecretField({ value, label, highlight = false }: SecretFieldProp
       </button>
 
       {/* Copy Secret Button */}
-      <CopyButton value={value} label="Copy secret" />
+      <CopyButton value={value} label={t('wallet.copy_secret')} />
     </div>
   );
 }

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 import { apiFetch } from '@/utils/api';
 import { Spinner, RefreshIcon, CheckIcon, AlertTriangleIcon, InfoIcon, CompassIcon } from '@/components/icons';
 import { WeatherForecastIllustration } from '@/components/illustrations/GeneralAppIllustrations';
@@ -288,6 +290,7 @@ export function TripWeatherTab({
   coordinates,
   tripDaysCount,
 }: TripWeatherTabProps) {
+  const { t } = useTranslation();
   const [data, setData] = useState<WeatherForecastResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -353,12 +356,12 @@ export function TripWeatherTab({
     try {
       const res = await apiFetch<WeatherForecastResponse>(`/weather/forecast?${queryParams.toString()}`);
       if (!res.forecast_days || res.forecast_days.length === 0) {
-        throw new Error('No forecast days available for the requested range.');
+        throw new Error(translate('weather.no_forecast_days'));
       }
       setData(res);
       setIsLoading(false);
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'Telemetry request failed';
+      const errMsg = err instanceof Error ? err.message : translate('weather.telemetry_request_failed');
       console.warn('Backend weather route failed, attempting direct Open-Meteo fallback:', errMsg);
       const isDateOutOfRange =
         errMsg.toLowerCase().includes('out of') ||
@@ -390,8 +393,8 @@ export function TripWeatherTab({
         if (lat == null || lon == null) {
           throw new Error(
             destinationCity
-              ? `Could not resolve geographic coordinates for "${destinationCity}".`
-              : 'Destination coordinates are not available.'
+              ? translate('weather.resolve_coords_failed', { city: destinationCity })
+              : translate('weather.coords_unavailable')
           );
         }
 
@@ -406,7 +409,7 @@ export function TripWeatherTab({
         const fJson = await fRes.json().catch(() => ({}));
 
         if (!fRes.ok || fJson.error) {
-          const reason = fJson.reason || fJson.error || `Forecast API returned status ${fRes.status}`;
+          const reason = fJson.reason || fJson.error || translate('weather.api_status_error', { status: fRes.status });
           if (
             String(reason).toLowerCase().includes('out of allowed range') ||
             String(reason).toLowerCase().includes('out of range')
@@ -416,10 +419,18 @@ export function TripWeatherTab({
           throw new Error(String(reason));
         }
 
-        const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const dayNames = [
+          translate('weather.weekday_mon'),
+          translate('weather.weekday_tue'),
+          translate('weather.weekday_wed'),
+          translate('weather.weekday_thu'),
+          translate('weather.weekday_fri'),
+          translate('weather.weekday_sat'),
+          translate('weather.weekday_sun'),
+        ];
         const times = fJson.daily?.time || [];
         if (times.length === 0) {
-          throw new Error('Meteorological provider returned empty daily forecast data.');
+          throw new Error(translate('weather.empty_daily_forecast'));
         }
 
         const formatSunTime = (isoStr: string | undefined, fallbackLabel: string): string => {
@@ -428,52 +439,57 @@ export function TripWeatherTab({
           const [hStr, mStr] = (timePart || '').split(':');
           const hour = Number(hStr);
           if (Number.isNaN(hour) || !mStr) return fallbackLabel;
-          const amPm = hour < 12 ? 'AM' : 'PM';
+          const amPm = hour < 12 ? translate('weather.am') : translate('weather.pm');
           const h12 = hour % 12 || 12;
           return `${h12}:${mStr.slice(0, 2)} ${amPm}`;
         };
 
-        const days: WeatherDayForecast[] = times.map((t: string, i: number) => {
+        const days: WeatherDayForecast[] = times.map((timeStr: string, i: number) => {
           const code = fJson.daily?.weather_code?.[i] || 0;
-          const dObj = new Date(t);
-          const dName = dayNames[dObj.getDay() === 0 ? 6 : dObj.getDay() - 1] || 'Day';
+          const dObj = new Date(timeStr);
+          const dName = dayNames[dObj.getDay() === 0 ? 6 : dObj.getDay() - 1] || translate('weather.day_fallback');
           return {
-            date: t,
+            date: timeStr,
             day_name: dName,
             weather_code: code,
-            condition: code === 0 ? 'Clear Sky' : code < 3 ? 'Partly Cloudy' : 'Cloudy',
+            condition:
+              code === 0
+                ? translate('weather.cond_clear_sky')
+                : code < 3
+                ? translate('weather.cond_partly_cloudy')
+                : translate('weather.cond_cloudy'),
             icon_type: code === 0 ? 'clear' : code < 3 ? 'partly-cloudy' : code > 50 ? 'rain' : 'cloudy',
             temp_max_c: Math.round(fJson.daily?.temperature_2m_max?.[i] || 20),
             temp_min_c: Math.round(fJson.daily?.temperature_2m_min?.[i] || 12),
             highlights: {
               uv_index: fJson.daily?.uv_index_max?.[i] || 5,
-              uv_status: 'Moderate',
+              uv_status: translate('weather.status_moderate'),
               wind_speed_kmh: Math.round(fJson.daily?.wind_speed_10m_max?.[i] || 8),
               wind_direction_deg: fJson.daily?.wind_direction_10m_dominant?.[i] || 240,
               wind_direction_cardinal: 'WSW',
-              sunrise: formatSunTime(fJson.daily?.sunrise?.[i], '06:30 AM'),
-              sunset: formatSunTime(fJson.daily?.sunset?.[i], '06:30 PM'),
+              sunrise: formatSunTime(fJson.daily?.sunrise?.[i], `06:30 ${translate('weather.am')}`),
+              sunset: formatSunTime(fJson.daily?.sunset?.[i], `06:30 ${translate('weather.pm')}`),
               humidity_pct: Math.round(fJson.current?.relative_humidity_2m ?? 58),
-              humidity_status: 'Normal',
+              humidity_status: translate('weather.status_normal'),
               visibility_km: Number(((fJson.current?.visibility ?? 10000) / 1000).toFixed(1)),
-              visibility_status: 'Clear',
+              visibility_status: translate('weather.status_clear'),
               aqi: 42,
-              aqi_status: 'Good',
+              aqi_status: translate('weather.status_good'),
             },
           };
         });
 
         setData({
-          city: destinationCity || 'Trip Destination',
+          city: destinationCity || translate('weather.trip_destination_fallback'),
           latitude: lat,
           longitude: lon,
           timezone: fJson.timezone || 'UTC',
           current_temp_c: Math.round(fJson.current?.temperature_2m || 18),
-          current_condition: 'Live Telemetry',
+          current_condition: translate('weather.live_telemetry'),
           current_weather_code: fJson.current?.weather_code || 0,
           current_icon_type: 'partly-cloudy',
           forecast_days: days,
-          travel_advisory: 'Optimal meteorological conditions for pedestrian urban exploration.',
+          travel_advisory: translate('weather.optimal_conditions_advisory'),
         });
         setIsLoading(false);
       } catch (fallbackErr: unknown) {
@@ -495,7 +511,14 @@ export function TripWeatherTab({
                 const code = curJson.current.weather_code || 0;
                 setCurrentPreview({
                   temp_c: Math.round(curJson.current.temperature_2m),
-                  condition: code === 0 ? 'Clear Sky' : code < 3 ? 'Partly Cloudy' : code > 50 ? 'Rain' : 'Cloudy',
+                  condition:
+                    code === 0
+                      ? translate('weather.cond_clear_sky')
+                      : code < 3
+                      ? translate('weather.cond_partly_cloudy')
+                      : code > 50
+                      ? translate('weather.cond_rain')
+                      : translate('weather.cond_cloudy'),
                   icon_type: code === 0 ? 'clear' : code < 3 ? 'partly-cloudy' : code > 50 ? 'rain' : 'cloudy',
                   humidity: curJson.current.relative_humidity_2m ?? 50,
                   wind_kmh: Math.round(curJson.current.wind_speed_10m ?? 10),
@@ -567,7 +590,9 @@ export function TripWeatherTab({
       >
         <Spinner size={24} color="var(--color-accent-primary)" />
         <div style={{ fontSize: '13px', fontWeight: 500 }}>
-          Gathering meteorological telemetry for {destinationCity || 'destination'}...
+          {destinationCity
+            ? t('weather.gathering_telemetry_city', { city: destinationCity })
+            : t('weather.gathering_telemetry_generic')}
         </div>
       </div>
     );
@@ -581,7 +606,7 @@ export function TripWeatherTab({
   );
 
   if (!hasValidForecast) {
-    const cityDisplayName = destinationCity || data?.city || 'Trip Destination';
+    const cityDisplayName = destinationCity || data?.city || t('weather.trip_destination_fallback');
     const outOfRangeDetected =
       isOutOfRange ||
       (daysUntilTrip !== null && daysUntilTrip > 16) ||
@@ -621,7 +646,7 @@ export function TripWeatherTab({
                     fontWeight: 600,
                   }}
                 >
-                  {`${Math.abs(displayLat).toFixed(2)}°${displayLat >= 0 ? 'N' : 'S'}, ${Math.abs(displayLon).toFixed(2)}°${displayLon >= 0 ? 'E' : 'W'}`}
+                  {`${Math.abs(displayLat).toFixed(2)}°${displayLat >= 0 ? t('weather.dir_n') : t('weather.dir_s')}, ${Math.abs(displayLon).toFixed(2)}°${displayLon >= 0 ? t('weather.dir_e') : t('weather.dir_w')}`}
                 </span>
               )}
             </div>
@@ -636,7 +661,9 @@ export function TripWeatherTab({
               >
                 {effectiveStartDate}
                 {effectiveEndDate ? ` – ${effectiveEndDate}` : ''}
-                {daysUntilTrip !== null && daysUntilTrip > 0 ? ` (${daysUntilTrip} days away)` : ''}
+                {daysUntilTrip !== null && daysUntilTrip > 0
+                  ? ` (${t('weather.days_away', { count: daysUntilTrip })})`
+                  : ''}
               </div>
             )}
           </div>
@@ -657,10 +684,10 @@ export function TripWeatherTab({
               fontWeight: 600,
               cursor: 'pointer',
             }}
-            title="Refresh meteorological telemetry"
+            title={t('weather.refresh_telemetry_title')}
           >
             <RefreshIcon size={12} />
-            <span>Retry</span>
+            <span>{t('common.retry')}</span>
           </button>
         </div>
 
@@ -699,13 +726,13 @@ export function TripWeatherTab({
             }}
           >
             <AlertTriangleIcon size={12} color="#7A5A00" />
-            <span>{outOfRangeDetected ? 'Forecast Window Notice' : 'Telemetry Warning'}</span>
+            <span>{outOfRangeDetected ? t('weather.forecast_window_notice') : t('weather.telemetry_warning')}</span>
           </div>
 
           <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
             {outOfRangeDetected
-              ? 'Weather Forecast Not Yet Available'
-              : 'Weather Telemetry Unavailable'}
+              ? t('weather.forecast_not_yet_available')
+              : t('weather.telemetry_unavailable')}
           </div>
 
           <p
@@ -718,21 +745,37 @@ export function TripWeatherTab({
             }}
           >
             {outOfRangeDetected ? (
-              <>
-                Meteorological forecast models (ECMWF & GFS) only predict atmospheric conditions{' '}
-                <strong>up to 14–16 days in advance</strong>. Because your trip to{' '}
-                <strong>{cityDisplayName}</strong> is scheduled for{' '}
-                {effectiveStartDate || 'a future date'}
-                {daysUntilTrip !== null && daysUntilTrip > 0
-                  ? ` (${daysUntilTrip} days away)`
-                  : ''}
-                , daily weather telemetry will unlock automatically closer to your departure.
-              </>
+              t('weather.out_of_range_body', {
+                limit: '__WEATHER_LIMIT__',
+                city: '__WEATHER_CITY__',
+                date: effectiveStartDate
+                  ? daysUntilTrip !== null && daysUntilTrip > 0
+                    ? `${effectiveStartDate} (${t('weather.days_away', { count: daysUntilTrip })})`
+                    : effectiveStartDate
+                  : t('weather.future_date'),
+              })
+                .split(/(__WEATHER_LIMIT__|__WEATHER_CITY__)/g)
+                .map((part, idx) =>
+                  part === '__WEATHER_LIMIT__' ? (
+                    <strong key={idx}>{t('weather.out_of_range_limit')}</strong>
+                  ) : part === '__WEATHER_CITY__' ? (
+                    <strong key={idx}>{cityDisplayName}</strong>
+                  ) : (
+                    part
+                  )
+                )
             ) : (
-              <>
-                Could not retrieve live meteorological telemetry for <strong>{cityDisplayName}</strong>
-                {error ? `: ${error}` : '.'} Please check your destination coordinates or connection and retry.
-              </>
+              t('weather.telemetry_error_body', {
+                city: '__WEATHER_CITY__',
+                errorDetail: error ? `: ${error}.` : '.',
+              })
+                .split('__WEATHER_CITY__')
+                .map((part, idx, arr) => (
+                  <React.Fragment key={idx}>
+                    {part}
+                    {idx < arr.length - 1 ? <strong>{cityDisplayName}</strong> : null}
+                  </React.Fragment>
+                ))
             )}
           </p>
 
@@ -756,9 +799,8 @@ export function TripWeatherTab({
               style={{ marginTop: '2px', flexShrink: 0 }}
             />
             <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-              <strong style={{ color: 'var(--color-text-primary)' }}>Automatic updates: </strong>
-              Daily temperature curves, precipitation risk, UV index, and walking advisories update
-              automatically as travel dates draw near.
+              <strong style={{ color: 'var(--color-text-primary)' }}>{t('weather.automatic_updates_label')}</strong>
+              {t('weather.automatic_updates_desc')}
             </div>
           </div>
 
@@ -782,7 +824,7 @@ export function TripWeatherTab({
             }}
           >
             <RefreshIcon size={13} />
-            <span>Retry Telemetry</span>
+            <span>{t('weather.retry_telemetry')}</span>
           </button>
         </div>
 
@@ -810,7 +852,7 @@ export function TripWeatherTab({
                 letterSpacing: '0.04em',
               }}
             >
-              Today&apos;s Live Reference in {cityDisplayName}
+              {t('weather.live_reference_in_city', { city: cityDisplayName })}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -841,8 +883,8 @@ export function TripWeatherTab({
                   lineHeight: 1.4,
                 }}
               >
-                <div>Humidity: {currentPreview.humidity}%</div>
-                <div>Wind: {currentPreview.wind_kmh} km/h</div>
+                <div>{t('weather.humidity_value', { value: currentPreview.humidity })}</div>
+                <div>{t('weather.wind_value', { value: currentPreview.wind_kmh })}</div>
               </div>
             </div>
           </div>
@@ -890,7 +932,7 @@ export function TripWeatherTab({
                 fontWeight: 600,
               }}
             >
-              {data.latitude.toFixed(2)}°N, {data.longitude.toFixed(2)}°E
+              {`${data.latitude.toFixed(2)}°${t('weather.dir_n')}, ${data.longitude.toFixed(2)}°${t('weather.dir_e')}`}
             </span>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
@@ -953,7 +995,7 @@ export function TripWeatherTab({
           {/* Refresh button */}
           <button
             type="button"
-            title="Refresh weather telemetry"
+            title={t('weather.refresh_title')}
             onClick={handleManualRefresh}
             style={{
               padding: '6px',
@@ -1053,8 +1095,8 @@ export function TripWeatherTab({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
         <div style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '-0.01em' }}>
           {selectedDayForecast.date === new Date().toISOString().slice(0, 10)
-            ? "Today's Highlights"
-            : `${selectedDayForecast.day_name}'s Highlights`}
+            ? t('weather.todays_highlights')
+            : t('weather.day_highlights', { day: selectedDayForecast.day_name })}
         </div>
         <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
           {selectedDayForecast.date} • {selectedDayForecast.condition}
@@ -1086,7 +1128,7 @@ export function TripWeatherTab({
           }}
         >
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-            UV Index
+            {t('weather.uv_index')}
           </div>
           <div style={{ margin: '4px 0' }}>
             <UvGauge value={h.uv_index} />
@@ -1126,7 +1168,7 @@ export function TripWeatherTab({
           }}
         >
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-            Wind Status
+            {t('weather.wind_status')}
           </div>
           <div>
             <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.1 }}>
@@ -1176,7 +1218,7 @@ export function TripWeatherTab({
           }}
         >
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-            Sunrise & Sunset
+            {t('weather.sunrise_sunset')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {/* Sunrise */}
@@ -1248,7 +1290,7 @@ export function TripWeatherTab({
           }}
         >
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-            Humidity
+            {t('weather.humidity')}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
@@ -1292,7 +1334,7 @@ export function TripWeatherTab({
           }}
         >
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-            Visibility
+            {t('weather.visibility')}
           </div>
           <div>
             <div style={{ fontSize: '26px', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1 }}>
@@ -1335,7 +1377,7 @@ export function TripWeatherTab({
           }}
         >
           <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-            Air Quality
+            {t('weather.air_quality')}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
@@ -1393,7 +1435,7 @@ export function TripWeatherTab({
           <CompassIcon size={15} color="var(--color-accent-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
           <div>
             <span style={{ fontWeight: 700, color: 'var(--color-accent-primary)' }}>
-              Travel Advisory:
+              {t('weather.travel_advisory_label')}
             </span>{' '}
             {data.travel_advisory}
           </div>

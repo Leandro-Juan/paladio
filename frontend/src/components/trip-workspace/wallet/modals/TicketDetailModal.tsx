@@ -10,6 +10,7 @@ import { SecretField } from '../parts/SecretField';
 import { CopyButton } from '../parts/CopyButton';
 import { formatTicketDateTime } from '@/lib/wallet/format';
 import { TicketIcon, SunIcon, CloseIcon, PinIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface TicketDetailModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export function TicketDetailModal({
   tickets = [],
   onSelectTicket,
 }: TicketDetailModalProps) {
+  const { t, locale } = useTranslation();
   const isMounted = useIsMounted();
   const [wakeLockActive, setWakeLockActive] = useState(false);
 
@@ -47,10 +49,10 @@ export function TicketDetailModal({
       if (e.key === 'Escape') {
         onClose();
       } else if (e.key === 'ArrowLeft' && tickets.length > 1 && onSelectTicket && ticket) {
-        const idx = tickets.findIndex((t) => t.id === ticket.id);
+        const idx = tickets.findIndex((tk) => tk.id === ticket.id);
         if (idx > 0) onSelectTicket(tickets[idx - 1]);
       } else if (e.key === 'ArrowRight' && tickets.length > 1 && onSelectTicket && ticket) {
-        const idx = tickets.findIndex((t) => t.id === ticket.id);
+        const idx = tickets.findIndex((tk) => tk.id === ticket.id);
         if (idx >= 0 && idx < tickets.length - 1) onSelectTicket(tickets[idx + 1]);
       }
     };
@@ -88,7 +90,7 @@ export function TicketDetailModal({
 
   const typeConfig = TICKET_TYPE_CONFIG[ticket.ticket_type] || TICKET_TYPE_CONFIG.other;
   const meta = ticket.metadata || {};
-  const currentIndex = tickets.findIndex((t) => t.id === ticket.id);
+  const currentIndex = tickets.findIndex((tk) => tk.id === ticket.id);
 
   let codeSection: React.ReactNode = (
     <div
@@ -106,7 +108,7 @@ export function TicketDetailModal({
       <div style={{ marginBottom: '8px' }}>
         <TicketIcon size={32} color="var(--color-text-muted, #64748B)" />
       </div>
-      <span style={{ fontSize: '12px', fontWeight: 600 }}>NO DIGITAL BARCODE ATTACHED</span>
+      <span style={{ fontSize: '12px', fontWeight: 600 }}>{t('wallet.no_digital_barcode')}</span>
     </div>
   );
 
@@ -211,11 +213,11 @@ export function TicketDetailModal({
               }}
             >
               {typeConfig.renderIcon({ size: 13, color: typeConfig.accentColor })}
-              {typeConfig.tag}
+              {t(typeConfig.tagKey)}
             </span>
             {wakeLockActive && (
               <span
-                title="Screen will stay awake"
+                title={t('wallet.wake_lock_tooltip')}
                 style={{
                   fontSize: '10px',
                   color: 'var(--color-success)',
@@ -230,7 +232,7 @@ export function TicketDetailModal({
                 }}
               >
                 <SunIcon size={11} color="var(--color-success)" />
-                AWAKE
+                {t('wallet.awake_badge')}
               </span>
             )}
           </div>
@@ -244,7 +246,7 @@ export function TicketDetailModal({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close fullscreen pass"
+              aria-label={t('wallet.close_fullscreen_aria')}
               style={{
                 background: 'var(--color-surface-card)',
                 border: '1px solid var(--color-border-subtle)',
@@ -322,7 +324,7 @@ export function TicketDetailModal({
           >
             {ticket.seat_or_room && (
               <div>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>SEAT / ROOM</div>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.field_seat_room')}</div>
                 <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
                   {ticket.seat_or_room}
                 </div>
@@ -331,30 +333,30 @@ export function TicketDetailModal({
 
             {ticket.booking_reference && (
               <div>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>REFERENCE / PNR</div>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.field_reference_pnr')}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
                     {ticket.booking_reference}
                   </span>
-                  <CopyButton text={ticket.booking_reference} label="Copy PNR" size="sm" />
+                  <CopyButton text={ticket.booking_reference} label={t('wallet.copy_pnr')} size="sm" />
                 </div>
               </div>
             )}
 
             {ticket.start_time && (
               <div>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>START / SCHEDULE</div>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.field_start_schedule')}</div>
                 <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary, #0F172A)' }}>
-                  {formatTicketDateTime(ticket.start_time, ticket.start_tz)}
+                  {formatTicketDateTime(ticket.start_time, ticket.start_tz, locale)}
                 </div>
               </div>
             )}
 
             {ticket.end_time && (
               <div>
-                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>END / EXPIRY</div>
+                <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.field_end_expiry')}</div>
                 <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary, #0F172A)' }}>
-                  {formatTicketDateTime(ticket.end_time, ticket.end_tz)}
+                  {formatTicketDateTime(ticket.end_time, ticket.end_tz, locale)}
                 </div>
               </div>
             )}
@@ -377,14 +379,14 @@ export function TicketDetailModal({
               }}
             >
               <div>
-                <div style={{ fontSize: '10px', color: '#B45309', fontWeight: 700 }}>HOTEL WI-FI</div>
+                <div style={{ fontSize: '10px', color: '#B45309', fontWeight: 700 }}>{t('wallet.hotel_wifi')}</div>
                 <div style={{ fontSize: '12px', color: 'var(--color-text-primary, #0F172A)' }}>
-                  SSID: {String(meta.wifi_ssid || '')}
+                  {t('wallet.wifi_ssid_prefix', { ssid: String(meta.wifi_ssid || '') })}
                 </div>
               </div>
               {Boolean(meta.wifi_password) && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <SecretField value={String(meta.wifi_password)} label="Wi-Fi Password" />
+                  <SecretField value={String(meta.wifi_password)} label={t('wallet.wifi_password_label')} />
                 </div>
               )}
             </div>
@@ -422,11 +424,11 @@ export function TicketDetailModal({
                 fontWeight: 600,
               }}
             >
-              <ChevronLeftIcon size={12} /> PREVIOUS
+              <ChevronLeftIcon size={12} /> {t('wallet.previous_upper')}
             </button>
 
             <span style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
-              Use ← / → keys to navigate
+              {t('wallet.navigate_keys_hint')}
             </span>
 
             <button
@@ -447,7 +449,7 @@ export function TicketDetailModal({
                 fontWeight: 600,
               }}
             >
-              NEXT <ChevronRightIcon size={12} />
+              {t('wallet.next_upper')} <ChevronRightIcon size={12} />
             </button>
           </div>
         )}

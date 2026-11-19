@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { User, UserRole } from '@/types/auth';
-import { ALL_LOCALES } from '@/utils/locales';
+import { SHIPPED_LOCALES } from '@/utils/locales';
 import { SUPPORTED_CURRENCY_LIST } from '@/utils/currencyResolver';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SettingsHeader } from '../SettingsHeader';
 
 interface UsersSectionProps {
@@ -103,12 +104,24 @@ export function UsersSection({
   handleDeleteUser,
   getSafeAvatarUrl,
 }: UsersSectionProps) {
+  const { t, locale } = useTranslation();
   const safePreviewAvatarUrl = getSafeAvatarUrl(editAvatarUrl);
+  const getLanguageLabel = (loc: { code: string; name: string }) => {
+    const key = `languages.${loc.code}`;
+    const translated = t(key);
+    return translated === key ? loc.name : translated;
+  };
+  const getRoleBadge = (role?: string) => {
+    const normalized = (role || 'user').toLowerCase();
+    if (normalized === 'admin') return t('config.role_badge_admin');
+    if (normalized === 'user') return t('config.role_badge_user');
+    return normalized.toUpperCase();
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <SettingsHeader
-        title={subTab === 'profile' ? 'Personal Account Profile' : 'Authorized Users & Access Control'}
+        title={subTab === 'profile' ? t('config.personal_account_profile') : t('config.authorized_users_access_control')}
         onBackToOverview={onBackToOverview}
         actions={
           isAdmin && subTab !== 'profile' ? (
@@ -129,7 +142,7 @@ export function UsersSection({
                 gap: '6px',
               }}
             >
-              <span>+</span> PROVISION NEW USER
+              <span>+</span> {t('config.provision_new_user_btn')}
             </button>
           ) : undefined
         }
@@ -140,36 +153,36 @@ export function UsersSection({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div>
             <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
-              {subTab === 'profile' ? 'Profile Details' : 'Authorized Users'}
+              {subTab === 'profile' ? t('config.profile_details') : t('config.authorized_users')}
             </h3>
             <p className="font-mono text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
               {isAdmin && subTab !== 'profile'
-                ? 'All accounts provisioned on this self-hosted Paladio instance.'
-                : 'Your current account profile on this instance.'}
+                ? t('config.all_accounts_provisioned_desc')
+                : t('config.current_account_profile_desc')}
             </p>
           </div>
           {isAdmin && subTab !== 'profile' && (
             <span className="font-mono text-muted" style={{ fontSize: '12px' }}>
-              TOTAL: {users.length}
+              {t('config.total_users_label', { count: users.length })}
             </span>
           )}
         </div>
 
         {isFetching ? (
           <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <p className="font-mono text-muted">LOADING USER DIRECTORY...</p>
+            <p className="font-mono text-muted">{t('config.loading_user_directory')}</p>
           </div>
         ) : isAdmin && subTab !== 'profile' ? (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>USERNAME</th>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>EMAIL</th>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>ROLE</th>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>STATUS</th>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>CREATED</th>
-                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
+                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>{t('config.col_username')}</th>
+                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>{t('config.col_email')}</th>
+                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>{t('config.col_role')}</th>
+                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>{t('config.col_status')}</th>
+                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600 }}>{t('config.col_created')}</th>
+                  <th className="font-mono" style={{ padding: '10px 12px', fontWeight: 600, textAlign: 'right' }}>{t('config.col_actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -229,14 +242,14 @@ export function UsersSection({
                                   color: 'var(--color-btn-primary-text)',
                                 }}
                               >
-                                YOU
+                                {t('config.badge_you')}
                               </span>
                             )}
                           </div>
                         </div>
                       </td>
                       <td style={{ padding: '12px', color: 'var(--color-text-muted)' }}>
-                        {u.email || 'None'}
+                        {u.email || t('config.none')}
                       </td>
                       <td style={{ padding: '12px' }}>
                         <span
@@ -251,7 +264,7 @@ export function UsersSection({
                             fontWeight: 600,
                           }}
                         >
-                          {u.role.toUpperCase()}
+                          {getRoleBadge(u.role)}
                         </span>
                       </td>
                       <td style={{ padding: '12px' }}>
@@ -266,11 +279,11 @@ export function UsersSection({
                             fontWeight: 600,
                           }}
                         >
-                          {u.is_active ? 'ACTIVE' : 'SUSPENDED'}
+                          {u.is_active ? t('config.status_active') : t('config.status_suspended')}
                         </span>
                       </td>
                       <td className="font-mono text-muted" style={{ padding: '12px', fontSize: '11px' }}>
-                        {u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'}
+                        {u.created_at ? new Date(u.created_at).toLocaleDateString(locale === 'en' ? undefined : locale) : t('config.not_available')}
                       </td>
                       <td style={{ padding: '12px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -287,7 +300,7 @@ export function UsersSection({
                               cursor: 'pointer',
                             }}
                           >
-                            Edit
+                            {t('common.edit')}
                           </button>
                           <button
                             onClick={() => handleToggleActive(u)}
@@ -304,7 +317,7 @@ export function UsersSection({
                               opacity: isSelf ? 0.6 : 1,
                             }}
                           >
-                            {u.is_active ? 'Deactivate' : 'Activate'}
+                            {u.is_active ? t('config.deactivate_btn') : t('config.activate_btn')}
                           </button>
                           <button
                             onClick={() => setDeleteCandidate(u)}
@@ -321,7 +334,7 @@ export function UsersSection({
                               opacity: isSelf ? 0.6 : 1,
                             }}
                           >
-                            Delete
+                            {t('common.delete')}
                           </button>
                         </div>
                       </td>
@@ -370,14 +383,14 @@ export function UsersSection({
                     {currentUser?.username}
                   </h4>
                   <p className="font-mono text-muted" style={{ margin: '4px 0 0', fontSize: '12px' }}>
-                    {currentUser?.email || 'No email associated'}
+                    {currentUser?.email || t('config.no_email_associated')}
                   </p>
                 </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                 <div>
-                  <span className="font-mono text-muted" style={{ fontSize: '11px' }}>ROLE</span>
+                  <span className="font-mono text-muted" style={{ fontSize: '11px' }}>{t('config.col_role')}</span>
                   <div style={{ marginTop: '2px' }}>
                     <span
                       className="font-mono"
@@ -391,12 +404,12 @@ export function UsersSection({
                         fontWeight: 600,
                       }}
                     >
-                      {(currentUser?.role || 'user').toUpperCase()}
+                      {getRoleBadge(currentUser?.role)}
                     </span>
                   </div>
                 </div>
                 <div>
-                  <span className="font-mono text-muted" style={{ fontSize: '11px' }}>STATUS</span>
+                  <span className="font-mono text-muted" style={{ fontSize: '11px' }}>{t('config.col_status')}</span>
                   <div style={{ marginTop: '2px' }}>
                     <span
                       className="font-mono"
@@ -409,7 +422,7 @@ export function UsersSection({
                         fontWeight: 600,
                       }}
                     >
-                      {currentUser?.is_active ? 'ACTIVE' : 'SUSPENDED'}
+                      {currentUser?.is_active ? t('config.status_active') : t('config.status_suspended')}
                     </span>
                   </div>
                 </div>
@@ -428,7 +441,7 @@ export function UsersSection({
                       fontWeight: 600,
                     }}
                   >
-                    Edit Profile
+                    {t('config.edit_profile_btn')}
                   </button>
                 )}
               </div>
@@ -463,19 +476,19 @@ export function UsersSection({
             }}
           >
             <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>
-              Provision New User
+              {t('config.provision_new_user_title')}
             </h3>
 
             <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  USERNAME
+                  {t('config.col_username')}
                 </label>
                 <input
                   type="text"
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="e.g. navigator"
+                  placeholder={t('config.example_username_placeholder')}
                   required
                   style={{
                     width: '100%',
@@ -491,13 +504,13 @@ export function UsersSection({
 
               <div>
                 <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  EMAIL (OPTIONAL)
+                  {t('config.email_optional_label')}
                 </label>
                 <input
                   type="email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="e.g. navigator@paladio.internal (optional)"
+                  placeholder={t('config.example_email_optional_placeholder')}
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -512,13 +525,13 @@ export function UsersSection({
 
               <div>
                 <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  INITIAL PASSWORD
+                  {t('config.initial_password_label')}
                 </label>
                 <input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimum 6 characters"
+                  placeholder={t('config.minimum_6_chars_placeholder')}
                   required
                   style={{
                     width: '100%',
@@ -534,7 +547,7 @@ export function UsersSection({
 
               <div>
                 <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  ROLE
+                  {t('config.col_role')}
                 </label>
                 <select
                   value={newRole}
@@ -549,14 +562,14 @@ export function UsersSection({
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  <option value="user">Standard User</option>
-                  <option value="admin">Administrator</option>
+                  <option value="user">{t('config.role_standard_user')}</option>
+                  <option value="admin">{t('config.role_administrator')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  PREFERRED LANGUAGE
+                  {t('config.preferred_language_label')}
                 </label>
                 <select
                   value={newPreferredLanguage}
@@ -571,9 +584,9 @@ export function UsersSection({
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  {ALL_LOCALES.map((loc) => (
+                  {SHIPPED_LOCALES.map((loc) => (
                     <option key={loc.code} value={loc.code}>
-                      {loc.name} ({loc.nativeName})
+                      {getLanguageLabel(loc)} ({loc.nativeName})
                     </option>
                   ))}
                 </select>
@@ -593,7 +606,7 @@ export function UsersSection({
                     cursor: 'pointer',
                   }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -610,7 +623,7 @@ export function UsersSection({
                     cursor: creating ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {creating ? 'CREATING...' : 'CREATE ACCOUNT'}
+                  {creating ? t('config.creating_btn') : t('config.create_account_btn')}
                 </button>
               </div>
             </form>
@@ -647,14 +660,14 @@ export function UsersSection({
             }}
           >
             <h3 className="font-display" style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-text-primary)' }}>
-              {editCandidate.id === currentUser?.id ? 'Edit Your Profile' : `Edit User: ${editCandidate.username}`}
+              {editCandidate.id === currentUser?.id ? t('config.edit_your_profile_title') : t('config.edit_user_title', { username: editCandidate.username })}
             </h3>
 
             <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
               {/* Avatar Preview & Upload */}
               <div>
                 <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '8px' }}>
-                  PROFILE PICTURE (PFP)
+                  {t('config.profile_picture_pfp_label')}
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div
@@ -677,7 +690,7 @@ export function UsersSection({
                     {safePreviewAvatarUrl ? (
                       <img
                         src={encodeURI(safePreviewAvatarUrl)}
-                        alt={editUsername || 'Avatar'}
+                        alt={editUsername || t('config.avatar_alt')}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     ) : (
@@ -699,7 +712,7 @@ export function UsersSection({
                           color: 'var(--color-text-primary)',
                         }}
                       >
-                        Upload Image
+                        {t('config.upload_image_btn')}
                         <input
                           type="file"
                           accept="image/*"
@@ -722,7 +735,7 @@ export function UsersSection({
                             cursor: 'pointer',
                           }}
                         >
-                          Remove
+                          {t('config.remove_btn')}
                         </button>
                       )}
                     </div>
@@ -730,7 +743,7 @@ export function UsersSection({
                       type="text"
                       value={editAvatarUrl.startsWith('data:image') ? '' : editAvatarUrl}
                       onChange={(e) => setEditAvatarUrl(e.target.value)}
-                      placeholder={editAvatarUrl.startsWith('data:image') ? 'Uploaded image attached' : 'Or paste image URL (https://...)'}
+                      placeholder={editAvatarUrl.startsWith('data:image') ? t('config.uploaded_image_attached') : t('config.paste_image_url_placeholder')}
                       style={{
                         width: '100%',
                         padding: '6px 8px',
@@ -747,13 +760,13 @@ export function UsersSection({
 
               <div>
                 <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  USERNAME
+                  {t('config.col_username')}
                 </label>
                 <input
                   type="text"
                   value={editUsername}
                   onChange={(e) => setEditUsername(e.target.value)}
-                  placeholder="e.g. navigator"
+                  placeholder={t('config.example_username_placeholder')}
                   required
                   style={{
                     width: '100%',
@@ -769,13 +782,13 @@ export function UsersSection({
 
               <div>
                 <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  EMAIL
+                  {t('config.col_email')}
                 </label>
                 <input
                   type="email"
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
-                  placeholder="navigator@paladio.internal (optional)"
+                  placeholder={t('config.example_email_placeholder')}
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -790,13 +803,13 @@ export function UsersSection({
 
               <div>
                 <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                  NEW PASSWORD (LEAVE BLANK TO KEEP CURRENT)
+                  {t('config.new_password_label')}
                 </label>
                 <input
                   type="password"
                   value={editPassword}
                   onChange={(e) => setEditPassword(e.target.value)}
-                  placeholder="Leave blank to keep current"
+                  placeholder={t('config.leave_blank_keep_current_placeholder')}
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -812,7 +825,7 @@ export function UsersSection({
               {isAdmin && editCandidate.id !== currentUser?.id && (
                 <div>
                   <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                    ROLE
+                    {t('config.col_role')}
                   </label>
                   <select
                     value={editRole}
@@ -827,8 +840,8 @@ export function UsersSection({
                       color: 'var(--color-text-primary)',
                     }}
                   >
-                    <option value="user">Standard User</option>
-                    <option value="admin">Administrator</option>
+                    <option value="user">{t('config.role_standard_user')}</option>
+                    <option value="admin">{t('config.role_administrator')}</option>
                   </select>
                 </div>
               )}
@@ -836,7 +849,7 @@ export function UsersSection({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                    DEFAULT CURRENCY
+                    {t('config.default_currency_upper')}
                   </label>
                   <select
                     value={editDefaultCurrency}
@@ -861,7 +874,7 @@ export function UsersSection({
 
                 <div>
                   <label className="font-mono text-muted" style={{ display: 'block', fontSize: '11px', marginBottom: '4px' }}>
-                    LANGUAGE
+                    {t('config.language_upper')}
                   </label>
                   <select
                     value={editPreferredLanguage}
@@ -876,9 +889,9 @@ export function UsersSection({
                       color: 'var(--color-text-primary)',
                     }}
                   >
-                    {ALL_LOCALES.map((loc) => (
+                    {SHIPPED_LOCALES.map((loc) => (
                       <option key={loc.code} value={loc.code}>
-                        {loc.name}
+                        {getLanguageLabel(loc)}
                       </option>
                     ))}
                   </select>
@@ -899,7 +912,7 @@ export function UsersSection({
                     cursor: 'pointer',
                   }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -916,7 +929,7 @@ export function UsersSection({
                     cursor: savingEdit ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {savingEdit ? 'SAVING...' : 'SAVE CHANGES'}
+                  {savingEdit ? t('config.saving_btn') : t('config.save_changes_btn')}
                 </button>
               </div>
             </form>
@@ -950,11 +963,20 @@ export function UsersSection({
             }}
           >
             <h3 className="font-display" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-danger)' }}>
-              Confirm User Deletion
+              {t('config.confirm_user_deletion_title')}
             </h3>
             <p style={{ fontSize: '13px', margin: '1rem 0', color: 'var(--color-text-primary)' }}>
-              Are you sure you want to permanently delete user <strong>{deleteCandidate.username}</strong> ({deleteCandidate.email})?
-              This action is irreversible and cascades to all linked trips.
+              {t('config.confirm_user_deletion_body', {
+                username: '__PALADIO_USER__',
+                email: deleteCandidate.email || '',
+              })
+                .split('__PALADIO_USER__')
+                .map((part, idx, arr) => (
+                  <React.Fragment key={idx}>
+                    {part}
+                    {idx < arr.length - 1 && <strong>{deleteCandidate.username}</strong>}
+                  </React.Fragment>
+                ))}
             </p>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
@@ -972,7 +994,7 @@ export function UsersSection({
                   cursor: 'pointer',
                 }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -990,7 +1012,7 @@ export function UsersSection({
                   cursor: deleting ? 'not-allowed' : 'pointer',
                 }}
               >
-                {deleting ? 'DELETING...' : 'PERMANENTLY DELETE'}
+                {deleting ? t('config.deleting_btn') : t('config.permanently_delete_btn')}
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export type EmptyStateType =
   | 'no-trips'
@@ -181,30 +182,30 @@ function EmptyStateSvg({ type }: { type: EmptyStateType }) {
   }
 }
 
-const DEFAULTS: Record<EmptyStateType, { title: string; description: string }> = {
+const DEFAULT_KEYS: Record<EmptyStateType, { title: string; description: string }> = {
   'no-trips': {
-    title: 'No Upcoming Trips',
-    description: 'Plan a new multi-day journey or initialize an itinerary protocol.',
+    title: 'empty_state.no_trips_title',
+    description: 'empty_state.no_trips_desc',
   },
   'no-mission': {
-    title: 'No Active Protocol',
-    description: 'Awaiting mission parameters. Initialize your dispatch to start.',
+    title: 'empty_state.no_mission_title',
+    description: 'empty_state.no_mission_desc',
   },
   'no-tickets': {
-    title: 'Your Trip Wallet is Empty',
-    description: 'Drop documents above, sync from itinerary, or create credentials manually.',
+    title: 'empty_state.no_tickets_title',
+    description: 'empty_state.no_tickets_desc',
   },
   'no-photos': {
-    title: 'No Captured Memories',
-    description: 'Photos attached to itinerary waypoints and notes will appear here.',
+    title: 'empty_state.no_photos_title',
+    description: 'empty_state.no_photos_desc',
   },
   'no-notifications': {
-    title: 'No Notifications Yet',
-    description: 'Engine alerts, dispatch logs, and telemetry updates will appear here.',
+    title: 'empty_state.no_notifications_title',
+    description: 'empty_state.no_notifications_desc',
   },
   'no-search': {
-    title: 'No Matching Places Found',
-    description: 'Try adjusting your search query or selecting a different category.',
+    title: 'empty_state.no_search_title',
+    description: 'empty_state.no_search_desc',
   },
 };
 
@@ -216,8 +217,9 @@ export function EmptyState({
   className = '',
   style,
 }: EmptyStateProps) {
-  const currentTitle = title ?? DEFAULTS[type].title;
-  const currentDesc = description ?? DEFAULTS[type].description;
+  const { t } = useTranslation();
+  const currentTitle = title !== undefined ? t(title) : t(DEFAULT_KEYS[type].title);
+  const currentDesc = description !== undefined ? t(description) : t(DEFAULT_KEYS[type].description);
 
   return (
     <div

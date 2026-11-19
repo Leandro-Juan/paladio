@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   fetchLlmConfigApi,
   updateLlmConfigApi,
@@ -13,6 +14,12 @@ import { Spinner, CheckIcon, ChevronDownIcon, ProviderBrandIcon } from '@/compon
 import { notify } from '@/utils/notify';
 
 export function LlmConfigCard() {
+  const { t } = useTranslation();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -45,8 +52,8 @@ export function LlmConfigCard() {
         setIsCustomModelMode(false);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to load LLM configuration';
-      notify.error('LLM Config Error', msg);
+      const msg = err instanceof Error ? err.message : tRef.current('config.llm_load_failed');
+      notify.error(tRef.current('config.llm_config_error'), msg);
     } finally {
       setLoading(false);
     }
@@ -75,8 +82,8 @@ export function LlmConfigCard() {
       })
       .catch((err: unknown) => {
         if (!ignore) {
-          const msg = err instanceof Error ? err.message : 'Failed to load LLM configuration';
-          notify.error('LLM Config Error', msg);
+          const msg = err instanceof Error ? err.message : tRef.current('config.llm_load_failed');
+          notify.error(tRef.current('config.llm_config_error'), msg);
           setLoading(false);
         }
       });
@@ -119,12 +126,15 @@ export function LlmConfigCard() {
         model: modelName,
       });
       if (res.status === 'success') {
-        notify.success('LLM Configuration Saved', `Active provider is now ${provKey.toUpperCase()} (${modelName}).`);
+        notify.success(
+          t('config.llm_saved_title'),
+          t('config.llm_active_provider_msg', { provider: provKey.toUpperCase(), model: modelName })
+        );
         await loadConfig();
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to switch LLM provider/model';
-      notify.error('Activation Failed', msg);
+      const msg = err instanceof Error ? err.message : t('config.llm_switch_failed');
+      notify.error(t('config.llm_activation_failed'), msg);
     } finally {
       setSaving(false);
     }
@@ -154,12 +164,15 @@ export function LlmConfigCard() {
           model: targetModel,
         });
         if (res.status === 'success') {
-          notify.success('LLM Configuration Saved', `Active provider is now ${provKey.toUpperCase()} (${targetModel}).`);
+          notify.success(
+            t('config.llm_saved_title'),
+            t('config.llm_active_provider_msg', { provider: provKey.toUpperCase(), model: targetModel })
+          );
           await loadConfig();
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to save LLM configuration';
-        notify.error('Save Failed', msg);
+        const msg = err instanceof Error ? err.message : t('config.llm_save_failed');
+        notify.error(t('config.save_failed_title'), msg);
       } finally {
         setSaving(false);
       }
@@ -194,13 +207,16 @@ export function LlmConfigCard() {
       });
 
       if (res.status === 'success') {
-        notify.success('LLM Configuration Saved', `Active provider is now ${selectedProvider.toUpperCase()} (${m}).`);
+        notify.success(
+          t('config.llm_saved_title'),
+          t('config.llm_active_provider_msg', { provider: selectedProvider.toUpperCase(), model: m })
+        );
         setApiKey('');
         await loadConfig();
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save LLM configuration';
-      notify.error('Save Failed', msg);
+      const msg = err instanceof Error ? err.message : t('config.llm_save_failed');
+      notify.error(t('config.save_failed_title'), msg);
     } finally {
       setSaving(false);
     }
@@ -221,7 +237,7 @@ export function LlmConfigCard() {
   const handleTestConnection = async () => {
     const effectiveModel = isCustomModelMode ? customModel.trim() : selectedModel.trim();
     if (!effectiveModel) {
-      notify.error('Missing Model', 'Please specify a model before testing.');
+      notify.error(t('config.llm_missing_model_title'), t('config.llm_missing_model_msg'));
       return;
     }
 
@@ -236,22 +252,25 @@ export function LlmConfigCard() {
       });
       setTestResult(result);
       if (result.success) {
-        notify.success('Connection Successful', `Latency: ${result.latency_ms}ms. Response: "${result.response}"`);
+        notify.success(
+          t('config.connection_successful_title'),
+          t('config.llm_latency_response', { latency: result.latency_ms ?? 0, response: result.response ?? '' })
+        );
         if (apiKey.trim() || baseUrl.trim() || !activeConfig?.configured_providers?.[selectedProvider]) {
           void handleAutoSaveUnconfigured(apiKey, effectiveModel, baseUrl);
         }
       } else {
-        notify.error('Connection Failed', result.error || 'LLM API rejected the connection request.');
+        notify.error(t('config.connection_failed_title'), result.error || t('config.llm_rejected_msg'));
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error testing connection';
+      const msg = err instanceof Error ? err.message : t('config.llm_test_error');
       setTestResult({
         success: false,
         error: msg,
         provider: selectedProvider,
         model: effectiveModel,
       });
-      notify.error('Connection Failed', msg);
+      notify.error(t('config.connection_failed_title'), msg);
     } finally {
       setTesting(false);
     }
@@ -268,7 +287,7 @@ export function LlmConfigCard() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Spinner size={16} />
           <span className="font-mono text-muted" style={{ fontSize: '12px' }}>
-            LOADING LLM CONFIGURATION...
+            {t('config.llm_loading')}
           </span>
         </div>
       </div>
@@ -284,7 +303,7 @@ export function LlmConfigCard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
         <div>
           <h3 className="font-display" style={{ fontSize: '1.2rem', margin: 0 }}>
-            AI &amp; LLM Provider Engine
+            {t('config.llm_card_title')}
           </h3>
         </div>
 
@@ -305,7 +324,7 @@ export function LlmConfigCard() {
               }}
             >
               <ProviderBrandIcon provider={activeConfig.provider} size={14} />
-              ACTIVE: <strong>{activeConfig.provider.toUpperCase()}</strong> ({activeConfig.model})
+              {t('config.llm_active_prefix')} <strong>{activeConfig.provider.toUpperCase()}</strong> ({activeConfig.model})
             </span>
             <span
               className="font-mono"
@@ -323,8 +342,8 @@ export function LlmConfigCard() {
               }}
             >
               {activeConfig.has_api_key
-                ? `KEY ACTIVE — OLLAMA DISPATCHED (${activeConfig.masked_api_key})`
-                : 'DEFAULT — LOCAL OLLAMA ACTIVE'}
+                ? t('config.llm_key_active_badge', { maskedKey: activeConfig.masked_api_key ?? '' })
+                : t('config.llm_default_local_badge')}
             </span>
           </div>
         )}
@@ -333,7 +352,7 @@ export function LlmConfigCard() {
       {/* Provider Selector Grid */}
       <div style={{ marginBottom: '1.5rem' }}>
         <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
-          SELECT LLM PROVIDER:
+          {t('config.llm_select_provider_label')}
         </label>
         <div
           style={{
@@ -398,7 +417,7 @@ export function LlmConfigCard() {
                       <button
                         type="button"
                         data-llm-dropdown
-                        aria-label={`Available models for ${meta.name}`}
+                        aria-label={t('config.llm_available_models_aria', { name: meta.name })}
                         onClick={(e) => {
                           e.stopPropagation();
                           setOpenMenuProvider(openMenuProvider === key ? null : key);
@@ -431,15 +450,15 @@ export function LlmConfigCard() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   {isCurrentlyActive ? (
                     <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-accent-teal, #0D9488)', fontWeight: 700 }}>
-                      ● ACTIVE ENGINE
+                      {t('config.llm_status_active_engine')}
                     </span>
                   ) : isConfigured ? (
                     <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-success, #10B981)', fontWeight: 600 }}>
-                      ● {configuredMeta?.requires_key ? 'KEY SAVED' : 'LOCAL READY'}
+                      ● {configuredMeta?.requires_key ? t('config.llm_status_key_saved') : t('config.llm_status_local_ready')}
                     </span>
                   ) : (
                     <span className="font-mono text-muted" style={{ fontSize: '10px' }}>
-                      {meta.requires_key ? '○ Requires API Key' : 'Local / Custom'}
+                      {meta.requires_key ? t('config.llm_status_requires_key') : t('config.llm_status_local_custom')}
                     </span>
                   )}
                 </div>
@@ -539,7 +558,7 @@ export function LlmConfigCard() {
           {/* Model Selection */}
           <div>
             <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
-              MODEL IDENTIFIER:
+              {t('config.llm_model_identifier_label')}
             </label>
             {!isCustomModelMode ? (
               <select
@@ -561,7 +580,7 @@ export function LlmConfigCard() {
                     {m}
                   </option>
                 ))}
-                <option value="__custom__">{'-- Custom Model Name --'}</option>
+                <option value="__custom__">{t('config.llm_custom_model_option')}</option>
               </select>
             ) : (
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -570,7 +589,7 @@ export function LlmConfigCard() {
                   value={customModel}
                   onChange={(e) => setCustomModel(e.target.value)}
                   onBlur={() => void handleAutoSaveUnconfigured(apiKey, customModel, baseUrl)}
-                  placeholder="e.g. gpt-4o, claude-3-7-sonnet"
+                  placeholder={t('config.llm_custom_model_placeholder')}
                   style={{
                     flex: 1,
                     padding: '8px 12px',
@@ -596,12 +615,15 @@ export function LlmConfigCard() {
                     cursor: 'pointer',
                   }}
                 >
-                  PRESETS
+                  {t('config.llm_presets_btn')}
                 </button>
               </div>
             )}
             <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
-              Default for {activeProviderMeta?.name || selectedProvider}: {activeProviderMeta?.default_model || 'default'}
+              {t('config.llm_default_model_hint', {
+                provider: activeProviderMeta?.name || selectedProvider,
+                model: activeProviderMeta?.default_model || t('config.llm_default_fallback'),
+              })}
             </span>
           </div>
 
@@ -609,7 +631,7 @@ export function LlmConfigCard() {
           <div>
             <div style={{ marginBottom: '6px' }}>
               <label className="font-mono text-xs text-muted" style={{ fontWeight: 600 }}>
-                API KEY {requiresKey ? '(REQUIRED)' : '(OPTIONAL)'}:
+                {requiresKey ? t('config.llm_api_key_required_label') : t('config.llm_api_key_optional_label')}
               </label>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -619,12 +641,16 @@ export function LlmConfigCard() {
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder={
                   activeConfig?.configured_providers?.[selectedProvider]?.masked_key
-                    ? `Keeping saved key (${activeConfig.configured_providers[selectedProvider].masked_key})`
+                    ? t('config.llm_keeping_saved_key', {
+                        key: activeConfig.configured_providers[selectedProvider].masked_key ?? '',
+                      })
                     : activeConfig?.has_api_key && activeConfig.provider === selectedProvider
-                    ? `Keeping current key (${activeConfig.masked_api_key})`
+                    ? t('config.llm_keeping_current_key', {
+                        key: activeConfig.masked_api_key ?? '',
+                      })
                     : requiresKey
-                    ? 'Enter your provider API key (e.g. sk-...)'
-                    : 'Optional for local / non-authenticated endpoints'
+                    ? t('config.llm_api_key_placeholder_req')
+                    : t('config.llm_api_key_placeholder_opt')
                 }
                 style={{
                   flex: 1,
@@ -652,7 +678,7 @@ export function LlmConfigCard() {
                   fontWeight: 600,
                 }}
               >
-                {showApiKey ? 'HIDE' : 'SHOW'}
+                {showApiKey ? t('config.hide_upper') : t('config.show_upper')}
               </button>
               <button
                 type="button"
@@ -676,18 +702,18 @@ export function LlmConfigCard() {
                 }}
               >
                 {saving && <Spinner size={12} color="#FFFFFF" />}
-                <span>SAVE KEY</span>
+                <span>{t('config.save_key_upper')}</span>
               </button>
             </div>
             <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
-              Stored locally in your private database. Never exported or shared.
+              {t('config.llm_key_storage_hint')}
             </span>
           </div>
 
           {/* Custom Base URL Input */}
           <div>
             <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
-              API ENDPOINT BASE URL:
+              {t('config.llm_base_url_label')}
             </label>
             <input
               type="text"
@@ -707,7 +733,7 @@ export function LlmConfigCard() {
               }}
             />
             <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
-              Optional custom proxy, vLLM endpoint, or local server.
+              {t('config.llm_base_url_hint')}
             </span>
           </div>
         </div>
@@ -733,11 +759,17 @@ export function LlmConfigCard() {
         >
           {testResult.success ? (
             <div>
-              <strong>✓ CONNECTION VERIFIED:</strong> Connected successfully to {testResult.provider.toUpperCase()} ({testResult.model}) in {testResult.latency_ms}ms.
+              <strong>{t('config.llm_connection_verified_prefix')}</strong>{' '}
+              {t('config.llm_connection_verified_body', {
+                provider: testResult.provider.toUpperCase(),
+                model: testResult.model,
+                latency: testResult.latency_ms ?? 0,
+              })}
             </div>
           ) : (
             <div>
-              <strong>✕ CONNECTION FAILED:</strong> {testResult.error || 'Authentication error or model unavailable.'}
+              <strong>{t('config.llm_connection_failed_prefix')}</strong>{' '}
+              {testResult.error || t('config.llm_auth_error_fallback')}
             </div>
           )}
         </div>
@@ -761,11 +793,17 @@ export function LlmConfigCard() {
           }}
         >
           <div>
-            <span style={{ color: '#38bdf8', fontWeight: 600 }}>HOST HARDWARE PROFILE: </span>
+            <span style={{ color: '#38bdf8', fontWeight: 600 }}>{t('config.llm_host_hardware_prefix')} </span>
             <span style={{ color: 'var(--color-text-secondary)' }}>
-              {activeConfig.hardware_profile.total_ram_gb}GB RAM (
-              {activeConfig.hardware_profile.available_ram_gb}GB free, {activeConfig.hardware_profile.swap_total_gb}GB swap) • {activeConfig.hardware_profile.cpu_logical_cores} CPU cores
-              {activeConfig.hardware_profile.has_gpu ? ` • ${activeConfig.hardware_profile.gpu_name || 'GPU'}` : ' • CPU Inference'}
+              {t('config.llm_hardware_ram_cores', {
+                total: activeConfig.hardware_profile.total_ram_gb,
+                avail: activeConfig.hardware_profile.available_ram_gb,
+                swap: activeConfig.hardware_profile.swap_total_gb,
+                cores: activeConfig.hardware_profile.cpu_logical_cores,
+              })}
+              {activeConfig.hardware_profile.has_gpu
+                ? ` • ${activeConfig.hardware_profile.gpu_name || t('config.llm_gpu_fallback')}`
+                : ` • ${t('config.llm_cpu_inference')}`}
             </span>
             {activeConfig.hardware_profile.memory_warning && (
               <div style={{ color: '#f59e0b', marginTop: '4px', fontSize: '11px' }}>
@@ -774,7 +812,10 @@ export function LlmConfigCard() {
             )}
           </div>
           <span style={{ color: 'var(--color-text-muted)', fontSize: '11px' }}>
-            Recommended: {activeConfig.hardware_profile.recommended_model} ({activeConfig.hardware_profile.recommended_num_ctx} ctx)
+            {t('config.llm_recommended_model', {
+              model: activeConfig.hardware_profile.recommended_model,
+              ctx: activeConfig.hardware_profile.recommended_num_ctx,
+            })}
           </span>
         </div>
       )}
@@ -800,7 +841,7 @@ export function LlmConfigCard() {
           }}
         >
           {testing && <Spinner size={12} />}
-          {testing ? 'TESTING LLM API...' : 'TEST CONNECTION'}
+          {testing ? t('config.llm_testing_btn') : t('config.llm_test_connection_btn')}
         </button>
       </div>
     </div>

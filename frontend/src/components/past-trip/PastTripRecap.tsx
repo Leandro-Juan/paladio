@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ChevronLeftIcon } from '@/components/icons';
 import type { Trip, TripExpense, TripSettlement } from '@/hooks/useTrips';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +27,7 @@ interface PastTripRecapProps {
 }
 
 export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { updateTrip, getTripExpenses, getTripSettlement } = useTrips();
   const { tickets } = useTripTickets(trip.id || '');
@@ -174,7 +176,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
               const { start: aTime, end: dTime } = getScheduledPoiTimes(scheduledPoi as any);
               const poiItem: MapPoi = {
                 id: p?.id,
-                name: p?.name || 'Waypoint',
+                name: p?.name || t('vault.waypoint_default'),
                 lat,
                 lng,
                 category: p?.category,
@@ -189,10 +191,10 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
               const catUpper = (p?.category || '').toUpperCase();
               const nameLower = (p?.name || '').toLowerCase();
               if ((catUpper === 'HOTEL' || nameLower.includes('hotel')) && !hotelAnchor) {
-                hotelAnchor = { name: p?.name || 'Hotel Base Camp', lat, lng };
+                hotelAnchor = { name: p?.name || t('vault.hotel_base_camp'), lat, lng };
               }
               if ((catUpper === 'AIRPORT' || catUpper === 'FLIGHT' || nameLower.includes('airport')) && !airportAnchor) {
-                airportAnchor = { name: p?.name || 'Transit Airport', lat, lng };
+                airportAnchor = { name: p?.name || t('vault.transit_airport'), lat, lng };
               }
             }
           });
@@ -200,7 +202,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
 
         mapDaysList.push({
           dayNumber,
-          label: `DAY ${dayNumber}`,
+          label: t('vault.day_upper', { number: dayNumber }),
           theme: day.theme,
           pois: dayPois,
         });
@@ -213,7 +215,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
         const lat = hInfo.lat ?? hInfo.location?.latitude;
         const lng = hInfo.lng ?? hInfo.location?.longitude;
         if (typeof lat === 'number' && typeof lng === 'number') {
-          hotelAnchor = { name: hInfo.name || 'Hotel Base Camp', lat, lng };
+          hotelAnchor = { name: hInfo.name || t('vault.hotel_base_camp'), lat, lng };
         }
       }
     }
@@ -223,7 +225,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
         const lat = aInfo.lat ?? aInfo.location?.latitude;
         const lng = aInfo.lng ?? aInfo.location?.longitude;
         if (typeof lat === 'number' && typeof lng === 'number') {
-          airportAnchor = { name: aInfo.name || 'Transit Airport', lat, lng };
+          airportAnchor = { name: aInfo.name || t('vault.transit_airport'), lat, lng };
         }
       }
     }
@@ -233,7 +235,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
       hotel: hotelAnchor,
       airport: airportAnchor,
     };
-  }, [trip.itinerary_data]);
+  }, [trip.itinerary_data, t]);
 
   // Find primary flight ticket
   const flightTicket = useMemo(() => {
@@ -255,10 +257,10 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
         currency: e.currency || 'EUR',
         date: e.expense_date || undefined,
         payerId: e.payer_id,
-        payerName: e.payer_name || 'Traveler',
+        payerName: e.payer_name || t('vault.traveler_singular'),
       };
     });
-  }, [expenses]);
+  }, [expenses, t]);
 
   const totalCost = useMemo(() => {
     if (settlement?.total_expenses !== undefined) {
@@ -344,7 +346,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
               fontWeight: 600,
             }}
           >
-            <ChevronLeftIcon size={12} /> VAULT
+            <ChevronLeftIcon size={12} /> {t('vault.vault_back_btn')}
           </Link>
 
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
@@ -401,7 +403,7 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
               <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
               <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
             </svg>
-            <span>Share Expedition</span>
+            <span>{t('workspace.share_expedition')}</span>
           </button>
         </div>
       </header>

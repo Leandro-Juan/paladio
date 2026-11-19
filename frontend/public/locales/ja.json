@@ -166,7 +166,11 @@
     "field_briefing": "TRAVEL NOTES & FIELD BRIEFING",
     "field_briefing_placeholder": "Packing lists, emergency contacts, SIM cards, reservation codes, keys...",
     "danger_zone": "DANGER ZONE",
-    "delete_confirm": "Are you sure you want to delete this expedition? This action is permanent."
+    "delete_confirm": "Are you sure you want to delete this expedition? This action is permanent.",
+    "translate_description": "翻訳",
+    "show_original": "原文を表示",
+    "translating": "翻訳中...",
+    "translation_error": "翻訳に失敗しました"
   },
   "wallet": {
     "title": "Travel Wallet & Documents",

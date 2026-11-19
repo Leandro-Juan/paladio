@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DealPackage } from '@/hooks/useRouteMonitoring';
 import {
   HotelIcon,
@@ -26,6 +27,7 @@ interface HotelTicketCardProps {
 }
 
 export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardProps) {
+  const { t } = useTranslation();
   const lodging = deal.lodging;
   const activeCurrency = deal.currency || dealCurrency || 'EUR';
 
@@ -35,18 +37,18 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
         <div className={styles.componentHeader}>
           <span className={styles.componentTypeTitle}>
             <HotelIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
-            Accommodation
+            {t('monitoring.accommodation')}
           </span>
-          <span className={styles.hotelNotIncludedBadge}>HOTEL NOT INCLUDED</span>
+          <span className={styles.hotelNotIncludedBadge}>{t('monitoring.hotel_not_included')}</span>
         </div>
         <div className={styles.componentDetails}>
-          <span className={styles.componentMainName}>No accommodation included</span>
+          <span className={styles.componentMainName}>{t('monitoring.no_accommodation_included')}</span>
           <span className={styles.componentSubText}>
-            {deal.nights} Nights in {deal.destination_name} · Select lodging when building your trip.
+            {t('monitoring.nights_in_dest_select_lodging', { nights: deal.nights, dest: deal.destination_name })}
           </span>
         </div>
         <div className={styles.componentPriceRow}>
-          <span className={styles.componentPrice}>Flights Only</span>
+          <span className={styles.componentPrice}>{t('monitoring.flights_only')}</span>
         </div>
       </div>
     );
@@ -62,12 +64,12 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
           .join('')
           .slice(0, 2)
           .toUpperCase(),
-        name: p.name || `Traveler ${i + 1}`,
+        name: p.name || t('monitoring.traveler_num', { num: i + 1 }),
       }))
     : Array.from({ length: travelerCount }, (_, i) => ({
         key: `traveler-${i}`,
         initials: `P${i + 1}`,
-        name: `Traveler ${i + 1}`,
+        name: t('monitoring.traveler_num', { num: i + 1 }),
       }));
 
   // Parse amenities dynamically
@@ -82,7 +84,7 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
   const hasAc = amenitiesList.some((a) => a.includes('ac') || a.includes('air'));
 
   // Clean property name (strip duplicate "(2 Guests)" if present)
-  const cleanPropertyName = (lodging.property_name || 'Verified Lodging')
+  const cleanPropertyName = (lodging.property_name || t('monitoring.verified_lodging'))
     .replace(/\s*\(\d+\s*Guests?\)/gi, '')
     .trim();
 
@@ -94,17 +96,25 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
       <div className={styles.componentHeader}>
         <span className={styles.componentTypeTitle}>
           <HotelIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
-          Accommodation
+          {t('monitoring.accommodation')}
         </span>
         <span className={styles.componentCarrierBadge}>
           {lodging.badge && lodging.badge !== 'standard'
-            ? `${lodging.badge === 'best_value' ? 'Best Value' : lodging.badge === 'cheapest' ? 'Cheapest' : lodging.badge === 'top_rated' ? 'Top Rated' : lodging.badge} · `
+            ? `${
+                lodging.badge === 'best_value'
+                  ? t('monitoring.badge_best_value')
+                  : lodging.badge === 'cheapest'
+                  ? t('monitoring.badge_cheapest')
+                  : lodging.badge === 'top_rated'
+                  ? t('monitoring.badge_top_rated')
+                  : lodging.badge
+              } · `
             : ''}
           {lodging.quality_score
-            ? `${lodging.quality_score.toFixed(0)}/100 Quality`
+            ? t('monitoring.quality_score', { score: lodging.quality_score.toFixed(0) })
             : lodging.stars
-            ? `${lodging.stars} Stars`
-            : 'Verified Stay'}
+            ? t('monitoring.stars_count', { count: lodging.stars })
+            : t('monitoring.verified_stay')}
         </span>
       </div>
 
@@ -131,7 +141,7 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
               {cleanPropertyName}
             </span>
             {starCount > 0 && (
-              <span className={styles.hotelStarsRow} title={`${starCount} Stars`}>
+              <span className={styles.hotelStarsRow} title={t('monitoring.stars_count', { count: starCount })}>
                 {Array.from({ length: Math.min(starCount, 5) }).map((_, i) => (
                   <StarIcon key={i} size={11} color="#F59E0B" fill="#F59E0B" />
                 ))}
@@ -147,7 +157,9 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
           <div className={styles.hotelGuestRow}>
             <span className={styles.guestCountBadge}>
               {travelerCount === 1 ? <UserIcon size={11} /> : <UsersIcon size={11} />}
-              {travelerCount} {travelerCount === 1 ? 'Guest' : 'Guests'}
+              {travelerCount === 1
+                ? t('monitoring.guest_one', { count: travelerCount })
+                : t('monitoring.guest_many', { count: travelerCount })}
             </span>
             <div
               className={styles.avatarStack}
@@ -165,7 +177,7 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
           <div className={styles.hotelPerkRow}>
             <span className={styles.hotelPerkItem}>
               <HotelIcon size={12} color="var(--color-text-secondary, #475569)" />
-              {lodging.room_type || (travelerCount > 1 ? 'Double Room' : 'Standard Room')}
+              {lodging.room_type || (travelerCount > 1 ? t('monitoring.double_room') : t('monitoring.standard_room'))}
             </span>
             {lodging.board ? (
               <span className={styles.hotelPerkItem}>
@@ -175,7 +187,7 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
             ) : hasBreakfast ? (
               <span className={styles.hotelPerkItem}>
                 <UtensilsIcon size={12} color="var(--color-text-secondary, #475569)" />
-                Breakfast included
+                {t('monitoring.breakfast_included_lower')}
               </span>
             ) : null}
           </div>
@@ -184,7 +196,7 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
           {(lodging.free_cancellation || amenitiesList.some((a) => a.includes('cancel'))) && (
             <div className={styles.hotelCancellationTag}>
               <CheckmarkIcon size={12} />
-              <span>Free cancellation</span>
+              <span>{t('monitoring.free_cancellation')}</span>
             </div>
           )}
         </div>
@@ -193,42 +205,42 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
       {/* Amenity Icons Row */}
       <div className={styles.hotelAmenitiesRow}>
         {hasWifi && (
-          <span className={styles.amenityIconPill} title="Free High-Speed Wi-Fi">
+          <span className={styles.amenityIconPill} title={t('monitoring.amenity_wifi')}>
             <WifiIcon size={12} />
           </span>
         )}
         {hasPets && (
-          <span className={styles.amenityIconPill} title="Pet-Friendly Stay">
+          <span className={styles.amenityIconPill} title={t('monitoring.amenity_pets')}>
             <PawIcon size={12} />
           </span>
         )}
         {hasBar && (
-          <span className={styles.amenityIconPill} title="Bar / Lounge">
+          <span className={styles.amenityIconPill} title={t('monitoring.amenity_bar')}>
             <BarIcon size={12} />
           </span>
         )}
         {hasBreakfast && (
-          <span className={styles.amenityIconPill} title="Breakfast Included">
+          <span className={styles.amenityIconPill} title={t('monitoring.amenity_breakfast')}>
             <UtensilsIcon size={12} />
           </span>
         )}
         {hasParking && (
-          <span className={styles.amenityIconPill} title="Parking Available">
+          <span className={styles.amenityIconPill} title={t('monitoring.amenity_parking')}>
             <ParkingIcon size={12} />
           </span>
         )}
         {hasPool && (
-          <span className={styles.amenityIconPill} title="Swimming Pool">
+          <span className={styles.amenityIconPill} title={t('monitoring.amenity_pool')}>
             <PoolIcon size={12} />
           </span>
         )}
         {hasGym && (
-          <span className={styles.amenityIconPill} title="Fitness Center">
+          <span className={styles.amenityIconPill} title={t('monitoring.amenity_gym')}>
             <GymIcon size={12} />
           </span>
         )}
         {hasAc && (
-          <span className={styles.amenityIconPill} title="Air Conditioning">
+          <span className={styles.amenityIconPill} title={t('monitoring.amenity_ac')}>
             <AcIcon size={12} />
           </span>
         )}
@@ -238,8 +250,17 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
       <div className={styles.componentPriceRow}>
         <span className={styles.componentPrice}>
           {travelerCount > 1
-            ? `${formatCurrencyAmount((lodging.landed_total_eur ?? 0) / travelerCount, activeCurrency)} / pers · ${formatCurrencyAmount(lodging.landed_total_eur ?? 0, activeCurrency)} total (${deal.nights} Nights)`
-            : `${lodging.landed_total_eur ? `${formatCurrencyAmount(lodging.landed_total_eur, activeCurrency)} Landed ` : 'Landed Lodging '}(${deal.nights} Nights)`}
+            ? t('monitoring.hotel_price_multi', {
+                perPerson: formatCurrencyAmount((lodging.landed_total_eur ?? 0) / travelerCount, activeCurrency),
+                total: formatCurrencyAmount(lodging.landed_total_eur ?? 0, activeCurrency),
+                nights: deal.nights,
+              })
+            : lodging.landed_total_eur
+            ? t('monitoring.hotel_price_single_landed', {
+                total: formatCurrencyAmount(lodging.landed_total_eur, activeCurrency),
+                nights: deal.nights,
+              })
+            : t('monitoring.hotel_price_single_fallback', { nights: deal.nights })}
         </span>
         {lodging.booking_url && (
           <a
@@ -248,7 +269,7 @@ export function HotelTicketCard({ deal, dealCurrency = 'EUR' }: HotelTicketCardP
             rel="noopener noreferrer"
             className={styles.directLinkBtn}
           >
-            Book Hotel ↗
+            {t('monitoring.book_hotel')}
           </a>
         )}
       </div>

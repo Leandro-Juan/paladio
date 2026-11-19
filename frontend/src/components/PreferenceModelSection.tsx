@@ -1,27 +1,32 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fetchCurrentUser, fetchUserEmbeddingApi } from '@/utils/api';
 import { User } from '@/types/auth';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface TagConfig {
   key: string;
-  label: string;
-  description: string;
+  labelKey: string;
 }
 
 const CATEGORY_MAP: TagConfig[] = [
-  { key: 'art_culture', label: 'Art & Culture', description: 'Museums, galleries, fine arts' },
-  { key: 'history_heritage', label: 'Historical Sites', description: 'Castles, monuments, ruins' },
-  { key: 'nature_outdoors', label: 'Nature & Outdoors', description: 'Parks, botanical gardens, trails' },
-  { key: 'architecture', label: 'Architecture', description: 'Iconic facades, plazas, bridges' },
-  { key: 'food_culinary', label: 'Culinary & Food', description: 'Tapas, bistros, gastronomy' },
-  { key: 'nightlife', label: 'Nightlife', description: 'Speakeasies, wine bars, lounges' },
-  { key: 'shopping', label: 'Shopping & Bazaars', description: 'Artisan craft markets, boutiques' },
-  { key: 'scenic_views', label: 'Scenic Views', description: 'Panoramic miradors, terraces' },
+  { key: 'art_culture', labelKey: 'categories.art_culture' },
+  { key: 'history_heritage', labelKey: 'preferences.cat_history_heritage' },
+  { key: 'nature_outdoors', labelKey: 'categories.nature_outdoors' },
+  { key: 'architecture', labelKey: 'categories.architecture' },
+  { key: 'food_culinary', labelKey: 'preferences.cat_food_culinary' },
+  { key: 'nightlife', labelKey: 'categories.nightlife' },
+  { key: 'shopping', labelKey: 'preferences.cat_shopping' },
+  { key: 'scenic_views', labelKey: 'categories.scenic_views' },
 ];
 
 export function PreferenceModelSection() {
+  const { t } = useTranslation();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +63,7 @@ export function PreferenceModelSection() {
         if (typeof prefs.budget_tier === 'string') setBudgetTier(prefs.budget_tier.toLowerCase());
       } catch (err: unknown) {
         if (!ignore) {
-          const msg = err instanceof Error ? err.message : 'Failed to load user preference model.';
+          const msg = err instanceof Error ? err.message : tRef.current('preferences.load_failed');
           setError(msg);
         }
       } finally {
@@ -77,7 +82,7 @@ export function PreferenceModelSection() {
   if (loading) {
     return (
       <div className="bg-surface border-subtle" style={{ padding: '2rem', borderRadius: 'var(--radius-lg)', textAlign: 'center' }}>
-        <p className="font-mono text-muted">{'// LOADING SOVEREIGN TASTE TELEMETRY...'}</p>
+        <p className="font-mono text-muted">{t('preferences.loading_telemetry')}</p>
       </div>
     );
   }
@@ -99,7 +104,7 @@ export function PreferenceModelSection() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <h3 className="font-display" style={{ margin: 0, fontSize: '1.35rem', fontWeight: 300, color: 'var(--color-text-primary)' }}>
-              PREFERENCE MODEL &amp; TASTE TELEMETRY
+              {t('preferences.model_title')}
             </h3>
             <span
               style={{
@@ -113,11 +118,11 @@ export function PreferenceModelSection() {
                 fontWeight: 600,
               }}
             >
-              ● [ AUTONOMOUS ]
+              {t('preferences.autonomous_badge')}
             </span>
           </div>
           <p className="font-mono text-muted text-xs mt-1">
-            {'// SOVEREIGN TASTE VECTOR (768D SEMANTIC RAG & PERMANENT EMA)'}
+            {t('preferences.sovereign_vector_desc')}
           </p>
         </div>
 
@@ -131,7 +136,7 @@ export function PreferenceModelSection() {
               border: '1px solid var(--color-border)',
             }}
           >
-            VECTOR DIM: {embeddingDim}D
+            {t('preferences.vector_dim', { dim: embeddingDim })}
           </span>
           {user?.username && (
             <span
@@ -143,7 +148,7 @@ export function PreferenceModelSection() {
                 border: '1px solid var(--color-border)',
               }}
             >
-              USER: {user.username}
+              {t('preferences.user_badge', { username: user.username })}
             </span>
           )}
         </div>
@@ -177,12 +182,12 @@ export function PreferenceModelSection() {
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <span className="font-mono text-muted text-xs">{'// LIVE TASTE WEIGHT TELEMETRY'}</span>
-          <span className="font-mono text-xs text-muted" style={{ fontSize: '11px' }}>ACTIVE WEIGHTS</span>
+          <span className="font-mono text-muted text-xs">{t('preferences.live_telemetry_title')}</span>
+          <span className="font-mono text-xs text-muted" style={{ fontSize: '11px' }}>{t('preferences.active_weights')}</span>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-            {CATEGORY_MAP.map(({ key, label }) => {
+            {CATEGORY_MAP.map(({ key, labelKey }) => {
               const val = tagAffinities[key] ?? 0.5;
               const pct = Math.round(val * 100);
 
@@ -190,7 +195,7 @@ export function PreferenceModelSection() {
                 <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span className="font-display text-xs" style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                      {label}
+                      {t(labelKey)}
                     </span>
                     <span className="font-mono text-xs" style={{ fontWeight: 700, color: 'var(--color-accent-primary)' }}>
                       {val.toFixed(2)} <span className="text-muted" style={{ fontWeight: 400 }}>({pct}%)</span>
@@ -231,7 +236,7 @@ export function PreferenceModelSection() {
             }}
           >
             <p className="font-mono text-xs text-muted" style={{ lineHeight: '1.5', margin: 0, fontSize: '11px' }}>
-              {'// AUTONOMOUS ML TELEMETRY: Taste weights reflect real-time 8D harmonic projections of your permanent 768-dimensional dense semantic profile (nomic-embed-text & pgvector).'}
+              {t('preferences.autonomous_telemetry_footer')}
             </p>
           </div>
         </div>

@@ -1,10 +1,11 @@
 "use client";
 
 import dynamic from 'next/dynamic';
+import { useTranslation } from '@/hooks/useTranslation';
 
-const TripMapView = dynamic(() => import('./TripMapView'), {
-  ssr: false,
-  loading: () => (
+function TripMapLoadingFallback() {
+  const { t } = useTranslation();
+  return (
     <div
       className="font-mono text-muted text-sm"
       style={{
@@ -17,9 +18,14 @@ const TripMapView = dynamic(() => import('./TripMapView'), {
         background: 'var(--color-bg-main)',
       }}
     >
-      [ LOADING TACTICAL GEO-SERVICE... ]
+      {t('workspace.loading_geo_service')}
     </div>
-  ),
+  );
+}
+
+const TripMapView = dynamic(() => import('./TripMapView'), {
+  ssr: false,
+  loading: () => <TripMapLoadingFallback />,
 });
 
 export default TripMapView;

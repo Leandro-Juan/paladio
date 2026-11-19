@@ -96,10 +96,10 @@ export function AppSidebar() {
           type="button"
           onClick={toggleSidebar}
           className={styles.floatingToggle}
-          data-tooltip="Expand navigation"
+          data-tooltip={t('nav.expand_navigation')}
           data-tooltip-shortcut="Ctrl+B"
           data-tooltip-position="right"
-          aria-label="Expand sidebar"
+          aria-label={t('nav.expand_sidebar')}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="3" y1="12" x2="21" y2="12" />
@@ -121,7 +121,7 @@ export function AppSidebar() {
       {/* Main Sidebar Container */}
       <nav
         className={`${styles.sidebarContainer} sidebar ${isCollapsed ? styles.collapsed : ''} ${isMobileOpen ? `${styles.mobileOpen} mobile-open` : ''}`}
-        aria-label="Main Navigation"
+        aria-label={t('nav.main_navigation')}
       >
         <div className={styles.sidebarInner}>
           {/* Header */}
@@ -130,7 +130,7 @@ export function AppSidebar() {
               type="button"
               onClick={() => handleNavigate('/dashboard')}
               className={styles.brand}
-              data-tooltip="Paladio Control Center"
+              data-tooltip={t('nav.paladio_control_center')}
               data-tooltip-position="bottom"
             >
               <div className="logo-mark" aria-hidden="true" style={{ width: '30px', height: '30px' }}>
@@ -145,10 +145,10 @@ export function AppSidebar() {
                 type="button"
                 onClick={toggleSidebar}
                 className={styles.closeButton}
-                data-tooltip="Collapse sidebar"
+                data-tooltip={t('nav.collapse_sidebar')}
                 data-tooltip-shortcut="Ctrl+B"
                 data-tooltip-position="bottom"
-                aria-label="Collapse sidebar"
+                aria-label={t('nav.collapse_sidebar')}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />

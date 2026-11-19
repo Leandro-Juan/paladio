@@ -1,5 +1,6 @@
 'use strict';
 import React, { useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useThemeStore } from '@/stores/themeStore';
 import { useTypographyStore } from '@/stores/typographyStore';
 import { useNavigationStore } from '@/stores/navigationStore';
@@ -35,6 +36,7 @@ export function ExperienceSection({
   subTab = 'appearance',
   initialSubTab,
 }: ExperienceSectionProps) {
+  const { t } = useTranslation();
   const { theme, setTheme } = useThemeStore();
   const { typography, setTypography, toggleTypography } = useTypographyStore();
   const { navStyle, setNavStyle } = useNavigationStore();
@@ -80,18 +82,39 @@ export function ExperienceSection({
     }
   };
 
+  const themeBadgeText =
+    theme === 'dark'
+      ? t('config.theme_badge_dark_upper')
+      : theme === 'silent-waters'
+      ? t('config.theme_badge_silent_upper')
+      : t('config.theme_badge_light_upper');
+
+  const mapBadgeMap: Record<string, string> = {
+    carto_dark: t('config.map_badge_carto_dark'),
+    carto_voyager: t('config.map_badge_carto_voyager'),
+    osm: t('config.map_badge_osm'),
+    satellite: t('config.map_badge_satellite'),
+  };
+
+  const mapInnerBadgeMap: Record<string, string> = {
+    carto_dark: t('config.map_layer_carto_dark_upper'),
+    carto_voyager: t('config.map_layer_carto_voyager_upper'),
+    osm: t('config.map_layer_osm_upper'),
+    satellite: t('config.map_layer_satellite_upper'),
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <SettingsHeader
-        title="Appearance & Interface"
-        subtitle="Pacific Jazz visual themes, interface typography pairings, navigation shell, and cartography layers"
+        title={t('config.item_appearance_title')}
+        subtitle={t('config.appearance_header_subtitle')}
         onBackToOverview={onBackToOverview}
       />
 
       {/* Horizontal Sub-Tab Switcher */}
       <div
         role="tablist"
-        aria-label="Appearance & Interface sub-sections"
+        aria-label={t('config.appearance_subtabs_aria')}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -131,7 +154,7 @@ export function ExperienceSection({
                 whiteSpace: 'nowrap',
               }}
             >
-              {tab.label}
+              {t(tab.label)}
             </button>
           );
         })}
@@ -140,16 +163,22 @@ export function ExperienceSection({
       {/* 1. Interface Appearance & Theme Engine */}
       {activeSubTab === 'theme' && (
       <SettingsCardFrame
-        title="Pacific Jazz Visual Themes"
-        subtitle="Engineered color harmonics designed for day, night, and silent waters navigation"
-        badge={theme ? theme.toUpperCase() : 'LIGHT'}
+        title={t('config.themes_card_title')}
+        subtitle={t('config.themes_card_subtitle')}
+        badge={themeBadgeText}
         badgeTone="coral"
-        innerTitle="Active Color Surface"
-        innerBadge={theme === 'dark' ? 'Pacific Slate' : theme === 'silent-waters' ? 'Silent Waters' : 'Editorial Light'}
+        innerTitle={t('config.themes_inner_title')}
+        innerBadge={
+          theme === 'dark'
+            ? t('config.themes_inner_dark')
+            : theme === 'silent-waters'
+            ? t('config.themes_inner_silent')
+            : t('config.themes_inner_light')
+        }
         menuItems={[
           {
             id: 'reset_theme',
-            label: 'Reset to Light Theme',
+            label: t('config.reset_light_theme'),
             onClick: () => setTheme('light'),
           },
         ]}
@@ -159,7 +188,7 @@ export function ExperienceSection({
           <button
             type="button"
             onClick={() => setTheme('light')}
-            aria-label="Switch to light mode"
+            aria-label={t('config.switch_light_aria')}
             aria-pressed={theme === 'light'}
             style={{
               padding: '16px',
@@ -178,16 +207,16 @@ export function ExperienceSection({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '15px' }}>
-                Pacific Jazz Light
+                {t('config.theme_light_name')}
               </span>
               {theme === 'light' && (
                 <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--color-accent-gold)', color: '#0A2A35' }}>
-                  ACTIVE
+                  {t('config.badge_active_upper')}
                 </span>
               )}
             </div>
             <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-              Warm paper and parchment canvas for high daylight readability.
+              {t('config.theme_light_desc')}
             </span>
           </button>
 
@@ -195,7 +224,7 @@ export function ExperienceSection({
           <button
             type="button"
             onClick={() => setTheme('dark')}
-            aria-label="Switch to dark mode"
+            aria-label={t('config.switch_dark_aria')}
             aria-pressed={theme === 'dark'}
             style={{
               padding: '16px',
@@ -214,16 +243,16 @@ export function ExperienceSection({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '15px' }}>
-                Pacific Slate Dark
+                {t('config.theme_dark_card_name')}
               </span>
               {theme === 'dark' && (
                 <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--color-accent-gold)', color: '#0A2A35' }}>
-                  ACTIVE
+                  {t('config.badge_active_upper')}
                 </span>
               )}
             </div>
             <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-              Deep slate petrol canvas reducing glare during nocturnal planning.
+              {t('config.theme_dark_desc')}
             </span>
           </button>
 
@@ -231,7 +260,7 @@ export function ExperienceSection({
           <button
             type="button"
             onClick={() => setTheme('silent-waters')}
-            aria-label="Switch to silent waters"
+            aria-label={t('config.switch_silent_aria')}
             aria-pressed={theme === 'silent-waters'}
             style={{
               padding: '16px',
@@ -250,16 +279,16 @@ export function ExperienceSection({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '15px' }}>
-                Silent Waters Navy
+                {t('config.theme_silent_card_name')}
               </span>
               {theme === 'silent-waters' && (
                 <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--color-accent-teal)', color: '#FFFFFF' }}>
-                  ACTIVE
+                  {t('config.badge_active_upper')}
                 </span>
               )}
             </div>
             <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-              Deep oceanic indigo palette curated for maritime and calm focus.
+              {t('config.theme_silent_desc')}
             </span>
           </button>
         </div>
@@ -269,25 +298,25 @@ export function ExperienceSection({
       {/* 2. Interface Typography */}
       {activeSubTab === 'typography' && (
       <SettingsCardFrame
-        title="Interface Typography Pairings"
-        subtitle="Tactical typographic hierarchy balancing modern neutral Inter with editorial Jost accents"
-        badge={typography === 'classic' ? 'CLASSIC' : 'INTER'}
+        title={t('config.typography_card_title')}
+        subtitle={t('config.typography_card_subtitle')}
+        badge={typography === 'classic' ? t('config.typography_badge_classic') : t('config.typography_badge_inter')}
         badgeTone="teal"
-        innerTitle="Active Font Pairing"
-        innerBadge={typography === 'classic' ? 'Classic Jost Editorial' : 'Modern Inter'}
+        innerTitle={t('config.typography_inner_title')}
+        innerBadge={typography === 'classic' ? t('config.typography_classic_card_name') : t('config.typography_inner_inter')}
         actionButton={{
-          label: typography === 'classic' ? 'Switch to Inter Typography' : 'Switch to Classic Typography',
+          label: typography === 'classic' ? t('config.switch_to_inter_btn') : t('config.switch_to_classic_btn'),
           onClick: toggleTypography,
         }}
         menuItems={[
           {
             id: 'set_inter',
-            label: 'Set typography to Inter (universal)',
+            label: t('config.set_typography_inter'),
             onClick: () => setTypography('inter'),
           },
           {
             id: 'set_classic',
-            label: 'Set typography to Classic Editorial',
+            label: t('config.set_typography_classic'),
             onClick: () => setTypography('classic'),
           },
         ]}
@@ -296,7 +325,7 @@ export function ExperienceSection({
           <button
             type="button"
             onClick={() => setTypography('inter')}
-            aria-label="Set typography to Inter (universal)"
+            aria-label={t('config.set_typography_inter')}
             aria-pressed={typography === 'inter'}
             style={{
               padding: '16px',
@@ -314,23 +343,23 @@ export function ExperienceSection({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '15px' }}>
-                Inter Universal
+                {t('config.typography_inter_card_name')}
               </span>
               {typography === 'inter' && (
                 <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--color-accent-teal)', color: '#FFFFFF' }}>
-                  ACTIVE
+                  {t('config.badge_active_upper')}
                 </span>
               )}
             </div>
             <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-              Clean, modern Swiss neo-grotesque sans-serif with maximal screen legibility.
+              {t('config.typography_inter_desc')}
             </span>
           </button>
 
           <button
             type="button"
             onClick={() => setTypography('classic')}
-            aria-label="Set typography to Classic Editorial"
+            aria-label={t('config.set_typography_classic')}
             aria-pressed={typography === 'classic'}
             style={{
               padding: '16px',
@@ -348,16 +377,16 @@ export function ExperienceSection({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontFamily: 'Jost, sans-serif', fontWeight: 600, fontSize: '15px' }}>
-                Classic Jost Editorial
+                {t('config.typography_classic_card_name')}
               </span>
               {typography === 'classic' && (
                 <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--color-accent-teal)', color: '#FFFFFF' }}>
-                  ACTIVE
+                  {t('config.badge_active_upper')}
                 </span>
               )}
             </div>
             <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-              Geometric 1920s German Futura-inspired typeface delivering warm editorial rhythm.
+              {t('config.typography_classic_desc')}
             </span>
           </button>
         </div>
@@ -367,21 +396,21 @@ export function ExperienceSection({
       {/* 3. Navigation Presentation */}
       {activeSubTab === 'navigation' && (
       <SettingsCardFrame
-        title="Navigation Presentation"
-        subtitle="Configure whether your travel workstation uses a floating dock or vertical sidebar rail"
-        badge={navStyle === 'dock' ? 'TACTICAL DOCK' : 'SIDEBAR RAIL'}
+        title={t('config.nav_card_title')}
+        subtitle={t('config.nav_card_subtitle')}
+        badge={navStyle === 'dock' ? t('config.nav_badge_dock') : t('config.nav_badge_sidebar')}
         badgeTone="teal"
-        innerTitle="Active Shell Mode"
-        innerBadge={navStyle === 'dock' ? 'Floating Dock' : 'Sidebar Rail'}
+        innerTitle={t('config.nav_inner_title')}
+        innerBadge={navStyle === 'dock' ? t('config.nav_inner_dock') : t('config.nav_inner_sidebar')}
         menuItems={[
           {
             id: 'set_dock',
-            label: 'Activate Floating Dock',
+            label: t('config.activate_dock_menu'),
             onClick: () => setNavStyle('dock'),
           },
           {
             id: 'set_sidebar',
-            label: 'Activate Sidebar Rail',
+            label: t('config.activate_sidebar_menu'),
             onClick: () => setNavStyle('sidebar'),
           },
         ]}
@@ -390,7 +419,7 @@ export function ExperienceSection({
           <button
             type="button"
             onClick={() => setNavStyle('dock')}
-            aria-label="Set navigation to Floating Bottom Dock"
+            aria-label={t('config.set_nav_dock_aria')}
             aria-pressed={navStyle === 'dock'}
             style={{
               padding: '16px',
@@ -405,16 +434,16 @@ export function ExperienceSection({
               gap: '8px',
             }}
           >
-            <span style={{ fontWeight: 600, fontSize: '15px' }}>Floating Tactical Dock</span>
+            <span style={{ fontWeight: 600, fontSize: '15px' }}>{t('config.nav_dock_title')}</span>
             <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-              Centrally docked floating pill maximizing map viewport area.
+              {t('config.nav_dock_desc')}
             </span>
           </button>
 
           <button
             type="button"
             onClick={() => setNavStyle('sidebar')}
-            aria-label="Set navigation to Sidebar"
+            aria-label={t('config.set_nav_sidebar_aria')}
             aria-pressed={navStyle === 'sidebar'}
             style={{
               padding: '16px',
@@ -429,9 +458,9 @@ export function ExperienceSection({
               gap: '8px',
             }}
           >
-            <span style={{ fontWeight: 600, fontSize: '15px' }}>Desktop Sidebar Rail</span>
+            <span style={{ fontWeight: 600, fontSize: '15px' }}>{t('config.nav_sidebar_title')}</span>
             <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-              Fixed vertical rail providing immediate multi-tab access at the screen edge.
+              {t('config.nav_sidebar_desc')}
             </span>
           </button>
         </div>
@@ -441,16 +470,16 @@ export function ExperienceSection({
       {/* 4. Cartography & Map Layers */}
       {activeSubTab === 'maps' && (
       <SettingsCardFrame
-        title="Cartography & Map Layers"
-        subtitle="Select sovereign vector/raster tile providers and configure transit line route overlays"
-        badge={mapTileLayer.toUpperCase()}
+        title={t('config.maps_card_title')}
+        subtitle={t('config.maps_card_subtitle')}
+        badge={mapBadgeMap[mapTileLayer] || mapTileLayer.toUpperCase()}
         badgeTone="gold"
-        innerTitle="Active Map Style"
-        innerBadge={mapTileLayer.replace('_', ' ').toUpperCase()}
+        innerTitle={t('config.maps_inner_title')}
+        innerBadge={mapInnerBadgeMap[mapTileLayer] || mapTileLayer.replace('_', ' ').toUpperCase()}
         menuItems={[
           {
             id: 'reset_map',
-            label: 'Reset to CartoDB Dark Matter',
+            label: t('config.reset_map_menu'),
             onClick: () => handleUpdateMapLayer('carto_dark'),
           },
         ]}
@@ -458,15 +487,15 @@ export function ExperienceSection({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
             {[
-              { id: 'carto_dark', label: 'CartoDB Dark Matter', desc: 'Minimalist dark vectors' },
-              { id: 'carto_voyager', label: 'CartoDB Voyager', desc: 'Warm daylight editorial' },
-              { id: 'osm', label: 'OpenStreetMap Standard', desc: 'Detailed local topography' },
-              { id: 'satellite', label: 'High-Res Satellite', desc: 'Aerial satellite imagery' },
+              { id: 'carto_dark', label: t('config.map_carto_dark_label'), desc: t('config.map_carto_dark_desc') },
+              { id: 'carto_voyager', label: t('config.map_carto_voyager_label'), desc: t('config.map_carto_voyager_desc') },
+              { id: 'osm', label: t('config.map_osm_label'), desc: t('config.map_osm_desc') },
+              { id: 'satellite', label: t('config.map_satellite_label'), desc: t('config.map_satellite_desc') },
             ].map((layer) => (
               <button
                 key={layer.id}
                 type="button"
-                onClick={() => handleUpdateMapLayer(layer.id as any)}
+                onClick={() => handleUpdateMapLayer(layer.id as 'carto_dark' | 'carto_voyager' | 'osm' | 'satellite')}
                 style={{
                   padding: '14px',
                   borderRadius: '10px',
@@ -497,17 +526,17 @@ export function ExperienceSection({
           >
             <div>
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                Transit Route Overlays
+                {t('config.transit_route_overlays_title')}
               </span>
               <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: 0 }}>
-                Render compiled GTFS metro, tram, and rail vectors on map canvas
+                {t('config.transit_route_overlays_desc')}
               </p>
             </div>
             <TacticalToggle
               checked={showTransitLines}
               onChange={handleToggleTransitLines}
               tone="teal"
-              ariaLabel="Toggle transit lines on map"
+              ariaLabel={t('config.toggle_transit_lines_aria')}
             />
           </div>
         </div>

@@ -1,5 +1,6 @@
 'use strict';
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface TacticalToggleProps {
   checked: boolean;
@@ -18,6 +19,8 @@ export function TacticalToggle({
   tone = 'teal',
   ariaLabel,
 }: TacticalToggleProps) {
+  const { t } = useTranslation();
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     if (disabled) return;
     if (e.key === ' ' || e.key === 'Enter') {
@@ -54,7 +57,7 @@ export function TacticalToggle({
         type="button"
         role="switch"
         aria-checked={checked}
-        aria-label={ariaLabel || label || 'Toggle setting'}
+        aria-label={ariaLabel ? t(ariaLabel) : label ? t(label) : t('config.toggle_setting')}
         disabled={disabled}
         onClick={() => onChange(!checked)}
         onKeyDown={handleKeyDown}
@@ -95,7 +98,7 @@ export function TacticalToggle({
             color: checked ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
           }}
         >
-          {label}
+          {t(label)}
         </span>
       )}
     </label>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { CloseIcon, PlusIcon } from '@/components/icons';
 
 interface PhotoUploadModalProps {
@@ -14,6 +15,7 @@ export function PhotoUploadModal({
   onClose,
   onPhotoSelect,
 }: PhotoUploadModalProps) {
+  const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,12 +50,12 @@ export function PhotoUploadModal({
   const handleFileProcess = (file: File) => {
     setErrorMessage(null);
     if (!file.type.startsWith('image/')) {
-      setErrorMessage('Please select a valid image file (JPG, PNG, WEBP, etc.).');
+      setErrorMessage(t('engine.photo_invalid_type'));
       return;
     }
     // Limit to 10MB
     if (file.size > 10 * 1024 * 1024) {
-      setErrorMessage('Image size exceeds 10MB limit.');
+      setErrorMessage(t('engine.photo_too_large'));
       return;
     }
 
@@ -64,7 +66,7 @@ export function PhotoUploadModal({
       }
     };
     reader.onerror = () => {
-      setErrorMessage('Failed to read image file.');
+      setErrorMessage(t('engine.photo_read_failed'));
     };
     reader.readAsDataURL(file);
   };
@@ -141,7 +143,7 @@ export function PhotoUploadModal({
                 letterSpacing: '-0.02em',
               }}
             >
-              Upload Photo
+              {t('workspace.upload_photo')}
             </h3>
             <p
               style={{
@@ -150,13 +152,13 @@ export function PhotoUploadModal({
                 color: 'var(--color-text-muted, #71717A)',
               }}
             >
-              Choose a custom cover image for your trip banner
+              {t('engine.photo_upload_desc')}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            title="Close"
+            title={t('common.close')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -248,16 +250,27 @@ export function PhotoUploadModal({
                 color: 'var(--color-text-primary, #1A1D24)',
               }}
             >
-              Drop your photo here, or{' '}
-              <span
-                style={{
-                  color: '#0F4C5C',
-                  textDecoration: 'underline',
-                  fontWeight: 700,
-                }}
-              >
-                browse
-              </span>
+              {(() => {
+                const marker = '__BROWSE__';
+                const text = t('engine.drop_photo_or_browse', { browse: marker });
+                const parts = text.split(marker);
+                if (parts.length !== 2) return text;
+                return (
+                  <>
+                    {parts[0]}
+                    <span
+                      style={{
+                        color: '#0F4C5C',
+                        textDecoration: 'underline',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {t('engine.browse_link')}
+                    </span>
+                    {parts[1]}
+                  </>
+                );
+              })()}
             </p>
             <p
               style={{
@@ -266,7 +279,7 @@ export function PhotoUploadModal({
                 color: 'var(--color-text-muted, #71717A)',
               }}
             >
-              Supports PNG, JPG, WEBP, or GIF up to 10MB
+              {t('engine.photo_supported_formats')}
             </p>
           </div>
         </div>

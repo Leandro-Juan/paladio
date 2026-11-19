@@ -1,3 +1,5 @@
+import { translate } from '@/stores/localeStore';
+
 export type PoiCategoryType =
   | 'museum'
   | 'restaurant'
@@ -20,115 +22,145 @@ export type PoiCategoryType =
 export interface CategoryMeta {
   type: PoiCategoryType;
   label: string;
+  labelKey?: string;
   bg: string;
   color: string;
   borderColor: string;
 }
 
-const CATEGORY_DEFINITIONS: Record<PoiCategoryType, { label: string; bg: string; color: string; borderColor: string }> = {
+const CATEGORY_DEFINITIONS: Record<
+  PoiCategoryType,
+  { label: string; labelKey: string; bg: string; color: string; borderColor: string }
+> = {
   museum: {
     label: 'MUSEUM',
+    labelKey: 'poi_categories.museum',
     bg: 'rgba(99, 102, 241, 0.08)',
     color: '#4F46E5',
     borderColor: 'rgba(99, 102, 241, 0.25)',
   },
   restaurant: {
     label: 'RESTAURANT',
+    labelKey: 'poi_categories.restaurant',
     bg: 'rgba(217, 119, 6, 0.08)',
     color: '#D97706',
     borderColor: 'rgba(217, 119, 6, 0.25)',
   },
   cafe: {
     label: 'CAFÉ',
+    labelKey: 'poi_categories.cafe',
     bg: 'rgba(180, 83, 9, 0.08)',
     color: '#B45309',
     borderColor: 'rgba(180, 83, 9, 0.25)',
   },
   bus_stop: {
     label: 'BUS STOP',
+    labelKey: 'poi_categories.bus_stop',
     bg: 'rgba(13, 148, 136, 0.08)',
     color: '#0D9488',
     borderColor: 'rgba(13, 148, 136, 0.25)',
   },
   transit: {
     label: 'TRANSIT',
+    labelKey: 'poi_categories.transit',
     bg: 'rgba(8, 145, 178, 0.08)',
     color: '#0891B2',
     borderColor: 'rgba(8, 145, 178, 0.25)',
   },
   metro: {
     label: 'METRO',
+    labelKey: 'poi_categories.metro',
     bg: 'rgba(217, 70, 239, 0.08)',
     color: '#C026D3',
     borderColor: 'rgba(217, 70, 239, 0.25)',
   },
   train: {
     label: 'TRAIN',
+    labelKey: 'poi_categories.train',
     bg: 'rgba(37, 99, 235, 0.08)',
     color: '#2563EB',
     borderColor: 'rgba(37, 99, 235, 0.25)',
   },
   tram: {
     label: 'TRAM',
+    labelKey: 'poi_categories.tram',
     bg: 'rgba(245, 158, 11, 0.08)',
     color: '#D97706',
     borderColor: 'rgba(245, 158, 11, 0.25)',
   },
   hotel: {
     label: 'HOTEL',
+    labelKey: 'poi_categories.hotel',
     bg: 'rgba(30, 58, 138, 0.08)',
     color: '#1E3A8A',
     borderColor: 'rgba(30, 58, 138, 0.25)',
   },
   bar: {
     label: 'BAR / PUB',
+    labelKey: 'poi_categories.bar',
     bg: 'rgba(225, 29, 72, 0.08)',
     color: '#E11D48',
     borderColor: 'rgba(225, 29, 72, 0.25)',
   },
   landmark: {
     label: 'LANDMARK',
+    labelKey: 'poi_categories.landmark',
     bg: 'rgba(124, 58, 237, 0.08)',
     color: '#7C3AED',
     borderColor: 'rgba(124, 58, 237, 0.25)',
   },
   park: {
     label: 'PARK / NATURE',
+    labelKey: 'poi_categories.park',
     bg: 'rgba(22, 101, 52, 0.08)',
     color: '#166534',
     borderColor: 'rgba(22, 101, 52, 0.25)',
   },
   attraction: {
     label: 'ATTRACTION',
+    labelKey: 'poi_categories.attraction',
     bg: 'rgba(2, 132, 199, 0.08)',
     color: '#0284C7',
     borderColor: 'rgba(2, 132, 199, 0.25)',
   },
   flight: {
     label: 'FLIGHT',
+    labelKey: 'poi_categories.flight',
     bg: 'rgba(79, 70, 229, 0.08)',
     color: '#4338CA',
     borderColor: 'rgba(79, 70, 229, 0.25)',
   },
   airport: {
     label: 'AIRPORT',
+    labelKey: 'poi_categories.airport',
     bg: 'rgba(14, 116, 144, 0.08)',
     color: '#0E7490',
     borderColor: 'rgba(14, 116, 144, 0.25)',
   },
   shopping: {
     label: 'SHOPPING',
+    labelKey: 'poi_categories.shopping',
     bg: 'rgba(192, 38, 211, 0.08)',
     color: '#C026D3',
     borderColor: 'rgba(192, 38, 211, 0.25)',
   },
   general: {
     label: 'WAYPOINT',
+    labelKey: 'poi_categories.general',
     bg: 'rgba(100, 116, 139, 0.08)',
     color: '#64748B',
     borderColor: 'rgba(100, 116, 139, 0.25)',
   },
 };
+
+export function getPoiCategoryLabel(
+  meta: CategoryMeta,
+  tFn?: (key: string) => string
+): string {
+  if (!meta.labelKey) return meta.label;
+  const translated = tFn ? tFn(meta.labelKey) : translate(meta.labelKey);
+  return translated === meta.labelKey ? meta.label : translated;
+}
 
 export function classifyPoiCategory(category?: string, name?: string): CategoryMeta {
   const normCat = (category || '')

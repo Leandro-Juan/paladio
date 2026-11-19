@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { TripParticipant } from '@/hooks/useTrips';
 
 interface PastTripParticipantsProps {
@@ -12,18 +13,20 @@ export function PastTripParticipants({
   participants = [],
   fallbackUserName,
 }: PastTripParticipantsProps) {
+  const { t } = useTranslation();
+
   // If no participants assigned, generate clean dynamic representation with current user
   const effectiveList: Array<{ id: string; name: string; role: string }> =
     participants.length > 0
       ? participants.map((p) => ({
           id: p.id,
-          name: p.name || 'Traveler',
+          name: p.name || t('vault.traveler_singular'),
           role: p.role || 'member',
         }))
       : [
           {
             id: 'owner-default',
-            name: fallbackUserName || 'Expedition Lead',
+            name: fallbackUserName || t('vault.expedition_lead'),
             role: 'organizer',
           },
         ];
@@ -58,7 +61,7 @@ export function PastTripParticipants({
             fontWeight: 600,
           }}
         >
-          MISSION CREW
+          {t('vault.mission_crew')}
         </span>
         <span
           className="font-mono"
@@ -71,7 +74,9 @@ export function PastTripParticipants({
             borderRadius: '999px',
           }}
         >
-          {effectiveList.length} {effectiveList.length === 1 ? 'PERSON' : 'PEOPLE'}
+          {effectiveList.length === 1
+            ? t('vault.crew_one', { count: effectiveList.length })
+            : t('vault.crew_many', { count: effectiveList.length })}
         </span>
       </div>
 
@@ -138,7 +143,7 @@ export function PastTripParticipants({
                       textTransform: 'uppercase',
                     }}
                   >
-                    {isOrganizer ? 'Organizer' : 'Traveler'}
+                    {isOrganizer ? t('vault.role_organizer') : t('vault.traveler_singular')}
                   </span>
                 </div>
               </div>
@@ -155,7 +160,7 @@ export function PastTripParticipants({
                     fontWeight: 600,
                   }}
                 >
-                  HOST
+                  {t('vault.host_badge')}
                 </span>
               )}
             </div>

@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { GeoJsonObject, Feature } from 'geojson';
 import { useThemeStore } from '@/stores/themeStore';
+import { useTranslation } from '@/hooks/useTranslation';
+import { getCountryDisplayName } from '@/utils/countries';
 import type { Trip } from '@/hooks/useTrips';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
@@ -119,22 +121,24 @@ export interface PositionedVaultTrip extends VaultTrip {
   poiCount: number;
 }
 
-export function formatTripDateRange(trip?: Trip): string | undefined {
+export function formatTripDateRange(trip?: Trip, locale: string = 'en'): string | undefined {
   if (!trip?.start_date) return undefined;
   try {
     const s = new Date(trip.start_date);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = months[s.getUTCMonth()];
+    const intlLocale = locale === 'en' ? 'en-US' : locale;
+    const monthFormatter = new Intl.DateTimeFormat(intlLocale, { month: 'short', timeZone: 'UTC' });
+    const month = monthFormatter.format(s);
     const year = s.getUTCFullYear();
     if (trip.end_date) {
       const e = new Date(trip.end_date);
+      const endMonth = monthFormatter.format(e);
       if (s.getUTCFullYear() === e.getUTCFullYear()) {
         if (s.getUTCMonth() === e.getUTCMonth()) {
           return `${s.getUTCDate()}–${e.getUTCDate()} ${month} ${year}`;
         }
-        return `${month}–${months[e.getUTCMonth()]} ${year}`;
+        return `${month}–${endMonth} ${year}`;
       }
-      return `${month} ${year} – ${months[e.getUTCMonth()]} ${e.getUTCFullYear()}`;
+      return `${month} ${year} – ${endMonth} ${e.getUTCFullYear()}`;
     }
     return `${month} ${year}`;
   } catch {
@@ -509,6 +513,7 @@ function MapController({ coords }: { coords?: [number, number] | null }) {
 
 export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
   const router = useRouter();
+  const { t, locale } = useTranslation();
   const theme = useThemeStore((s) => s.theme);
   const [geoData, setGeoData] = useState<GeoJsonObject | null>(null);
 
@@ -678,7 +683,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
       sortedGroup.forEach((trip, idx) => {
         const itin = trip.trip?.itinerary_data as { title?: string } | null | undefined;
         const tripTitle = itin?.title || trip.trip?.destination || trip.destination;
-        const dateRangeLabel = formatTripDateRange(trip.trip);
+        const dateRangeLabel = formatTripDateRange(trip.trip, locale);
         const poiCount = countTripPois(trip.trip);
 
         if (totalInCity === 1) {
@@ -711,7 +716,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
     }
 
     return result;
-  }, [validTrips]);
+  }, [validTrips, locale]);
 
   // If focusCoords changes from stats tab, automatically deploy that destination's card
   const [prevFocusCoords, setPrevFocusCoords] = useState<[number, number] | null>(null);
@@ -785,12 +790,13 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
     }
 
     // 2. Budget text
+    const intlLocale = locale === 'en' ? 'en-US' : locale;
     const constraints = itin?.travel_constraints;
     let budgetText: string | null = null;
     if (typeof constraints?.budget_usd === 'number' && constraints.budget_usd > 0) {
-      budgetText = `$${Math.round(constraints.budget_usd).toLocaleString()} Budget`;
+      budgetText = t('vault.budget_usd_amount', { amount: Math.round(constraints.budget_usd).toLocaleString(intlLocale) });
     } else if (typeof itin?.total_trip_cost === 'number' && itin.total_trip_cost > 0) {
-      budgetText = `€${Math.round(itin.total_trip_cost).toLocaleString()} Budget`;
+      budgetText = t('vault.budget_eur_amount', { amount: Math.round(itin.total_trip_cost).toLocaleString(intlLocale) });
     }
 
     // 3. Prompt Narrative Brief (strictly dynamic from user input upon creation, null if absent)
@@ -836,8 +842,8 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
               ) {
                 highlightPoi = {
                   name: p.name,
-                  category: p.category || 'Cultural Highlight',
-                  description: p.description || `Historic landmark in ${deployedTrip.destination}`,
+                  category: p.category || t('vault.cultural_highlight'),
+                  description: p.description || t('vault.historic_landmark_in', { destination: deployedTrip.destination }),
                   photo_url: p.photo_url,
                 };
               }
@@ -852,36 +858,44 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
     // Fallback highlight name if none found in days
     if (!highlightPoi) {
       highlightPoi = {
-        name: `${deployedTrip.destination} City Core`,
-        category: 'Urban Exploration',
-        description: `Premier destinations and historic points of interest in ${deployedTrip.destination}.`,
+        name: t('vault.destination_city_core', { destination: deployedTrip.destination }),
+        category: t('vault.urban_exploration'),
+        description: t('vault.premier_destinations_desc', { destination: deployedTrip.destination }),
       };
     }
 
     // 5. Traveler / Organizer name
     const primaryParticipant = tripObj?.participants?.[0];
-    const travelerName = primaryParticipant?.name || 'Tactical Voyager';
-    const travelerRole = primaryParticipant?.role ? primaryParticipant.role.toUpperCase() : 'MISSION ARCHIVE';
+    const travelerName = primaryParticipant?.name || t('vault.tactical_voyager');
+    const travelerRole = primaryParticipant?.role ? primaryParticipant.role.toUpperCase() : t('vault.mission_archive');
 
     // 6. Dates range string
     let dateRangeStr = '';
     if (tripObj?.start_date) {
       const s = new Date(tripObj.start_date);
-      dateRangeStr = s.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      dateRangeStr = s.toLocaleDateString(intlLocale, { month: 'short', day: 'numeric', year: 'numeric' });
       if (tripObj?.end_date) {
         const e = new Date(tripObj.end_date);
-        dateRangeStr += ` - ${e.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        dateRangeStr += ` - ${e.toLocaleDateString(intlLocale, { month: 'short', day: 'numeric', year: 'numeric' })}`;
       }
     }
 
     // 7. Country flag resolution (exact matching country code for FlagIcon)
-    const countryName = getCountryForDestination(deployedTrip.destination, deployedTrip.country);
+    const rawCountryName = getCountryForDestination(deployedTrip.destination, deployedTrip.country);
     const currencyInfo = resolveDestinationCurrency(deployedTrip.destination);
-    const countryCode =
-      COUNTRY_TO_CODE[countryName.toLowerCase()] ||
+    const matchedCode =
+      COUNTRY_TO_CODE[rawCountryName.toLowerCase()] ||
       COUNTRY_TO_CODE[(deployedTrip.destination || '').toLowerCase()] ||
-      currencyInfo.countryCode ||
-      'EU';
+      currencyInfo.countryCode;
+    const countryCode = matchedCode || 'EU';
+    const countryName =
+      locale === 'en'
+        ? rawCountryName
+        : rawCountryName === 'International'
+        ? t('vault.international')
+        : matchedCode
+        ? getCountryDisplayName(matchedCode, rawCountryName, locale)
+        : rawCountryName;
 
     const firstPhoto = Array.isArray(itin?.photos) && itin.photos.length > 0 ? itin.photos[0] : undefined;
     const rawCover =
@@ -906,7 +920,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
       (itin as { title?: string })?.title ||
       (tripObj as { title?: string })?.title ||
       deployedTrip.tripTitle ||
-      `${deployedTrip.destination} Travel Guide`;
+      t('vault.destination_travel_guide', { destination: deployedTrip.destination });
 
     return {
       daysCount,
@@ -928,7 +942,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
       tripId: tripObj?.id || deployedTrip.id,
       tripTitle,
     };
-  }, [deployedTrip, getPhoto]);
+  }, [deployedTrip, getPhoto, t, locale]);
 
   const cityTrips = useMemo(() => {
     if (!deployedTrip) return [];
@@ -981,7 +995,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
                 )}
                 {trip.totalInCity > 1 && (
                   <div style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', opacity: 0.8 }}>
-                    Expedition {trip.cityIndex + 1} of {trip.totalInCity}{trip.dateRangeLabel ? ` • ${trip.dateRangeLabel}` : ''}
+                    {t('vault.expedition_of', { index: trip.cityIndex + 1, total: trip.totalInCity })}{trip.dateRangeLabel ? ` • ${trip.dateRangeLabel}` : ''}
                   </div>
                 )}
               </div>
@@ -1040,7 +1054,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
                 </svg>
                 <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', color: '#FFFFFF' }}>
                   <div className="font-display" style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '0.04em' }}>{deployedTrip.destination.toUpperCase()}</div>
-                  <div className="font-mono text-xs" style={{ opacity: 0.85, letterSpacing: '0.12em', marginTop: '2px' }}>MISSION ARCHIVE</div>
+                  <div className="font-mono text-xs" style={{ opacity: 0.85, letterSpacing: '0.12em', marginTop: '2px' }}>{t('vault.mission_archive')}</div>
                 </div>
               </div>
             )}
@@ -1050,8 +1064,8 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
               type="button"
               data-testid="deployed-trip-close-btn"
               onClick={() => setDeployedTrip(null)}
-              aria-label="Close trip preview"
-              title="Close trip preview"
+              aria-label={t('vault.close_trip_preview')}
+              title={t('vault.close_trip_preview')}
               style={{
                 position: 'absolute',
                 top: '12px',
@@ -1169,7 +1183,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
                       }}
                     >
                       <span style={{ opacity: isSelected ? 0.9 : 0.6, fontSize: '0.65rem' }}>#{ct.cityIndex + 1}</span>
-                      <span>{ct.tripTitle || `Expedition ${ct.cityIndex + 1}`}</span>
+                      <span>{ct.tripTitle || t('vault.expedition_num', { index: ct.cityIndex + 1 })}</span>
                     </button>
                   );
                 })}
@@ -1238,11 +1252,11 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.78rem', fontWeight: 600 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: mapThemeStyles.cardText }}>
                 <CalendarIcon size={14} />
-                <span>{deployedCardData.daysCount} Days</span>
+                <span>{t('vault.days_count_label', { count: deployedCardData.daysCount })}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: mapThemeStyles.cardText }}>
                 <WalletIcon size={14} />
-                <span>{deployedCardData.budgetText || `${deployedCardData.totalPois} Stops`}</span>
+                <span>{deployedCardData.budgetText || t('vault.stops_count_label', { count: deployedCardData.totalPois })}</span>
               </div>
             </div>
 
@@ -1264,7 +1278,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
                     <HotelIcon size={13} />
                     <div style={{ fontSize: '0.78rem', fontWeight: 600, color: mapThemeStyles.cardText }}>
-                      Base Camp: {deployedCardData.baseCamp}
+                      {t('vault.base_camp', { name: deployedCardData.baseCamp })}
                     </div>
                   </div>
                 )}
@@ -1280,7 +1294,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
                         borderRadius: '4px',
                       }}
                     >
-                      Dep: {deployedCardData.originCity}
+                      {t('vault.dep_prefix', { city: deployedCardData.originCity })}
                     </span>
                   )}
                   {deployedCardData.pace && (
@@ -1294,7 +1308,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
                         textTransform: 'capitalize',
                       }}
                     >
-                      {deployedCardData.pace} pace
+                      {t('vault.pace_label', { pace: deployedCardData.pace })}
                     </span>
                   )}
                   {deployedCardData.travelTastes.map((taste, idx) => (
@@ -1386,7 +1400,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
                   e.currentTarget.style.background = 'var(--color-accent-primary, #0F4C5C)';
                 }}
               >
-                <span>SEE TRIP</span>
+                <span>{t('vault.see_trip')}</span>
                 <span style={{ fontSize: '0.85rem' }}>↗</span>
               </Link>
             </div>

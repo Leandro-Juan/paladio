@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Trip } from '@/hooks/useTrips';
 import { apiFetch } from '@/utils/api';
 import { useOptionalAuth } from '@/contexts/AuthContext';
@@ -11,7 +12,6 @@ import {
   generateMonthGrid,
   generateYearGrid,
   getTripStatus,
-  MONTH_NAMES,
   TripStatus,
   CalendarDay,
   getTripPaletteColor,
@@ -29,12 +29,32 @@ interface CalendarProps {
   onSelectPackage?: (pkg: HolidayMatchedPackage) => void;
 }
 
-const WEEKDAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-const MINI_WEEKDAY_NAMES = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
 export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: CalendarProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const router = useRouter();
   const auth = useOptionalAuth();
+
+  const weekdayNames = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(intlLocale, { weekday: 'short' });
+    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)).toUpperCase());
+  }, [intlLocale]);
+
+  const miniWeekdayNames = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(intlLocale, { weekday: 'narrow' });
+    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)));
+  }, [intlLocale]);
+
+  const monthNames = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(intlLocale, { month: 'long' });
+    return Array.from({ length: 12 }, (_, m) => fmt.format(new Date(2024, m, 1)));
+  }, [intlLocale]);
+
+  const getStatusLabel = (status: TripStatus) => {
+    if (status === 'ACTIVE') return t('calendar.status_active_raw');
+    if (status === 'COMPLETED') return t('calendar.status_completed_raw');
+    return t('calendar.status_upcoming_raw');
+  };
   const userCurrency = currency || (auth?.user?.preferences?.default_currency as string) || 'EUR';
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [viewMode, setViewMode] = useState<'ANNUAL' | 'MONTH'>('ANNUAL');
@@ -296,8 +316,10 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
       // Official public holidays cannot be removed
       if (day.isPublicHoliday || publicHolidays.has(day.dateString)) {
         notify.info(
-          'Official Public Holiday',
-          `${day.publicHolidayName || 'This holiday'} is an official statutory day and cannot be removed.`
+          t('calendar.official_holiday_title'),
+          t('calendar.official_holiday_cannot_remove', {
+            name: day.publicHolidayName || t('calendar.this_holiday'),
+          })
         );
         return;
       }
@@ -347,15 +369,17 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
         <div className={styles.header}>
           <div className={styles.titleGroup}>
             <h2 className={styles.monthTitle}>
-              {viewMode === 'ANNUAL' ? `${year} ANNUAL DISPATCH` : `${MONTH_NAMES[month]} ${year}`}
+              {viewMode === 'ANNUAL'
+                ? t('calendar.annual_dispatch_title', { year })
+                : t('calendar.month_year_title', { month: monthNames[month], year })}
             </h2>
             <div className={styles.navButtons}>
               <button
                 type="button"
                 onClick={handlePrev}
                 className={styles.calIconBtn}
-                title={viewMode === 'ANNUAL' ? 'Previous year' : 'Previous month'}
-                aria-label={viewMode === 'ANNUAL' ? 'Previous year' : 'Previous month'}
+                title={viewMode === 'ANNUAL' ? t('calendar.prev_year') : t('calendar.prev_month')}
+                aria-label={viewMode === 'ANNUAL' ? t('calendar.prev_year') : t('calendar.prev_month')}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="15 18 9 12 15 6" />
@@ -365,8 +389,8 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 type="button"
                 onClick={handleNext}
                 className={styles.calIconBtn}
-                title={viewMode === 'ANNUAL' ? 'Next year' : 'Next month'}
-                aria-label={viewMode === 'ANNUAL' ? 'Next year' : 'Next month'}
+                title={viewMode === 'ANNUAL' ? t('calendar.next_year') : t('calendar.next_month')}
+                aria-label={viewMode === 'ANNUAL' ? t('calendar.next_year') : t('calendar.next_month')}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="9 18 15 12 9 6" />
@@ -377,10 +401,10 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
               type="button"
               onClick={handleToday}
               className={styles.ghostTodayBtn}
-              title="Jump to current date"
-              aria-label="Today"
+              title={t('calendar.jump_to_today')}
+              aria-label={t('calendar.today')}
             >
-              Today
+              {t('calendar.today')}
             </button>
           </div>
 
@@ -394,20 +418,22 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                   holidays,
                   publicHolidays,
                   monitoredDeals,
-                  calendarName: 'Paladio - Whole Calendar',
+                  calendarName: t('calendar.export_calendar_name'),
                 });
                 if (count === 0) {
-                  notify.info('Calendar Empty', 'No trips, holidays, or deals to export yet.');
+                  notify.info(t('calendar.empty_title'), t('calendar.empty_export_msg'));
                 } else {
                   notify.success(
-                    'Calendar Exported',
-                    `Exported ${count} calendar event${count === 1 ? '' : 's'} to .ics.`
+                    t('calendar.exported_title'),
+                    count === 1
+                      ? t('calendar.exported_singular')
+                      : t('calendar.exported_plural', { count })
                   );
                 }
               }}
               className={styles.exportIcsBtn}
-              title="Export whole calendar (trips, holidays, PTO & deals) to .ics"
-              aria-label="Export whole calendar to .ics"
+              title={t('calendar.export_ics_title')}
+              aria-label={t('calendar.export_ics_aria')}
             >
               <svg
                 width="13"
@@ -424,7 +450,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              Export .ics
+              {t('calendar.export_ics_btn')}
             </button>
 
             {/* View Mode Toggle: Annual vs Month */}
@@ -436,9 +462,9 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                   setActivePopover(null);
                 }}
                 className={`${styles.segmentedBtn} ${viewMode === 'ANNUAL' ? styles.segmentedBtnActive : ''}`}
-                aria-label="Annual view"
+                aria-label={t('calendar.annual_view_aria')}
               >
-                <span>⊞</span> Annual (12M)
+                <span>⊞</span> {t('calendar.annual_view_btn')}
               </button>
               <button
                 type="button"
@@ -447,9 +473,9 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                   setActivePopover(null);
                 }}
                 className={`${styles.segmentedBtn} ${viewMode === 'MONTH' ? styles.segmentedBtnActive : ''}`}
-                aria-label="Month focus view"
+                aria-label={t('calendar.month_view_aria')}
               >
-                <span>▤</span> Month Focus
+                <span>▤</span> {t('calendar.month_view_btn')}
               </button>
             </div>
 
@@ -462,9 +488,9 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                   setActivePopover(null);
                 }}
                 className={`${styles.segmentedBtn} ${interactionMode === 'PLAN' ? styles.segmentedBtnActive : ''}`}
-                aria-label="Plan trips mode"
+                aria-label={t('calendar.plan_mode_aria')}
               >
-                <PlaneIcon size={13} style={{ marginRight: '5px' }} /> Plan
+                <PlaneIcon size={13} style={{ marginRight: '5px' }} /> {t('calendar.plan_mode_btn')}
               </button>
               <button
                 type="button"
@@ -473,9 +499,9 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                   setActivePopover(null);
                 }}
                 className={`${styles.segmentedBtn} ${interactionMode === 'HOLIDAY' ? styles.holidayBtnActive : ''}`}
-                aria-label="Mark holidays mode"
+                aria-label={t('calendar.holiday_mode_aria')}
               >
-                <UmbrellaIcon size={13} style={{ marginRight: '5px' }} /> Mark Holidays ({holidayDaysYear}d)
+                <UmbrellaIcon size={13} style={{ marginRight: '5px' }} /> {t('calendar.mark_holidays_btn', { count: holidayDaysYear })}
               </button>
             </div>
           </div>
@@ -487,7 +513,10 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
             <div className={styles.holidayBannerText}>
               <span className={styles.holidayBannerDot} />
               <span>
-                <strong>Holiday Mode Active:</strong> Click any open day to mark/unmark PTO. Official public holidays ({publicHolidayCountryName || 'Local'}) are fixed and cannot be removed.
+                <strong>{t('calendar.holiday_mode_active_prefix')}</strong>{' '}
+                {t('calendar.holiday_mode_active_body', {
+                  country: publicHolidayCountryName || t('calendar.local_country'),
+                })}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -496,10 +525,14 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 onClick={loadPublicHolidays}
                 disabled={isSyncingHolidays}
                 className={styles.clearHolidaysBtn}
-                title="Sync official public holidays from configured city/country"
+                title={t('calendar.sync_holidays_title')}
               >
                 <RefreshIcon size={11} className={isSyncingHolidays ? 'animate-spin' : ''} style={{ marginRight: '4px' }} />
-                {isSyncingHolidays ? 'Syncing...' : `Sync ${publicHolidayCountryName || 'Holidays'}`}
+                {isSyncingHolidays
+                  ? t('calendar.syncing')
+                  : t('calendar.sync_country_holidays', {
+                      target: publicHolidayCountryName || t('calendar.holidays_fallback'),
+                    })}
               </button>
               {holidayDaysYear > 0 && (
                 <button
@@ -507,7 +540,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                   onClick={handleClearYearHolidays}
                   className={styles.clearHolidaysBtn}
                 >
-                  Clear {year} PTO
+                  {t('calendar.clear_year_pto', { year })}
                 </button>
               )}
             </div>
@@ -516,14 +549,17 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
 
         {/* Palette Legend Bar */}
         <div className={styles.paletteLegend}>
-          <span className={styles.legendLabel}>PALETTE:</span>
+          <span className={styles.legendLabel}>{t('calendar.palette_label')}</span>
           <div className={styles.legendChipsList}>
             {tripsWithPalette.map(({ trip, color, status }) => (
               <div
                 key={trip.id || `${trip.destination}-${trip.start_date}`}
                 className={styles.tripLegendChip}
                 onClick={() => setSelectedTripData({ trip, status })}
-                title={`${trip.destination} (${status}) — Click to inspect`}
+                title={t('calendar.trip_legend_title', {
+                  destination: trip.destination,
+                  status: getStatusLabel(status),
+                })}
               >
                 <span
                   className={styles.legendColorSwatch}
@@ -536,10 +572,13 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
               <div
                 className={styles.tripLegendChip}
                 style={{ cursor: 'default' }}
-                title={`${publicHolidays.size} official statutory public holidays for ${publicHolidayCountryName || 'configured country'} (cannot be removed)`}
+                title={t('calendar.public_holidays_legend_title', {
+                  count: publicHolidays.size,
+                  country: publicHolidayCountryName || t('calendar.configured_country'),
+                })}
               >
                 <span className={styles.publicHolidaySwatch} />
-                <span>Public Holidays ({publicHolidays.size})</span>
+                <span>{t('calendar.public_holidays_count', { count: publicHolidays.size })}</span>
               </div>
             )}
             <div
@@ -548,11 +587,11 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 setInteractionMode((prev) => (prev === 'HOLIDAY' ? 'PLAN' : 'HOLIDAY'));
                 setActivePopover(null);
               }}
-              title="Click to toggle Holiday / PTO painting mode"
+              title={t('calendar.holiday_chip_title')}
               style={{ cursor: 'pointer' }}
             >
               <span className={styles.holidaySwatch} />
-              <span>Holiday / PTO ({holidayDaysYear}d)</span>
+              <span>{t('calendar.holiday_pto_count', { count: holidayDaysYear })}</span>
             </div>
             {monitoredDeals.length > 0 && (
               <div
@@ -566,31 +605,31 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                   color: '#92400E',
                   cursor: 'pointer',
                 }}
-                title={`${monitoredDeals.length} best deal(s) across monitored routes — Click to view Route Monitoring`}
+                title={t('calendar.monitored_deals_legend_title', { count: monitoredDeals.length })}
               >
                 <span
                   className={styles.legendColorSwatch}
                   style={{ background: '#F59E0B', border: '1px dashed #D97706' }}
                 />
-                <span>Monitored Deals ({monitoredDeals.length})</span>
+                <span>{t('calendar.monitored_deals_count', { count: monitoredDeals.length })}</span>
               </div>
             )}
             {/* Status Legend indicators for backward compatibility */}
             <div className={styles.tripLegendChip} style={{ cursor: 'default' }}>
               <span className={`${styles.legendColorSwatch} ${styles.legendActive}`} style={{ background: 'var(--color-ocean, #1B8FA6)' }} />
-              <span>Active</span>
+              <span>{t('calendar.legend_active')}</span>
             </div>
             <div className={styles.tripLegendChip} style={{ cursor: 'default' }}>
               <span className={styles.legendColorSwatch} style={{ background: 'rgba(124, 196, 209, 0.4)', border: '1px solid var(--color-sky, #7CC4D1)' }} />
-              <span>Queued</span>
+              <span>{t('calendar.legend_queued')}</span>
             </div>
             <div className={styles.tripLegendChip} style={{ cursor: 'default' }}>
               <span className={styles.legendColorSwatch} style={{ background: 'rgba(75, 102, 112, 0.3)' }} />
-              <span>Archived</span>
+              <span>{t('calendar.legend_archived')}</span>
             </div>
             <div className={styles.tripLegendChip} style={{ cursor: 'default' }}>
               <span className={styles.legendColorSwatch} style={{ background: 'var(--color-sun, #D42A2F)', borderRadius: '50%' }} />
-              <span>Current day</span>
+              <span>{t('calendar.legend_current_day')}</span>
             </div>
           </div>
         </div>
@@ -598,10 +637,12 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
         {/* VIEW MODE 1: 12-Month Panoramic Annual Grid */}
         {viewMode === 'ANNUAL' ? (
           <div className={styles.annualGrid}>
-            {yearMonths.map((m) => (
+            {yearMonths.map((m) => {
+              const localizedMonthName = monthNames[m.month] || m.monthName;
+              return (
               <div key={m.month} className={styles.miniMonthCard}>
                 <div className={styles.miniMonthHeader}>
-                  <span className={styles.miniMonthTitle}>{m.monthName}</span>
+                  <span className={styles.miniMonthTitle}>{localizedMonthName}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -609,15 +650,15 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                       setViewMode('MONTH');
                     }}
                     className={styles.miniMonthFocusBtn}
-                    title={`Focus on ${m.monthName}`}
-                    aria-label={`Focus on ${m.monthName}`}
+                    title={t('calendar.focus_on_month', { month: localizedMonthName })}
+                    aria-label={t('calendar.focus_on_month', { month: localizedMonthName })}
                   >
-                    Focus <ChevronRightIcon size={10} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} />
+                    {t('calendar.focus_btn')} <ChevronRightIcon size={10} style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: '2px' }} />
                   </button>
                 </div>
 
                 <div className={styles.miniWeekdaysRow}>
-                  {MINI_WEEKDAY_NAMES.map((name, i) => (
+                  {miniWeekdayNames.map((name, i) => (
                     <div key={`${name}-${i}`} className={styles.miniWeekdayCol}>
                       {name}
                     </div>
@@ -637,16 +678,27 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                     ].filter(Boolean).join(' ');
 
                     const title = hasTrips
-                      ? `${day.trips[0].trip.destination} (${day.trips[0].status})`
+                      ? t('calendar.trip_day_title', {
+                          destination: day.trips[0].trip.destination,
+                          status: getStatusLabel(day.trips[0].status),
+                        })
                       : dayMonitoredDeals.length > 0
-                      ? `Monitored Deal: ${dayMonitoredDeals[0].origin_name || dayMonitoredDeals[0].origin_iata} → ${dayMonitoredDeals[0].destination_name || dayMonitoredDeals[0].destination_code} ${formatCurrencyAmount(dayMonitoredDeals[0].total_price_eur, dayMonitoredDeals[0].currency || userCurrency, { maximumFractionDigits: 0 })}${dayMonitoredDeals[0].discount_pct > 0 ? ` (-${Math.round(dayMonitoredDeals[0].discount_pct)}%)` : ''}`
+                      ? t('calendar.mini_monitored_deal_title', {
+                          origin: dayMonitoredDeals[0].origin_name || dayMonitoredDeals[0].origin_iata,
+                          destination: dayMonitoredDeals[0].destination_name || dayMonitoredDeals[0].destination_code,
+                          price: formatCurrencyAmount(dayMonitoredDeals[0].total_price_eur, dayMonitoredDeals[0].currency || userCurrency, { maximumFractionDigits: 0 }),
+                          discount: dayMonitoredDeals[0].discount_pct > 0 ? ` (-${Math.round(dayMonitoredDeals[0].discount_pct)}%)` : '',
+                        })
                       : day.isPublicHoliday
-                      ? `Public Holiday: ${day.publicHolidayName || 'Official Holiday'} on ${day.dateString}`
+                      ? t('calendar.public_holiday_on_date', {
+                          name: day.publicHolidayName || t('calendar.official_holiday_fallback'),
+                          date: day.dateString,
+                        })
                       : day.isHoliday
-                      ? `Holiday / PTO on ${day.dateString}`
+                      ? t('calendar.holiday_pto_on_date', { date: day.dateString })
                       : interactionMode === 'HOLIDAY'
-                      ? `Click to mark holiday on ${day.dateString}`
-                      : `Click to plan trip on ${day.dateString}`;
+                      ? t('calendar.click_to_mark_holiday', { date: day.dateString })
+                      : t('calendar.click_to_plan_trip', { date: day.dateString });
 
                     return (
                       <div
@@ -668,7 +720,12 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                           <div
                             className={styles.miniMonitoredDealBadge}
                             onClick={(e) => handleDealClick(e, dayMonitoredDeals[0])}
-                            title={`Monitored Deal: ${dayMonitoredDeals[0].origin_iata} → ${dayMonitoredDeals[0].destination_code} ${formatCurrencyAmount(dayMonitoredDeals[0].total_price_eur, dayMonitoredDeals[0].currency || userCurrency, { maximumFractionDigits: 0 })}${dayMonitoredDeals[0].discount_pct > 0 ? ` (-${Math.round(dayMonitoredDeals[0].discount_pct)}%)` : ''} — Click to view monitored corridor`}
+                            title={t('calendar.mini_monitored_deal_badge_title', {
+                              origin: dayMonitoredDeals[0].origin_iata,
+                              destination: dayMonitoredDeals[0].destination_code,
+                              price: formatCurrencyAmount(dayMonitoredDeals[0].total_price_eur, dayMonitoredDeals[0].currency || userCurrency, { maximumFractionDigits: 0 }),
+                              discount: dayMonitoredDeals[0].discount_pct > 0 ? ` (-${Math.round(dayMonitoredDeals[0].discount_pct)}%)` : '',
+                            })}
                           >
                             <span>✈</span>
                             <span>{dayMonitoredDeals[0].destination_code}</span>
@@ -677,7 +734,11 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                           <div
                             className={styles.miniDealIndicator}
                             style={{ background: '#F59E0B' }}
-                            title={`Matching Deal: ${holidayPackagesByDepartDate[day.dateString][0].origin_iata} -> ${holidayPackagesByDepartDate[day.dateString][0].destination_code} ${formatCurrencyAmount(holidayPackagesByDepartDate[day.dateString][0].total_price_eur, holidayPackagesByDepartDate[day.dateString][0].currency || userCurrency, { maximumFractionDigits: 0 })}`}
+                            title={t('calendar.matching_deal_title', {
+                              origin: holidayPackagesByDepartDate[day.dateString][0].origin_iata,
+                              destination: holidayPackagesByDepartDate[day.dateString][0].destination_code,
+                              price: formatCurrencyAmount(holidayPackagesByDepartDate[day.dateString][0].total_price_eur, holidayPackagesByDepartDate[day.dateString][0].currency || userCurrency, { maximumFractionDigits: 0 }),
+                            })}
                           />
                         ) : null}
                       </div>
@@ -685,15 +746,16 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                   })}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           /* VIEW MODE 2: Month Focus View */
           <>
             {/* Weekday Headers */}
             <div className={styles.weekdaysRow}>
-              {WEEKDAY_NAMES.map((name) => (
-                <div key={name} className={styles.weekdayCol}>
+              {weekdayNames.map((name, i) => (
+                <div key={`${name}-${i}`} className={styles.weekdayCol}>
                   {name}
                 </div>
               ))}
@@ -720,23 +782,29 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                     className={cellClasses}
                     title={
                       day.trips.length > 0
-                        ? `${day.trips[0].trip.destination} (${day.trips[0].status})`
+                        ? t('calendar.trip_day_title', {
+                            destination: day.trips[0].trip.destination,
+                            status: getStatusLabel(day.trips[0].status),
+                          })
                         : day.isPublicHoliday
-                        ? `Public Holiday: ${day.publicHolidayName || 'Official Statutory Holiday'} on ${day.dateString}`
+                        ? t('calendar.public_holiday_on_date', {
+                            name: day.publicHolidayName || t('calendar.official_statutory_holiday_fallback'),
+                            date: day.dateString,
+                          })
                         : day.isHoliday
-                        ? `Holiday / PTO on ${day.dateString}`
-                        : `Click to plan mission on ${day.dateString}`
+                        ? t('calendar.holiday_pto_on_date', { date: day.dateString })
+                        : t('calendar.click_to_plan_mission', { date: day.dateString })
                     }
                   >
                     {/* Cell Header: Day Number and optional Holiday badge */}
                     <div className={styles.cellTop}>
                       <span className={styles.dateNum}>{day.dayNumber}</span>
                       {day.isPublicHoliday ? (
-                        <span className={styles.publicHolidayBadge} title={day.publicHolidayName || 'Public Holiday'}>
-                          {day.publicHolidayName ? day.publicHolidayName.slice(0, 12).toUpperCase() : 'HOLIDAY'}
+                        <span className={styles.publicHolidayBadge} title={day.publicHolidayName || t('calendar.public_holiday_label')}>
+                          {day.publicHolidayName ? day.publicHolidayName.slice(0, 12).toUpperCase() : t('calendar.holiday_badge')}
                         </span>
                       ) : day.isHoliday ? (
-                        <span className={styles.holidayBadge}>HOLIDAY</span>
+                        <span className={styles.holidayBadge}>{t('calendar.holiday_badge')}</span>
                       ) : null}
                     </div>
 
@@ -761,7 +829,10 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                               ['--trip-border' as string]: color?.border || '#147589',
                               ['--trip-text' as string]: color?.text || '#FFFFFF',
                             } as React.CSSProperties}
-                            title={`${trip.destination} (${status})`}
+                            title={t('calendar.trip_day_title', {
+                              destination: trip.destination,
+                              status: getStatusLabel(status),
+                            })}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedTripData({ trip, status });
@@ -781,11 +852,19 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                         <div
                           key={deal.id || `${deal.alert_id}-${deal.depart_date}`}
                           className={styles.monitoredDealBar}
-                          title={`Monitored Deal: ${deal.origin_name || deal.origin_iata} → ${deal.destination_name || deal.destination_code} (${deal.nights}N)\nTotal: ${formatCurrencyAmount(deal.total_price_eur, deal.currency || userCurrency, { maximumFractionDigits: 0 })}${deal.discount_pct > 0 ? ` (-${Math.round(deal.discount_pct)}%)` : ''}\nDeparts: ${deal.depart_date}, Returns: ${deal.return_date}\nClick to view monitored route`}
+                          title={t('calendar.month_monitored_deal_title', {
+                            origin: deal.origin_name || deal.origin_iata,
+                            destination: deal.destination_name || deal.destination_code,
+                            nights: deal.nights,
+                            price: formatCurrencyAmount(deal.total_price_eur, deal.currency || userCurrency, { maximumFractionDigits: 0 }),
+                            discount: deal.discount_pct > 0 ? ` (-${Math.round(deal.discount_pct)}%)` : '',
+                            depart: deal.depart_date,
+                            returnDate: deal.return_date,
+                          })}
                           onClick={(e) => handleDealClick(e, deal)}
                         >
                           <div className={styles.monitoredDealRoute}>
-                            <span className={styles.monitoredDealTag}>DEAL</span>
+                            <span className={styles.monitoredDealTag}>{t('calendar.deal_tag')}</span>
                             <span>✈ {deal.destination_code || deal.destination_name}</span>
                           </div>
                           <span className={styles.monitoredDealPrice}>
@@ -799,7 +878,14 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                         <div
                           key={`${pkg.route_id}-${pkg.depart_date}-${pkg.return_date}`}
                           className={styles.holidayPackageBar}
-                          title={`Monitored Deal: ${pkg.origin_iata} -> ${pkg.destination_code} (${pkg.nights}N) - ${formatCurrencyAmount(pkg.total_price_eur, pkg.currency || userCurrency, { maximumFractionDigits: 0 })}\nDeparts: ${pkg.depart_date}, Returns: ${pkg.return_date}\nClick to view in Route Telemetry`}
+                          title={t('calendar.holiday_package_title', {
+                            origin: pkg.origin_iata,
+                            destination: pkg.destination_code,
+                            nights: pkg.nights,
+                            price: formatCurrencyAmount(pkg.total_price_eur, pkg.currency || userCurrency, { maximumFractionDigits: 0 }),
+                            depart: pkg.depart_date,
+                            returnDate: pkg.return_date,
+                          })}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (onSelectPackage) {
@@ -809,8 +895,14 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                             }
                           }}
                         >
-                          <span style={{ marginRight: 4, opacity: 0.85 }}>[DEAL]</span>
-                          <span>{pkg.destination_code} {formatCurrencyAmount(pkg.total_price_eur, pkg.currency || userCurrency, { maximumFractionDigits: 0 })} ({pkg.nights}N)</span>
+                          <span style={{ marginRight: 4, opacity: 0.85 }}>{t('calendar.deal_bracket_tag')}</span>
+                          <span>
+                            {t('calendar.deal_bar_label', {
+                              code: pkg.destination_code,
+                              price: formatCurrencyAmount(pkg.total_price_eur, pkg.currency || userCurrency, { maximumFractionDigits: 0 }),
+                              nights: pkg.nights,
+                            })}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -841,20 +933,20 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
           >
             <div className={styles.popoverHeader}>
               <span className={styles.popoverTelemetry}>
-                <span aria-hidden="true">{'// '}</span>PLAN_MISSION
+                <span aria-hidden="true">{'// '}</span>{t('calendar.plan_mission_tag')}
               </span>
               <button
                 type="button"
                 onClick={() => setActivePopover(null)}
                 className={styles.popoverCloseBtn}
-                aria-label="Close"
+                aria-label={t('common.close')}
               >
                 <CloseIcon size={14} />
               </button>
             </div>
             <h4 className={styles.popoverDateTitle}>{activePopover.dateString}</h4>
             <p className={styles.popoverPrompt}>
-              Would you like to plan an autonomous travel mission starting on this date?
+              {t('calendar.plan_mission_prompt')}
             </p>
             <div className={styles.popoverActions}>
               <button
@@ -862,14 +954,14 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 onClick={handleConfirmPlanTrip}
                 className={styles.popoverPrimaryBtn}
               >
-                Plan Trip
+                {t('calendar.plan_trip_btn')}
               </button>
               <button
                 type="button"
                 onClick={() => setActivePopover(null)}
                 className={styles.popoverCancelBtn}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </div>

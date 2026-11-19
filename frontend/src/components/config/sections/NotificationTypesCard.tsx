@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SettingsCardFrame } from '../SettingsCardFrame';
 import { TacticalToggle } from '../TacticalToggle';
 
@@ -61,6 +62,8 @@ export function NotificationTypesCard({
   onUpdate,
   disabled = false,
 }: NotificationTypesCardProps) {
+  const { t } = useTranslation();
+
   const allSelected =
     config.notify_on_deal_alert &&
     config.notify_on_trip_update &&
@@ -95,9 +98,9 @@ export function NotificationTypesCard({
 
   return (
     <SettingsCardFrame
-      title="Notification Types"
-      subtitle="Select which travel events, deal alerts, and background task updates trigger notifications"
-      badge="Preferences"
+      title={t('config.subtab_notif_types')}
+      subtitle={t('config.notif_types_subtitle')}
+      badge={t('config.notif_types_badge')}
       badgeTone="teal"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -122,7 +125,7 @@ export function NotificationTypesCard({
                 color: 'var(--color-text-primary)',
               }}
             >
-              Event Triggers
+              {t('config.event_triggers_title')}
             </span>
             <span
               style={{
@@ -131,13 +134,13 @@ export function NotificationTypesCard({
                 color: 'var(--color-text-muted)',
               }}
             >
-              Toggle categories individually or batch select with the quick pill
+              {t('config.event_triggers_desc')}
             </span>
           </div>
 
           <div
             role="group"
-            aria-label="Notification selection options"
+            aria-label={t('config.notif_selection_aria')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -175,7 +178,7 @@ export function NotificationTypesCard({
                 transition: 'all 0.16s ease',
               }}
             >
-              All
+              {t('config.pill_all')}
             </button>
             <button
               type="button"
@@ -204,7 +207,7 @@ export function NotificationTypesCard({
                 transition: 'all 0.16s ease',
               }}
             >
-              None
+              {t('config.pill_none')}
             </button>
           </div>
         </div>
@@ -234,7 +237,7 @@ export function NotificationTypesCard({
                       color: 'var(--color-text-primary)',
                     }}
                   >
-                    {item.title}
+                    {t(item.title)}
                   </span>
                   <p
                     style={{
@@ -245,7 +248,7 @@ export function NotificationTypesCard({
                       lineHeight: 1.4,
                     }}
                   >
-                    {item.description}
+                    {t(item.description)}
                   </p>
                 </div>
                 <TacticalToggle
@@ -253,7 +256,7 @@ export function NotificationTypesCard({
                   onChange={(checked) => onUpdate({ [item.key]: checked })}
                   disabled={disabled}
                   tone={item.tone}
-                  ariaLabel={item.ariaLabel}
+                  ariaLabel={t(item.ariaLabel)}
                 />
               </div>
             );

@@ -1,5 +1,6 @@
 'use strict';
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SettingsContextMenu, ContextMenuItem } from './SettingsContextMenu';
 
 export interface SubTabItem {
@@ -45,6 +46,8 @@ export function SettingsCardFrame({
   children,
   className,
 }: SettingsCardFrameProps) {
+  const { t } = useTranslation();
+
   const getBadgeStyle = () => {
     switch (badgeTone) {
       case 'coral':
@@ -106,7 +109,7 @@ export function SettingsCardFrame({
                 letterSpacing: '-0.01em',
               }}
             >
-              {title}
+              {t(title)}
             </h3>
             {badge && (
               <span
@@ -121,7 +124,7 @@ export function SettingsCardFrame({
                   ...getBadgeStyle(),
                 }}
               >
-                {badge}
+                {t(badge)}
               </span>
             )}
           </div>
@@ -135,7 +138,7 @@ export function SettingsCardFrame({
                 lineHeight: 1.45,
               }}
             >
-              {subtitle}
+              {t(subtitle)}
             </p>
           )}
         </div>
@@ -163,7 +166,7 @@ export function SettingsCardFrame({
               }}
             >
               {actionButton.icon || '+'}
-              <span>{actionButton.label}</span>
+              <span>{t(actionButton.label)}</span>
             </button>
           )}
           {menuItems && menuItems.length > 0 && (
@@ -219,7 +222,7 @@ export function SettingsCardFrame({
                   whiteSpace: 'nowrap',
                 }}
               >
-                <span>{tab.label}</span>
+                <span>{t(tab.label)}</span>
                 {tab.count !== undefined && (
                   <span
                     style={{
@@ -274,7 +277,7 @@ export function SettingsCardFrame({
                   color: 'var(--color-text-primary, #1A202C)',
                 }}
               >
-                {innerTitle}
+                {innerTitle ? t(innerTitle) : null}
               </span>
               {innerBadge && (
                 <span
@@ -290,7 +293,7 @@ export function SettingsCardFrame({
                     borderRadius: '9999px',
                   }}
                 >
-                  ★ {innerBadge}
+                  ★ {t(innerBadge)}
                 </span>
               )}
             </div>

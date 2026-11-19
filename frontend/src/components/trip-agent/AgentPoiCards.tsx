@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { CategoryIcon, PoiCategoryBadge } from '@/components/PoiCategoryBadge';
 import { classifyPoiCategory } from '@/utils/poiCategory';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
@@ -41,6 +42,7 @@ export function AgentPoiCards({
   onAddPoi,
   onInspectPoi,
 }: AgentPoiCardsProps) {
+  const { t } = useTranslation();
   const [addedMap, setAddedMap] = useState<Record<string, boolean>>({});
   const [imgFailedMap, setImgFailedMap] = useState<Record<string, boolean>>({});
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -183,12 +185,12 @@ export function AgentPoiCards({
 
   const titleText =
     tool === 'find_nearby'
-      ? 'Nearby Places'
+      ? t('trip_agent.poi_title_nearby')
       : tool === 'suggest_additions'
-      ? 'Suggested Additions'
+      ? t('trip_agent.poi_title_suggested')
       : tool === 'search_places'
-      ? 'Discovered Places'
-      : 'Recommended Places';
+      ? t('trip_agent.poi_title_discovered')
+      : t('trip_agent.poi_title_recommended');
 
   return (
     <div className={styles.container}>
@@ -202,7 +204,13 @@ export function AgentPoiCards({
         </div>
         <div className={styles.headerRight}>
           <span className={styles.headerBadge}>
-            {pois.length} {pois.length === 1 ? 'place' : 'places'} {city ? `in ${city}` : ''}
+            {city
+              ? pois.length === 1
+                ? t('trip_agent.place_count_in_city_one', { count: pois.length, city })
+                : t('trip_agent.place_count_in_city_many', { count: pois.length, city })
+              : pois.length === 1
+              ? t('trip_agent.place_count_one', { count: pois.length })
+              : t('trip_agent.place_count_many', { count: pois.length })}
           </span>
           <div className={styles.navButtons}>
             <button
@@ -210,8 +218,8 @@ export function AgentPoiCards({
               className={styles.navButton}
               onClick={() => scrollByAmount('left')}
               disabled={!canScrollLeft}
-              aria-label="Previous places"
-              title="Previous places"
+              aria-label={t('trip_agent.previous_places')}
+              title={t('trip_agent.previous_places')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6" />
@@ -222,8 +230,8 @@ export function AgentPoiCards({
               className={styles.navButton}
               onClick={() => scrollByAmount('right')}
               disabled={!canScrollRight}
-              aria-label="Next places"
-              title="Next places"
+              aria-label={t('trip_agent.next_places')}
+              title={t('trip_agent.next_places')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="9 18 15 12 9 6" />
@@ -259,7 +267,7 @@ export function AgentPoiCards({
                 if (dragInfo.current.hasMoved || isDragging) return;
                 handleInspect(poi);
               }}
-              title={`Click to focus on map & inspect ${poi.name}`}
+              title={t('trip_agent.click_focus_inspect', { name: poi.name })}
             >
               {/* Photo Banner with Category Fallback */}
               <div className={styles.imageBanner}>
@@ -275,7 +283,7 @@ export function AgentPoiCards({
                   <div className={styles.imageFallback}>
                     <CategoryIcon type={catMeta.type} size={28} />
                     <span style={{ fontSize: '10px', textTransform: 'capitalize' }}>
-                      {poi.category || 'Attraction'}
+                      {poi.category || t('trip_agent.attraction')}
                     </span>
                   </div>
                 )}
@@ -284,7 +292,7 @@ export function AgentPoiCards({
                     <circle cx="12" cy="12" r="3" />
                     <path d="M12 2v3m0 14v3M2 12h3m14 0h3" />
                   </svg>
-                  <span>MAP</span>
+                  <span>{t('trip_agent.map_badge')}</span>
                 </div>
               </div>
 
@@ -311,9 +319,9 @@ export function AgentPoiCards({
 
                 <div className={styles.metaRow}>
                   <span className={styles.priceTag}>
-                    {priceVal > 0 ? `€${Math.round(priceVal)}` : 'Free / Included'}
+                    {priceVal > 0 ? `€${Math.round(priceVal)}` : t('trip_agent.free_included')}
                   </span>
-                  <span>~{durVal}m</span>
+                  <span>{t('trip_agent.approx_duration_m', { mins: durVal })}</span>
                 </div>
 
                 {/* Actions: Inspect & Add */}
@@ -322,13 +330,13 @@ export function AgentPoiCards({
                     type="button"
                     className={styles.focusButton}
                     onClick={() => handleInspect(poi)}
-                    title="Focus on map and inspect details"
+                    title={t('trip_agent.focus_inspect_details')}
                   >
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <circle cx="12" cy="12" r="3" />
                       <path d="M12 2v3m0 14v3M2 12h3m14 0h3" />
                     </svg>
-                    <span>Inspect</span>
+                    <span>{t('trip_agent.inspect')}</span>
                   </button>
 
                   <button
@@ -336,14 +344,14 @@ export function AgentPoiCards({
                     className={`${styles.addButton} ${isAdded ? styles.addedButton : ''}`}
                     onClick={() => handleAdd(poi)}
                     disabled={isAdded}
-                    title={isAdded ? 'Added to itinerary' : 'Add to itinerary'}
+                    title={isAdded ? t('trip_agent.added_to_itinerary') : t('trip_agent.add_to_itinerary')}
                   >
                     {isAdded ? (
                       <>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
-                        <span>Added</span>
+                        <span>{t('trip_agent.added')}</span>
                       </>
                     ) : (
                       <>
@@ -351,7 +359,7 @@ export function AgentPoiCards({
                           <line x1="12" y1="5" x2="12" y2="19" />
                           <line x1="5" y1="12" x2="19" y2="12" />
                         </svg>
-                        <span>Add</span>
+                        <span>{t('trip_agent.add')}</span>
                       </>
                     )}
                   </button>

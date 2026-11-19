@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
+import { useTranslation } from '@/hooks/useTranslation';
 import { CloseIcon } from '@/components/icons';
 
 export interface WheelDialPickerProps<T> {
@@ -35,8 +36,8 @@ export function WheelDialPicker<T>({
   isOpen,
   onClose,
   title,
-  subtitle = 'Drag, scroll, or search to spin wheel',
-  searchPlaceholder = 'Search...',
+  subtitle,
+  searchPlaceholder,
   items,
   selectedId,
   getItemId,
@@ -49,6 +50,10 @@ export function WheelDialPicker<T>({
   ariaLabel,
 }: WheelDialPickerProps<T>) {
   const isMounted = useIsMounted();
+  const { t } = useTranslation();
+  const resolvedTitle = t(title);
+  const resolvedSubtitle = subtitle !== undefined ? t(subtitle) : t('config.wheel_subtitle');
+  const resolvedSearchPlaceholder = searchPlaceholder !== undefined ? t(searchPlaceholder) : t('common.search');
 
   const initialIndex = useMemo(() => {
     if (!items || items.length === 0) return 0;
@@ -280,7 +285,7 @@ export function WheelDialPicker<T>({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={ariaLabel || title}
+      aria-label={ariaLabel ? t(ariaLabel) : resolvedTitle}
       style={{
         position: 'fixed',
         inset: 0,
@@ -323,7 +328,7 @@ export function WheelDialPicker<T>({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t('common.close')}
           style={{
             position: 'absolute',
             top: '16px',
@@ -356,7 +361,7 @@ export function WheelDialPicker<T>({
               margin: 0,
             }}
           >
-            {title}
+            {resolvedTitle}
           </h3>
           <p
             style={{
@@ -366,7 +371,7 @@ export function WheelDialPicker<T>({
               marginTop: '4px',
             }}
           >
-            {subtitle}
+            {resolvedSubtitle}
           </p>
         </div>
 
@@ -396,7 +401,7 @@ export function WheelDialPicker<T>({
           </svg>
           <input
             type="text"
-            placeholder={searchPlaceholder}
+            placeholder={resolvedSearchPlaceholder}
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             style={{

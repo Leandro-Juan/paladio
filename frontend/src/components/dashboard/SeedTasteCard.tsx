@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { User } from '@/types/auth';
 import { isTasteVectorNeutral } from '@/utils/tasteCalibration';
 import styles from './SeedTasteCard.module.css';
@@ -13,6 +14,7 @@ interface SeedTasteCardProps {
 const DISMISS_STORAGE_PREFIX = 'paladio_taste_seed_dismissed_';
 
 export function SeedTasteCard({ user }: SeedTasteCardProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [dismissed, setDismissed] = useState<boolean>(true);
 
@@ -56,33 +58,33 @@ export function SeedTasteCard({ user }: SeedTasteCardProps) {
   return (
     <aside
       className={styles.floatingCard}
-      aria-label="Seed your taste profile"
+      aria-label={t('dashboard.seed_taste_title')}
       role="region"
     >
       <div className={styles.topRow}>
         <span className={styles.badge}>
           <span className={styles.pulseDot} aria-hidden="true" />
-          TASTE VECTOR // 0.50 NEUTRAL
+          {t('dashboard.taste_vector_neutral_badge')}
         </span>
         <button
           type="button"
           className={styles.dismissBtn}
           onClick={handleDismiss}
-          aria-label="Dismiss taste calibration prompt"
-          title="Dismiss"
+          aria-label={t('dashboard.dismiss_taste_prompt_aria')}
+          title={t('dashboard.dismiss')}
         >
           ×
         </button>
       </div>
 
-      <h2 className={styles.title}>Seed your taste profile</h2>
+      <h2 className={styles.title}>{t('dashboard.seed_taste_title')}</h2>
       <p className={styles.description}>
-        Your 8-point Harmonic Radar is at its neutral baseline. Answer a quick, skippable questionnaire to tune your recommendations.
+        {t('dashboard.seed_taste_desc')}
       </p>
 
       <div className={styles.actions}>
         <button type="button" className={styles.primaryCta} onClick={handleStart}>
-          <span>Calibrate Taste</span>
+          <span>{t('dashboard.calibrate_taste')}</span>
           <svg
             width="15"
             height="15"
@@ -98,7 +100,7 @@ export function SeedTasteCard({ user }: SeedTasteCardProps) {
           </svg>
         </button>
         <button type="button" className={styles.skipBtn} onClick={handleDismiss}>
-          Dismiss
+          {t('dashboard.dismiss')}
         </button>
       </div>
     </aside>

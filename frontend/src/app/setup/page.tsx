@@ -3,12 +3,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { WaveAndSunIllustration, SunMark } from '@/components/auth/AuthIllustration';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
 import { isNetworkOrServerDownError } from '@/utils/api';
 
 export default function SetupPage() {
   const { setupAdmin } = useAuth();
+  const { t } = useTranslation();
   const router = useRouter();
 
   const [username, setUsername] = useState('admin');
@@ -29,15 +31,15 @@ export default function SetupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !email.trim() || !password) {
-      setError('All fields are required.');
+      setError('auth.all_fields_required');
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+      setError('auth.password_min_length');
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError('auth.passwords_do_not_match');
       return;
     }
 
@@ -65,7 +67,7 @@ export default function SetupPage() {
 
         setIsWaitingForBackend(false);
         setSubmitting(false);
-        const message = err instanceof Error ? err.message : 'Setup failed. Instance may already be initialized.';
+        const message = err instanceof Error ? err.message : 'auth.setup_failed';
         setError(message);
       }
     };
@@ -83,22 +85,22 @@ export default function SetupPage() {
       <div className="auth-hero-panel">
         <div>
           <div className="font-display" style={{ fontSize: '1.8rem', fontWeight: 700, letterSpacing: '0.12em' }}>
-            PALADIO SETUP
+            {t('auth.setup_title')}
           </div>
           <p className="font-mono text-xs" style={{ margin: '4px 0 0', opacity: 0.75, letterSpacing: '0.08em' }}>
-            {'// MASTER ADMINISTRATOR INITIALIZATION'}
+            {t('auth.setup_subtitle')}
           </p>
         </div>
 
         <div style={{ margin: 'auto 0', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '1.5rem' }}>
           <WaveAndSunIllustration />
           <p className="font-mono text-xs" style={{ maxWidth: '280px', lineHeight: 1.6, opacity: 0.85 }}>
-            Initial system provisioning. Establish root cryptographic credentials for your sovereign cluster.
+            {t('auth.setup_hero_desc')}
           </p>
         </div>
 
         <div className="font-mono text-xs" style={{ opacity: 0.65, fontSize: '10px' }}>
-          100% SELF-HOSTED // ZERO CLOUD APIS // PRIVATE &amp; AIR-GAPPABLE
+          {t('auth.setup_hero_badges')}
         </div>
       </div>
 
@@ -123,15 +125,15 @@ export default function SetupPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
             <img
               src="/logo.png"
-              alt="Paladio Logo"
+              alt={t('common.paladio_logo')}
               style={{ width: '42px', height: '42px', objectFit: 'contain' }}
             />
             <div>
               <h1 className="font-display text-accent" style={{ fontSize: '1.5rem', margin: 0, color: 'var(--color-text-primary)' }}>
-                PALADIO SETUP
+                {t('auth.setup_title')}
               </h1>
               <p className="font-mono text-muted" style={{ fontSize: '11px', margin: 0 }}>
-                {'// MASTER ADMINISTRATOR INITIALIZATION'}
+                {t('auth.setup_subtitle')}
               </p>
             </div>
           </div>
@@ -148,8 +150,7 @@ export default function SetupPage() {
               lineHeight: 1.5,
             }}
           >
-            <strong>First-Run Provisioning:</strong> This account will be granted full Master Administrator authority.
-            Once configured, open registration is permanently closed.
+            <strong>{t('auth.first_run_provisioning')}</strong> {t('auth.first_run_provisioning_desc')}
           </div>
 
           {error && (
@@ -164,7 +165,7 @@ export default function SetupPage() {
                 fontSize: '13px',
               }}
             >
-              {error}
+              {t(error)}
             </div>
           )}
 
@@ -175,7 +176,7 @@ export default function SetupPage() {
                 className="font-mono text-muted"
                 style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}
               >
-                ADMINISTRATOR USERNAME
+                {t('auth.admin_username_label')}
               </label>
               <input
                 id="setup-username"
@@ -204,7 +205,7 @@ export default function SetupPage() {
                 className="font-mono text-muted"
                 style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}
               >
-                ADMINISTRATOR EMAIL
+                {t('auth.admin_email_label')}
               </label>
               <input
                 id="setup-email"
@@ -232,14 +233,14 @@ export default function SetupPage() {
                 className="font-mono text-muted"
                 style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}
               >
-                MASTER PASSWORD
+                {t('auth.master_password_label')}
               </label>
               <input
                 id="setup-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimum 6 characters"
+                placeholder={t('auth.password_min_placeholder')}
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -261,14 +262,14 @@ export default function SetupPage() {
                 className="font-mono text-muted"
                 style={{ display: 'block', fontSize: '12px', marginBottom: '6px' }}
               >
-                CONFIRM MASTER PASSWORD
+                {t('auth.confirm_master_password_label')}
               </label>
               <input
                 id="setup-confirm-password"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter password"
+                placeholder={t('auth.reenter_password_placeholder')}
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -302,7 +303,7 @@ export default function SetupPage() {
                 letterSpacing: '0.5px',
               }}
             >
-              {submitting ? 'PROVISIONING INSTANCE...' : 'INITIALIZE MASTER ADMINISTRATOR'}
+              {submitting ? t('auth.provisioning_instance') : t('auth.initialize_master_administrator')}
             </button>
           </form>
         </div>

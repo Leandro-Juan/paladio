@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { getCurrencyInfo } from '@/utils/currencyResolver';
+import { getCurrencyInfo, getLocalizedCurrencyCountry } from '@/utils/currencyResolver';
 import { FlagIcon } from './FlagIcon';
 import { ArrowRightIcon } from '@/components/icons';
 import { DisplayExpenseItem } from './ExpenseRow';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SummaryCardProps {
   label: string;
@@ -17,10 +18,10 @@ interface SummaryCardProps {
   foot: React.ReactNode;
 }
 
-function formatMoneyParts(amount: number, currency: string = 'EUR') {
+function formatMoneyParts(amount: number, currency: string = 'EUR', intlLocale: string = 'en-US') {
   const cur = (currency || 'EUR').toUpperCase();
   try {
-    const formatter = new Intl.NumberFormat(undefined, {
+    const formatter = new Intl.NumberFormat(intlLocale, {
       style: 'currency',
       currency: cur,
       minimumFractionDigits: 0,
@@ -43,6 +44,8 @@ function formatMoneyParts(amount: number, currency: string = 'EUR') {
 }
 
 function SummaryCard({ label, sub, amount, targetAmount, currency = 'EUR', icon, tone, foot }: SummaryCardProps) {
+  const { locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const isTotal = tone === 'total';
   const accentColor =
     tone === 'owe'
@@ -53,7 +56,7 @@ function SummaryCard({ label, sub, amount, targetAmount, currency = 'EUR', icon,
       ? 'var(--color-accent-teal, #0D9488)'
       : undefined;
 
-  const { integerPart, otherPart } = formatMoneyParts(amount, currency);
+  const { integerPart, otherPart } = formatMoneyParts(amount, currency, intlLocale);
 
   return (
     <div
@@ -158,7 +161,7 @@ function SummaryCard({ label, sub, amount, targetAmount, currency = 'EUR', icon,
                 marginLeft: '6px',
               }}
             >
-              / {formatMoneyParts(targetAmount, currency).integerPart}{formatMoneyParts(targetAmount, currency).otherPart}
+              / {formatMoneyParts(targetAmount, currency, intlLocale).integerPart}{formatMoneyParts(targetAmount, currency, intlLocale).otherPart}
             </span>
           )}
         </div>
@@ -195,8 +198,10 @@ function SplitDebtCard({
   owed: number;
   currency?: string;
 }) {
-  const oweParts = formatMoneyParts(owe, currency);
-  const owedParts = formatMoneyParts(owed, currency);
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
+  const oweParts = formatMoneyParts(owe, currency, intlLocale);
+  const owedParts = formatMoneyParts(owed, currency, intlLocale);
 
   return (
     <div
@@ -237,10 +242,10 @@ function SplitDebtCard({
             </span>
             <div>
               <div style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontSize: '0.82rem', fontWeight: 600 }}>
-                You owe
+                {t('costs.you_owe')}
               </div>
               <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.65rem', color: 'var(--color-text-muted)' }}>
-                Pay others
+                {t('costs.pay_others')}
               </div>
             </div>
           </div>
@@ -267,7 +272,7 @@ function SplitDebtCard({
         </div>
 
         <div style={{ marginTop: '10px', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.7rem', color: 'var(--color-danger)', fontWeight: 600 }}>
-          Payments pending
+          {t('costs.payments_pending')}
         </div>
       </div>
 
@@ -296,10 +301,10 @@ function SplitDebtCard({
             </span>
             <div>
               <div style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontSize: '0.82rem', fontWeight: 600 }}>
-                You&apos;re owed
+                {t('costs.youre_owed')}
               </div>
               <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.65rem', color: 'var(--color-text-muted)' }}>
-                Others pay you
+                {t('costs.others_pay_you')}
               </div>
             </div>
           </div>
@@ -326,7 +331,7 @@ function SplitDebtCard({
         </div>
 
         <div style={{ marginTop: '10px', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600 }}>
-          Refunds pending
+          {t('costs.refunds_pending')}
         </div>
       </div>
     </div>
@@ -344,6 +349,7 @@ interface ModeToggleProps {
 }
 
 function ModeToggle({ mode, onChange }: ModeToggleProps) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -359,7 +365,7 @@ function ModeToggle({ mode, onChange }: ModeToggleProps) {
       <button
         type="button"
         onClick={() => onChange('pace')}
-        title="View daily spending velocity & runway cushion"
+        title={t('costs.mode_pace_title')}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -380,13 +386,13 @@ function ModeToggle({ mode, onChange }: ModeToggleProps) {
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
         </svg>
-        Pace
+        {t('costs.mode_pace')}
       </button>
 
       <button
         type="button"
         onClick={() => onChange('fx')}
-        title="View live currency converter & rates"
+        title={t('costs.mode_fx_title')}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -410,7 +416,7 @@ function ModeToggle({ mode, onChange }: ModeToggleProps) {
           <line x1="7" y1="21" x2="7" y2="3" />
           <path d="m3 17 4 4 4-4" />
         </svg>
-        FX
+        {t('costs.mode_fx')}
       </button>
     </div>
   );
@@ -440,6 +446,8 @@ function DailyExpensesGraph({
   tripTotalDays?: number;
   totalSpend?: number;
 }) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   const maxAmount = useMemo(() => Math.max(0, ...points.map((p) => p.amount)), [points]);
@@ -455,9 +463,9 @@ function DailyExpensesGraph({
 
   const totalSpentAcrossPoints = useMemo(() => points.reduce((acc, p) => acc + p.amount, 0), [points]);
   const avgSpent = points.length > 0 ? totalSpentAcrossPoints / points.length : 0;
-  const avgParts = formatMoneyParts(avgSpent, activeCurrency);
-  const targetParts = formatMoneyParts(dailyAllowance, activeCurrency);
-  const totalSpendParts = formatMoneyParts(totalSpend ?? totalSpentAcrossPoints, activeCurrency);
+  const avgParts = formatMoneyParts(avgSpent, activeCurrency, intlLocale);
+  const targetParts = formatMoneyParts(dailyAllowance, activeCurrency, intlLocale);
+  const totalSpendParts = formatMoneyParts(totalSpend ?? totalSpentAcrossPoints, activeCurrency, intlLocale);
 
   return (
     <div
@@ -488,17 +496,28 @@ function DailyExpensesGraph({
             <line x1="12" y1="20" x2="12" y2="4" />
             <line x1="6" y1="20" x2="6" y2="14" />
           </svg>
-          <span style={{ fontWeight: 700, letterSpacing: '0.04em', color: 'var(--color-text-main)' }}>EXPENSES BY DAY</span>
+          <span style={{ fontWeight: 700, letterSpacing: '0.04em', color: 'var(--color-text-main)' }}>{t('costs.expenses_by_day')}</span>
           {tripTotalDays !== undefined && (
             <>
               <span>·</span>
-              <span>Horizon: {tripTotalDays}d</span>
+              <span>{t('costs.horizon_days', { days: tripTotalDays })}</span>
             </>
           )}
           {totalSpend !== undefined && (
             <>
               <span>·</span>
-              <span>Total: <b style={{ color: 'var(--color-text-main)' }}>{totalSpendParts.integerPart}{totalSpendParts.otherPart}</b></span>
+              <span>
+                {(() => {
+                  const [before, after] = t('costs.total_with_amount', { amount: '__AMT__' }).split('__AMT__');
+                  return (
+                    <>
+                      {before}
+                      <b style={{ color: 'var(--color-text-main)' }}>{totalSpendParts.integerPart}{totalSpendParts.otherPart}</b>
+                      {after}
+                    </>
+                  );
+                })()}
+              </span>
             </>
           )}
         </div>
@@ -514,20 +533,22 @@ function DailyExpensesGraph({
                 color: hoveredPoint.isOverTarget ? 'var(--color-danger, #E63946)' : 'var(--color-text-main)',
               }}
             >
-              {formatMoneyParts(hoveredPoint.amount, activeCurrency).integerPart}
-              {formatMoneyParts(hoveredPoint.amount, activeCurrency).otherPart}
+              {formatMoneyParts(hoveredPoint.amount, activeCurrency, intlLocale).integerPart}
+              {formatMoneyParts(hoveredPoint.amount, activeCurrency, intlLocale).otherPart}
             </span>
             <span style={{ color: 'var(--color-text-muted)' }}>
-              ({hoveredPoint.expenseCount} {hoveredPoint.expenseCount === 1 ? 'item' : 'items'})
+              {hoveredPoint.expenseCount === 1
+                ? t('costs.item_count_one', { count: 1 })
+                : t('costs.item_count_other', { count: hoveredPoint.expenseCount })}
             </span>
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-muted)' }}>
-            <span>Avg: {avgParts.integerPart}{avgParts.otherPart}/d</span>
+            <span>{t('costs.avg_per_day', { amount: `${avgParts.integerPart}${avgParts.otherPart}` })}</span>
             <span>·</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: '8px', height: '2px', background: 'var(--color-accent-warning, #E2B33C)', display: 'inline-block' }} />
-              Target: {targetParts.integerPart}{targetParts.otherPart}/d
+              {t('costs.target_per_day', { amount: `${targetParts.integerPart}${targetParts.otherPart}` })}
             </span>
           </div>
         )}
@@ -568,7 +589,7 @@ function DailyExpensesGraph({
               borderRadius: '3px',
             }}
           >
-            Target ({targetParts.integerPart}{targetParts.otherPart})
+            {t('costs.target_paren', { amount: `${targetParts.integerPart}${targetParts.otherPart}` })}
           </span>
         </div>
 
@@ -586,7 +607,7 @@ function DailyExpensesGraph({
           {points.map((p, idx) => {
             const isHovered = hoveredIdx === idx;
             const barHeightPct = targetCeiling > 0 ? Math.min(100, Math.round((p.amount / targetCeiling) * 100)) : 0;
-            const money = formatMoneyParts(p.amount, activeCurrency);
+            const money = formatMoneyParts(p.amount, activeCurrency, intlLocale);
 
             return (
               <div
@@ -632,7 +653,11 @@ function DailyExpensesGraph({
                       {money.integerPart}{money.otherPart}
                     </span>
                     <span style={{ color: p.isOverTarget ? 'var(--color-danger, #E63946)' : 'var(--color-text-muted)', fontSize: '0.58rem' }}>
-                      {p.isOverTarget ? 'Over daily target' : p.amount > 0 ? `${p.expenseCount} logged` : '0 spent'}
+                      {p.isOverTarget
+                        ? t('costs.over_daily_target')
+                        : p.amount > 0
+                        ? t('costs.n_logged', { count: p.expenseCount })
+                        : t('costs.zero_spent')}
                     </span>
                   </div>
                 )}
@@ -728,7 +753,7 @@ function DailyExpensesGraph({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {points.length > 7 ? `D${p.dayIndex}` : p.dayLabel}
+                {points.length > 7 ? t('costs.day_short', { day: p.dayIndex }) : p.dayLabel}
               </span>
               {p.isToday && (
                 <span
@@ -772,9 +797,11 @@ function DailyPaceDoubleCard({
   expenses,
   onToggleMode,
 }: DailyPaceDoubleCardProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const tripDuration = useMemo(() => {
     if (!startDate) {
-      return { totalDays: 5, currentDay: 1, remainingDays: 5, statusText: 'Flexible dates', isPreTrip: false, isCompleted: false };
+      return { totalDays: 5, currentDay: 1, remainingDays: 5, statusText: t('costs.flexible_dates'), isPreTrip: false, isCompleted: false };
     }
     try {
       const start = new Date(startDate);
@@ -792,7 +819,7 @@ function DailyPaceDoubleCard({
           totalDays,
           currentDay: 0,
           remainingDays: totalDays,
-          statusText: `Pre-trip (starts in ${daysUntil}d)`,
+          statusText: t('costs.pretrip_starts_in', { days: daysUntil }),
           isPreTrip: true,
           isCompleted: false,
         };
@@ -801,7 +828,7 @@ function DailyPaceDoubleCard({
           totalDays,
           currentDay: totalDays,
           remainingDays: 0,
-          statusText: `Trip completed (${totalDays}d)`,
+          statusText: t('costs.trip_completed_days', { days: totalDays }),
           isPreTrip: false,
           isCompleted: true,
         };
@@ -812,15 +839,15 @@ function DailyPaceDoubleCard({
           totalDays,
           currentDay,
           remainingDays,
-          statusText: `Day ${currentDay} of ${totalDays}`,
+          statusText: t('dashboard.day_progress', { current: currentDay, total: totalDays }),
           isPreTrip: false,
           isCompleted: false,
         };
       }
     } catch {
-      return { totalDays: 5, currentDay: 1, remainingDays: 5, statusText: 'Trip timeline', isPreTrip: false, isCompleted: false };
+      return { totalDays: 5, currentDay: 1, remainingDays: 5, statusText: t('costs.trip_timeline'), isPreTrip: false, isCompleted: false };
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, t]);
 
   const dailyAllowance = Math.max(1, totalBudget / tripDuration.totalDays);
   const remainingCushion = Math.max(0, totalBudget - totalSpend);
@@ -831,17 +858,17 @@ function DailyPaceDoubleCard({
   const paceHealth = useMemo(() => {
     if (tripDuration.isCompleted) {
       return totalSpend <= totalBudget
-        ? { text: 'COMPLETED ON BUDGET', color: 'var(--color-success, #1F7A4D)', bg: 'rgba(31, 122, 77, 0.12)' }
-        : { text: 'EXCEEDED BUDGET', color: 'var(--color-danger, #E63946)', bg: 'rgba(230, 57, 70, 0.12)' };
+        ? { text: t('costs.status_completed_on_budget'), color: 'var(--color-success, #1F7A4D)', bg: 'rgba(31, 122, 77, 0.12)' }
+        : { text: t('costs.status_exceeded_budget'), color: 'var(--color-danger, #E63946)', bg: 'rgba(230, 57, 70, 0.12)' };
     }
     if (isOverPacingToday) {
-      return { text: 'OVER PACING TODAY', color: 'var(--color-accent-warning, #E2B33C)', bg: 'rgba(226, 179, 60, 0.18)' };
+      return { text: t('costs.status_over_pacing_today'), color: 'var(--color-accent-warning, #E2B33C)', bg: 'rgba(226, 179, 60, 0.18)' };
     }
     if (remainingCushion <= 0 && totalBudget > 0) {
-      return { text: 'BUDGET DEPLETED', color: 'var(--color-danger, #E63946)', bg: 'rgba(230, 57, 70, 0.12)' };
+      return { text: t('costs.status_budget_depleted'), color: 'var(--color-danger, #E63946)', bg: 'rgba(230, 57, 70, 0.12)' };
     }
-    return { text: 'ON TRACK', color: 'var(--color-success, #1F7A4D)', bg: 'rgba(31, 122, 77, 0.12)' };
-  }, [tripDuration.isCompleted, isOverPacingToday, remainingCushion, totalBudget, totalSpend]);
+    return { text: t('costs.status_on_track'), color: 'var(--color-success, #1F7A4D)', bg: 'rgba(31, 122, 77, 0.12)' };
+  }, [tripDuration.isCompleted, isOverPacingToday, remainingCushion, totalBudget, totalSpend, t]);
 
   const dailySpendingData = useMemo<DailySpendingPoint[]>(() => {
     const points: DailySpendingPoint[] = [];
@@ -882,12 +909,12 @@ function DailyPaceDoubleCard({
           const exp = dateToExpenses[iso];
           const amount = exp ? exp.amount : 0;
           const count = exp ? exp.count : 0;
-          const dateLabel = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          const dateLabel = d.toLocaleDateString(intlLocale, { month: 'short', day: 'numeric' });
 
           points.push({
             dateKey: iso,
             dayIndex: i + 1,
-            dayLabel: `Day ${i + 1}`,
+            dayLabel: t('trips.day_label', { number: i + 1 }),
             dateLabel,
             amount,
             expenseCount: count,
@@ -924,8 +951,8 @@ function DailyPaceDoubleCard({
           points.unshift({
             dateKey: 'pre-trip',
             dayIndex: 0,
-            dayLabel: 'Pre-trip',
-            dateLabel: 'Bookings',
+            dayLabel: t('costs.pretrip_label'),
+            dateLabel: t('costs.bookings_label'),
             amount: preTripAmount,
             expenseCount: preTripCount,
             isToday: false,
@@ -937,8 +964,8 @@ function DailyPaceDoubleCard({
           points.push({
             dateKey: 'post-trip',
             dayIndex: numDays + 1,
-            dayLabel: 'Post-trip',
-            dateLabel: 'After trip',
+            dayLabel: t('costs.posttrip_label'),
+            dateLabel: t('costs.after_trip_label'),
             amount: postTripAmount,
             expenseCount: postTripCount,
             isToday: false,
@@ -951,8 +978,8 @@ function DailyPaceDoubleCard({
           points.push({
             dateKey: 'unassigned',
             dayIndex: points.length + 1,
-            dayLabel: 'Other',
-            dateLabel: 'No date',
+            dayLabel: t('costs.categories.other'),
+            dateLabel: t('costs.no_date_label'),
             amount: exp.amount,
             expenseCount: exp.count,
             isToday: false,
@@ -974,8 +1001,8 @@ function DailyPaceDoubleCard({
         return {
           dateKey: k,
           dayIndex: idx + 1,
-          dayLabel: k === 'unassigned' ? 'Other' : `Day ${idx + 1}`,
-          dateLabel: k === 'unassigned' ? 'No date' : k,
+          dayLabel: k === 'unassigned' ? t('costs.categories.other') : t('trips.day_label', { number: idx + 1 }),
+          dateLabel: k === 'unassigned' ? t('costs.no_date_label') : k,
           amount: exp.amount,
           expenseCount: exp.count,
           isToday: k === todayIso,
@@ -990,7 +1017,7 @@ function DailyPaceDoubleCard({
       points.push({
         dateKey: `day-slot-${i + 1}`,
         dayIndex: i + 1,
-        dayLabel: `Day ${i + 1}`,
+        dayLabel: t('trips.day_label', { number: i + 1 }),
         dateLabel: '',
         amount: 0,
         expenseCount: 0,
@@ -999,7 +1026,7 @@ function DailyPaceDoubleCard({
       });
     }
     return points;
-  }, [expenses, startDate, endDate, dailyAllowance, tripDuration.totalDays]);
+  }, [expenses, startDate, endDate, dailyAllowance, tripDuration.totalDays, intlLocale, t]);
 
   return (
     <div
@@ -1040,7 +1067,7 @@ function DailyPaceDoubleCard({
             </span>
             <div>
               <div style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontSize: '0.92rem', fontWeight: 600 }}>
-                Daily Spending Pace & Runway
+                {t('costs.daily_pace_title')}
               </div>
               <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: 'var(--color-text-muted)' }}>
                 {tripDuration.statusText}{destinationCity ? ` · ${destinationCity}` : ''}
@@ -1111,14 +1138,25 @@ function CurrencyConverterDoubleCard({
   onOpenWheelPicker?: () => void;
   onToggleMode?: (mode: 'pace' | 'fx') => void;
 }) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const [testAmount, setTestAmount] = useState<string>('100');
   const numAmount = parseFloat(testAmount) || 0;
   const convertedAmount = numAmount * exchangeRate;
 
   const activeInfo = getCurrencyInfo(activeCurrency);
   const destInfo = getCurrencyInfo(destinationCurrency);
-  const displayDestCountry = destinationCountryName || destInfo.country;
   const displayDestCountryCode = destinationCountryCode || destInfo.countryCode;
+  const displayDestCountry = getLocalizedCurrencyCountry(
+    displayDestCountryCode,
+    destinationCountryName || destInfo.country,
+    locale
+  );
+  const displayActiveCountry = getLocalizedCurrencyCountry(
+    activeInfo.countryCode,
+    activeInfo.country,
+    locale
+  );
 
   return (
     <div
@@ -1161,10 +1199,10 @@ function CurrencyConverterDoubleCard({
             </span>
             <div>
               <div style={{ fontFamily: 'var(--font-display, "Jost", sans-serif)', fontSize: '0.92rem', fontWeight: 600 }}>
-                Live Currency Exchange
+                {t('costs.live_fx_title')}
               </div>
               <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span>{activeInfo.country}</span>
+                <span>{displayActiveCountry}</span>
                 <ArrowRightIcon size={10} color="var(--color-text-muted)" />
                 <span>{displayDestCountry}</span>
               </div>
@@ -1196,7 +1234,7 @@ function CurrencyConverterDoubleCard({
                     background: 'var(--color-success, #1F7A4D)',
                   }}
                 />
-                LIVE ECB
+                {t('costs.live_ecb')}
               </span>
             )}
           </div>
@@ -1215,13 +1253,13 @@ function CurrencyConverterDoubleCard({
           {/* Left Sub-Column: Currency Selector Pill */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: 'var(--color-text-muted)' }}>
-              SELECT ACTIVE CURRENCY
+              {t('costs.select_active_currency')}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
                 type="button"
                 onClick={onOpenWheelPicker}
-                title="Click to spin currency cylinder dial"
+                title={t('costs.spin_currency_dial_title')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1280,7 +1318,7 @@ function CurrencyConverterDoubleCard({
           {/* Right Sub-Column: Live Quick Amount Converter */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem', color: 'var(--color-text-muted)' }}>
-              LIVE CONVERSION
+              {t('costs.live_conversion')}
             </div>
             <div
               style={{
@@ -1302,7 +1340,7 @@ function CurrencyConverterDoubleCard({
                   min="0"
                   value={testAmount}
                   onChange={(e) => setTestAmount(e.target.value)}
-                  aria-label="Currency amount to convert"
+                  aria-label={t('costs.currency_amount_aria')}
                   style={{
                     width: '64px',
                     background: 'transparent',
@@ -1320,7 +1358,7 @@ function CurrencyConverterDoubleCard({
 
               <div style={{ fontWeight: 700, color: 'var(--color-accent-teal-deep, #0F4C5C)' }}>
                 {destInfo.symbol}
-                {convertedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {convertedAmount.toLocaleString(intlLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
           </div>
@@ -1340,7 +1378,11 @@ function CurrencyConverterDoubleCard({
         }}
       >
         <span>
-          Live rate: 1 {activeCurrency} = {exchangeRate.toFixed(4)} {destinationCurrency}
+          {t('costs.live_rate_pair', {
+            from: activeCurrency,
+            rate: exchangeRate.toFixed(4),
+            to: destinationCurrency,
+          })}
         </span>
         <span>·</span>
         <span>
@@ -1397,6 +1439,8 @@ export function CostsSummaryCards({
   expenses,
   isSingleTraveler = false,
 }: CostsSummaryCardsProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const currency = totals.currency || activeCurrency || 'EUR';
 
   const isSameCurrency = (activeCurrency || '').toUpperCase() === (destinationCurrency || '').toUpperCase();
@@ -1465,8 +1509,8 @@ export function CostsSummaryCards({
       {isSingleTraveler ? (
         (totals.outstandingCount ?? 0) > 0 ? (
           <SummaryCard
-            label="Pending costs"
-            sub="Unpaid route estimates"
+            label={t('costs.pending_costs')}
+            sub={t('costs.unpaid_route_estimates')}
             amount={totals.outstanding ?? 0}
             currency={currency}
             tone="neutral"
@@ -1478,14 +1522,16 @@ export function CostsSummaryCards({
             }
             foot={
               <span style={{ color: 'var(--color-accent-secondary)', fontWeight: 600 }}>
-                {totals.outstandingCount} {totals.outstandingCount === 1 ? 'item' : 'items'} unpaid
+                {totals.outstandingCount === 1
+                  ? t('costs.items_unpaid_one', { count: 1 })
+                  : t('costs.items_unpaid_other', { count: totals.outstandingCount ?? 0 })}
               </span>
             }
           />
         ) : (
           <SummaryCard
-            label="All costs paid"
-            sub="No unpaid estimates"
+            label={t('costs.all_costs_paid')}
+            sub={t('costs.no_unpaid_estimates')}
             amount={0}
             currency={currency}
             tone="owed"
@@ -1497,7 +1543,7 @@ export function CostsSummaryCards({
             }
             foot={
               <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
-                All planned expenses paid
+                {t('costs.all_planned_expenses_paid')}
               </span>
             }
           />
@@ -1508,8 +1554,8 @@ export function CostsSummaryCards({
       ) : hasOwe ? (
         // State 2: Only owing -> Use existing "You owe" style
         <SummaryCard
-          label="You owe"
-          sub="You should pay others"
+          label={t('costs.you_owe')}
+          sub={t('costs.you_should_pay_others')}
           amount={totals.owe}
           currency={currency}
           tone="owe"
@@ -1521,15 +1567,15 @@ export function CostsSummaryCards({
           }
           foot={
             <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>
-              Payments pending
+              {t('costs.payments_pending')}
             </span>
           }
         />
       ) : hasOwed ? (
         // State 1: Only owed -> Use existing "You're owed" style
         <SummaryCard
-          label="You're owed"
-          sub="Others should pay you"
+          label={t('costs.youre_owed')}
+          sub={t('costs.others_should_pay_you')}
           amount={totals.owed}
           currency={currency}
           tone="owed"
@@ -1541,15 +1587,15 @@ export function CostsSummaryCards({
           }
           foot={
             <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
-              Refunds pending
+              {t('costs.refunds_pending')}
             </span>
           }
         />
       ) : (
         // State 3: Neutral -> All settled up
         <SummaryCard
-          label="All settled up"
-          sub="Balance neutral"
+          label={t('costs.all_settled_up')}
+          sub={t('costs.balance_neutral')}
           amount={0}
           currency={currency}
           tone="neutral"
@@ -1561,7 +1607,7 @@ export function CostsSummaryCards({
           }
           foot={
             <span style={{ color: 'var(--color-text-muted)' }}>
-              Nothing owed or owing
+              {t('costs.nothing_owed_or_owing')}
             </span>
           }
         />
@@ -1569,8 +1615,8 @@ export function CostsSummaryCards({
 
       {/* 3. Single Card (Original Size): Total Trip Spend */}
       <SummaryCard
-        label="Total trip spend"
-        sub={isSingleTraveler ? 'Solo trip expenses' : 'Across all travelers'}
+        label={t('costs.total_trip_spend')}
+        sub={isSingleTraveler ? t('costs.solo_trip_expenses') : t('costs.across_all_travelers')}
         amount={totals.totalSpend}
         targetAmount={totalBudget}
         currency={currency}
@@ -1586,37 +1632,73 @@ export function CostsSummaryCards({
           isSingleTraveler ? (
             <div style={{ display: 'flex', gap: '14px', width: '100%', flexWrap: 'wrap' }}>
               <span>
-                Paid:{' '}
-                <b style={{ color: 'var(--color-text-on-accent)' }}>
-                  {formatMoneyParts(totals.totalSpend, currency).integerPart}
-                  {formatMoneyParts(totals.totalSpend, currency).otherPart}
-                </b>
+                {(() => {
+                  const [before, after] = t('costs.paid_with_amount', { amount: '__AMT__' }).split('__AMT__');
+                  const p = formatMoneyParts(totals.totalSpend, currency, intlLocale);
+                  return (
+                    <>
+                      {before}
+                      <b style={{ color: 'var(--color-text-on-accent)' }}>
+                        {p.integerPart}
+                        {p.otherPart}
+                      </b>
+                      {after}
+                    </>
+                  );
+                })()}
               </span>
               <span>·</span>
               <span>
-                Unpaid:{' '}
-                <b style={{ color: 'var(--color-text-on-accent)' }}>
-                  {formatMoneyParts(totals.outstanding ?? 0, currency).integerPart}
-                  {formatMoneyParts(totals.outstanding ?? 0, currency).otherPart}
-                </b>
+                {(() => {
+                  const [before, after] = t('costs.unpaid_with_amount', { amount: '__AMT__' }).split('__AMT__');
+                  const p = formatMoneyParts(totals.outstanding ?? 0, currency, intlLocale);
+                  return (
+                    <>
+                      {before}
+                      <b style={{ color: 'var(--color-text-on-accent)' }}>
+                        {p.integerPart}
+                        {p.otherPart}
+                      </b>
+                      {after}
+                    </>
+                  );
+                })()}
               </span>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: '14px', width: '100%', flexWrap: 'wrap' }}>
               <span>
-                Your share:{' '}
-                <b style={{ color: 'var(--color-text-on-accent)' }}>
-                  {formatMoneyParts(totals.myShare, currency).integerPart}
-                  {formatMoneyParts(totals.myShare, currency).otherPart}
-                </b>
+                {(() => {
+                  const [before, after] = t('costs.your_share_with_amount', { amount: '__AMT__' }).split('__AMT__');
+                  const p = formatMoneyParts(totals.myShare, currency, intlLocale);
+                  return (
+                    <>
+                      {before}
+                      <b style={{ color: 'var(--color-text-on-accent)' }}>
+                        {p.integerPart}
+                        {p.otherPart}
+                      </b>
+                      {after}
+                    </>
+                  );
+                })()}
               </span>
               <span>·</span>
               <span>
-                You paid:{' '}
-                <b style={{ color: 'var(--color-text-on-accent)' }}>
-                  {formatMoneyParts(totals.myPaid, currency).integerPart}
-                  {formatMoneyParts(totals.myPaid, currency).otherPart}
-                </b>
+                {(() => {
+                  const [before, after] = t('costs.you_paid_with_amount', { amount: '__AMT__' }).split('__AMT__');
+                  const p = formatMoneyParts(totals.myPaid, currency, intlLocale);
+                  return (
+                    <>
+                      {before}
+                      <b style={{ color: 'var(--color-text-on-accent)' }}>
+                        {p.integerPart}
+                        {p.otherPart}
+                      </b>
+                      {after}
+                    </>
+                  );
+                })()}
               </span>
             </div>
           )

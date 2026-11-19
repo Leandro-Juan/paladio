@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Trip, TripExpense, TripSettlement, useTrips } from '@/hooks/useTrips';
 import { TripTicket } from '@/hooks/useTripTickets';
 import { apiFetch } from '@/utils/api';
@@ -25,12 +26,12 @@ function extractPhotoUrl(val: unknown): string {
   return '';
 }
 
-function formatDateDisplay(dateStr?: string): string {
+function formatDateDisplay(dateStr?: string, locale?: string): string {
   if (!dateStr) return '';
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('en-US', {
+    return d.toLocaleDateString(locale && locale !== 'en' ? locale : 'en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -41,13 +42,13 @@ function formatDateDisplay(dateStr?: string): string {
   }
 }
 
-function calculateDayDate(startDate?: string, dayOffset: number = 0): string {
+function calculateDayDate(startDate?: string, dayOffset: number = 0, locale?: string): string {
   if (!startDate) return '';
   try {
     const d = new Date(startDate);
     if (isNaN(d.getTime())) return '';
     d.setDate(d.getDate() + dayOffset);
-    return d.toLocaleDateString('en-US', {
+    return d.toLocaleDateString(locale && locale !== 'en' ? locale : 'en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -59,6 +60,7 @@ function calculateDayDate(startDate?: string, dayOffset: number = 0): string {
 }
 
 export function TripPrintDossier({ trip }: TripPrintDossierProps) {
+  const { t, locale } = useTranslation();
   const { getTripExpenses, getTripSettlement } = useTrips();
   const [expenses, setExpenses] = useState<TripExpense[]>([]);
   const [settlement, setSettlement] = useState<TripSettlement | null>(null);
@@ -145,8 +147,8 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
     if (typeof itineraryData.summary === 'string' && itineraryData.summary.trim()) {
       return itineraryData.summary.trim();
     }
-    return `Comprehensive travel dossier and operational schedule for ${trip.destination}. Includes chronological itinerary routing, transit connections, financial telemetry, and boarding credentials.`;
-  }, [itineraryData, trip.destination]);
+    return t('print.default_description', { destination: trip.destination });
+  }, [itineraryData, trip.destination, t]);
 
   // Constraints & metrics
   const travelConstraints = (itineraryData.travel_constraints || {}) as Record<string, any>;
@@ -166,11 +168,11 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
   // Calculate budget breakdown by category
   const categoryStats = useMemo(() => {
     const cats: Record<string, { label: string; total: number; count: number }> = {
-      lodging: { label: 'Lodging & Accommodation', total: 0, count: 0 },
-      transport: { label: 'Transportation & Transit', total: 0, count: 0 },
-      food: { label: 'Food & Dining', total: 0, count: 0 },
-      activities: { label: 'Activities, Tours & Tickets', total: 0, count: 0 },
-      general: { label: 'General & Miscellaneous', total: 0, count: 0 },
+      lodging: { label: t('print.cat_lodging'), total: 0, count: 0 },
+      transport: { label: t('print.cat_transport'), total: 0, count: 0 },
+      food: { label: t('print.cat_food'), total: 0, count: 0 },
+      activities: { label: t('print.cat_activities'), total: 0, count: 0 },
+      general: { label: t('print.cat_general'), total: 0, count: 0 },
     };
 
     if (!Array.isArray(expenses)) return [];
@@ -182,7 +184,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
     });
 
     return Object.entries(cats).filter(([, val]) => val.count > 0 || val.total > 0);
-  }, [expenses]);
+  }, [expenses, t]);
 
   const totalSpentExpenses = useMemo(() => {
     if (!Array.isArray(expenses)) return 0;
@@ -237,7 +239,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                   color: '#475569',
                 }}
               >
-                PALADIO // EXPEDITION DOSSIER
+                {t('print.cover_subtitle')}
               </div>
               <h1
                 style={{
@@ -262,7 +264,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                   fontWeight: 700,
                 }}
               >
-                MISSION IDENTIFIER
+                {t('print.mission_identifier')}
               </div>
               <div
                 style={{
@@ -272,11 +274,11 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                   marginTop: '2px',
                 }}
               >
-                PLD-{trip.id ? trip.id.substring(0, 8).toUpperCase() : 'EXPEDITION'}
+                PLD-{trip.id ? trip.id.substring(0, 8).toUpperCase() : t('print.expedition_tag')}
               </div>
               {trip.destination_timezone && (
                 <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>
-                  TZ: {trip.destination_timezone}
+                  {t('print.tz_prefix', { tz: trip.destination_timezone })}
                 </div>
               )}
             </div>
@@ -298,7 +300,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
           >
             <div>
               <div style={{ fontSize: '9px', letterSpacing: '0.15em', color: '#64748B', fontWeight: 700 }}>
-                DESTINATION
+                {t('print.destination_label')}
               </div>
               <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
                 {trip.destination}
@@ -307,30 +309,32 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
 
             <div>
               <div style={{ fontSize: '9px', letterSpacing: '0.15em', color: '#64748B', fontWeight: 700 }}>
-                DATE WINDOW
+                {t('print.date_window_label')}
               </div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: '#0F172A', marginTop: '2px' }}>
-                {formatDateDisplay(trip.start_date)}
+                {formatDateDisplay(trip.start_date, locale)}
                 <br />
-                <span style={{ color: '#64748B' }}>to {formatDateDisplay(trip.end_date)}</span>
+                <span style={{ color: '#64748B' }}>{t('print.to_date', { date: formatDateDisplay(trip.end_date, locale) })}</span>
               </div>
             </div>
 
             <div>
               <div style={{ fontSize: '9px', letterSpacing: '0.15em', color: '#64748B', fontWeight: 700 }}>
-                DURATION
+                {t('print.duration_upper')}
               </div>
               <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
-                {days.length} {days.length === 1 ? 'DAY' : 'DAYS'}
+                {days.length === 1
+                  ? t('print.duration_day_singular', { count: days.length })
+                  : t('print.duration_days_plural', { count: days.length })}
               </div>
             </div>
 
             <div>
               <div style={{ fontSize: '9px', letterSpacing: '0.15em', color: '#64748B', fontWeight: 700 }}>
-                WAYPOINTS
+                {t('print.waypoints_upper')}
               </div>
               <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
-                {totalWaypoints} STOPS
+                {t('print.stops_count_upper', { count: totalWaypoints })}
               </div>
             </div>
           </div>
@@ -373,7 +377,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                   letterSpacing: '0.1em',
                 }}
               >
-                CORRIDOR: {trip.origin_iata || 'ORIGIN'} ➔ {trip.destination_iata || trip.destination.substring(0, 3).toUpperCase()}
+                {t('print.corridor_prefix')} {trip.origin_iata || t('print.origin_upper')} ➔ {trip.destination_iata || trip.destination.substring(0, 3).toUpperCase()}
               </div>
             </div>
           )}
@@ -390,7 +394,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 marginBottom: '6px',
               }}
             >
-              MISSION BRIEF & OBJECTIVES
+              {t('print.mission_brief_objectives')}
             </div>
             <p
               style={{
@@ -417,7 +421,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 marginBottom: '8px',
               }}
             >
-              EXPEDITION TRAVELERS ({trip.participants?.length || 1})
+              {t('print.expedition_travelers', { count: trip.participants?.length || 1 })}
             </div>
 
             <div
@@ -427,7 +431,10 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 gap: '10px',
               }}
             >
-              {(trip.participants && trip.participants.length > 0 ? trip.participants : [{ name: 'Primary Traveler', role: 'lead' }]).map((p, idx) => (
+              {(trip.participants && trip.participants.length > 0
+                ? trip.participants
+                : [{ name: t('print.primary_traveler'), role: t('print.lead_role') }]
+              ).map((p, idx) => (
                 <div
                   key={idx}
                   style={{
@@ -460,10 +467,10 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: '12px', color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {p.name || 'Traveler'}
+                      {p.name || t('print.traveler_label')}
                     </div>
                     <div style={{ fontFamily: 'var(--font-code, monospace)', fontSize: '10px', color: '#64748B' }}>
-                      {p.role ? p.role.toUpperCase() : 'TRAVELER'} {'email' in p && p.email ? `// ${p.email}` : ''}
+                      {p.role ? p.role.toUpperCase() : t('print.traveler_upper')} {'email' in p && p.email ? `// ${p.email}` : ''}
                     </div>
                   </div>
                 </div>
@@ -485,8 +492,8 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
             color: '#64748B',
           }}
         >
-          <div>PALADIO AUTONOMOUS TRAVEL ENGINE // GENERATED DOSSIER</div>
-          <div>CONFIDENTIAL & OPERATIONAL TRAVEL DOCUMENT</div>
+          <div>{t('print.footer_engine')}</div>
+          <div>{t('print.footer_confidential')}</div>
         </div>
       </section>
 
@@ -521,7 +528,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 color: '#475569',
               }}
             >
-              SECTION 02
+              {t('print.section_02')}
             </div>
             <h2
               style={{
@@ -532,11 +539,11 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 color: '#0F172A',
               }}
             >
-              Financial Telemetry & Budget Breakdown
+              {t('print.section_02_title')}
             </h2>
           </div>
           <div style={{ fontFamily: 'var(--font-code, monospace)', fontSize: '11px', color: '#64748B' }}>
-            CURRENCY: {currency}
+            {t('print.currency_prefix', { currency })}
           </div>
         </div>
 
@@ -559,10 +566,10 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
             }}
           >
             <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 700, letterSpacing: '0.1em' }}>
-              TARGET BUDGET
+              {t('print.target_budget_upper')}
             </div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', marginTop: '4px' }}>
-              {allocatedBudget !== null ? `${Number(allocatedBudget).toFixed(2)} ${currency}` : 'UNSPECIFIED'}
+              {allocatedBudget !== null ? `${Number(allocatedBudget).toFixed(2)} ${currency}` : t('print.unspecified_upper')}
             </div>
           </div>
 
@@ -576,7 +583,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
             }}
           >
             <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 700, letterSpacing: '0.1em' }}>
-              ACTUAL RECORDED
+              {t('print.actual_recorded_upper')}
             </div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', marginTop: '4px' }}>
               {totalSpentExpenses.toFixed(2)} {currency}
@@ -593,7 +600,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
             }}
           >
             <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 700, letterSpacing: '0.1em' }}>
-              ESTIMATED ITINERARY
+              {t('print.estimated_itinerary_upper')}
             </div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', marginTop: '4px' }}>
               {totalCost ? `${Number(totalCost).toFixed(2)} ${currency}` : `${totalSpentExpenses.toFixed(2)} ${currency}`}
@@ -610,7 +617,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
             }}
           >
             <div style={{ fontSize: '9px', color: '#64748B', fontWeight: 700, letterSpacing: '0.1em' }}>
-              BUDGET VARIANCE
+              {t('print.budget_variance_upper')}
             </div>
             <div
               style={{
@@ -622,7 +629,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
             >
               {allocatedBudget !== null
                 ? `${(Number(allocatedBudget) - totalSpentExpenses).toFixed(2)} ${currency}`
-                : 'BALANCED'}
+                : t('print.balanced_upper')}
             </div>
           </div>
         </div>
@@ -639,7 +646,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
               marginBottom: '10px',
             }}
           >
-            SPENDING BREAKDOWN BY CATEGORY
+            {t('print.spending_by_category_upper')}
           </div>
 
           <div
@@ -652,10 +659,10 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
                 <tr style={{ backgroundColor: '#F1F5F9', borderBottom: '1px solid #CBD5E1', textAlign: 'left', fontFamily: 'var(--font-code, monospace)', fontSize: '10px' }}>
-                  <th style={{ padding: '8px 12px' }}>CATEGORY</th>
-                  <th style={{ padding: '8px 12px' }}>EXPENSES COUNT</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>SUBTOTAL ({currency})</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>PERCENTAGE</th>
+                  <th style={{ padding: '8px 12px' }}>{t('print.col_category')}</th>
+                  <th style={{ padding: '8px 12px' }}>{t('print.col_expenses_count')}</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>{t('print.col_subtotal', { currency })}</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>{t('print.col_percentage')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -665,7 +672,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                     return (
                       <tr key={key} style={{ borderBottom: '1px solid #F1F5F9' }}>
                         <td style={{ padding: '8px 12px', fontWeight: 600 }}>{cat.label}</td>
-                        <td style={{ padding: '8px 12px', color: '#64748B', fontFamily: 'var(--font-code, monospace)' }}>{cat.count} items</td>
+                        <td style={{ padding: '8px 12px', color: '#64748B', fontFamily: 'var(--font-code, monospace)' }}>{t('print.items_count', { count: cat.count })}</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-code, monospace)' }}>
                           {cat.total.toFixed(2)}
                         </td>
@@ -678,7 +685,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 ) : (
                   <tr>
                     <td colSpan={4} style={{ padding: '12px', textAlign: 'center', color: '#64748B', fontStyle: 'italic' }}>
-                      No expenses explicitly logged yet. Costs will accrue based on scheduled route activities and booked wallet tickets.
+                      {t('print.no_expenses_logged')}
                     </td>
                   </tr>
                 )}
@@ -699,7 +706,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
               marginBottom: '10px',
             }}
           >
-            ITEMIZED EXPENSE LOG ({expenses.length} RECORDS)
+            {t('print.itemized_expense_log', { count: expenses.length })}
           </div>
 
           <div
@@ -712,11 +719,11 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
               <thead>
                 <tr style={{ backgroundColor: '#F1F5F9', borderBottom: '1px solid #CBD5E1', textAlign: 'left', fontFamily: 'var(--font-code, monospace)', fontSize: '9px' }}>
-                  <th style={{ padding: '8px 10px' }}>DATE</th>
-                  <th style={{ padding: '8px 10px' }}>DESCRIPTION</th>
-                  <th style={{ padding: '8px 10px' }}>CATEGORY</th>
-                  <th style={{ padding: '8px 10px' }}>PAID BY</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>AMOUNT</th>
+                  <th style={{ padding: '8px 10px' }}>{t('print.col_date')}</th>
+                  <th style={{ padding: '8px 10px' }}>{t('print.col_description')}</th>
+                  <th style={{ padding: '8px 10px' }}>{t('print.col_category')}</th>
+                  <th style={{ padding: '8px 10px' }}>{t('print.col_paid_by')}</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>{t('print.col_amount')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -727,13 +734,13 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                         {exp.expense_date ? exp.expense_date.substring(0, 10) : '—'}
                       </td>
                       <td style={{ padding: '6px 10px', fontWeight: 600, color: '#0F172A' }}>
-                        {exp.description || 'Expense item'}
+                        {exp.description || t('print.expense_item_fallback')}
                       </td>
                       <td style={{ padding: '6px 10px', textTransform: 'capitalize', color: '#475569' }}>
-                        {exp.category || 'General'}
+                        {exp.category || t('print.general_fallback')}
                       </td>
                       <td style={{ padding: '6px 10px', color: '#475569' }}>
-                        {exp.payer_name || 'Group'}
+                        {exp.payer_name || t('print.group_fallback')}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-code, monospace)' }}>
                         {exp.amount.toFixed(2)} {exp.currency || currency}
@@ -743,7 +750,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 ) : (
                   <tr>
                     <td colSpan={5} style={{ padding: '12px', textAlign: 'center', color: '#64748B', fontStyle: 'italic' }}>
-                      No manual expenses recorded.
+                      {t('print.no_manual_expenses')}
                     </td>
                   </tr>
                 )}
@@ -765,7 +772,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 marginBottom: '10px',
               }}
             >
-              GROUP SETTLEMENT MATRIX (WHO OWES WHOM)
+              {t('print.settlement_matrix_upper')}
             </div>
 
             <div
@@ -778,9 +785,9 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#F1F5F9', borderBottom: '1px solid #CBD5E1', textAlign: 'left', fontFamily: 'var(--font-code, monospace)', fontSize: '9px' }}>
-                    <th style={{ padding: '8px 10px' }}>FROM (DEBTOR)</th>
-                    <th style={{ padding: '8px 10px' }}>TO (CREDITOR)</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>TRANSFER AMOUNT</th>
+                    <th style={{ padding: '8px 10px' }}>{t('print.col_from_debtor')}</th>
+                    <th style={{ padding: '8px 10px' }}>{t('print.col_to_creditor')}</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>{t('print.col_transfer_amount')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -825,7 +832,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 color: '#475569',
               }}
             >
-              SECTION 03
+              {t('print.section_03')}
             </div>
             <h2
               style={{
@@ -836,19 +843,19 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 color: '#0F172A',
               }}
             >
-              Chronological Expedition Itinerary
+              {t('print.section_03_title')}
             </h2>
           </div>
           <div style={{ fontFamily: 'var(--font-code, monospace)', fontSize: '11px', color: '#64748B' }}>
-            TOTAL {days.length} DAYS // {totalWaypoints} WAYPOINTS
+            {t('print.total_days_waypoints', { days: days.length, waypoints: totalWaypoints })}
           </div>
         </div>
 
         {/* Days loop */}
         {days.map((dayObj: any, dayIdx: number) => {
           const dayNumber = typeof dayObj.day === 'number' ? dayObj.day : dayIdx + 1;
-          const dayTitle = dayObj.theme || dayObj.anchor || `Day ${dayNumber} Highlights`;
-          const dayDate = calculateDayDate(trip.start_date, dayIdx);
+          const dayTitle = dayObj.theme || dayObj.anchor || t('print.day_highlights', { day: dayNumber });
+          const dayDate = calculateDayDate(trip.start_date, dayIdx, locale);
           const path: any[] = Array.isArray(dayObj.itinerary?.path) ? dayObj.itinerary.path : [];
 
           return (
@@ -887,7 +894,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                       marginRight: '10px',
                     }}
                   >
-                    DAY {dayNumber}
+                    {t('transit.day_upper', { day: dayNumber })}
                   </span>
                   <span
                     style={{
@@ -909,7 +916,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                   }}
                 >
                   {dayDate && <div>{dayDate}</div>}
-                  <div style={{ fontSize: '10px', color: '#94A3B8' }}>{path.length} STOPS</div>
+                  <div style={{ fontSize: '10px', color: '#94A3B8' }}>{t('print.stops_count_upper', { count: path.length })}</div>
                 </div>
               </div>
 
@@ -917,7 +924,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
               <div style={{ padding: '16px' }}>
                 {path.length === 0 ? (
                   <div style={{ color: '#64748B', fontStyle: 'italic', padding: '12px 0' }}>
-                    Rest and free exploration day. No scheduled stops.
+                    {t('print.rest_day_empty')}
                   </div>
                 ) : (
                   path.map((stop: any, stopIdx: number) => {
@@ -944,10 +951,12 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                             }}
                           >
                             <span>
-                              {transit.mode === 'transit' ? '🚇 TRANSIT' : '🚶 WALK'}:
+                              {transit.mode === 'transit' ? t('print.leg_transit') : t('print.leg_walk')}:
                             </span>
                             <span style={{ fontWeight: 600 }}>
-                              {transit.duration_mins ? `${transit.duration_mins} min` : '5-10 min'}
+                              {transit.duration_mins
+                                ? t('workspace.duration_minutes', { duration: transit.duration_mins })
+                                : t('print.duration_short_fallback')}
                             </span>
                             {transit.steps && transit.steps.length > 0 && transit.steps[0].instruction && (
                               <span style={{ color: '#64748B' }}>
@@ -1004,7 +1013,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                           >
                             <div>{times.start}</div>
                             <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 500 }}>
-                              to {times.end}
+                              {t('print.to_time', { time: times.end })}
                             </div>
                             {poi.duration_mins && (
                               <div style={{ fontSize: '9px', color: '#94A3B8', marginTop: '2px' }}>
@@ -1017,7 +1026,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
                               <span style={{ fontWeight: 700, fontSize: '13px', color: '#0F172A' }}>
-                                {poi.name || 'Waypoint'}
+                                {poi.name || t('workspace.waypoint_fallback')}
                               </span>
                               {poi.category && (
                                 <span
@@ -1045,7 +1054,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                                     marginLeft: 'auto',
                                   }}
                                 >
-                                  {poi.cost_eur > 0 ? `€${poi.cost_eur.toFixed(2)}` : 'FREE'}
+                                  {poi.cost_eur > 0 ? `€${poi.cost_eur.toFixed(2)}` : t('transit.free_upper')}
                                 </span>
                               )}
                             </div>
@@ -1111,7 +1120,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 color: '#475569',
               }}
             >
-              SECTION 04
+              {t('print.section_04')}
             </div>
             <h2
               style={{
@@ -1122,11 +1131,11 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                 color: '#0F172A',
               }}
             >
-              Expedition Wallet & Reservation Vouchers
+              {t('print.section_04_title')}
             </h2>
           </div>
           <div style={{ fontFamily: 'var(--font-code, monospace)', fontSize: '11px', color: '#64748B' }}>
-            {tickets.length} CREDENTIALS RECORDED
+            {t('print.credentials_recorded', { count: tickets.length })}
           </div>
         </div>
 
@@ -1142,27 +1151,27 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
               fontSize: '12px',
             }}
           >
-            NO EXTERNAL PASSES OR BOARDING CARDS REGISTERED FOR THIS TRIP.
+            {t('print.no_wallet_passes_title')}
             <br />
             <span style={{ fontSize: '10px', color: '#94A3B8' }}>
-              Drop flight PDFs or hotel reservations into the digital wallet tab to render authentic boarding credentials.
+              {t('print.no_wallet_passes_hint')}
             </span>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {tickets.map((t, idx) => {
-              const meta = (t.metadata || {}) as Record<string, any>;
-              const isFlight = t.ticket_type === 'flight';
-              const isHotel = t.ticket_type === 'hotel';
-              const isTransit = t.ticket_type === 'transit';
-              const isAttraction = t.ticket_type === 'attraction';
+            {tickets.map((ticket, idx) => {
+              const meta = (ticket.metadata || {}) as Record<string, any>;
+              const isFlight = ticket.ticket_type === 'flight';
+              const isHotel = ticket.ticket_type === 'hotel';
+              const isTransit = ticket.ticket_type === 'transit';
+              const isAttraction = ticket.ticket_type === 'attraction';
 
-              const originCode = meta.departure_iata || meta.origin_station || (t.location_or_venue ? t.location_or_venue.substring(0, 3).toUpperCase() : 'DEP');
+              const originCode = meta.departure_iata || meta.origin_station || (ticket.location_or_venue ? ticket.location_or_venue.substring(0, 3).toUpperCase() : 'DEP');
               const destCode = meta.arrival_iata || meta.destination_station || (trip.destination ? trip.destination.substring(0, 3).toUpperCase() : 'ARR');
 
               return (
                 <div
-                  key={t.id || idx}
+                  key={ticket.id || idx}
                   className="print-avoid-break"
                   style={{
                     border: '1px solid #0F172A',
@@ -1209,10 +1218,10 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                               textTransform: 'uppercase',
                             }}
                           >
-                            {t.ticket_type}
+                            {ticket.ticket_type}
                           </span>
                           <span style={{ fontWeight: 700, fontSize: '13px', color: '#0F172A' }}>
-                            {t.provider || t.title}
+                            {ticket.provider || ticket.title}
                           </span>
                         </div>
 
@@ -1223,9 +1232,9 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                             color: '#64748B',
                           }}
                         >
-                          CONFIRMATION:{' '}
+                          {t('print.confirmation_label')}{' '}
                           <span style={{ fontWeight: 700, color: '#0F172A' }}>
-                            {t.booking_reference || t.reference_code || 'CONFIRMED'}
+                            {ticket.booking_reference || ticket.reference_code || t('print.confirmed_upper')}
                           </span>
                         </div>
                       </div>
@@ -1246,10 +1255,10 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                               {originCode}
                             </div>
                             <div style={{ fontSize: '10px', color: '#64748B' }}>
-                              {meta.departure_city || 'DEPARTURE'}
+                              {meta.departure_city || t('print.departure_upper')}
                             </div>
                             <div style={{ fontSize: '11px', fontWeight: 600, marginTop: '2px' }}>
-                              {t.start_time ? formatDateDisplay(t.start_time) : 'SCHEDULED'}
+                              {ticket.start_time ? formatDateDisplay(ticket.start_time, locale) : t('print.scheduled_upper')}
                             </div>
                           </div>
 
@@ -1270,7 +1279,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                               {meta.arrival_city || trip.destination}
                             </div>
                             <div style={{ fontSize: '11px', fontWeight: 600, marginTop: '2px' }}>
-                              {t.end_time ? formatDateDisplay(t.end_time) : 'ESTIMATED'}
+                              {ticket.end_time ? formatDateDisplay(ticket.end_time, locale) : t('print.estimated_upper')}
                             </div>
                           </div>
                         </div>
@@ -1280,11 +1289,11 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                       {(isHotel || isAttraction || (!isFlight && !isTransit)) && (
                         <div style={{ marginBottom: '14px' }}>
                           <h3 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>
-                            {t.title}
+                            {ticket.title}
                           </h3>
-                          {t.location_or_venue && (
+                          {ticket.location_or_venue && (
                             <div style={{ fontSize: '12px', color: '#475569', marginBottom: '6px' }}>
-                              📍 {t.location_or_venue}
+                              📍 {ticket.location_or_venue}
                             </div>
                           )}
                           <div
@@ -1296,14 +1305,14 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                               color: '#64748B',
                             }}
                           >
-                            {t.start_time && (
+                            {ticket.start_time && (
                               <div>
-                                VALID FROM: <span style={{ fontWeight: 600, color: '#0F172A' }}>{formatDateDisplay(t.start_time)}</span>
+                                {t('print.valid_from_label')} <span style={{ fontWeight: 600, color: '#0F172A' }}>{formatDateDisplay(ticket.start_time, locale)}</span>
                               </div>
                             )}
-                            {t.end_time && (
+                            {ticket.end_time && (
                               <div>
-                                UNTIL: <span style={{ fontWeight: 600, color: '#0F172A' }}>{formatDateDisplay(t.end_time)}</span>
+                                {t('print.until_label')} <span style={{ fontWeight: 600, color: '#0F172A' }}>{formatDateDisplay(ticket.end_time, locale)}</span>
                               </div>
                             )}
                           </div>
@@ -1324,32 +1333,32 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                         }}
                       >
                         <div>
-                          <div style={{ color: '#64748B' }}>PASSENGER / GUEST</div>
+                          <div style={{ color: '#64748B' }}>{t('print.col_passenger_guest')}</div>
                           <div style={{ fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
-                            {t.holder_name || trip.participants?.[0]?.name || 'Traveler'}
+                            {ticket.holder_name || trip.participants?.[0]?.name || t('print.traveler_label')}
                           </div>
                         </div>
 
                         <div>
-                          <div style={{ color: '#64748B' }}>SEAT / ROOM</div>
+                          <div style={{ color: '#64748B' }}>{t('print.col_seat_room')}</div>
                           <div style={{ fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
-                            {t.seat_or_room || 'UNASSIGNED'}
+                            {ticket.seat_or_room || t('print.unassigned_upper')}
                           </div>
                         </div>
 
                         <div>
-                          <div style={{ color: '#64748B' }}>STATUS</div>
+                          <div style={{ color: '#64748B' }}>{t('print.col_status')}</div>
                           <div style={{ fontWeight: 700, color: '#16A34A', marginTop: '2px', textTransform: 'uppercase' }}>
-                            {t.status || 'CONFIRMED'}
+                            {ticket.status || t('print.confirmed_upper')}
                           </div>
                         </div>
 
                         <div>
-                          <div style={{ color: '#64748B' }}>PRICE / FARE</div>
+                          <div style={{ color: '#64748B' }}>{t('print.col_price_fare')}</div>
                           <div style={{ fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
-                            {t.price !== undefined && t.price !== null
-                              ? `${Number(t.price).toFixed(2)} ${t.currency || currency}`
-                              : 'PAID'}
+                            {ticket.price !== undefined && ticket.price !== null
+                              ? `${Number(ticket.price).toFixed(2)} ${ticket.currency || currency}`
+                              : t('print.paid_upper')}
                           </div>
                         </div>
                       </div>
@@ -1358,7 +1367,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                     {/* Barcode bottom strip */}
                     <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #F1F5F9' }}>
                       <BarcodeStripe
-                        value={t.barcode_value || t.booking_reference || t.reference_code || `TKT-${idx + 1}`}
+                        value={ticket.barcode_value || ticket.booking_reference || ticket.reference_code || `TKT-${idx + 1}`}
                         height={26}
                         showText={true}
                       />
@@ -1379,19 +1388,19 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                     }}
                   >
                     <div style={{ fontFamily: 'var(--font-code, monospace)', fontSize: '9px', fontWeight: 700, color: '#64748B' }}>
-                      MACHINE SCAN
+                      {t('print.machine_scan_upper')}
                     </div>
 
                     <div style={{ padding: '4px', backgroundColor: '#FFFFFF', borderRadius: '4px', border: '1px solid #E2E8F0' }}>
                       <CodeRenderer
-                        value={t.barcode_value || t.booking_reference || t.reference_code || `PLD-TKT-${t.id || idx}`}
-                        format={t.barcode_format || 'qr'}
+                        value={ticket.barcode_value || ticket.booking_reference || ticket.reference_code || `PLD-TKT-${ticket.id || idx}`}
+                        format={ticket.barcode_format || 'qr'}
                         size={84}
                       />
                     </div>
 
                     <div style={{ fontFamily: 'var(--font-code, monospace)', fontSize: '8px', color: '#94A3B8' }}>
-                      {t.booking_reference || t.reference_code || 'PLD-TICKET'}
+                      {ticket.booking_reference || ticket.reference_code || 'PLD-TICKET'}
                     </div>
                   </div>
                 </div>

@@ -1,4 +1,7 @@
+"use client";
+
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 import { OptimizationResult, DayOutput, ScheduledPoi } from '../types/domain';
 import { apiFetch } from '../utils/api';
@@ -22,6 +25,7 @@ export function TripTimeline({
   selectedDay,
   onInspectPoi,
 }: TripTimelineProps) {
+  const { t } = useTranslation();
   const [upgradedItinerary, setUpgradedItinerary] = React.useState<OptimizationResult | null>(null);
   const [upgrading, setUpgrading] = React.useState(false);
   const [upgraded, setUpgraded] = React.useState(false);
@@ -220,20 +224,20 @@ export function TripTimeline({
         }
       }
       notify.success(
-        'Transit Upgraded',
-        'Itinerary updated with exact public transit lines, stations, and cascading schedule.'
+        t('transit.upgraded_title'),
+        t('transit.upgraded_desc')
       );
       setUpgraded(true);
     } catch (err) {
       console.error('Failed to upgrade transit:', err);
-      notify.error('Upgrade Failed', 'Could not upgrade transit directions at this time.');
+      notify.error(t('transit.upgrade_failed_title'), t('transit.upgrade_failed_desc'));
     } finally {
       setUpgrading(false);
     }
   };
 
   if (!currentItinerary || days.length === 0) {
-    return <div style={{ padding: '1rem', color: 'var(--color-muted)' }}>No route data available.</div>;
+    return <div style={{ padding: '1rem', color: 'var(--color-muted)' }}>{t('transit.no_route_data')}</div>;
   }
 
   return (
@@ -262,7 +266,7 @@ export function TripTimeline({
             onBlur={() => setIsTooltipOpen(false)}
           >
             <div
-              aria-label="Transit upgrade info"
+              aria-label={t('transit.upgrade_info_aria')}
               role="button"
               tabIndex={0}
               data-testid="transit-info-icon"
@@ -321,14 +325,14 @@ export function TripTimeline({
                     letterSpacing: '0.5px',
                   }}
                 >
-                  <span>{isGtfsReady ? '● READY' : '○ GTFS SCHEDULE COMPILING'}</span>
+                  <span>{isGtfsReady ? t('transit.gtfs_ready_badge') : t('transit.gtfs_compiling_badge')}</span>
                 </div>
                 <div style={{ color: 'var(--color-text-muted)' }}>
                   {isGtfsReady
-                    ? 'Upgrades estimated transit times and fallback routes to exact real-world public transit lines, metro/bus stops, and live cascading schedules for this city.'
+                    ? t('transit.gtfs_ready_tooltip')
                     : gtfsStatus === 'UNAVAILABLE'
-                    ? 'Real-world transit schedule data (GTFS) is unavailable for this city. The button remains disabled.'
-                    : 'Public transit schedule data (GTFS) for this city is currently being downloaded and compiled. The button will activate automatically once schedules are ready.'}
+                    ? t('transit.gtfs_unavailable_tooltip')
+                    : t('transit.gtfs_compiling_tooltip')}
                 </div>
               </div>
             )}
@@ -370,12 +374,12 @@ export function TripTimeline({
             {upgrading ? (
               <>
                 <Spinner size={14} color="var(--color-text-muted)" />
-                <span>UPGRADING TO REAL PUBLIC TRANSIT...</span>
+                <span>{t('transit.upgrading_btn')}</span>
               </>
             ) : (
               <>
                 <LightningIcon size={14} color={isGtfsReady ? '#FFFFFF' : 'var(--color-text-muted)'} />
-                <span>UPGRADE TO REAL PUBLIC TRANSIT</span>
+                <span>{t('transit.upgrade_btn')}</span>
               </>
             )}
           </button>
@@ -393,11 +397,11 @@ export function TripTimeline({
                 className="font-display text-accent"
                 style={{ fontSize: '1.2rem', letterSpacing: '1px' }}
               >
-                DAY {dayObj.day}{dayObj.theme ? ` — ${dayObj.theme}` : ''}
+                {t('transit.day_upper', { day: dayObj.day })}{dayObj.theme ? ` — ${dayObj.theme}` : ''}
               </h4>
               {dayObj.anchor && (
                 <span className="font-mono text-xs text-muted" style={{ display: 'block', marginTop: '0.2rem' }}>
-                  Anchor: {dayObj.anchor}
+                  {t('transit.day_anchor', { anchor: dayObj.anchor })}
                 </span>
               )}
             </div>
@@ -420,7 +424,7 @@ export function TripTimeline({
                   marginBottom: '1rem',
                 }}
               >
-                No scheduled stops for this day. Free exploration.
+                {t('transit.empty_day_route')}
               </div>
             )}
 
@@ -490,7 +494,7 @@ export function TripTimeline({
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <span className="font-mono" style={{ fontWeight: 600 }}>
-                          Flight to {dest} (Arrival)
+                          {t('transit.flight_to_arrival', { dest })}
                         </span>
                         <PoiCategoryBadge category="flight" name="Flight" size="xs" />
                       </div>
@@ -499,7 +503,7 @@ export function TripTimeline({
                       </span>
                     </div>
                     <p className="font-mono text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                      {origin} → {dest} • Dep: {formatT(depTime)} | Arr: {formatT(arrTime)}
+                      {origin} → {dest} • {t('transit.flight_dep_arr', { dep: formatT(depTime), arr: formatT(arrTime) })}
                     </p>
                   </div>
                 </div>
@@ -508,13 +512,13 @@ export function TripTimeline({
 
             {/* Waypoints & Inter-POI Transit Steps */}
             {path.map((scheduledPoi: ScheduledPoi, pIdx: number) => {
-              const name = scheduledPoi.poi?.name || 'Unknown Waypoint';
+              const name = scheduledPoi.poi?.name || t('transit.unknown_waypoint');
               const time = scheduledPoi.scheduled_start || scheduledPoi.arrival_time || '--:--';
               const duration = scheduledPoi.poi?.duration_mins ? `${scheduledPoi.poi.duration_mins}m` : '';
               const category = scheduledPoi.poi?.category;
               const isLast = pIdx === path.length - 1;
               const transitFromPrev = scheduledPoi.transit_from_previous;
-              const prevName = pIdx > 0 ? path[pIdx - 1].poi?.name || 'Previous Stop' : undefined;
+              const prevName = pIdx > 0 ? path[pIdx - 1].poi?.name || t('transit.previous_stop') : undefined;
 
               return (
                 <React.Fragment key={pIdx}>
@@ -600,7 +604,7 @@ export function TripTimeline({
                       </div>
                       {duration && (
                         <p className="font-mono text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                          DWELL: {duration}
+                          {t('transit.dwell_label', { duration })}
                         </p>
                       )}
                     </div>
@@ -665,7 +669,7 @@ export function TripTimeline({
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <span className="font-mono" style={{ fontWeight: 600 }}>
-                          Flight to {dest} (Departure)
+                          {t('transit.flight_to_departure', { dest })}
                         </span>
                         <PoiCategoryBadge category="flight" name="Flight" size="xs" />
                       </div>
@@ -674,7 +678,7 @@ export function TripTimeline({
                       </span>
                     </div>
                     <p className="font-mono text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                      {origin} → {dest} • Dep: {formatT(depTime)} | Arr: {formatT(arrTime)}
+                      {origin} → {dest} • {t('transit.flight_dep_arr', { dep: formatT(depTime), arr: formatT(arrTime) })}
                     </p>
                   </div>
                 </div>
@@ -704,7 +708,7 @@ export function TripTimeline({
         >
           <InfoIcon size={14} style={{ opacity: 0.7 }} />
           <span>
-            Notice: Public transit fares are fetched automatically and may not be 100% accurate. Please verify with local transit operators.
+            {t('transit.fare_disclaimer_timeline')}
           </span>
         </div>
       )}

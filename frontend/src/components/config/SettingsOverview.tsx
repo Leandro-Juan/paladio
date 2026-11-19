@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SETTINGS_CATEGORIES, SettingCardItem, SettingsTabId } from './settingsData';
 import { SettingsIconRenderer } from './SettingsIconRenderer';
 import { Modal } from '@/components/Modal';
@@ -38,6 +39,7 @@ export function SettingsOverview({
   onRestoreDefaults,
   telemetrySummary,
 }: SettingsOverviewProps) {
+  const { t } = useTranslation();
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const query = searchQuery.trim().toLowerCase();
@@ -47,11 +49,24 @@ export function SettingsOverview({
       const visibleItems = cat.items.filter((item) => {
         if (item.requiresAdmin && !isAdmin) return false;
         if (!query) return true;
-        const inTitle = item.title.toLowerCase().includes(query);
-        const inDesc = item.description.toLowerCase().includes(query);
+        const inTitle =
+          item.title.toLowerCase().includes(query) ||
+          t(item.title).toLowerCase().includes(query);
+        const inDesc =
+          item.description.toLowerCase().includes(query) ||
+          t(item.description).toLowerCase().includes(query);
         const inKeywords = item.keywords.some((k) => k.toLowerCase().includes(query));
-        const inCategory = cat.title.toLowerCase().includes(query);
-        return inTitle || inDesc || inKeywords || inCategory;
+        const inCategory =
+          cat.title.toLowerCase().includes(query) ||
+          t(cat.title).toLowerCase().includes(query);
+        const inSubTabs = Boolean(
+          item.subTabs?.some(
+            (st) =>
+              st.label.toLowerCase().includes(query) ||
+              t(st.label).toLowerCase().includes(query)
+          )
+        );
+        return inTitle || inDesc || inKeywords || inCategory || inSubTabs;
       });
 
       return {
@@ -59,7 +74,7 @@ export function SettingsOverview({
         items: visibleItems,
       };
     }).filter((cat) => cat.items.length > 0);
-  }, [query, isAdmin]);
+  }, [query, isAdmin, t]);
 
   const getItemBadge = (id: SettingsTabId): { text: string; active?: boolean } | null => {
     if (!telemetrySummary) return null;
@@ -67,7 +82,7 @@ export function SettingsOverview({
       case 'profile':
         return telemetrySummary.localeCode && telemetrySummary.currencyCode
           ? { text: `${telemetrySummary.localeCode.toUpperCase()} · ${telemetrySummary.currencyCode}`, active: true }
-          : { text: 'ACTIVE', active: true };
+          : { text: t('config.badge_active_upper'), active: true };
       case 'appearance':
         return telemetrySummary.themeName ? { text: telemetrySummary.themeName, active: true } : null;
       case 'typography':
@@ -80,28 +95,28 @@ export function SettingsOverview({
         return telemetrySummary.llmProvider ? { text: telemetrySummary.llmProvider.toUpperCase(), active: true } : null;
       case 'transit':
         return typeof telemetrySummary.gtfsCompiledCount === 'number'
-          ? { text: `${telemetrySummary.gtfsCompiledCount} ACTIVE`, active: telemetrySummary.gtfsCompiledCount > 0 }
+          ? { text: t('config.badge_count_active', { count: telemetrySummary.gtfsCompiledCount }), active: telemetrySummary.gtfsCompiledCount > 0 }
           : null;
       case 'users':
         return typeof telemetrySummary.userCount === 'number'
-          ? { text: `${telemetrySummary.userCount} USERS` }
+          ? { text: t('config.badge_count_users', { count: telemetrySummary.userCount }) }
           : null;
       case 'updates':
         return telemetrySummary.updateAvailable
-          ? { text: 'UPDATE READY', active: true }
-          : { text: 'UP TO DATE' };
+          ? { text: t('config.badge_update_ready'), active: true }
+          : { text: t('config.badge_up_to_date') };
       case 'maps':
         return telemetrySummary.mapLayerName ? { text: telemetrySummary.mapLayerName } : null;
       case 'units':
         return telemetrySummary.unitSummary ? { text: telemetrySummary.unitSummary, active: true } : null;
       case 'solver':
         return typeof telemetrySummary.maxWalkingKm === 'number'
-          ? { text: `${telemetrySummary.maxWalkingKm} KM/DAY`, active: true }
+          ? { text: t('config.badge_km_day', { km: telemetrySummary.maxWalkingKm }), active: true }
           : null;
       case 'vault':
         return typeof telemetrySummary.autoSnapshotsEnabled === 'boolean'
           ? {
-              text: telemetrySummary.autoSnapshotsEnabled ? 'SNAPSHOTS: ON' : 'MANUAL',
+              text: telemetrySummary.autoSnapshotsEnabled ? t('config.badge_snapshots_on') : t('config.badge_manual'),
               active: telemetrySummary.autoSnapshotsEnabled,
             }
           : null;
@@ -122,9 +137,9 @@ export function SettingsOverview({
       <div className={styles.overviewHero}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
           <div>
-            <h1 className={styles.overviewTitle}>Settings</h1>
+            <h1 className={styles.overviewTitle}>{t('nav.config')}</h1>
             <p className={styles.overviewSubtitle}>
-              Configure your workspace, localization, routing engine, swarm intelligence, and sovereign system.
+              {t('config.overview_subtitle_full')}
             </p>
           </div>
           {onRestoreDefaults && (
@@ -160,7 +175,7 @@ export function SettingsOverview({
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                 <path d="M3 3v5h5" />
               </svg>
-              <span>Restore Default Settings</span>
+              <span>{t('config.restore_defaults_btn')}</span>
             </button>
           )}
         </div>
@@ -186,9 +201,9 @@ export function SettingsOverview({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search settings..."
+            placeholder={t('config.search_settings_placeholder')}
             className={styles.heroSearchInput}
-            aria-label="Search settings catalog"
+            aria-label={t('config.search_settings_aria')}
           />
         </div>
       </div>
@@ -196,7 +211,7 @@ export function SettingsOverview({
       {filteredCategories.length === 0 ? (
         <div style={{ padding: '3rem 1rem', textAlign: 'center', background: 'var(--color-surface-card)', borderRadius: '10px', border: '1px solid var(--color-border-subtle)' }}>
           <p className="font-display" style={{ fontSize: '15px', color: 'var(--color-text-primary)', margin: 0 }}>
-            No settings found matching &ldquo;{searchQuery}&rdquo;
+            {t('config.no_settings_matching', { query: searchQuery })}
           </p>
           <button
             type="button"
@@ -212,22 +227,23 @@ export function SettingsOverview({
               cursor: 'pointer',
             }}
           >
-            Clear Search
+            {t('config.clear_search_btn')}
           </button>
         </div>
       ) : (
         filteredCategories.map((cat) => (
           <section key={cat.id} className={styles.overviewSection}>
             <div className={styles.overviewSectionHeader}>
-              <h2 className={styles.overviewSectionTitle}>{cat.title}</h2>
-              <p className={styles.overviewSectionSubtitle}>{cat.subtitle}</p>
+              <h2 className={styles.overviewSectionTitle}>{t(cat.title)}</h2>
+              <p className={styles.overviewSectionSubtitle}>{t(cat.subtitle)}</p>
             </div>
 
             <div className={styles.cardsGrid}>
               {cat.items.map((item: SettingCardItem) => {
                 const badge = getItemBadge(item.id);
-                const displayBadgeText = badge?.text || item.statusBadge;
+                const displayBadgeText = badge?.text || (item.statusBadge ? t(item.statusBadge) : undefined);
                 const isBadgeActive = badge ? badge.active : true;
+                const localizedTitle = t(item.title);
 
                 return (
                   <button
@@ -235,7 +251,7 @@ export function SettingsOverview({
                     type="button"
                     onClick={() => onSelectTab(item.id)}
                     className={styles.settingCard}
-                    aria-label={`Open ${item.title}`}
+                    aria-label={t('config.open_setting_aria', { title: localizedTitle })}
                   >
                     <div className={getToneClass(item.iconTone)}>
                       <SettingsIconRenderer name={item.iconName} size={18} />
@@ -243,14 +259,14 @@ export function SettingsOverview({
 
                     <div className={styles.cardContent}>
                       <div className={styles.cardHeaderRow}>
-                        <h3 className={styles.cardTitle}>{item.title}</h3>
+                        <h3 className={styles.cardTitle}>{localizedTitle}</h3>
                         {displayBadgeText && (
                           <span className={`${styles.cardBadge} ${isBadgeActive ? styles.cardBadgeActive : styles.cardBadgeMuted}`}>
                             {displayBadgeText}
                           </span>
                         )}
                       </div>
-                      <p className={styles.cardDescription}>{item.description}</p>
+                      <p className={styles.cardDescription}>{t(item.description)}</p>
                     </div>
                   </button>
                 );
@@ -264,10 +280,10 @@ export function SettingsOverview({
         <Modal
           isOpen={isResetModalOpen}
           variant="warning"
-          title="Restore Default Settings?"
-          message="Are you sure you want to restore all settings to default? This will reset your theme, typography, language, currency, units, and localization settings to sovereign factory defaults. This action cannot be undone."
-          confirmText={isResetting ? "RESTORING..." : "RESTORE DEFAULTS"}
-          cancelText="CANCEL"
+          title={t('config.restore_modal_title')}
+          message={t('config.restore_modal_message')}
+          confirmText={isResetting ? t('config.restoring_upper') : t('config.restore_defaults_upper')}
+          cancelText={t('config.cancel_upper')}
           onConfirm={async () => {
             setIsResetting(true);
             try {

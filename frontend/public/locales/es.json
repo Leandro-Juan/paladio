@@ -166,7 +166,11 @@
     "field_briefing": "NOTAS DE VIAJE Y REUNIÓN DE CAMPO",
     "field_briefing_placeholder": "Listas de equipaje, contactos de emergencia, tarjetas SIM, códigos de reserva, llaves...",
     "danger_zone": "ZONA DE PELIGRO",
-    "delete_confirm": "¿Estás seguro de que deseas eliminar esta expedición? Esta acción es permanente."
+    "delete_confirm": "¿Estás seguro de que deseas eliminar esta expedición? Esta acción es permanente.",
+    "translate_description": "Traducir",
+    "show_original": "Ver original",
+    "translating": "Traduciendo...",
+    "translation_error": "Error al traducir"
   },
   "wallet": {
     "title": "Billetera de Viaje y Documentos",

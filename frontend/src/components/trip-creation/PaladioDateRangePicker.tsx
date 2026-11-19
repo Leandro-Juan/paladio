@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { CalendarIcon } from '@/components/icons';
 import { Modal } from '@/components/Modal';
 import { useTrips, Trip } from '@/hooks/useTrips';
@@ -17,24 +18,15 @@ interface PaladioDateRangePickerProps {
   holidays?: Set<string>;
 }
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
-
-const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-function formatDisplayDate(dateStr: string): string {
+function formatDisplayDate(dateStr: string, intlLocale: string): string {
   if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  const y = parts[0];
-  const mIndex = parseInt(parts[1], 10) - 1;
-  const d = parseInt(parts[2], 10);
-  const mStr = MONTH_ABBR[mIndex] || parts[1];
-  return `${mStr} ${d}, ${y}`;
+  const parsed = parseDateStr(dateStr);
+  if (!parsed) return dateStr;
+  return new Intl.DateTimeFormat(intlLocale, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(parsed);
 }
 
 function parseDateStr(str: string): Date | null {
@@ -66,6 +58,19 @@ export function PaladioDateRangePicker({
   excludeTripId,
   holidays,
 }: PaladioDateRangePickerProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
+
+  const weekdays = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(intlLocale, { weekday: 'short' });
+    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)));
+  }, [intlLocale]);
+
+  const monthNames = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(intlLocale, { month: 'long' });
+    return Array.from({ length: 12 }, (_, m) => fmt.format(new Date(2024, m, 1)));
+  }, [intlLocale]);
+
   const initialStart = useMemo(() => parseDateStr(startDate) || new Date(), [startDate]);
 
   const { trips: fetchedTrips } = useTrips();
@@ -252,7 +257,7 @@ export function PaladioDateRangePicker({
   const renderMonth = (mDate: Date, days: (number | null)[]) => {
     const y = mDate.getFullYear();
     const m = mDate.getMonth();
-    const monthTitle = `${MONTH_NAMES[m]} ${y}`;
+    const monthTitle = t('calendar.month_year_title', { month: monthNames[m], year: y });
 
     return (
       <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
@@ -279,9 +284,9 @@ export function PaladioDateRangePicker({
             marginBottom: '6px',
           }}
         >
-          {WEEKDAYS.map((wd) => (
+          {weekdays.map((wd, idx) => (
             <span
-              key={wd}
+              key={`${wd}-${idx}`}
               className="font-mono"
               style={{
                 fontSize: '11px',
@@ -328,11 +333,15 @@ export function PaladioDateRangePicker({
 
             let dayTitle = '';
             if (tripInfo) {
-              dayTitle = `Trip: ${tripInfo.trip.destination} (${tripInfo.trip.start_date} – ${tripInfo.trip.end_date})`;
+              dayTitle = t('engine.picker_trip_tooltip', {
+                destination: tripInfo.trip.destination,
+                start: tripInfo.trip.start_date,
+                end: tripInfo.trip.end_date,
+              });
             } else if (isHoliday) {
-              dayTitle = `Holiday / PTO (${dateStr})`;
+              dayTitle = t('engine.picker_holiday_tooltip', { date: dateStr });
             } else if (isToday) {
-              dayTitle = `Today (${dateStr})`;
+              dayTitle = t('engine.picker_today_tooltip', { date: dateStr });
             }
 
             // Highlighting style hierarchy:
@@ -449,7 +458,7 @@ export function PaladioDateRangePicker({
           type="button"
           disabled={isPrevMonthDisabled}
           onClick={handlePrevMonth}
-          aria-label="Previous month"
+          aria-label={t('calendar.prev_month')}
           style={{
             background: isPrevMonthDisabled ? 'transparent' : 'var(--color-surface-raised, #FFFFFF)',
             border: isPrevMonthDisabled ? '1px solid transparent' : '1px solid var(--color-border, #E2D9CC)',
@@ -475,13 +484,13 @@ export function PaladioDateRangePicker({
           className="font-mono text-xs text-muted"
           style={{ letterSpacing: '0.06em', fontWeight: 600 }}
         >
-          SELECT TRAVEL WINDOW
+          {t('engine.select_travel_window')}
         </span>
 
         <button
           type="button"
           onClick={handleNextMonth}
-          aria-label="Next month"
+          aria-label={t('calendar.next_month')}
           style={{
             background: 'var(--color-surface-raised, #FFFFFF)',
             border: '1px solid var(--color-border, #E2D9CC)',
@@ -555,7 +564,7 @@ export function PaladioDateRangePicker({
           {tempStart ? (
             <>
               <span style={{ fontWeight: 600 }}>
-                {formatDisplayDate(tempStart)} &nbsp;—&nbsp; {formatDisplayDate(tempEnd || tempStart)}
+                {formatDisplayDate(tempStart, intlLocale)} &nbsp;—&nbsp; {formatDisplayDate(tempEnd || tempStart, intlLocale)}
               </span>
               <span
                 className="font-mono"
@@ -568,12 +577,14 @@ export function PaladioDateRangePicker({
                   fontWeight: 600,
                 }}
               >
-                {durationDays} {durationDays === 1 ? 'day' : 'days'}
+                {durationDays === 1
+                  ? t('engine.duration_day_singular')
+                  : t('engine.duration_days_plural', { count: durationDays })}
               </span>
             </>
           ) : (
             <span style={{ fontWeight: 500, color: 'var(--color-text-muted)' }}>
-              No dates selected — choose departure date
+              {t('engine.no_dates_selected')}
             </span>
           )}
         </div>
@@ -598,7 +609,7 @@ export function PaladioDateRangePicker({
               cursor: 'pointer',
             }}
           >
-            CONFIRM DATES
+            {t('engine.confirm_dates')}
           </button>
         )}
       </div>
@@ -625,7 +636,7 @@ export function PaladioDateRangePicker({
               background: 'var(--color-accent-primary, #0F4C5C)',
             }}
           />
-          <span>Selected</span>
+          <span>{t('engine.legend_selected')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <span
@@ -636,7 +647,7 @@ export function PaladioDateRangePicker({
               background: 'var(--color-accent-amber, #D97706)',
             }}
           />
-          <span>Existing Trip</span>
+          <span>{t('engine.legend_existing_trip')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <span
@@ -648,7 +659,7 @@ export function PaladioDateRangePicker({
               border: '1px dashed #B8860B',
             }}
           />
-          <span>Holiday / PTO</span>
+          <span>{t('engine.legend_holiday_pto')}</span>
         </div>
       </div>
 
@@ -656,10 +667,16 @@ export function PaladioDateRangePicker({
       <Modal
         isOpen={Boolean(overlapConflict)}
         variant="warning"
-        title="[CONFLICT] TRIP DATES OVERLAP"
-        message={`Your selected travel dates (${overlapConflict?.start} to ${overlapConflict?.end}) overlap with an existing trip to ${overlapConflict?.trip.destination} (${overlapConflict?.trip.start_date} to ${overlapConflict?.trip.end_date}). Are you sure you want to proceed with these dates or reselect?`}
-        confirmText="PROCEED ANYWAY"
-        cancelText="RESELECT DATES"
+        title={t('engine.conflict_dates_overlap_title')}
+        message={t('engine.conflict_dates_overlap_msg', {
+          start: overlapConflict?.start ?? '',
+          end: overlapConflict?.end ?? '',
+          destination: overlapConflict?.trip.destination ?? '',
+          tripStart: overlapConflict?.trip.start_date ?? '',
+          tripEnd: overlapConflict?.trip.end_date ?? '',
+        })}
+        confirmText={t('engine.proceed_anyway')}
+        cancelText={t('engine.reselect_dates')}
         onConfirm={handleConfirmOverlap}
         onCancel={handleCancelOverlap}
       >
@@ -682,13 +699,28 @@ export function PaladioDateRangePicker({
                 marginBottom: '4px',
               }}
             >
-              CONFLICTING TRIP DETAILS:
+              {t('engine.conflicting_trip_details')}
             </div>
             <div>
-              Destination: <strong>{overlapConflict.trip.destination}</strong>
+              {(() => {
+                const marker = '__DEST__';
+                const text = t('engine.conflict_destination', { destination: marker });
+                const parts = text.split(marker);
+                if (parts.length !== 2) return text;
+                return (
+                  <>
+                    {parts[0]}
+                    <strong>{overlapConflict.trip.destination}</strong>
+                    {parts[1]}
+                  </>
+                );
+              })()}
             </div>
             <div>
-              Dates: {overlapConflict.trip.start_date} to {overlapConflict.trip.end_date}
+              {t('engine.conflict_dates', {
+                start: overlapConflict.trip.start_date,
+                end: overlapConflict.trip.end_date,
+              })}
             </div>
           </div>
         )}

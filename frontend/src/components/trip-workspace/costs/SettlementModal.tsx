@@ -6,6 +6,7 @@ import { useIsMounted } from '@/hooks/useIsMounted';
 import { TripParticipant, SettlementTransfer } from '@/hooks/useTrips';
 import { CloseIcon } from '@/components/icons';
 import { CustomSelect } from '../wallet/parts/CustomSelect';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SettlementModalProps {
   participants: TripParticipant[];
@@ -27,6 +28,7 @@ export function SettlementModal({
   onClose,
   onSave,
 }: SettlementModalProps) {
+  const { t } = useTranslation();
   const isMounted = useIsMounted();
 
   useEffect(() => {
@@ -51,8 +53,8 @@ export function SettlementModal({
   );
   const [description, setDescription] = useState(
     prefillTransfer
-      ? `Debt settlement to ${prefillTransfer.receiver_name}`
-      : 'Debt payment'
+      ? t('costs.settlement_desc_to', { name: prefillTransfer.receiver_name })
+      : t('costs.settlement_desc_default')
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,15 +65,15 @@ export function SettlementModal({
 
     const numAmount = parseFloat(amount);
     if (!senderId || !receiverId) {
-      setError('Please select both sender and recipient.');
+      setError(t('costs.err_select_sender_recipient'));
       return;
     }
     if (senderId === receiverId) {
-      setError('Sender and receiver must be different travelers.');
+      setError(t('costs.err_same_sender_recipient'));
       return;
     }
     if (isNaN(numAmount) || numAmount <= 0) {
-      setError('Please enter a valid positive payment amount.');
+      setError(t('costs.err_invalid_payment_amount'));
       return;
     }
 
@@ -86,10 +88,10 @@ export function SettlementModal({
       if (ok) {
         onClose();
       } else {
-        setError('Failed to record settlement payment.');
+        setError(t('costs.err_record_settlement_failed'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setError(err instanceof Error ? err.message : t('costs.err_unexpected'));
     } finally {
       setIsSubmitting(false);
     }
@@ -143,10 +145,10 @@ export function SettlementModal({
         >
           <div>
             <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, fontFamily: 'var(--font-display, "Jost", sans-serif)', color: 'var(--color-text-main)' }}>
-              Record Payment
+              {t('costs.record_payment')}
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-              Mark a debt between crew members as settled
+              {t('costs.record_payment_subtitle')}
             </p>
           </div>
           <button
@@ -190,12 +192,12 @@ export function SettlementModal({
             {/* Sender / Payer */}
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
-                Paid By (Sender)
+                {t('costs.paid_by_sender')}
               </label>
               <CustomSelect
                 value={senderId}
                 onChange={setSenderId}
-                label="Paid By (Sender)"
+                label={t('costs.paid_by_sender')}
                 options={participants.map((p) => ({ value: p.id, label: p.name }))}
                 style={{ fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                 buttonStyle={{
@@ -211,12 +213,12 @@ export function SettlementModal({
             {/* Receiver */}
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
-                Sent To (Recipient)
+                {t('costs.sent_to_recipient')}
               </label>
               <CustomSelect
                 value={receiverId}
                 onChange={setReceiverId}
-                label="Sent To (Recipient)"
+                label={t('costs.sent_to_recipient')}
                 options={participants.map((p) => ({ value: p.id, label: p.name }))}
                 style={{ fontFamily: 'var(--font-body, "Inter", sans-serif)' }}
                 buttonStyle={{
@@ -232,7 +234,7 @@ export function SettlementModal({
             {/* Amount */}
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
-                Amount (€)
+                {t('costs.amount_eur_label')}
               </label>
               <input
                 type="number"
@@ -259,7 +261,7 @@ export function SettlementModal({
             {/* Description */}
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '6px' }}>
-                Note / Reference
+                {t('costs.note_reference')}
               </label>
               <input
                 type="text"
@@ -303,7 +305,7 @@ export function SettlementModal({
                 cursor: 'pointer',
               }}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -319,7 +321,7 @@ export function SettlementModal({
                 cursor: 'pointer',
               }}
             >
-              {isSubmitting ? 'Recording...' : 'Record Payment'}
+              {isSubmitting ? t('costs.recording') : t('costs.record_payment')}
             </button>
           </div>
         </form>

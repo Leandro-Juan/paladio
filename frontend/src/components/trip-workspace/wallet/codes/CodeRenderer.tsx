@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface CodeRendererProps {
   value?: string | null;
@@ -11,6 +12,7 @@ interface CodeRendererProps {
 }
 
 export function CodeRenderer({ value, format = 'qr', size = 110, style }: CodeRendererProps) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [error, setError] = useState(false);
 
@@ -77,7 +79,7 @@ export function CodeRenderer({ value, format = 'qr', size = 110, style }: CodeRe
         width={size}
         height={size}
         style={{ display: error ? 'none' : 'block', maxWidth: '100%', height: 'auto' }}
-        aria-label={`Barcode: ${value}`}
+        aria-label={t('wallet.barcode_aria', { value })}
       />
       {error && (
         <div
@@ -109,7 +111,7 @@ export function CodeRenderer({ value, format = 'qr', size = 110, style }: CodeRe
           letterSpacing: '0.5px',
         }}
       >
-        {format ? format.toUpperCase() : 'CODE'}
+        {format ? format.toUpperCase() : t('wallet.code_fallback')}
       </span>
     </div>
   );

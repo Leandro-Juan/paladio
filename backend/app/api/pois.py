@@ -120,6 +120,7 @@ class PoiDetailResponse(BaseModel):
     cost_source: str | None = None
     scoring: dict[str, Any] = Field(default_factory=dict)
     description: str | None = None
+    description_lang: str | None = None
     description_source: str | None = None
     wikipedia_title: str | None = None
     wikidata_id: str | None = None
@@ -2490,25 +2491,29 @@ async def get_poi_details(
     session: AsyncSession = Depends(get_db),
 ) -> PoiDetailResponse:
     """Retrieves full POI details and dynamically resolves real photos and localized descriptions from Wikimedia/Wikipedia."""
-    effective_lang = "en"
+    from app.services.translation_service import (
+        base_lang_code,
+        detect_language,
+        normalize_target_lang,
+    )
+
+    raw_lang: str | None = None
     if lang and lang.strip():
-        effective_lang = lang.strip().lower().split("-")[0]
+        raw_lang = lang.strip()
     elif (
         current_user
         and isinstance(getattr(current_user, "preferences", None), dict)
         and current_user.preferences.get("preferred_language")
     ):
-        effective_lang = (
-            str(current_user.preferences["preferred_language"])
-            .strip()
-            .lower()
-            .split("-")[0]
-        )
+        raw_lang = str(current_user.preferences["preferred_language"]).strip()
     elif request and request.headers.get("accept-language"):
         raw_al = request.headers.get("accept-language", "")
-        cand = raw_al.split(",")[0].split(";")[0].strip().lower().split("-")[0]
+        cand = raw_al.split(",")[0].split(";")[0].strip()
         if cand and len(cand) >= 2:
-            effective_lang = cand
+            raw_lang = cand
+
+    tag_lang = normalize_target_lang(raw_lang) if raw_lang else "en"
+    effective_lang = base_lang_code(raw_lang) if raw_lang else "en"
     # 0. Check if this is an explicit GTFS or transit station lookup
     is_explicit_transit = poi_id.startswith("gtfs:") or (
         category
@@ -2777,6 +2782,23 @@ async def get_poi_details(
                 resolved_category = "attraction"
                 resolved_duration = 60
 
+            fallback_desc = lead_extract or _generate_poi_overview(
+                name=resolved_name,
+                category=resolved_category,
+                city=city or "",
+                cost_eur=0.0,
+                duration_mins=resolved_duration,
+                target_lang=effective_lang,
+            )
+            fallback_desc_lang = (
+                detect_language(lead_extract)
+                if lead_extract
+                else (
+                    effective_lang
+                    if effective_lang in ("en", "es", "fr", "de", "ja")
+                    else "en"
+                )
+            )
             return PoiDetailResponse(
                 id=poi_id,
                 name=resolved_name,
@@ -2789,15 +2811,8 @@ async def get_poi_details(
                 cost_is_estimated=resolved_category not in ("hotel", "airport"),
                 cost_source=None,
                 scoring={},
-                description=lead_extract
-                or _generate_poi_overview(
-                    name=resolved_name,
-                    category=resolved_category,
-                    city=city or "",
-                    cost_eur=0.0,
-                    duration_mins=resolved_duration,
-                    target_lang=effective_lang,
-                ),
+                description=fallback_desc,
+                description_lang=fallback_desc_lang,
                 photos=[PoiPhotoItem(**p) for p in photos_data],
             )
         raise HTTPException(status_code=404, detail=f"POI with id '{poi_id}' not found")
@@ -2831,11 +2846,16 @@ async def get_poi_details(
         poi.wikipedia_title = tags["wikipedia"]
 
     custom_photos = meta.get("photos")
-    if isinstance(custom_photos, list) and len(custom_photos) > 0:
+    has_custom_photos = isinstance(custom_photos, list) and len(custom_photos) > 0
+    localized_osm_desc = tags.get(f"description:{tag_lang}") or tags.get(
+        f"description:{effective_lang}"
+    )
+
+    if has_custom_photos and localized_osm_desc:
         photos_data = custom_photos
         lead_extract = None
     else:
-        photos_data, lead_extract = await WikimediaPhotoResolver.resolve_photos(
+        resolved_photos, lead_extract = await WikimediaPhotoResolver.resolve_photos(
             poi_id=poi.id,
             name=poi.name,
             city=poi.city,
@@ -2844,6 +2864,7 @@ async def get_poi_details(
             osm_tags=tags,
             target_lang=effective_lang,
         )
+        photos_data = custom_photos if has_custom_photos else resolved_photos
 
     localized_osm_name = (
         tags.get(f"name:{effective_lang}") if effective_lang != "en" else None
@@ -2856,22 +2877,22 @@ async def get_poi_details(
         else poi.name
     )
 
-    localized_osm_desc = tags.get(f"description:{effective_lang}")
     osm_desc = (
         localized_osm_desc
         or tags.get("description")
         or tags.get("description:en")
         or tags.get("description:es")
     )
-    description = (
-        lead_extract
-        or localized_osm_desc
-        or poi.description
-        or osm_desc
-        or meta.get("description")
-    )
+    generated_overview: str | None = None
+    if localized_osm_desc:
+        description = localized_osm_desc
+    elif lead_extract:
+        description = lead_extract
+    else:
+        description = poi.description or osm_desc or meta.get("description")
+
     if not description:
-        description = _generate_poi_overview(
+        generated_overview = _generate_poi_overview(
             name=poi_display_name,
             category=poi.category,
             city=poi.city,
@@ -2881,21 +2902,54 @@ async def get_poi_details(
             duration_mins=int(poi.duration_mins or 60),
             target_lang=effective_lang,
         )
+        description = generated_overview
+
+    if generated_overview is not None:
+        description_lang: str | None = (
+            effective_lang if effective_lang in ("en", "es", "fr", "de", "ja") else "en"
+        )
+    elif localized_osm_desc and description == localized_osm_desc:
+        description_lang = detect_language(description) or effective_lang
+    else:
+        description_lang = detect_language(description)
 
     description_source = poi.description_source or (
-        "wikipedia" if lead_extract else "osm" if osm_desc else "paladio_engine"
+        "wikipedia"
+        if (lead_extract and description == lead_extract)
+        else "osm"
+        if osm_desc
+        else "paladio_engine"
     )
 
-    # Persist resolved description to PostgreSQL if it was missing
+    # Persist canonical English description to poi.description and non-English
+    # extracts to metadata_field["tags"]["description:{lang}"] so RAG embeddings
+    # are never poisoned by non-English UI visits.
+    should_persist_en = bool(
+        description and not poi.description and description_lang == "en"
+    )
+    lead_lang = detect_language(lead_extract) if lead_extract else None
+    should_persist_localized = bool(
+        lead_extract
+        and lead_lang
+        and lead_lang != "en"
+        and not tags.get(f"description:{lead_lang}")
+    )
     if (
-        (description and not poi.description)
+        should_persist_en
+        or should_persist_localized
         or tags.get("wikidata")
         or tags.get("wikipedia")
     ):
         try:
-            if description and not poi.description:
+            if should_persist_en:
                 poi.description = description
                 poi.description_source = description_source
+            if should_persist_localized and lead_extract and lead_lang:
+                updated_meta = dict(poi.metadata_field or {})
+                updated_tags = dict(updated_meta.get("tags") or {})
+                updated_tags[f"description:{lead_lang}"] = lead_extract
+                updated_meta["tags"] = updated_tags
+                poi.metadata_field = updated_meta
             await session.commit()
         except Exception as e:
             logger.debug(f"Failed to persist description for poi {poi.id}: {e}")
@@ -2914,6 +2968,7 @@ async def get_poi_details(
         cost_source=poi.cost_source,
         scoring=scoring_dict,
         description=description,
+        description_lang=description_lang,
         description_source=description_source,
         wikipedia_title=poi.wikipedia_title,
         wikidata_id=poi.wikidata_id,
@@ -3277,6 +3332,8 @@ async def update_poi(
         else []
     )
 
+    from app.services.translation_service import detect_language
+
     return PoiDetailResponse(
         id=attraction.id,
         name=attraction.name,
@@ -3290,6 +3347,7 @@ async def update_poi(
         cost_source=attraction.cost_source,
         scoring=dict(attraction.scoring or {}),
         description=attraction.description,
+        description_lang=detect_language(attraction.description),
         website=attraction.website,
         phone=attrs["phone"],
         address=attrs["address"],
@@ -3303,6 +3361,121 @@ async def update_poi(
         hours_known=bool(getattr(attraction, "hours_known", False)),
         daily_windows=list(getattr(attraction, "daily_windows", []) or []),
         photos=photos_res,
+    )
+
+
+class PoiTranslateRequest(BaseModel):
+    target_lang: str = Field(..., min_length=2, max_length=20)
+    text: str | None = None
+    source_lang: str | None = None
+
+
+class PoiTranslateResponse(BaseModel):
+    translated_text: str
+    source_lang: str | None = None
+    target_lang: str
+    provider: str
+    cached: bool = False
+
+
+@router.post("/{poi_id}/translate", response_model=PoiTranslateResponse)
+async def translate_poi_description(
+    poi_id: str,
+    payload: PoiTranslateRequest,
+    session: AsyncSession = Depends(get_db),
+) -> PoiTranslateResponse:
+    """Translates a POI description into target_lang on demand and caches it in PostgreSQL."""
+    from app.services.translation_service import (
+        TranslationError,
+        TranslationService,
+        base_lang_code,
+        normalize_target_lang,
+    )
+
+    norm_target = normalize_target_lang(payload.target_lang)
+    base_target = base_lang_code(norm_target)
+
+    res = await session.execute(
+        select(AttractionModel).where(AttractionModel.id == poi_id)
+    )
+    attraction = res.scalar_one_or_none()
+
+    meta = dict(attraction.metadata_field or {}) if attraction else {}
+    tags = dict(meta.get("tags") or {})
+
+    provided_text = (
+        payload.text.strip() if payload.text and payload.text.strip() else None
+    )
+    stored_candidates = {
+        s.strip()
+        for s in (
+            attraction.description if attraction else None,
+            tags.get("description"),
+            tags.get("description:en"),
+            meta.get("description"),
+        )
+        if isinstance(s, str) and s.strip()
+    }
+
+    # Check PostgreSQL cache first when translating the POI's stored description
+    if attraction and (not provided_text or provided_text in stored_candidates):
+        cached_val = tags.get(f"description:{norm_target}") or tags.get(
+            f"description:{base_target}"
+        )
+        if isinstance(cached_val, str) and cached_val.strip():
+            return PoiTranslateResponse(
+                translated_text=cached_val.strip(),
+                source_lang=payload.source_lang,
+                target_lang=norm_target,
+                provider="cache",
+                cached=True,
+            )
+
+    source_text = provided_text or (
+        attraction.description
+        or tags.get("description")
+        or tags.get("description:en")
+        or meta.get("description")
+        if attraction
+        else None
+    )
+    if not source_text or not source_text.strip():
+        raise HTTPException(
+            status_code=400, detail="No description text available to translate."
+        )
+
+    try:
+        tr = await TranslationService.translate_text(
+            text=source_text,
+            target_lang=norm_target,
+            source_lang=payload.source_lang,
+            session=session,
+        )
+    except TranslationError as err:
+        raise HTTPException(status_code=503, detail=str(err)) from err
+
+    if attraction and tr.provider != "noop":
+        try:
+            updated_meta = dict(attraction.metadata_field or {})
+            updated_tags = dict(updated_meta.get("tags") or {})
+            updated_tags[f"description:{norm_target}"] = tr.translated_text
+            if base_target != norm_target.lower():
+                updated_tags[f"description:{base_target}"] = tr.translated_text
+            if base_target == "en" and not attraction.description:
+                attraction.description = tr.translated_text
+                attraction.description_source = tr.provider
+            updated_meta["tags"] = updated_tags
+            attraction.metadata_field = updated_meta
+            await session.commit()
+        except Exception as cache_err:
+            logger.debug(f"Failed to cache translation for poi {poi_id}: {cache_err}")
+
+    return PoiTranslateResponse(
+        translated_text=tr.translated_text,
+        source_lang=tr.source_lang,
+        target_lang=tr.target_lang,
+        provider=tr.provider,
+        cached=False,
     )
 
 

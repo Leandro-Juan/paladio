@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   GtfsRegistryResponse,
   CityGtfsItem,
@@ -44,6 +45,8 @@ export function EngineSection({
   syncTripsModalOpen,
   setSyncTripsModalOpen,
 }: EngineSectionProps) {
+  const { t } = useTranslation();
+
   // Engine & Solver config state
   const [engineConfig, setEngineConfig] = useState<EngineConfigData>({
     default_max_walking_km: 12.0,
@@ -71,7 +74,7 @@ export function EngineSection({
 
   const handleSaveEngineConfig = async (patch: Partial<EngineConfigData>) => {
     if (!isAdmin) {
-      notify.error('Admin Required', 'Administrator privileges are required to modify engine settings.');
+      notify.error(t('config.admin_required_title'), t('config.admin_required_engine_msg'));
       return;
     }
     const previous = engineConfig;
@@ -82,10 +85,10 @@ export function EngineSection({
       if (res.config) {
         setEngineConfig(res.config);
       }
-      notify.success('Engine Settings Saved', 'Travel engine configuration updated');
+      notify.success(t('config.engine_saved_title'), t('config.engine_saved_msg'));
     } catch {
       setEngineConfig(previous);
-      notify.error('Persistence Error', 'Failed to persist engine settings to backend');
+      notify.error(t('config.persistence_error_title'), t('config.engine_persist_failed'));
     }
   };
 
@@ -109,13 +112,20 @@ export function EngineSection({
     );
   }
 
+  const pacingTempoBadge =
+    engineConfig.pacing_tempo === 'leisurely'
+      ? t('config.tempo_leisurely_upper')
+      : engineConfig.pacing_tempo === 'intense'
+      ? t('config.tempo_intense_upper')
+      : t('config.tempo_balanced_upper');
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <SettingsHeader
         title={
           subTab === 'solver'
-            ? 'C++ Solver Constraints & Pacing'
-            : 'Deal Hunter & Scraper Cadence'
+            ? t('config.solver_header_title')
+            : t('config.deal_header_title')
         }
         onBackToOverview={onBackToOverview}
       />
@@ -131,23 +141,23 @@ export function EngineSection({
             color: 'var(--color-text-muted)',
           }}
         >
-          Read-only preview: administrator privileges are required to save changes to instance engine settings.
+          {t('config.engine_readonly_notice')}
         </div>
       )}
 
       {/* 1. Solver Constraints & Pacing Card */}
       {subTab === 'solver' && (
         <SettingsCardFrame
-          title="Deterministic Solver Constraints & Pacing"
-          subtitle="Configure C++20 combinatorial TSPTW boundaries, daily walking limits, and meal intervals"
-          badge={engineConfig.pacing_tempo.toUpperCase()}
+          title={t('config.solver_card_title')}
+          subtitle={t('config.solver_card_subtitle')}
+          badge={pacingTempoBadge}
           badgeTone="coral"
-          innerTitle="Active Solver Pacing Model"
-          innerBadge={`${engineConfig.default_max_walking_km} km / day`}
+          innerTitle={t('config.solver_inner_title')}
+          innerBadge={t('config.km_per_day_spaced', { km: engineConfig.default_max_walking_km })}
           menuItems={[
             {
               id: 'reset_solver',
-              label: 'Reset to Balanced Defaults (12 km/day)',
+              label: t('config.reset_solver_defaults'),
               onClick: () =>
                 handleSaveEngineConfig({
                   default_max_walking_km: 12.0,
@@ -163,10 +173,10 @@ export function EngineSection({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
               <div>
                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  Maximum Daily Walking Distance: {engineConfig.default_max_walking_km} km
+                  {t('config.max_daily_walking_label', { km: engineConfig.default_max_walking_km })}
                 </span>
                 <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
-                  Hard limit enforced during C++ knapsack candidate graph pruning
+                  {t('config.max_daily_walking_desc')}
                 </p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -178,11 +188,11 @@ export function EngineSection({
                   disabled={!isAdmin}
                   value={engineConfig.default_max_walking_km}
                   onChange={(e) => handleSaveEngineConfig({ default_max_walking_km: parseFloat(e.target.value) })}
-                  aria-label="Maximum daily walking distance"
+                  aria-label={t('config.max_daily_walking_aria')}
                   style={{ width: '160px', accentColor: 'var(--color-accent-coral, #C86D51)' }}
                 />
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, minWidth: '45px', textAlign: 'right' }}>
-                  {engineConfig.default_max_walking_km} km
+                  {t('config.km_value', { km: engineConfig.default_max_walking_km })}
                 </span>
               </div>
             </div>
@@ -190,13 +200,13 @@ export function EngineSection({
             {/* Pacing Tempo Selector */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
               <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                Itinerary Pacing Tempo
+                {t('config.pacing_tempo_label')}
               </span>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
                 {[
-                  { id: 'leisurely', title: 'Leisurely', desc: 'Long rests, max 3-4 POIs/day' },
-                  { id: 'balanced', title: 'Balanced', desc: 'Optimal rhythm, 5-6 POIs/day' },
-                  { id: 'intense', title: 'Intense', desc: 'Dense schedule, 7+ POIs/day' },
+                  { id: 'leisurely', title: t('config.tempo_leisurely_title'), desc: t('config.tempo_leisurely_desc') },
+                  { id: 'balanced', title: t('config.tempo_balanced_title'), desc: t('config.tempo_balanced_desc') },
+                  { id: 'intense', title: t('config.tempo_intense_title'), desc: t('config.tempo_intense_desc') },
                 ].map((tempo) => (
                   <button
                     key={tempo.id}
@@ -225,10 +235,10 @@ export function EngineSection({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
               <div>
                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  Attraction Fatigue Threshold: {engineConfig.attraction_burnout_limit} POIs/day
+                  {t('config.fatigue_threshold_label', { count: engineConfig.attraction_burnout_limit })}
                 </span>
                 <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
-                  Prevents cognitive burnout by inserting scenic park rests or coffee breaks
+                  {t('config.fatigue_threshold_desc')}
                 </p>
               </div>
               <input
@@ -241,7 +251,7 @@ export function EngineSection({
                   const val = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 6));
                   handleSaveEngineConfig({ attraction_burnout_limit: val });
                 }}
-                aria-label="Attraction fatigue threshold"
+                aria-label={t('config.fatigue_threshold_aria')}
                 style={{
                   width: '76px',
                   padding: '6px 10px',
@@ -259,17 +269,17 @@ export function EngineSection({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
               <div style={{ minWidth: '220px', flex: '1 1 240px' }}>
                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  Meal Allocation Windows (Minutes)
+                  {t('config.meal_windows_label')}
                 </span>
                 <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: 0 }}>
-                  Default time budgets reserved for breakfast, lunch, and dinner stops
+                  {t('config.meal_windows_desc')}
                 </p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 {([
-                  { key: 'breakfast', label: 'Breakfast', min: 15, max: 120 },
-                  { key: 'lunch', label: 'Lunch', min: 30, max: 180 },
-                  { key: 'dinner', label: 'Dinner', min: 30, max: 240 },
+                  { key: 'breakfast', label: t('config.meal_breakfast'), min: 15, max: 120 },
+                  { key: 'lunch', label: t('config.meal_lunch'), min: 30, max: 180 },
+                  { key: 'dinner', label: t('config.meal_dinner'), min: 30, max: 240 },
                 ] as const).map((meal) => (
                   <label
                     key={meal.key}
@@ -301,7 +311,7 @@ export function EngineSection({
                             },
                           });
                         }}
-                        aria-label={`${meal.label} window minutes`}
+                        aria-label={t('config.meal_window_minutes_aria', { label: meal.label })}
                         style={{
                           width: '68px',
                           padding: '6px 8px',
@@ -313,7 +323,7 @@ export function EngineSection({
                           fontSize: '13px',
                         }}
                       />
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>m</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{t('config.minutes_short')}</span>
                     </div>
                   </label>
                 ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { WorkspaceContextData } from './types/agent';
 import styles from './AgentDock.module.css';
 
@@ -10,17 +11,19 @@ interface ContextChipProps {
 }
 
 export function ContextChip({ context, onClear }: ContextChipProps) {
+  const { t } = useTranslation();
+
   if (!context) return null;
 
   const parts: string[] = [];
   if (context.selected_day !== undefined && context.selected_day !== 'all') {
-    parts.push(`Day ${context.selected_day}`);
+    parts.push(t('trips.day_label', { number: context.selected_day }));
   }
   if (context.selected_stop_id) {
-    parts.push(`Stop: ${context.selected_stop_id.slice(0, 8)}...`);
+    parts.push(t('trip_agent.context_stop', { id: context.selected_stop_id.slice(0, 8) }));
   }
   if (context.active_tab && context.active_tab !== 'plan') {
-    parts.push(`Tab: ${context.active_tab}`);
+    parts.push(t('trip_agent.context_tab', { tab: context.active_tab }));
   }
 
   if (parts.length === 0) return null;
@@ -33,7 +36,7 @@ export function ContextChip({ context, onClear }: ContextChipProps) {
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        <span><strong>Context:</strong> {parts.join(' · ')}</span>
+        <span><strong>{t('trip_agent.context_label')}</strong> {parts.join(' · ')}</span>
       </div>
       {onClear && (
         <button
@@ -48,7 +51,7 @@ export function ContextChip({ context, onClear }: ContextChipProps) {
             display: 'flex',
             alignItems: 'center'
           }}
-          title="Clear Context"
+          title={t('trip_agent.clear_context')}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="18" y1="6" x2="6" y2="18" />

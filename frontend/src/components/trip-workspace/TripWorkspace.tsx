@@ -2,6 +2,8 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 import { Trip, useTrips } from '@/hooks/useTrips';
 import { OptimizationResult, DayOutput, RouteItineraryData, PoiDetail, TripPhotoItem } from '@/types/domain';
 import { PoiCategoryType } from '@/utils/poiCategory';
@@ -33,6 +35,7 @@ interface TripWorkspaceProps {
 }
 
 export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
+  const { t } = useTranslation();
   const { updateTrip, reoptimizeTrip } = useTrips();
   const searchParams = useSearchParams();
   const initialSidebarTab = useMemo<MainTabType>(() => {
@@ -66,12 +69,12 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       const next = !prev;
       if (next) {
         window.setTimeout(() => {
-          notify.info('Waypoint Drop Mode', 'Click anywhere on the map to place the area search center.');
+          notify.info(t('workspace.waypoint_drop_mode_title'), t('workspace.waypoint_drop_mode_desc'));
         }, 0);
       }
       return next;
     });
-  }, []);
+  }, [t]);
 
   const handleSetSpatialCircle = useCallback((circle: SpatialCircleFilter | null) => {
     setSpatialCircle(circle);
@@ -84,9 +87,9 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     setSpatialCircle(null);
     setIsDroppingWaypoint(false);
     window.setTimeout(() => {
-      notify.info('Area Filter Cleared', 'Returned to full city results.');
+      notify.info(t('workspace.area_filter_cleared_title'), t('workspace.area_filter_cleared_desc'));
     }, 0);
-  }, []);
+  }, [t]);
 
   const agentUiContext: WorkspaceContextData = useMemo(() => ({
     active_tab: activeTab,
@@ -100,15 +103,15 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       const next = !prev;
       window.setTimeout(() => {
         notify.info(
-          next ? 'Route Editing Mode Active' : 'Route Editing Mode Disabled',
+          next ? t('workspace.edit_mode_active_title') : t('workspace.edit_mode_disabled_title'),
           next
-            ? 'You can now drag & reorder waypoints, reorder days, and manage stop locks.'
-            : 'Waypoint orders and stop locks are now locked.'
+            ? t('workspace.edit_mode_active_desc')
+            : t('workspace.edit_mode_disabled_desc')
         );
       }, 0);
       return next;
     });
-  }, []);
+  }, [t]);
 
   const handleCategoryPoisChange = useCallback((pois: PoiApiItem[]) => {
     setCategoryPois(
@@ -291,12 +294,12 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         onTripUpdated?.();
       });
     }
-    notify.success('Day Added', `Added Day ${nextDayNum} to the trip.`);
-  }, [currentItinerary, trip.id, trip.destination, trip.start_date, computeEndDate, updateTrip, onTripUpdated]);
+    notify.success(t('workspace.day_added_title'), t('workspace.day_added_desc', { day: nextDayNum }));
+  }, [currentItinerary, trip.id, trip.destination, trip.start_date, computeEndDate, updateTrip, onTripUpdated, t]);
 
   const handleRemoveDay = useCallback((dayNumArg?: number) => {
     if (!currentItinerary || !Array.isArray(currentItinerary.days) || currentItinerary.days.length <= 1) {
-      notify.info('Cannot Remove Day', 'A trip must have at least 1 day.');
+      notify.info(t('workspace.cannot_remove_day_title'), t('workspace.cannot_remove_day_desc'));
       return;
     }
 
@@ -335,8 +338,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         onTripUpdated?.();
       });
     }
-    notify.info('Day Removed', `Removed Day ${removedDayNum}. Remaining days renumbered (1–${daysArr.length}).`);
-  }, [currentItinerary, selectedDay, trip.id, trip.start_date, computeEndDate, updateTrip, onTripUpdated]);
+    notify.info(t('workspace.day_removed_title'), t('workspace.day_removed_desc', { removed: removedDayNum, count: daysArr.length }));
+  }, [currentItinerary, selectedDay, trip.id, trip.start_date, computeEndDate, updateTrip, onTripUpdated, t]);
 
   const handleReorderDays = useCallback((fromDayNum: number, toDayNum: number) => {
     if (fromDayNum === toDayNum || !currentItinerary || !Array.isArray(currentItinerary.days)) return;
@@ -367,13 +370,13 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         onTripUpdated?.();
       });
     }
-    notify.success('Days Reordered', `Moved Day ${fromDayNum} to Day ${toIdx + 1}.`);
-  }, [currentItinerary, selectedDay, trip.id, updateTrip, onTripUpdated]);
+    notify.success(t('workspace.days_reordered_title'), t('workspace.days_reordered_desc', { from: fromDayNum, to: toIdx + 1 }));
+  }, [currentItinerary, selectedDay, trip.id, updateTrip, onTripUpdated, t]);
 
   const handleReoptimizeDay = useCallback(async () => {
     if (isReoptimizing) return;
     if (!trip.id) {
-      notify.error('No Trip ID', 'Trip must be saved before solving routes with C++ engine.');
+      notify.error(t('workspace.no_trip_id_title'), t('workspace.no_trip_id_reopt_desc'));
       return;
     }
     const targetDay = selectedDay === 'all' ? undefined : selectedDay;
@@ -389,16 +392,18 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         setCurrentItinerary(updatedItin);
       }
       notify.success(
-        targetDay !== undefined ? `Day ${targetDay} Re-optimized` : 'All Days Re-optimized',
-        'Deterministic engine solved optimal sequence and transit timing.'
+        targetDay !== undefined
+          ? t('workspace.day_reoptimized_title', { day: targetDay })
+          : t('workspace.all_days_reoptimized_title'),
+        t('workspace.reoptimize_success_desc')
       );
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Route re-optimization failed';
-      notify.error('Re-optimization Failed', msg);
+      const msg = err instanceof Error ? err.message : t('workspace.reoptimize_failed_msg');
+      notify.error(t('workspace.reoptimize_failed_title'), msg);
     } finally {
       setIsReoptimizing(false);
     }
-  }, [isReoptimizing, trip.id, selectedDay, currentItinerary, reoptimizeTrip]);
+  }, [isReoptimizing, trip.id, selectedDay, currentItinerary, reoptimizeTrip, t]);
 
   // Extract structured days and waypoints
   const { mapDays, places, hotel, airport, daysOutput } = useMemo(() => {
@@ -429,7 +434,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
               const { start: aTime, end: dTime } = getScheduledPoiTimes(scheduledPoi);
               const poiItem: MapPoi = {
                 id: p?.id,
-                name: p?.name || 'Waypoint',
+                name: p?.name || t('workspace.waypoint_fallback'),
                 lat,
                 lng,
                 category: p?.category,
@@ -443,7 +448,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
 
               allPlaces.push({
                 id: p?.id,
-                name: p?.name || 'Waypoint',
+                name: p?.name || t('workspace.waypoint_fallback'),
                 lat,
                 lng,
                 category: p?.category,
@@ -455,10 +460,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
               const catUpper = (p?.category || '').toUpperCase();
               const nameLower = (p?.name || '').toLowerCase();
               if ((catUpper === 'HOTEL' || nameLower.includes('hotel')) && !hotelAnchor) {
-                hotelAnchor = { name: p?.name || 'Hotel Base Camp', lat, lng };
+                hotelAnchor = { name: p?.name || t('workspace.hotel_base_camp'), lat, lng };
               }
               if ((catUpper === 'AIRPORT' || catUpper === 'FLIGHT' || nameLower.includes('airport')) && !airportAnchor) {
-                airportAnchor = { name: p?.name || 'Transit Airport', lat, lng };
+                airportAnchor = { name: p?.name || t('workspace.transit_airport'), lat, lng };
               }
             }
           });
@@ -466,7 +471,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
 
         mapDaysList.push({
           dayNumber,
-          label: `DAY ${dayNumber}`,
+          label: t('transit.day_upper', { day: dayNumber }),
           theme: (day as unknown as { theme?: string }).theme,
           pois: dayPois,
         });
@@ -487,7 +492,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         const lat = hInfo.lat ?? hInfo.location?.latitude;
         const lng = hInfo.lng ?? hInfo.location?.longitude;
         if (typeof lat === 'number' && typeof lng === 'number') {
-          hotelAnchor = { name: hInfo.name || 'Hotel Base Camp', lat, lng };
+          hotelAnchor = { name: hInfo.name || t('workspace.hotel_base_camp'), lat, lng };
         }
       }
     }
@@ -497,7 +502,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         const lat = aInfo.lat ?? aInfo.location?.latitude;
         const lng = aInfo.lng ?? aInfo.location?.longitude;
         if (typeof lat === 'number' && typeof lng === 'number') {
-          airportAnchor = { name: aInfo.name || 'Transit Airport', lat, lng };
+          airportAnchor = { name: aInfo.name || t('workspace.transit_airport'), lat, lng };
         }
       }
     }
@@ -509,7 +514,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       airport: airportAnchor,
       daysOutput: daysOutputList,
     };
-  }, [itinerary]);
+  }, [itinerary, t]);
 
   const [resolvedAirportAnchor, setResolvedAirportAnchor] = useState<{ name: string; lat: number; lng: number } | undefined>(undefined);
 
@@ -529,7 +534,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         const first = rows[0];
         if (typeof first.latitude === 'number' && typeof first.longitude === 'number') {
           setResolvedAirportAnchor({
-            name: first.display_airport || first.airport_name || `${q} Airport`,
+            name: first.display_airport || first.airport_name || translate('workspace.airport_name_fallback', { query: q }),
             lat: first.latitude,
             lng: first.longitude,
           });
@@ -670,7 +675,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       queueMicrotask(() => {
         handleInspectPoi(deepLinkPoi || deepLinkName || 'waypoint', {
           id: deepLinkPoi || undefined,
-          name: deepLinkName || deepLinkPoi || 'Waypoint',
+          name: deepLinkName || deepLinkPoi || translate('workspace.waypoint_fallback'),
           lat: hasCoords ? parsedLat : undefined,
           lng: hasCoords ? parsedLng : undefined,
         });
@@ -1089,7 +1094,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                         setInspectedPoiFallback(renderedPoi.fallback || null);
                       }
                 }
-                aria-label={isInspectorOpen ? 'Close POI details' : 'Reopen POI details'}
+                aria-label={isInspectorOpen ? t('workspace.close_poi_details_aria') : t('workspace.reopen_poi_details_aria')}
                 style={{
                   pointerEvents: 'auto',
                   alignSelf: 'flex-start',

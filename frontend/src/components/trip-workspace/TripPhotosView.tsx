@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { TripPhotoItem } from '@/types/domain';
 import { resolveApiMediaUrl } from '@/utils/api';
 import { useTrips } from '@/hooks/useTrips';
+import { useTranslation } from '@/hooks/useTranslation';
 import { notify } from '@/utils/notify';
 import {
   UploadIcon,
@@ -55,6 +56,7 @@ export function TripPhotosView({
   onPhotosChange,
   readOnly = false,
 }: TripPhotosViewProps) {
+  const { t, locale } = useTranslation();
   const { uploadTripPhotos, deleteTripPhoto } = useTrips();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -87,7 +89,9 @@ export function TripPhotosView({
           id,
           url: p,
           resolvedUrl: resolved,
-          filename: isVid ? `Video ${idx + 1}` : `Photo ${idx + 1}`,
+          filename: isVid
+            ? t('photos.default_video_name', { index: idx + 1 })
+            : t('photos.default_photo_name', { index: idx + 1 }),
           width: measured?.width || (isVid ? 1920 : undefined),
           height: measured?.height || (isVid ? 1080 : undefined),
           aspectRatio: measured?.aspectRatio || (isVid ? 1.778 : undefined),
@@ -102,7 +106,11 @@ export function TripPhotosView({
         id: p.id || `media-${idx}`,
         url: p.url,
         resolvedUrl: resolved,
-        filename: p.filename || (isVid ? `Video ${idx + 1}` : `Photo ${idx + 1}`),
+        filename:
+          p.filename ||
+          (isVid
+            ? t('photos.default_video_name', { index: idx + 1 })
+            : t('photos.default_photo_name', { index: idx + 1 })),
         width: p.width || measured?.width || (isVid ? 1920 : undefined),
         height: p.height || measured?.height || (isVid ? 1080 : undefined),
         aspectRatio: p.aspect_ratio || measured?.aspectRatio || (isVid ? 1.778 : undefined),
@@ -112,7 +120,7 @@ export function TripPhotosView({
         original: p,
       };
     });
-  }, [photos, measuredDims]);
+  }, [photos, measuredDims, t]);
 
   // Handle image load to measure dimensions dynamically if missing
   const handleImageLoad = useCallback(
@@ -156,12 +164,13 @@ export function TripPhotosView({
 
   // Date/Time formatter helper
   const formatPhotoDateTime = useCallback((createdAt?: string) => {
+    const fmtLocale = locale === 'en' ? undefined : locale;
     if (!createdAt) {
-      return new Date().toLocaleDateString(undefined, {
+      return new Date().toLocaleDateString(fmtLocale, {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
-      }) + ' • ' + new Date().toLocaleTimeString(undefined, {
+      }) + ' • ' + new Date().toLocaleTimeString(fmtLocale, {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
@@ -171,13 +180,13 @@ export function TripPhotosView({
       const d = new Date(createdAt);
       if (isNaN(d.getTime())) return '';
       return (
-        d.toLocaleDateString(undefined, {
+        d.toLocaleDateString(fmtLocale, {
           day: 'numeric',
           month: 'short',
           year: 'numeric',
         }) +
         ' • ' +
-        d.toLocaleTimeString(undefined, {
+        d.toLocaleTimeString(fmtLocale, {
           hour: '2-digit',
           minute: '2-digit',
           hour12: false,
@@ -186,13 +195,13 @@ export function TripPhotosView({
     } catch {
       return '';
     }
-  }, []);
+  }, [locale]);
 
   // Upload handler
   const handleUploadFiles = async (files: FileList | File[]) => {
     if (!files || files.length === 0) return;
     if (!tripId) {
-      notify.error('Upload Error', 'Trip must be saved before uploading media.');
+      notify.error(t('photos.upload_error_title'), t('photos.save_trip_first'));
       return;
     }
 
@@ -204,7 +213,7 @@ export function TripPhotosView({
     );
 
     if (mediaFiles.length === 0) {
-      notify.error('Invalid Files', 'Please select valid image or video files.');
+      notify.error(t('photos.invalid_files_title'), t('photos.invalid_files_desc'));
       return;
     }
 
@@ -218,12 +227,14 @@ export function TripPhotosView({
         onPhotosChange(updatedPhotos);
       }
       notify.success(
-        'Media Uploaded',
-        `Successfully uploaded ${uploadedItems.length} media item${uploadedItems.length > 1 ? 's' : ''} to vault.`
+        t('photos.media_uploaded_title'),
+        uploadedItems.length === 1
+          ? t('photos.media_uploaded_singular', { count: uploadedItems.length })
+          : t('photos.media_uploaded_plural', { count: uploadedItems.length })
       );
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown upload error';
-      notify.error('Upload Failed', message);
+      const message = err instanceof Error ? err.message : t('photos.unknown_upload_error');
+      notify.error(t('photos.upload_failed_title'), message);
     } finally {
       setIsUploading(false);
       setUploadCount(0);
@@ -275,7 +286,7 @@ export function TripPhotosView({
       if (onPhotosChange) {
         onPhotosChange(updated);
       }
-      notify.info('Photo Deleted', 'The photo has been removed from your vault.');
+      notify.info(t('photos.photo_deleted_title'), t('photos.photo_deleted_desc'));
       if (lightboxIndex !== null) {
         if (updated.length === 0) {
           setLightboxIndex(null);
@@ -284,8 +295,8 @@ export function TripPhotosView({
         }
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to delete photo';
-      notify.error('Delete Failed', message);
+      const message = err instanceof Error ? err.message : t('photos.delete_photo_error');
+      notify.error(t('photos.delete_failed_title'), message);
     } finally {
       setIsDeletingId(null);
     }
@@ -416,10 +427,10 @@ export function TripPhotosView({
         >
           <CameraTacticalIllustration width={130} height={85} />
           <h3 className="font-display" style={{ margin: 0, fontSize: '1.4rem', fontWeight: 600 }}>
-            DROP PHOTOS & VIDEOS TO ADD TO MOSAIC
+            {t('photos.drag_drop_overlay_title')}
           </h3>
           <p className="font-mono text-sm" style={{ margin: 0, opacity: 0.8 }}>
-            {"// SUPPORTS MULTIPLE IMAGES & VIDEOS (JPEG, PNG, WEBP, MP4, WEBM, MOV)"}
+            {t('photos.drag_drop_overlay_desc')}
           </p>
         </div>
       )}
@@ -442,7 +453,7 @@ export function TripPhotosView({
               className="font-display"
               style={{ margin: 0, fontSize: '1.45rem', color: 'var(--color-text-primary, #181614)', fontWeight: 600 }}
             >
-              MEDIA VAULT & MOSAIC
+              {t('photos.vault_title')}
             </h2>
             {normalizedPhotos.length > 0 && (
               <span
@@ -457,14 +468,27 @@ export function TripPhotosView({
                   fontWeight: 600,
                 }}
               >
-                {normalizedPhotos.length} {normalizedPhotos.length === 1 ? 'ITEM' : 'ITEMS'}
+                {normalizedPhotos.length === 1
+                  ? t('photos.item_singular', { count: normalizedPhotos.length })
+                  : t('photos.item_plural', { count: normalizedPhotos.length })}
               </span>
             )}
           </div>
           <p className="font-mono text-muted text-xs mt-1" style={{ letterSpacing: '0.04em' }}>
             {normalizedPhotos.length > 0
-              ? `// ${stats.photosCount} PHOTOS • ${stats.videosCount > 0 ? `${stats.videosCount} VIDEOS • ` : ''}${stats.landscape} LANDSCAPE • ${stats.portrait} PORTRAIT`
-              : '// DESTINATION PHOTOGRAPHY, VIDEOS & MOSAIC MEDIA'}
+              ? stats.videosCount > 0
+                ? t('photos.stats_with_videos', {
+                    photos: stats.photosCount,
+                    videos: stats.videosCount,
+                    landscape: stats.landscape,
+                    portrait: stats.portrait,
+                  })
+                : t('photos.stats_photos_only', {
+                    photos: stats.photosCount,
+                    landscape: stats.landscape,
+                    portrait: stats.portrait,
+                  })
+              : t('photos.vault_subtitle_empty')}
           </p>
         </div>
 
@@ -493,12 +517,12 @@ export function TripPhotosView({
               {isUploading ? (
                 <>
                   <Spinner size={15} color="#FFFFFF" />
-                  <span>UPLOADING ({uploadCount})...</span>
+                  <span>{t('photos.uploading_count', { count: uploadCount })}</span>
                 </>
               ) : (
                 <>
                   <UploadIcon size={15} color="#FFFFFF" />
-                  <span>UPLOAD PHOTOS</span>
+                  <span>{t('photos.upload_photos_btn')}</span>
                 </>
               )}
             </button>
@@ -543,10 +567,10 @@ export function TripPhotosView({
               className="font-display"
               style={{ margin: '0 0 0.4rem 0', fontSize: '1.25rem', color: 'var(--color-text-primary, #1A2B32)', fontWeight: 700 }}
             >
-              No Captured Memories in Mosaic
+              {t('photos.empty_title')}
             </h3>
             <p className="font-mono text-muted text-xs" style={{ margin: 0, maxWidth: '440px', lineHeight: 1.5, color: 'var(--color-text-muted, #566B76)' }}>
-              Click to open the upload window or drag & drop photos here. Images automatically arrange into an interlocking mosaic based on their size and orientation.
+              {t('photos.empty_desc')}
             </p>
           </div>
 
@@ -588,7 +612,7 @@ export function TripPhotosView({
               >
                 <PlusIcon size={12} color="#FFFFFF" />
               </div>
-              <span>Select Files to Upload</span>
+              <span>{t('photos.select_files_btn')}</span>
             </button>
           )}
         </div>
@@ -667,7 +691,7 @@ export function TripPhotosView({
                 ) : (
                   <img
                     src={photo.resolvedUrl}
-                    alt={photo.filename || `Photo ${idx + 1}`}
+                    alt={photo.filename || t('photos.default_photo_name', { index: idx + 1 })}
                     loading="lazy"
                     onLoad={(e) => handleImageLoad(photo.url, e)}
                     style={{
@@ -704,7 +728,7 @@ export function TripPhotosView({
                     }}
                   >
                     <PlayIcon size={10} color="#FFFFFF" fill="#FFFFFF" />
-                    <span>VIDEO</span>
+                    <span>{t('photos.video_badge')}</span>
                   </div>
                 )}
 
@@ -729,7 +753,7 @@ export function TripPhotosView({
                   <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: '0.35rem' }}>
                       <button
-                        title="View Full Resolution"
+                        title={t('photos.view_full_res_title')}
                         onClick={(e) => {
                           e.stopPropagation();
                           setLightboxIndex(idx);
@@ -753,7 +777,7 @@ export function TripPhotosView({
 
                       {!readOnly && (
                         <button
-                          title="Delete Photo"
+                          title={t('photos.delete_photo_title')}
                           disabled={isDeletingId === photo.id}
                           onClick={(e) => handleDeletePhoto(photo, e)}
                           style={{
@@ -877,7 +901,7 @@ export function TripPhotosView({
                     cursor: 'pointer',
                     transition: 'background 0.15s ease',
                   }}
-                  title="Close (Esc)"
+                  title={t('photos.lightbox_close_title')}
                 >
                   <CloseIcon size={18} color="#FFFFFF" />
                 </button>
@@ -920,7 +944,7 @@ export function TripPhotosView({
                     zIndex: 20,
                     transition: 'background 0.2s ease',
                   }}
-                  title="Previous (Arrow Left)"
+                  title={t('photos.lightbox_prev_title')}
                 >
                   <ChevronLeftIcon size={20} color="#FFFFFF" />
                 </button>
@@ -984,7 +1008,7 @@ export function TripPhotosView({
                     zIndex: 20,
                     transition: 'background 0.2s ease',
                   }}
-                  title="Next (Arrow Right)"
+                  title={t('photos.lightbox_next_title')}
                 >
                   <ChevronRightIcon size={20} color="#FFFFFF" />
                 </button>

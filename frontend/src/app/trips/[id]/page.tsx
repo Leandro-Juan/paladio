@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 import { Trip } from '@/hooks/useTrips';
 import { apiFetch } from '@/utils/api';
 import { isTripCompleted } from '@/utils/tripParser';
@@ -36,7 +37,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
         setTrip(data);
       } catch (err: unknown) {
         if (!isMounted) return;
-        const msg = err instanceof Error ? err.message : 'Failed to connect to backend';
+        const msg = err instanceof Error ? err.message : translate('workspace.backend_connect_failed');
         if (msg.toLowerCase().includes('not found') || msg.includes('404')) {
           setTrip(null);
         } else {
@@ -155,10 +156,10 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
           }}
         >
           <h3 className="font-display" style={{ color: 'var(--color-text-main)', margin: 0 }}>
-            MISSION NOT FOUND
+            {t('workspace.mission_not_found')}
           </h3>
           <p className="font-mono text-muted text-sm mt-2">
-            [ MISSION DATA NOT FOUND FOR ID: {id} ]
+            {t('workspace.mission_data_not_found', { id })}
           </p>
           <Link
             href="/dashboard"
@@ -177,7 +178,7 @@ export default function TripWorkspacePage({ params }: { params: Promise<{ id: st
               fontWeight: 600,
             }}
           >
-            <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> RETURN TO DASHBOARD
+            <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> {t('workspace.return_to_dashboard')}
           </Link>
         </div>
       </div>

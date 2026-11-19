@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { BalancesWidget } from '@/components/trip-workspace/costs/BalancesWidget';
 import { CategoryBreakdownWidget } from '@/components/trip-workspace/costs/CategoryBreakdownWidget';
@@ -49,6 +50,7 @@ export function PastTripTabs({
   tripId,
   onPhotosChange,
 }: PastTripTabsProps) {
+  const { t } = useTranslation();
   const { addNotification } = useNotificationStore();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -70,14 +72,14 @@ export function PastTripTabs({
         setIsEditing(false);
         addNotification({
           type: 'success',
-          title: 'Mission Notes Updated',
-          message: 'Your description and notes have been permanently stored.',
+          title: t('vault.mission_notes_updated'),
+          message: t('vault.notes_saved_msg'),
         });
       } else {
         addNotification({
           type: 'error',
-          title: 'Update Failed',
-          message: 'Could not update trip notes on the server. Please try again.',
+          title: t('vault.update_failed'),
+          message: t('vault.notes_update_failed_msg'),
         });
       }
     } finally {
@@ -141,10 +143,10 @@ export function PastTripTabs({
         <div style={{ display: 'flex', gap: '1.75rem' }}>
           {(
             [
-              { id: 'about', label: 'About' },
-              { id: 'itinerary', label: 'Itinerary' },
-              { id: 'costs', label: 'Costs' },
-              { id: 'photos', label: 'Photos' },
+              { id: 'about', label: t('vault.tab_about') },
+              { id: 'itinerary', label: t('vault.tab_itinerary') },
+              { id: 'costs', label: t('workspace.tabs.costs') },
+              { id: 'photos', label: t('workspace.tabs.photos') },
             ] as const
           ).map((tab) => {
             const isActive = activeTab === tab.id;
@@ -193,8 +195,8 @@ export function PastTripTabs({
             <button
               type="button"
               onClick={startEditing}
-              title="Edit Description & Notes"
-              aria-label="Edit Description & Notes"
+              title={t('vault.edit_description_notes')}
+              aria-label={t('vault.edit_description_notes')}
               style={{
                 background: 'none',
                 border: 'none',
@@ -254,12 +256,12 @@ export function PastTripTabs({
                     marginBottom: '6px',
                   }}
                 >
-                  Trip Summary & Narrative
+                  {t('vault.trip_summary_narrative')}
                 </label>
                 <textarea
                   value={draftDesc}
                   onChange={(e) => setDraftDesc(e.target.value)}
-                  placeholder="Record your memories or impressions of this destination..."
+                  placeholder={t('vault.narrative_placeholder')}
                   rows={4}
                   style={{
                     width: '100%',
@@ -287,12 +289,12 @@ export function PastTripTabs({
                     marginBottom: '6px',
                   }}
                 >
-                  Field Notes & Debrief
+                  {t('vault.field_notes_debrief')}
                 </label>
                 <textarea
                   value={draftNotes}
                   onChange={(e) => setDraftNotes(e.target.value)}
-                  placeholder="Key recommendations, packing tips, or secret spots..."
+                  placeholder={t('vault.field_notes_placeholder')}
                   rows={4}
                   style={{
                     width: '100%',
@@ -324,7 +326,7 @@ export function PastTripTabs({
                     color: 'var(--color-text-primary)',
                   }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -343,7 +345,7 @@ export function PastTripTabs({
                     boxShadow: '0 2px 8px rgba(15, 76, 92, 0.25)',
                   }}
                 >
-                  {isSaving ? 'Saving...' : 'Save Notes'}
+                  {isSaving ? t('vault.saving') : t('vault.save_notes')}
                 </button>
               </div>
             </div>
@@ -360,7 +362,7 @@ export function PastTripTabs({
                     margin: '0 0 0.5rem',
                   }}
                 >
-                  Expedition Narrative
+                  {t('vault.expedition_narrative')}
                 </h3>
                 <p
                   style={{
@@ -371,8 +373,7 @@ export function PastTripTabs({
                     margin: 0,
                   }}
                 >
-                  {description ||
-                    'No summary recorded for this expedition yet. Click the pencil icon above to write your notes.'}
+                  {description || t('vault.no_summary_recorded')}
                 </p>
               </div>
 
@@ -386,7 +387,7 @@ export function PastTripTabs({
                     margin: '0 0 0.5rem',
                   }}
                 >
-                  Field Notes & Observations
+                  {t('vault.field_notes_observations')}
                 </h3>
                 <p
                   style={{
@@ -397,7 +398,7 @@ export function PastTripTabs({
                     margin: 0,
                   }}
                 >
-                  {notes || 'No field notes attached.'}
+                  {notes || t('vault.no_field_notes')}
                 </p>
               </div>
             </div>
@@ -409,7 +410,7 @@ export function PastTripTabs({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {filteredDays.length === 0 ? (
             <div className="font-mono text-muted text-sm" style={{ padding: '2rem 0' }}>
-              [ NO ITINERARY STOPS FOUND FOR SELECTED VIEW ]
+              {t('vault.no_itinerary_stops_view')}
             </div>
           ) : (
             filteredDays.map((day, idx) => {
@@ -438,10 +439,12 @@ export function PastTripTabs({
                         color: 'var(--color-accent-teal, #0F4C5C)',
                       }}
                     >
-                      Day {dayNum} {day.theme ? `— ${day.theme}` : ''}
+                      {t('trips.day_label', { number: dayNum })} {day.theme ? `— ${day.theme}` : ''}
                     </span>
                     <span className="font-mono text-muted" style={{ fontSize: '0.72rem' }}>
-                      {path.length} {path.length === 1 ? 'Stop' : 'Stops'}
+                      {path.length === 1
+                        ? t('vault.stop_singular', { count: path.length })
+                        : t('vault.stop_plural', { count: path.length })}
                     </span>
                   </div>
 
@@ -477,7 +480,7 @@ export function PastTripTabs({
                           )}
                           <MinimalistPoiCard
                             id={p?.id}
-                            name={p?.name || 'Waypoint'}
+                            name={p?.name || t('vault.waypoint_default')}
                             category={p?.category}
                             startTime={effectiveStartTime}
                             endTime={effectiveEndTime}
@@ -518,7 +521,7 @@ export function PastTripTabs({
                   letterSpacing: '0.04em',
                 }}
               >
-                No costs have been registered for this trip.
+                {t('vault.no_costs_registered')}
               </p>
             </div>
           ) : (

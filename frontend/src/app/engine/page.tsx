@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { usePaladioSocket } from '@/hooks/usePaladioSocket';
 import { useTrips } from '@/hooks/useTrips';
 import { Modal } from '@/components/Modal';
@@ -10,22 +11,26 @@ import { useTripDraftStore } from '@/stores/tripDraftStore';
 import { useLogStore } from '@/contexts/SocketContext';
 import { ThinkingScreen } from '@/components/trip-creation/ThinkingScreen';
 
-function getThinkingMessage(lastLog: string | undefined, defaultMsg = 'Creating your continuous itinerary...'): string {
+function getThinkingMessage(
+  lastLog: string | undefined,
+  t: (key: string, params?: Record<string, string | number>) => string,
+  defaultMsg: string
+): string {
   if (!lastLog) return defaultMsg;
   const upper = lastLog.toUpperCase();
-  if (upper.includes('SAVING') || upper.includes('REDIRECTING')) return 'Saving trip to your workspace...';
-  if (upper.includes('ITINERARY GENERATED')) return 'Finalizing continuous itinerary...';
-  if (upper.includes('OPTIMIZING ROUTES') || upper.includes('C++ SOLVER')) return 'Optimizing daily routes and transit with C++ solver...';
-  if (upper.includes('EXTRACTING_CONSTRAINTS') || upper.includes('CONSTRAINTS EXTRACTED')) return 'Preparing optimization constraints...';
-  if (upper.includes('SCRAPING_DYNAMIC_DATA') || upper.includes('FETCHING POIS')) return 'Discovering attractions, local dining & transit routes...';
-  if (upper.includes('ANALYZING_PROMPT') || upper.includes('ANALYZING USER')) return 'Analyzing your travel preferences & pacing...';
-  if (upper.includes('ROUTING_INTENT')) return 'Routing trip intent through agent swarm...';
-  if (upper.includes('VALIDATING TRIP')) return 'Validating schedule constraints...';
-  if (upper.includes('GUARDRAILS_PASSED')) return 'Schedule verified. Preparing route solver...';
-  if (upper.includes('GUARDRAILS')) return 'Evaluating schedule guardrails & feasibility...';
-  if (upper.includes('REVIEWING TRIP') || upper.includes('VERIFYING_CONSTRAINTS')) return 'Synthesizing travel anchors & dates...';
-  if (upper.includes('BOOKING ANCHORS') || upper.includes('PARSING_TICKETS')) return 'Processing booking anchors...';
-  if (upper.includes('INITIALIZING LANGGRAPH') || upper.includes('INITIALIZING')) return 'Initializing AI solver swarm...';
+  if (upper.includes('SAVING') || upper.includes('REDIRECTING')) return t('engine.thinking_saving');
+  if (upper.includes('ITINERARY GENERATED')) return t('engine.thinking_finalizing');
+  if (upper.includes('OPTIMIZING ROUTES') || upper.includes('C++ SOLVER')) return t('engine.thinking_optimizing');
+  if (upper.includes('EXTRACTING_CONSTRAINTS') || upper.includes('CONSTRAINTS EXTRACTED')) return t('engine.thinking_constraints');
+  if (upper.includes('SCRAPING_DYNAMIC_DATA') || upper.includes('FETCHING POIS')) return t('engine.thinking_scraping');
+  if (upper.includes('ANALYZING_PROMPT') || upper.includes('ANALYZING USER')) return t('engine.thinking_analyzing');
+  if (upper.includes('ROUTING_INTENT')) return t('engine.thinking_routing');
+  if (upper.includes('VALIDATING TRIP')) return t('engine.thinking_validating');
+  if (upper.includes('GUARDRAILS_PASSED')) return t('engine.thinking_guardrails_passed');
+  if (upper.includes('GUARDRAILS')) return t('engine.thinking_guardrails');
+  if (upper.includes('REVIEWING TRIP') || upper.includes('VERIFYING_CONSTRAINTS')) return t('engine.thinking_reviewing');
+  if (upper.includes('BOOKING ANCHORS') || upper.includes('PARSING_TICKETS')) return t('engine.thinking_booking_anchors');
+  if (upper.includes('INITIALIZING LANGGRAPH') || upper.includes('INITIALIZING')) return t('engine.thinking_initializing');
   if (upper.includes('UPLINK') || upper.includes('NETWORK') || upper.includes('TELEMETRY') || upper.includes('HEARTBEAT')) {
     return defaultMsg;
   }
@@ -35,6 +40,7 @@ function getThinkingMessage(lastLog: string | undefined, defaultMsg = 'Creating 
 }
 
 export default function EnginePage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const {
     status,
@@ -170,20 +176,21 @@ export default function EnginePage() {
 
   if (isCreatingTrip) {
     const lastLog = logs[logs.length - 1];
-    let thinkingMessage = 'Creating your continuous itinerary...';
+    const defaultThinkingMsg = t('engine.thinking_default');
+    let thinkingMessage = defaultThinkingMsg;
     if (blankCreationStatus) {
       thinkingMessage = blankCreationStatus;
     } else if (isSaving) {
-      thinkingMessage = 'Saving trip to your workspace...';
+      thinkingMessage = t('engine.thinking_saving');
     } else {
-      thinkingMessage = getThinkingMessage(lastLog);
+      thinkingMessage = getThinkingMessage(lastLog, t, defaultThinkingMsg);
     }
 
-    const destName = draft.destination || queryDest || 'Trip';
-    const subMessage = `${destName.toUpperCase()} • CONTINUOUS SOVEREIGN OPTIMIZER`;
+    const destName = draft.destination || queryDest || t('engine.trip_fallback');
+    const subMessage = t('engine.thinking_submessage', { destination: destName.toUpperCase() });
 
     const errorMessage = (status === 'error' && !guardrailAbort)
-      ? (lastLog?.replace(/^>\s*/, '') || 'The optimizer encountered an unexpected error.')
+      ? (lastLog?.replace(/^>\s*/, '') || t('engine.unexpected_error'))
       : null;
 
     return (
@@ -202,9 +209,9 @@ export default function EnginePage() {
         <Modal 
           isOpen={Boolean(guardrailAbort)}
           variant="danger"
-          title={guardrailAbort?.title || "[GUARDRAILS ABORTED] TRIP REJECTED"}
-          message="The optimization swarm rejected the mission constraints based on deterministic guardrails:"
-          confirmText="DISMISS & EDIT"
+          title={guardrailAbort?.title || t('engine.guardrails_abort_title')}
+          message={t('engine.guardrails_abort_message')}
+          confirmText={t('engine.dismiss_and_edit')}
           cancelText=""
           onConfirm={() => {
             setIsSubmitting(false);
@@ -225,7 +232,7 @@ export default function EnginePage() {
               fontSize: '0.85rem'
             }}>
               <div style={{ fontWeight: 600, color: 'var(--color-danger)', marginBottom: '0.5rem' }}>
-                CRITICAL VIOLATIONS:
+                {t('engine.critical_violations')}
               </div>
               <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--color-text-primary)' }}>
                 {guardrailAbort.errors.map((err, idx) => (
@@ -239,10 +246,10 @@ export default function EnginePage() {
         <Modal 
           isOpen={Boolean(overlapWarning)}
           variant="warning"
-          title={overlapWarning?.warning_title || "[WARNING] TRIP SCHEDULE OVERLAP"}
-          message={overlapWarning?.message || "A scheduling overlap was detected with an existing trip in your database."}
-          confirmText="PROCEED ANYWAY"
-          cancelText="ABORT"
+          title={overlapWarning?.warning_title || t('engine.overlap_warning_title')}
+          message={overlapWarning?.message || t('engine.overlap_warning_message')}
+          confirmText={t('engine.proceed_anyway')}
+          cancelText={t('engine.abort_upper')}
           onConfirm={() => {
             sendResume({ approved: true, proceed: true });
             clearOverlapWarning();
@@ -263,10 +270,10 @@ export default function EnginePage() {
               fontSize: '0.85rem'
             }}>
               <div style={{ fontWeight: 600, color: 'var(--color-accent-gold)', marginBottom: '0.25rem' }}>
-                CONFLICTING TRIP DETAILS:
+                {t('engine.conflicting_trip_details')}
               </div>
-              <div>Destination: {overlapWarning.overlapping_trip.destination}</div>
-              <div>Dates: {overlapWarning.overlapping_trip.start_date} to {overlapWarning.overlapping_trip.end_date}</div>
+              <div>{t('engine.conflict_destination', { destination: overlapWarning.overlapping_trip.destination ?? '' })}</div>
+              <div>{t('engine.conflict_dates', { start: overlapWarning.overlapping_trip.start_date ?? '', end: overlapWarning.overlapping_trip.end_date ?? '' })}</div>
             </div>
           )}
         </Modal>
@@ -278,14 +285,14 @@ export default function EnginePage() {
     <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%', padding: '1.5rem 1rem' }}>
       <div style={{ marginBottom: '2.5rem', textAlign: 'center' }}>
         <h2 className="font-display" style={{ margin: 0, fontSize: '2.25rem', fontWeight: 600, color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}>
-          NEW TRIP
+          {t('engine.new_trip_heading')}
         </h2>
       </div>
 
       <TripCreationBoxes
         key={queryPrefillKey || 'default'}
         onPersonalizedSubmit={handlePrepSubmit}
-        onBlankSubmitStart={(msg) => setBlankCreationStatus(msg || 'Creating blank trip workspace...')}
+        onBlankSubmitStart={(msg) => setBlankCreationStatus(msg || t('engine.creating_blank_workspace'))}
         disabled={false}
         initialDestination={queryDest || 'Paris'}
         initialOrigin={queryOrigin || 'Madrid'}
@@ -310,10 +317,10 @@ export default function EnginePage() {
       <Modal 
         isOpen={Boolean(verificationPayload)}
         variant="warning"
-        title="[CONSTRAINTS VERIFICATION] REVIEW TRIP PARAMETERS"
-        message={verificationPayload?.message || "Review extracted parameters before generating itinerary."}
-        confirmText="CONFIRM & OPTIMIZE"
-        cancelText="CANCEL"
+        title={t('engine.verification_title')}
+        message={verificationPayload?.message || t('engine.verification_default_message')}
+        confirmText={t('engine.confirm_and_optimize')}
+        cancelText={t('engine.cancel_upper')}
         onConfirm={() => {
           sendResume({
             approved: true,
@@ -336,7 +343,7 @@ export default function EnginePage() {
             fontSize: '0.85rem'
           }}>
             <div style={{ fontWeight: 600, color: 'var(--color-accent-gold)', marginBottom: '0.25rem' }}>
-              FLAGGED FIELDS:
+              {t('engine.flagged_fields')}
             </div>
             <div>{verificationPayload.fields.join(', ')}</div>
           </div>
@@ -346,10 +353,10 @@ export default function EnginePage() {
       <Modal 
         isOpen={Boolean(overlapWarning)}
         variant="warning"
-        title={overlapWarning?.warning_title || "[WARNING] TRIP SCHEDULE OVERLAP"}
-        message={overlapWarning?.message || "A scheduling overlap was detected with an existing trip in your database."}
-        confirmText="PROCEED ANYWAY"
-        cancelText="ABORT"
+        title={overlapWarning?.warning_title || t('engine.overlap_warning_title')}
+        message={overlapWarning?.message || t('engine.overlap_warning_message')}
+        confirmText={t('engine.proceed_anyway')}
+        cancelText={t('engine.abort_upper')}
         onConfirm={() => {
           sendResume({ approved: true, proceed: true });
           clearOverlapWarning();
@@ -369,10 +376,10 @@ export default function EnginePage() {
             fontSize: '0.85rem'
           }}>
             <div style={{ fontWeight: 600, color: 'var(--color-accent-gold)', marginBottom: '0.25rem' }}>
-              CONFLICTING TRIP DETAILS:
+              {t('engine.conflicting_trip_details')}
             </div>
-            <div>Destination: {overlapWarning.overlapping_trip.destination}</div>
-            <div>Dates: {overlapWarning.overlapping_trip.start_date} to {overlapWarning.overlapping_trip.end_date}</div>
+            <div>{t('engine.conflict_destination', { destination: overlapWarning.overlapping_trip.destination ?? '' })}</div>
+            <div>{t('engine.conflict_dates', { start: overlapWarning.overlapping_trip.start_date ?? '', end: overlapWarning.overlapping_trip.end_date ?? '' })}</div>
           </div>
         )}
       </Modal>
@@ -380,9 +387,9 @@ export default function EnginePage() {
       <Modal 
         isOpen={Boolean(guardrailAbort)}
         variant="danger"
-        title={guardrailAbort?.title || "[GUARDRAILS ABORTED] TRIP REJECTED"}
-        message="The optimization swarm rejected the mission constraints based on deterministic guardrails:"
-        confirmText="DISMISS & EDIT"
+        title={guardrailAbort?.title || t('engine.guardrails_abort_title')}
+        message={t('engine.guardrails_abort_message')}
+        confirmText={t('engine.dismiss_and_edit')}
         cancelText=""
         onConfirm={() => {
           clearGuardrailAbort();
@@ -401,7 +408,7 @@ export default function EnginePage() {
             fontSize: '0.85rem'
           }}>
             <div style={{ fontWeight: 600, color: 'var(--color-danger)', marginBottom: '0.5rem' }}>
-              CRITICAL VIOLATIONS:
+              {t('engine.critical_violations')}
             </div>
             <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--color-text-primary)' }}>
               {guardrailAbort.errors.map((err, idx) => (

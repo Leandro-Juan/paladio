@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   AreaChart,
   Area,
@@ -86,6 +87,7 @@ export function PriceTrendGraph({
   minNights,
   maxNights,
 }: PriceTrendGraphProps) {
+  const { t } = useTranslation();
   const isBusy = isBackfilling || isScanning;
   const [directionView, setDirectionView] = useState<'both' | 'outbound' | 'return'>('both');
 
@@ -240,24 +242,25 @@ export function PriceTrendGraph({
         <div className={styles.tooltipSection}>
           {d.outboundPrice !== null && (
             <div className={styles.tooltipRow}>
-              <span style={{ color: '#0284C7', fontWeight: 600 }}>OUTBOUND:</span>
+              <span style={{ color: '#0284C7', fontWeight: 600 }}>{t('monitoring.outbound_colon_upper')}</span>
               <span className={styles.tooltipVal}>{symbol}{d.outboundPrice.toFixed(2)}</span>
             </div>
           )}
           {d.returnPrice !== null && (
             <div className={styles.tooltipRow}>
-              <span style={{ color: '#D97706', fontWeight: 600 }}>RETURN:</span>
+              <span style={{ color: '#D97706', fontWeight: 600 }}>{t('monitoring.return_colon_upper')}</span>
               <span className={styles.tooltipVal}>{symbol}{d.returnPrice.toFixed(2)}</span>
             </div>
           )}
           {d.flightTotal !== null && d.returnPrice !== null && (
             <div className={styles.tooltipRowTotal}>
-              <span>TOTAL AIRFARE:</span>
+              <span>{t('monitoring.total_airfare_colon')}</span>
               <span>{symbol}{d.flightTotal.toFixed(2)}</span>
             </div>
           )}
           <div className={styles.tooltipCarrierText}>
-            Carrier: {d.carrier}{d.returnCarrier ? ` · Ret: ${d.returnCarrier}` : ''}
+            {t('monitoring.carrier_line', { carrier: d.carrier })}
+            {d.returnCarrier ? t('monitoring.ret_carrier_inline', { carrier: d.returnCarrier }) : ''}
           </div>
         </div>
 
@@ -265,8 +268,10 @@ export function PriceTrendGraph({
         {d.nightlyPrice !== null && (
           <div className={styles.tooltipLodgingSection}>
             <div className={styles.tooltipRow}>
-              <span style={{ color: '#0F4C5C', fontWeight: 600 }}>HOTEL RATE:</span>
-              <span className={styles.tooltipVal}>{symbol}{d.nightlyPrice.toFixed(2)}/night</span>
+              <span style={{ color: '#0F4C5C', fontWeight: 600 }}>{t('monitoring.hotel_rate_colon')}</span>
+              <span className={styles.tooltipVal}>
+                {t('monitoring.price_per_night_compact', { price: `${symbol}${d.nightlyPrice.toFixed(2)}` })}
+              </span>
             </div>
             {d.propertyName && (
               <div className={styles.tooltipHotelName}>
@@ -275,12 +280,12 @@ export function PriceTrendGraph({
             )}
             {d.nProperties > 1 && (
               <div className={styles.tooltipCarrierText} style={{ marginTop: '2px', color: '#0F4C5C' }}>
-                {d.nProperties} verified properties scanned
+                {t('monitoring.verified_properties_scanned', { count: d.nProperties })}
               </div>
             )}
             {d.totalStayPrice !== null && (
               <div className={styles.tooltipRowSub}>
-                <span>Est. Stay Total:</span>
+                <span>{t('monitoring.est_stay_total')}</span>
                 <span>{symbol}{d.totalStayPrice.toFixed(2)}</span>
               </div>
             )}
@@ -290,7 +295,7 @@ export function PriceTrendGraph({
         {/* Combined Package Total */}
         {d.packagePrice !== null && (
           <div className={styles.tooltipPackageRow}>
-            <span>LANDED PACKAGE:</span>
+            <span>{t('monitoring.landed_package_colon')}</span>
             <span className={styles.tooltipPackagePrice}>{symbol}{d.packagePrice.toFixed(2)}</span>
           </div>
         )}
@@ -299,13 +304,13 @@ export function PriceTrendGraph({
   };
 
   return (
-    <div className={styles.container} role="region" aria-label="Route price trend graph">
+    <div className={styles.container} role="region" aria-label={t('monitoring.price_trend_graph_aria')}>
       {/* Top Header */}
       <div className={styles.header}>
         <div className={styles.titleArea}>
           <div className={styles.titleRow}>
             <h4 className={styles.title}>
-              Calendar Horizon Price Spread
+              {t('monitoring.calendar_horizon_spread')}
             </h4>
           </div>
         </div>
@@ -320,7 +325,11 @@ export function PriceTrendGraph({
                 className={`${styles.viewBtn} ${directionView === dir ? styles.activeViewBtn : ''}`}
                 onClick={() => setDirectionView(dir)}
               >
-                {dir.toUpperCase()}
+                {dir === 'both'
+                  ? t('monitoring.dir_both_upper')
+                  : dir === 'outbound'
+                  ? t('monitoring.dir_outbound_upper')
+                  : t('monitoring.dir_return_upper')}
               </button>
             ))}
           </div>
@@ -414,7 +423,7 @@ export function PriceTrendGraph({
                 strokeWidth={1.5}
                 strokeDasharray="4 4"
                 label={{
-                  value: 'Earliest Dep',
+                  value: t('monitoring.earliest_dep_short'),
                   position: isNearRightEdge(earliestDisplayTime) ? 'insideTopRight' : 'insideTopLeft',
                   fill: '#0284C7',
                   fontSize: 10,
@@ -431,7 +440,7 @@ export function PriceTrendGraph({
                 strokeWidth={1.5}
                 strokeDasharray="4 4"
                 label={{
-                  value: 'Latest Dep',
+                  value: t('monitoring.latest_dep_short'),
                   position: isNearRightEdge(latestDisplayTime) ? 'insideTopRight' : 'insideTopLeft',
                   fill: '#0284C7',
                   fontSize: 10,
@@ -448,7 +457,7 @@ export function PriceTrendGraph({
                 strokeWidth={1.5}
                 strokeDasharray="3 3"
                 label={{
-                  value: `Max Return (${maxNights || 7}N)`,
+                  value: t('monitoring.max_return_nights', { nights: maxNights || 7 }),
                   position: isNearRightEdge(returnHorizonDisplayTime) ? 'insideTopRight' : 'insideTopLeft',
                   fill: '#D97706',
                   fontSize: 10,
@@ -462,7 +471,7 @@ export function PriceTrendGraph({
             <Area
               type="monotone"
               dataKey="outboundPrice"
-              name="Outbound"
+              name={t('monitoring.outbound_label')}
               stroke="#0284C7"
               strokeOpacity={directionView === 'return' ? 0.2 : 1}
               strokeWidth={directionView === 'outbound' ? 2.5 : 2}
@@ -475,7 +484,7 @@ export function PriceTrendGraph({
             <Area
               type="monotone"
               dataKey="returnPrice"
-              name="Return"
+              name={t('monitoring.return_label')}
               stroke="#D97706"
               strokeOpacity={directionView === 'outbound' ? 0.2 : 1}
               strokeWidth={directionView === 'return' ? 2.5 : 2}
@@ -492,40 +501,40 @@ export function PriceTrendGraph({
       <div className={styles.legendRow}>
         <div className={styles.legendItem} style={{ opacity: directionView === 'return' ? 0.35 : 1 }}>
           <span className={styles.legendLineSolid} style={{ backgroundColor: '#0284C7' }} />
-          <span>Outbound Airfare</span>
+          <span>{t('monitoring.outbound_airfare')}</span>
         </div>
         <div className={styles.legendItem} style={{ opacity: directionView === 'outbound' ? 0.35 : 1 }}>
           <span className={styles.legendLineSolid} style={{ backgroundColor: '#D97706' }} />
-          <span>Return Airfare</span>
+          <span>{t('monitoring.return_airfare')}</span>
         </div>
         {activeP10 !== null && (
           <div className={styles.legendItem}>
             <span className={styles.legendLineDeal} style={{ backgroundColor: '#10B981' }} />
-            <span>P10 Deal Target ({symbol}{activeP10.toFixed(0)})</span>
+            <span>{t('monitoring.p10_deal_target', { price: `${symbol}${activeP10.toFixed(0)}` })}</span>
           </div>
         )}
         {activeP50 !== null && (
           <div className={styles.legendItem}>
             <span className={styles.legendLineMedian} style={{ backgroundColor: '#F59E0B' }} />
-            <span>P50 Median ({symbol}{activeP50.toFixed(0)})</span>
+            <span>{t('monitoring.p50_median_legend', { price: `${symbol}${activeP50.toFixed(0)}` })}</span>
           </div>
         )}
         {activeP90 !== null && (
           <div className={styles.legendItem}>
             <span className={styles.legendLinePeak} style={{ backgroundColor: '#EF4444' }} />
-            <span>P90 Peak Ceiling ({symbol}{activeP90.toFixed(0)})</span>
+            <span>{t('monitoring.p90_peak_ceiling', { price: `${symbol}${activeP90.toFixed(0)}` })}</span>
           </div>
         )}
         {earliestDate && latestDate && (
           <div className={styles.legendItem}>
             <span style={{ width: '12px', height: '10px', background: 'rgba(2, 132, 199, 0.25)', border: '1px dashed #0284C7', borderRadius: '2px', display: 'inline-block' }} />
-            <span>Target Window ({earliestDate.slice(5)} – {latestDate.slice(5)})</span>
+            <span>{t('monitoring.target_window_legend', { start: earliestDate.slice(5), end: latestDate.slice(5) })}</span>
           </div>
         )}
         {returnHorizonDateStr && (
           <div className={styles.legendItem}>
             <span style={{ width: '12px', height: '2px', background: '#D97706', display: 'inline-block', borderTop: '2px dashed #D97706' }} />
-            <span>Max Stay Limit ({maxNights || 7}N)</span>
+            <span>{t('monitoring.max_stay_limit', { nights: maxNights || 7 })}</span>
           </div>
         )}
       </div>

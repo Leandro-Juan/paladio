@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { WorkspaceContextData } from './types/agent';
 import { useTripAgent } from './useTripAgent';
 import { ContextChip } from './ContextChip';
@@ -19,6 +20,7 @@ interface AgentDockProps {
 }
 
 export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [clearedContext, setClearedContext] = useState<WorkspaceContextData | null>(null);
   const activeContext = clearedContext === uiContext ? undefined : uiContext;
@@ -60,11 +62,11 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
         const provName = res.config.supported_providers?.[res.config.provider]?.name || res.config.provider;
         setLlmInfo({ provider: provName, model: res.config.model });
         setIsSwitcherOpen(false);
-        notify.success('Agent Engine Switched', `Active model: ${model} (${provName})`);
+        notify.success(t('trip_agent.engine_switched_title'), t('trip_agent.engine_switched_msg', { model, provider: provName }));
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to switch agent engine';
-      notify.error('Switch Failed', msg);
+      const msg = err instanceof Error ? err.message : t('trip_agent.switch_failed_msg');
+      notify.error(t('trip_agent.switch_failed_title'), msg);
     } finally {
       setSwitching(false);
     }
@@ -101,8 +103,8 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
         <button
           className={styles.floatingTrigger}
           onClick={() => setIsOpen(true)}
-          aria-label="Open Paladio Trip Agent"
-          title={llmInfo ? `Active Engine: ${llmInfo.provider} (${llmInfo.model})` : 'Trip Agent'}
+          aria-label={t('trip_agent.open_agent_aria')}
+          title={llmInfo ? t('trip_agent.active_engine_title', { provider: llmInfo.provider, model: llmInfo.model }) : t('trip_agent.trip_agent')}
         >
           <div className={styles.triggerIconWrap}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -111,7 +113,7 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
             </svg>
             {isWorking && <span className={styles.pulseDot} />}
           </div>
-          <span>Agent</span>
+          <span>{t('trip_agent.agent_badge')}</span>
           {llmInfo && (
             <span
               style={{
@@ -136,7 +138,7 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
 
       {/* Docked Chat Panel */}
       {isOpen && (
-        <div className={styles.dockPanel} role="region" aria-label="Trip Agent Panel">
+        <div className={styles.dockPanel} role="region" aria-label={t('trip_agent.panel_aria')}>
           {/* Header */}
           <div className={styles.dockHeader}>
             <div className={styles.headerLeft}>
@@ -146,12 +148,12 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
               </svg>
               <div className={styles.titleArea}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <h3 className={styles.dockTitle}>Paladio Agent</h3>
+                  <h3 className={styles.dockTitle}>{t('trip_agent.paladio_agent')}</h3>
                   <button
                     type="button"
                     onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
                     className={styles.engineSwitchBtn}
-                    title="Change active agent model"
+                    title={t('trip_agent.change_model_title')}
                   >
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
                     <span>{llmInfo?.model.split(':')[0] || 'qwen2.5'}</span>
@@ -169,10 +171,10 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
                         <strong style={{ color: '#E2E8F0', fontWeight: 600 }}>{llmInfo.model}</strong>
                       </span>
                     ) : (
-                      'Local Sovereign Engine'
+                      t('trip_agent.local_sovereign_engine')
                     )
                   ) : (
-                    'Connecting...'
+                    t('trip_agent.connecting')
                   )}
                 </span>
               </div>
@@ -182,8 +184,8 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
               <button
                 className={styles.iconBtn}
                 onClick={clearHistory}
-                title="Clear Session History"
-                aria-label="Clear Session History"
+                title={t('trip_agent.clear_session_history')}
+                aria-label={t('trip_agent.clear_session_history')}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="3 6 5 6 21 6" />
@@ -193,8 +195,8 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
               <button
                 className={styles.iconBtn}
                 onClick={() => setIsOpen(false)}
-                title="Close Agent"
-                aria-label="Close Agent"
+                title={t('trip_agent.close_agent')}
+                aria-label={t('trip_agent.close_agent')}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <line x1="18" y1="6" x2="6" y2="18" />

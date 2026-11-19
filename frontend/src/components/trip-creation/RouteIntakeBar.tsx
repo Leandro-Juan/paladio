@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { PlaneIcon, ArrowRightIcon, ClockIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
 import { CustomHourPickerModal } from './CustomHourPickerModal';
@@ -37,17 +38,19 @@ interface RouteIntakeBarProps {
   disabled?: boolean;
 }
 
-const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-function formatHeaderDate(dateStr?: string): string {
+function formatHeaderDate(dateStr: string | undefined, intlLocale: string): string {
   if (!dateStr) return '';
   const parts = dateStr.split('-');
   if (parts.length !== 3) return dateStr;
+  const y = parseInt(parts[0], 10);
   const mIndex = parseInt(parts[1], 10) - 1;
   const d = parseInt(parts[2], 10);
-  const mStr = MONTH_ABBR[mIndex] || parts[1];
-  const ddStr = d < 10 ? `0${d}` : `${d}`;
-  return `${mStr} ${ddStr}`;
+  const parsed = new Date(y, mIndex, d);
+  if (isNaN(parsed.getTime())) return dateStr;
+  return new Intl.DateTimeFormat(intlLocale, {
+    month: 'short',
+    day: '2-digit',
+  }).format(parsed);
 }
 
 export function RouteIntakeBar({
@@ -67,6 +70,8 @@ export function RouteIntakeBar({
   endDate,
   disabled = false,
 }: RouteIntakeBarProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   // Active dropdown: null | 'origin' | 'destination'
   const [activeMenu, setActiveMenu] = useState<'origin' | 'destination' | null>(null);
 
@@ -248,7 +253,7 @@ export function RouteIntakeBar({
             onChange={handleOriginIataDirectChange}
             disabled={disabled}
             maxLength={3}
-            placeholder="ORIG"
+            placeholder={t('engine.orig_placeholder')}
             spellCheck={false}
             autoComplete="off"
             style={{
@@ -270,7 +275,7 @@ export function RouteIntakeBar({
               cursor: disabled ? 'not-allowed' : 'text',
               caretColor: '#2563EB',
             }}
-            title="Click directly to edit origin airport IATA code"
+            title={t('engine.edit_orig_iata_title')}
           />
 
           {/* Search Box Pill */}
@@ -305,7 +310,7 @@ export function RouteIntakeBar({
                   void fetchLocations(originQuery || origin).then(setOriginResults);
                 }
               }}
-              placeholder="Search city / airport..."
+              placeholder={t('engine.search_city_airport_placeholder')}
               style={{
                 width: '100%',
                 background: 'transparent',
@@ -342,7 +347,7 @@ export function RouteIntakeBar({
                 maxWidth: '220px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
               }}
-              title="Click to customize arrival time at destination"
+              title={t('engine.customize_arrival_time_title')}
             >
               <span
                 style={{
@@ -353,7 +358,7 @@ export function RouteIntakeBar({
                   letterSpacing: '0.01em',
                 }}
               >
-                Outbound{startDate ? ` · ${formatHeaderDate(startDate)}` : ''}
+                {t('engine.route_outbound_label')}{startDate ? ` · ${formatHeaderDate(startDate, intlLocale)}` : ''}
               </span>
               <div
                 style={{
@@ -367,7 +372,7 @@ export function RouteIntakeBar({
                 }}
               >
                 <ClockIcon size={12} color="var(--color-text-muted)" />
-                <span>Arr: {departureHour || '09:00'}</span>
+                <span>{t('engine.arr_short')} {departureHour || '09:00'}</span>
               </div>
             </button>
           )}
@@ -379,8 +384,8 @@ export function RouteIntakeBar({
             type="button"
             disabled={disabled}
             onClick={handleSwap}
-            title="Swap route"
-            aria-label="Swap origin and destination"
+            title={t('engine.swap_route_title')}
+            aria-label={t('engine.swap_route_aria')}
             style={{
               background: 'var(--color-surface-raised, #FFFFFF)',
               border: '1px solid var(--color-border)',
@@ -410,7 +415,7 @@ export function RouteIntakeBar({
             onChange={handleDestIataDirectChange}
             disabled={disabled}
             maxLength={3}
-            placeholder="DEST"
+            placeholder={t('engine.dest_placeholder')}
             spellCheck={false}
             autoComplete="off"
             style={{
@@ -432,7 +437,7 @@ export function RouteIntakeBar({
               cursor: disabled ? 'not-allowed' : 'text',
               caretColor: 'var(--color-accent-primary, #0F4C5C)',
             }}
-            title="Click directly to edit destination airport IATA code"
+            title={t('engine.edit_dest_iata_title')}
           />
 
           {/* Search Box Pill */}
@@ -468,7 +473,7 @@ export function RouteIntakeBar({
                   void fetchLocations(destinationQuery || destination).then(setDestinationResults);
                 }
               }}
-              placeholder="Search city / airport..."
+              placeholder={t('engine.search_city_airport_placeholder')}
               style={{
                 width: '100%',
                 background: 'transparent',
@@ -505,7 +510,7 @@ export function RouteIntakeBar({
                 maxWidth: '220px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
               }}
-              title="Click to customize return / departure time"
+              title={t('engine.customize_return_time_title')}
             >
               <span
                 style={{
@@ -516,7 +521,7 @@ export function RouteIntakeBar({
                   letterSpacing: '0.01em',
                 }}
               >
-                Return{endDate ? ` · ${formatHeaderDate(endDate)}` : ''}
+                {t('engine.route_return_label')}{endDate ? ` · ${formatHeaderDate(endDate, intlLocale)}` : ''}
               </span>
               <div
                 style={{
@@ -530,7 +535,7 @@ export function RouteIntakeBar({
                 }}
               >
                 <ClockIcon size={12} color="var(--color-text-muted)" />
-                <span>Dep: {arrivalHour || '20:00'}</span>
+                <span>{t('engine.dep_short')} {arrivalHour || '20:00'}</span>
               </div>
             </button>
           )}
@@ -572,7 +577,7 @@ export function RouteIntakeBar({
                   color: 'var(--color-text-muted, #71717A)',
                 }}
               >
-                No matching cities found for &quot;{originQuery}&quot;
+                {t('engine.no_matching_cities', { query: originQuery })}
               </div>
             )}
 
@@ -687,7 +692,7 @@ export function RouteIntakeBar({
                   color: 'var(--color-text-muted, #71717A)',
                 }}
               >
-                No matching cities found for &quot;{destinationQuery}&quot;
+                {t('engine.no_matching_cities', { query: destinationQuery })}
               </div>
             )}
 
@@ -775,7 +780,7 @@ export function RouteIntakeBar({
         onChange={(val) => {
           if (onDepartureHourChange) onDepartureHourChange(val);
         }}
-        anchorLabel="Departure Time"
+        anchorLabel={t('engine.departure_time_label')}
       />
 
       <CustomHourPickerModal
@@ -785,7 +790,7 @@ export function RouteIntakeBar({
         onChange={(val) => {
           if (onArrivalHourChange) onArrivalHourChange(val);
         }}
-        anchorLabel="Arrival / Return Time"
+        anchorLabel={t('engine.arrival_return_time_label')}
       />
     </div>
   );

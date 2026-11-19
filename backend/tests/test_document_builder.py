@@ -83,3 +83,31 @@ def test_document_builder_hash_trigger():
     poi_obj["embedding_version"] = 3
     poi_obj["embedding_model"] = "nomic-ai/nomic-embed-text-v1.5-Q"
     assert PoiDocumentBuilder.needs_reembedding(poi_obj) is False
+
+
+def test_document_builder_prefers_english_and_skips_foreign_prose():
+    poi_with_both = {
+        "name": "Museo del Prado",
+        "city": "Madrid",
+        "category": "museum",
+        "description": "Es uno de los museos más importantes del mundo, ubicado en Madrid.",
+        "metadata": {
+            "tags": {
+                "tourism": "museum",
+                "description:en": "Main Spanish national art museum located in central Madrid.",
+            }
+        },
+    }
+    doc = PoiDocumentBuilder.build_document(poi_with_both)
+    assert "Main Spanish national art museum located in central Madrid." in doc
+    assert "más importantes del mundo" not in doc
+
+    poi_foreign_only = {
+        "name": "Templo Mayor",
+        "city": "Madrid",
+        "category": "museum",
+        "description": "Es un museo histórico ubicado en el centro de la ciudad.",
+    }
+    doc_foreign = PoiDocumentBuilder.build_document(poi_foreign_only)
+    assert "museo histórico ubicado" not in doc_foreign
+    assert "Templo Mayor" in doc_foreign

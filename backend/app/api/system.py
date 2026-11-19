@@ -439,14 +439,40 @@ async def relay_notification_endpoint(
 # ---------------------------------------------------------------------------
 
 
+_SECRET_REGISTRY: dict[str, dict[str, str]] = {
+    "aviasales": {
+        "label": "Aviasales / Travelpayouts Data API",
+        "description": "Used for 11-month forward flight price sweeps, price drop detection, and live fare verification.",
+    },
+    "deepl": {
+        "label": "DeepL Translation API",
+        "description": "High-accuracy neural translation for on-demand POI overview localization (supports Free :fx and Pro keys).",
+    },
+    "libretranslate": {
+        "label": "LibreTranslate (Self-Hosted)",
+        "description": "Private, unlimited on-demand POI overview translation via your own LibreTranslate instance.",
+    },
+}
+
+
 class UpdateSecretPayload(BaseModel):
-    secret_type: str = Field(..., description="Secret type identifier ('aviasales')")
-    token: str = Field(..., description="API key or token to save")
+    secret_type: str = Field(
+        ...,
+        description="Secret type identifier ('aviasales', 'deepl', 'libretranslate')",
+    )
+    token: str = Field("", description="API key or token to save")
+    base_url: str | None = Field(
+        None,
+        description="Optional endpoint URL (used by self-hosted providers like libretranslate)",
+    )
 
 
 class TestSecretPayload(BaseModel):
     token: str | None = Field(
         None, description="Optional raw token to test before saving"
+    )
+    base_url: str | None = Field(
+        None, description="Optional endpoint URL to test before saving"
     )
 
 
@@ -468,6 +494,32 @@ def mask_secret_token(token: str | None) -> str | None:
     return f"{'•' * (len(token) - 4)}{token[-4:]}"
 
 
+def _build_secret_item(
+    provider: str,
+    *,
+    token: str | None = None,
+    base_url: str | None = None,
+    source: str = "not_configured",
+    updated_at: str | None = None,
+) -> dict[str, Any]:
+    meta = _SECRET_REGISTRY[provider]
+    clean_token = (token or "").strip()
+    clean_url = (base_url or "").strip().rstrip("/")
+    configured = bool(clean_url) if provider == "libretranslate" else bool(clean_token)
+    item: dict[str, Any] = {
+        "provider": provider,
+        "label": meta["label"],
+        "description": meta["description"],
+        "configured": configured,
+        "masked_token": mask_secret_token(clean_token) if clean_token else None,
+        "source": source if configured else "not_configured",
+        "updated_at": updated_at,
+    }
+    if provider == "libretranslate":
+        item["base_url"] = clean_url or None
+    return item
+
+
 @router.get("/secrets")
 async def get_system_secrets(
     session: AsyncSession = Depends(get_db),
@@ -475,6 +527,7 @@ async def get_system_secrets(
 ) -> dict[str, Any]:
     """Retrieve status and obfuscated values of configured external API secrets (Admin Only)."""
     _require_admin(_user, "Administrator privileges required to manage system secrets")
+    import os
     from app.db.models import SystemConfigModel
     from app.engine.market.config import get_travelpayouts_token, config
     from sqlalchemy import select
@@ -484,33 +537,60 @@ async def get_system_secrets(
     record = res.scalar_one_or_none()
     secrets_dict = record.value if record and isinstance(record.value, dict) else {}
 
-    db_aviasales = secrets_dict.get("aviasales", {})
-    db_token = db_aviasales.get("token")
-    updated_at = db_aviasales.get("updated_at")
-
-    if db_token is not None:
-        active_token = db_token
-        source = "database" if db_token else "not_configured"
+    # 1. Aviasales
+    db_av = secrets_dict.get("aviasales", {})
+    db_av_token = db_av.get("token")
+    if db_av_token is not None:
+        av_token = db_av_token
+        av_source = "database" if db_av_token else "not_configured"
     else:
-        active_token = get_travelpayouts_token() or config.TRAVELPAYOUTS_TOKEN
-        source = "env" if active_token else "not_configured"
+        av_token = get_travelpayouts_token() or config.TRAVELPAYOUTS_TOKEN
+        av_source = "env" if av_token else "not_configured"
 
-    is_configured = bool(active_token and active_token.strip())
+    # 2. DeepL
+    db_dl = secrets_dict.get("deepl", {})
+    db_dl_token = db_dl.get("token")
+    if db_dl_token is not None:
+        dl_token = db_dl_token
+        dl_source = "database" if db_dl_token else "not_configured"
+    else:
+        dl_token = (os.getenv("DEEPL_API_KEY") or "").strip()
+        dl_source = "env" if dl_token else "not_configured"
+
+    # 3. LibreTranslate
+    db_lt = secrets_dict.get("libretranslate", {})
+    db_lt_url = db_lt.get("base_url")
+    if db_lt_url is not None:
+        lt_url = db_lt_url
+        lt_token = db_lt.get("token") or ""
+        lt_source = "database" if db_lt_url else "not_configured"
+    else:
+        lt_url = (os.getenv("LIBRETRANSLATE_URL") or "").strip()
+        lt_token = (os.getenv("LIBRETRANSLATE_API_KEY") or "").strip()
+        lt_source = "env" if lt_url else "not_configured"
 
     return {
         "status": "success",
         "secrets": {
-            "aviasales": {
-                "provider": "aviasales",
-                "label": "Aviasales / Travelpayouts Data API",
-                "description": "Used for 11-month forward flight price sweeps, price drop detection, and live fare verification.",
-                "configured": is_configured,
-                "masked_token": mask_secret_token(active_token)
-                if is_configured
-                else None,
-                "source": source,
-                "updated_at": updated_at,
-            }
+            "aviasales": _build_secret_item(
+                "aviasales",
+                token=av_token,
+                source=av_source,
+                updated_at=db_av.get("updated_at"),
+            ),
+            "deepl": _build_secret_item(
+                "deepl",
+                token=dl_token,
+                source=dl_source,
+                updated_at=db_dl.get("updated_at"),
+            ),
+            "libretranslate": _build_secret_item(
+                "libretranslate",
+                token=lt_token,
+                base_url=lt_url,
+                source=lt_source,
+                updated_at=db_lt.get("updated_at"),
+            ),
         },
     }
 
@@ -529,15 +609,23 @@ async def update_system_secret(
     from sqlalchemy import select
 
     secret_type = payload.secret_type.strip().lower()
-    raw_token = payload.token.strip()
+    raw_token = (payload.token or "").strip()
+    raw_url = (payload.base_url or "").strip().rstrip("/")
 
-    if secret_type != "aviasales":
+    if secret_type not in _SECRET_REGISTRY:
+        supported = ", ".join(f"'{k}'" for k in _SECRET_REGISTRY)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported secret type: '{payload.secret_type}'. Supported: 'aviasales'",
+            detail=f"Unsupported secret type: '{payload.secret_type}'. Supported: {supported}",
         )
 
-    if not raw_token:
+    if secret_type == "libretranslate":
+        if not raw_url:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Endpoint URL cannot be empty for LibreTranslate.",
+            )
+    elif not raw_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Token cannot be empty. Use DELETE to remove a configured token.",
@@ -552,10 +640,17 @@ async def update_system_secret(
         dict(record.value) if record and isinstance(record.value, dict) else {}
     )
 
-    secrets_dict["aviasales"] = {
-        "token": raw_token,
-        "updated_at": now_iso,
-    }
+    if secret_type == "libretranslate":
+        secrets_dict["libretranslate"] = {
+            "base_url": raw_url,
+            "token": raw_token,
+            "updated_at": now_iso,
+        }
+    else:
+        secrets_dict[secret_type] = {
+            "token": raw_token,
+            "updated_at": now_iso,
+        }
 
     if record:
         record.value = secrets_dict
@@ -566,20 +661,18 @@ async def update_system_secret(
     await session.commit()
     await session.refresh(record)
 
-    # Immediately activate in memory for running engine
-    set_runtime_aviasales_token(raw_token)
+    if secret_type == "aviasales":
+        set_runtime_aviasales_token(raw_token)
 
     return {
         "status": "success",
-        "secret": {
-            "provider": "aviasales",
-            "label": "Aviasales / Travelpayouts Data API",
-            "description": "Used for 11-month forward flight price sweeps, price drop detection, and live fare verification.",
-            "configured": True,
-            "masked_token": mask_secret_token(raw_token),
-            "source": "database",
-            "updated_at": now_iso,
-        },
+        "secret": _build_secret_item(
+            secret_type,
+            token=raw_token,
+            base_url=raw_url if secret_type == "libretranslate" else None,
+            source="database",
+            updated_at=now_iso,
+        ),
     }
 
 
@@ -596,10 +689,11 @@ async def delete_system_secret(
     from sqlalchemy import select
 
     stype = secret_type.strip().lower()
-    if stype != "aviasales":
+    if stype not in _SECRET_REGISTRY:
+        supported = ", ".join(f"'{k}'" for k in _SECRET_REGISTRY)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported secret type: '{secret_type}'. Supported: 'aviasales'",
+            detail=f"Unsupported secret type: '{secret_type}'. Supported: {supported}",
         )
 
     stmt = select(SystemConfigModel).where(SystemConfigModel.key == "secrets")
@@ -608,24 +702,23 @@ async def delete_system_secret(
 
     if record and isinstance(record.value, dict):
         secrets_dict = dict(record.value)
-        secrets_dict["aviasales"] = {"token": "", "updated_at": None}
+        if stype == "libretranslate":
+            secrets_dict["libretranslate"] = {
+                "base_url": "",
+                "token": "",
+                "updated_at": None,
+            }
+        else:
+            secrets_dict[stype] = {"token": "", "updated_at": None}
         record.value = secrets_dict
         await session.commit()
 
-    # Clear runtime token
-    set_runtime_aviasales_token("")
+    if stype == "aviasales":
+        set_runtime_aviasales_token("")
 
     return {
         "status": "success",
-        "secret": {
-            "provider": "aviasales",
-            "label": "Aviasales / Travelpayouts Data API",
-            "description": "Used for 11-month forward flight price sweeps, price drop detection, and live fare verification.",
-            "configured": False,
-            "masked_token": None,
-            "source": "not_configured",
-            "updated_at": None,
-        },
+        "secret": _build_secret_item(stype, source="not_configured"),
     }
 
 
@@ -638,17 +731,72 @@ async def test_system_secret(
 ) -> dict[str, Any]:
     """Test connectivity of an API secret with live provider validation (Admin Only)."""
     _require_admin(_user, "Administrator privileges required to manage system secrets")
+    import httpx
     from app.db.models import SystemConfigModel
     from app.engine.market.config import get_travelpayouts_token
     from app.engine.market.providers.aviasales import AviasalesProvider
+    from app.services.translation_service import TranslationService
     from sqlalchemy import select
 
     stype = secret_type.strip().lower()
-    if stype != "aviasales":
+    if stype not in _SECRET_REGISTRY:
+        supported = ", ".join(f"'{k}'" for k in _SECRET_REGISTRY)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported secret type: '{secret_type}'. Supported: 'aviasales'",
+            detail=f"Unsupported secret type: '{secret_type}'. Supported: {supported}",
         )
+
+    if stype == "deepl":
+        creds = await TranslationService.get_secret_credentials(session)
+        test_key = (
+            payload.token.strip()
+            if payload and payload.token and payload.token.strip()
+            else creds["deepl"]["api_key"]
+        )
+        if not test_key:
+            return {"success": False, "message": "No DeepL API key configured to test."}
+        translated = await TranslationService._translate_via_deepl(
+            "Hello", "es", "en", api_key=test_key
+        )
+        if translated:
+            return {
+                "success": True,
+                "message": "Successfully validated DeepL API key and translation endpoint.",
+            }
+        return {
+            "success": False,
+            "message": "DeepL API key validation failed. Check key and quota.",
+        }
+
+    if stype == "libretranslate":
+        creds = await TranslationService.get_secret_credentials(session)
+        test_url = (
+            payload.base_url.strip().rstrip("/")
+            if payload and payload.base_url and payload.base_url.strip()
+            else creds["libretranslate"]["base_url"]
+        )
+        if not test_url:
+            return {
+                "success": False,
+                "message": "No LibreTranslate URL configured to test.",
+            }
+        try:
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                resp = await client.get(f"{test_url}/languages")
+                if resp.status_code == 200 and isinstance(resp.json(), list):
+                    return {
+                        "success": True,
+                        "message": f"Connected to LibreTranslate ({len(resp.json())} languages available).",
+                    }
+                return {
+                    "success": False,
+                    "message": f"LibreTranslate responded with HTTP {resp.status_code}.",
+                }
+        except Exception as err:
+            return {
+                "success": False,
+                "message": f"LibreTranslate connection failed: {err}",
+            }
 
     test_token = payload.token.strip() if payload and payload.token else None
     if not test_token:

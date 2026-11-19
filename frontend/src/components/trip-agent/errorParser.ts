@@ -1,3 +1,4 @@
+import { translate } from '@/stores/localeStore';
 import { AgentErrorCategory, AgentErrorInfo } from './types/agent';
 
 /**
@@ -46,7 +47,7 @@ function extractCleanMessage(text: string): string {
   if (cleaned.length > 200) {
     cleaned = cleaned.slice(0, 197) + '...';
   }
-  return cleaned || 'Operation failed';
+  return cleaned || translate('trip_agent.operation_failed');
 }
 
 /**
@@ -70,14 +71,13 @@ export function parseAgentError(rawMessage?: string, code?: string): AgentErrorI
   ) {
     return {
       category: 'access_denied',
-      title: 'Provider Access Denied',
-      description:
-        'The model provider rejected this request. This is typically caused by an active VPN, proxy, or datacenter IP blocked by security firewalls.',
+      title: translate('trip_agent.err_access_denied_title'),
+      description: translate('trip_agent.err_access_denied_desc'),
       statusCode: statusCode || 403,
       modelName,
       code: code || 'ACCESS_DENIED',
       rawMessage: raw || cleanMsg,
-      suggestedFix: 'Disconnect from your VPN or switch to an alternate model provider.',
+      suggestedFix: translate('trip_agent.err_access_denied_fix'),
       canRetry: true,
       canSwitchModel: true,
     };
@@ -94,14 +94,13 @@ export function parseAgentError(rawMessage?: string, code?: string): AgentErrorI
   ) {
     return {
       category: 'auth_failure',
-      title: 'Authentication Failed',
-      description:
-        'The API key for the selected provider is invalid, expired, or missing.',
+      title: translate('trip_agent.err_auth_failed_title'),
+      description: translate('trip_agent.err_auth_failed_desc'),
       statusCode: statusCode || 401,
       modelName,
       code: code || 'AUTH_FAILED',
       rawMessage: raw || cleanMsg,
-      suggestedFix: 'Verify your API key in Configuration or switch to another provider.',
+      suggestedFix: translate('trip_agent.err_auth_failed_fix'),
       canRetry: false,
       canSwitchModel: true,
     };
@@ -121,14 +120,13 @@ export function parseAgentError(rawMessage?: string, code?: string): AgentErrorI
   ) {
     return {
       category: 'rate_limit',
-      title: 'Rate Limit Exceeded',
-      description:
-        'The provider request limit or token quota has been temporarily reached.',
+      title: translate('trip_agent.err_rate_limit_title'),
+      description: translate('trip_agent.err_rate_limit_desc'),
       statusCode: statusCode || 429,
       modelName,
       code: code || 'RATE_LIMIT_EXCEEDED',
       rawMessage: raw || cleanMsg,
-      suggestedFix: 'Wait a few moments before retrying, or switch to a provider with higher limits.',
+      suggestedFix: translate('trip_agent.err_rate_limit_fix'),
       canRetry: true,
       canSwitchModel: true,
     };
@@ -145,14 +143,13 @@ export function parseAgentError(rawMessage?: string, code?: string): AgentErrorI
   ) {
     return {
       category: 'context_overflow',
-      title: 'Context Window Exceeded',
-      description:
-        'The conversation history and trip itinerary exceed the context window of this model.',
+      title: translate('trip_agent.err_context_overflow_title'),
+      description: translate('trip_agent.err_context_overflow_desc'),
       statusCode: statusCode || 413,
       modelName,
       code: code || 'CONTEXT_OVERFLOW',
       rawMessage: raw || cleanMsg,
-      suggestedFix: 'Clear chat history or switch to a model with a larger context window.',
+      suggestedFix: translate('trip_agent.err_context_overflow_fix'),
       canRetry: false,
       canSwitchModel: true,
     };
@@ -171,14 +168,13 @@ export function parseAgentError(rawMessage?: string, code?: string): AgentErrorI
   ) {
     return {
       category: 'connection_error',
-      title: 'Connection Interrupted',
-      description:
-        'Unable to establish a connection to the model server or local runner endpoint.',
+      title: translate('trip_agent.err_connection_title'),
+      description: translate('trip_agent.err_connection_desc'),
       statusCode: statusCode || 504,
       modelName,
       code: code || 'TIMEOUT',
       rawMessage: raw || cleanMsg,
-      suggestedFix: 'Check your internet connection and retry.',
+      suggestedFix: translate('trip_agent.err_connection_fix'),
       canRetry: true,
       canSwitchModel: true,
     };
@@ -187,13 +183,13 @@ export function parseAgentError(rawMessage?: string, code?: string): AgentErrorI
   // 6. Generic Internal Fallback
   return {
     category: 'internal',
-    title: 'Agent Execution Error',
-    description: cleanMsg || 'An unexpected error occurred while executing the turn.',
+    title: translate('trip_agent.err_internal_title'),
+    description: cleanMsg || translate('trip_agent.err_internal_desc'),
     statusCode,
     modelName,
     code: code || 'INTERNAL_ERROR',
     rawMessage: raw || cleanMsg,
-    suggestedFix: 'Inspect technical diagnostics below or retry your request.',
+    suggestedFix: translate('trip_agent.err_internal_fix'),
     canRetry: true,
     canSwitchModel: true,
   };

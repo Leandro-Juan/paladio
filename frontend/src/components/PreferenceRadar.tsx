@@ -2,6 +2,7 @@
 import React from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { chartTheme } from '@/utils/chartTheme';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface PreferenceRadarProps {
   data: { subject: string; A: number; fullMark: number }[];
@@ -16,12 +17,13 @@ export default function PreferenceRadar({
   outerRadius = '70%',
   fontSize,
 }: PreferenceRadarProps) {
+  const { t } = useTranslation();
   const containerHeight = typeof height === 'number' ? `${height}px` : height;
 
   if (!data || data.length === 0) {
     return (
       <div style={{ width: '100%', height: containerHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p className="text-muted font-mono">No data available</p>
+        <p className="text-muted font-mono">{t('preferences.no_data_available')}</p>
       </div>
     );
   }
@@ -51,7 +53,7 @@ export default function PreferenceRadar({
             padding: '4px 8px',
           }}
         >
-          <span style={{ color: 'var(--color-accent-teal-mid, #14788D)' }}>Affinity:</span> {String(val)}%
+          <span style={{ color: 'var(--color-accent-teal-mid, #14788D)' }}>{t('preferences.affinity_label')}</span> {String(val)}%
         </div>
       );
     }
@@ -70,7 +72,7 @@ export default function PreferenceRadar({
           <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
           <Tooltip content={renderTooltip} />
           <Radar
-            name="Preference"
+            name={t('preferences.radar_series_name')}
             dataKey="A"
             stroke={chartTheme.series[1]}
             fill={chartTheme.series[1]}

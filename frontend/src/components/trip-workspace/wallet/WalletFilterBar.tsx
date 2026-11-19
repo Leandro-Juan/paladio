@@ -4,6 +4,7 @@ import React from 'react';
 import { TicketType } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { SearchIcon, CloseIcon } from '@/components/icons';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export type FilterCategory = 'all' | TicketType;
 
@@ -22,13 +23,14 @@ export function WalletFilterBar({
   searchQuery,
   onSearchChange,
 }: WalletFilterBarProps) {
+  const { t } = useTranslation();
   const categories: Array<{ id: FilterCategory; label: string }> = [
-    { id: 'all', label: 'All Tickets' },
-    { id: 'flight', label: 'Flights' },
-    { id: 'hotel', label: 'Stays & Keys' },
-    { id: 'attraction', label: 'Attractions' },
-    { id: 'transit', label: 'Transit' },
-    { id: 'other', label: 'Other' },
+    { id: 'all', label: t('wallet.all_tickets') },
+    { id: 'flight', label: t(TICKET_TYPE_CONFIG.flight.labelKey) },
+    { id: 'hotel', label: t(TICKET_TYPE_CONFIG.hotel.labelKey) },
+    { id: 'attraction', label: t(TICKET_TYPE_CONFIG.attraction.labelKey) },
+    { id: 'transit', label: t(TICKET_TYPE_CONFIG.transit.labelKey) },
+    { id: 'other', label: t(TICKET_TYPE_CONFIG.other.labelKey) },
   ];
 
   return (
@@ -46,7 +48,7 @@ export function WalletFilterBar({
       {/* Category Filter Tabs */}
       <div
         role="tablist"
-        aria-label="Filter tickets by category"
+        aria-label={t('wallet.filter_by_category_aria')}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -124,8 +126,8 @@ export function WalletFilterBar({
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search by title, ref, PNR..."
-          aria-label="Search tickets"
+          placeholder={t('wallet.search_placeholder')}
+          aria-label={t('wallet.search_tickets_aria')}
           style={{
             width: '100%',
             background: 'var(--color-surface-card)',
@@ -143,7 +145,7 @@ export function WalletFilterBar({
           <button
             type="button"
             onClick={() => onSearchChange('')}
-            aria-label="Clear search"
+            aria-label={t('wallet.clear_search_aria')}
             style={{
               position: 'absolute',
               right: '6px',

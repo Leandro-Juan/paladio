@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { TripTicket } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG, STATUS_BADGE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { LockIcon, SearchIcon, EditIcon, TrashIcon } from '@/components/icons';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface TicketShellProps {
   ticket: TripTicket;
@@ -22,6 +23,7 @@ export function TicketShell({
   onDelete,
   onViewDetail,
 }: TicketShellProps) {
+  const { t } = useTranslation();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const typeConfig = TICKET_TYPE_CONFIG[ticket.ticket_type] || TICKET_TYPE_CONFIG.other;
@@ -41,7 +43,7 @@ export function TicketShell({
   return (
     <article
       tabIndex={0}
-      aria-label={`${typeConfig.label}: ${ticket.title}`}
+      aria-label={`${t(typeConfig.labelKey)}: ${ticket.title}`}
       style={{
         background: 'var(--color-surface-card)',
         border: `1px solid var(--color-border-subtle)`,
@@ -98,7 +100,7 @@ export function TicketShell({
               }}
             >
               {typeConfig.renderIcon({ size: 13, color: typeConfig.accentColor })}
-              {typeConfig.tag}
+              {t(typeConfig.tagKey)}
             </span>
 
             {/* Status Chip */}
@@ -114,12 +116,12 @@ export function TicketShell({
                 fontWeight: 600,
               }}
             >
-              {statusConfig.label}
+              {t(statusConfig.labelKey)}
             </span>
 
             {ticket.visibility === 'private' && (
               <span
-                title="Private: Visible only to you"
+                title={t('wallet.private_tooltip')}
                 style={{
                   fontFamily: 'var(--font-mono, monospace)',
                   fontSize: '10px',
@@ -134,7 +136,7 @@ export function TicketShell({
                 }}
               >
                 <LockIcon size={11} color="var(--color-text-muted)" />
-                PRIVATE
+                {t('wallet.private_upper')}
               </span>
             )}
           </div>
@@ -143,7 +145,7 @@ export function TicketShell({
           <div ref={menuRef} style={{ position: 'relative' }}>
             <button
               type="button"
-              aria-label="Ticket options"
+              aria-label={t('wallet.ticket_options')}
               aria-expanded={showMenu}
               onClick={(e) => {
                 e.stopPropagation();
@@ -208,7 +210,7 @@ export function TicketShell({
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
                     <SearchIcon size={12} color="var(--color-accent-primary)" />
-                    View Pass
+                    {t('wallet.view_pass')}
                   </button>
                 )}
                 {onEdit && (
@@ -236,7 +238,7 @@ export function TicketShell({
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
                     <EditIcon size={12} color="var(--color-text-muted)" />
-                    Edit
+                    {t('common.edit')}
                   </button>
                 )}
                 {onDelete && (
@@ -244,7 +246,7 @@ export function TicketShell({
                     type="button"
                     onClick={() => {
                       setShowMenu(false);
-                      if (window.confirm(`Delete "${ticket.title}" from wallet?`)) {
+                      if (window.confirm(t('wallet.confirm_delete_ticket', { title: ticket.title }))) {
                         onDelete(ticket.id);
                       }
                     }}
@@ -266,7 +268,7 @@ export function TicketShell({
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
                     <TrashIcon size={12} color="var(--color-danger)" />
-                    Delete
+                    {t('common.delete')}
                   </button>
                 )}
               </div>

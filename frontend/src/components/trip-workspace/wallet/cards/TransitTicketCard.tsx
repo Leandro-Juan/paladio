@@ -6,6 +6,7 @@ import { TicketShell } from './TicketShell';
 import { CodeRenderer } from '../codes/CodeRenderer';
 import { TransitIcon, PaperclipIcon, ChevronRightIcon } from '@/components/icons';
 import { formatTicketDateTime } from '@/lib/wallet/format';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface TransitTicketCardProps {
   ticket: TripTicket;
@@ -22,15 +23,16 @@ export function TransitTicketCard({
   onViewDetail,
   onAttachFile,
 }: TransitTicketCardProps) {
+  const { t, locale } = useTranslation();
   const meta = ticket.metadata || {};
-  const operator = (meta.operator as string) || ticket.provider || 'Transit';
+  const operator = (meta.operator as string) || ticket.provider || t('wallet.types.transit_label');
   const lineOrTrain = (meta.line_or_train as string) || (meta.train_number as string) || '';
   const departurePlatform = (meta.departure_platform as string) || (meta.platform as string) || '';
   const carCoach = (meta.car_coach as string) || '';
   const seat = ticket.seat_or_room || (meta.seat as string) || '';
   const originStation = (meta.origin_station as string) || (meta.departure_station as string) || '';
   const destStation = (meta.destination_station as string) || (meta.arrival_station as string) || '';
-  const tariffCategory = (meta.tariff_category as string) || 'Standard';
+  const tariffCategory = (meta.tariff_category as string) || t('wallet.tariff_standard');
 
   return (
     <TicketShell
@@ -57,7 +59,7 @@ export function TransitTicketCard({
             </div>
             {ticket.reference_code && (
               <span className="font-mono" style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
-                REF: {ticket.reference_code}
+                {t('wallet.ref_prefix', { code: ticket.reference_code })}
               </span>
             )}
           </div>
@@ -81,7 +83,7 @@ export function TransitTicketCard({
               className="font-mono text-center"
               style={{ fontSize: '10px', color: '#6D28D9', fontWeight: 600, lineHeight: 1.2 }}
             >
-              TRANSIT PASS
+              {t('wallet.transit_pass_stub')}
             </span>
             {lineOrTrain && (
               <span className="font-mono" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
@@ -105,7 +107,7 @@ export function TransitTicketCard({
                   marginTop: '4px',
                 }}
               >
-                + ATTACH TICKET
+                {t('wallet.attach_ticket_btn')}
               </button>
             )}
           </div>
@@ -159,9 +161,9 @@ export function TransitTicketCard({
             fontWeight: 600,
           }}
         >
-          <span>{originStation || 'Origin'}</span>
+          <span>{originStation || t('wallet.origin_fallback')}</span>
           <ChevronRightIcon size={13} color="#7C3AED" />
-          <span>{destStation || 'Destination'}</span>
+          <span>{destStation || t('wallet.destination_fallback')}</span>
         </div>
       )}
 
@@ -179,19 +181,19 @@ export function TransitTicketCard({
       >
         <div>
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            DEPARTURE
+            {t('wallet.departure_label')}
           </div>
           <div className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
-            {formatTicketDateTime(ticket.start_time, ticket.start_tz)}
+            {formatTicketDateTime(ticket.start_time, ticket.start_tz, locale)}
           </div>
         </div>
 
         <div>
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            ARRIVAL
+            {t('wallet.arrival_label')}
           </div>
           <div className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 600 }}>
-            {formatTicketDateTime(ticket.end_time, ticket.end_tz)}
+            {formatTicketDateTime(ticket.end_time, ticket.end_tz, locale)}
           </div>
         </div>
       </div>
@@ -215,7 +217,7 @@ export function TransitTicketCard({
             }}
           >
             <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-              PLATFORM
+              {t('wallet.platform_label')}
             </div>
             <div className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 700 }}>
               {departurePlatform}
@@ -233,10 +235,10 @@ export function TransitTicketCard({
             }}
           >
             <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-              COACH / SEAT
+              {t('wallet.coach_seat_label')}
             </div>
             <div className="font-mono" style={{ fontSize: '11px', color: 'var(--color-text-primary, #0F172A)', fontWeight: 700 }}>
-              {[carCoach && `C:${carCoach}`, seat && `S:${seat}`].filter(Boolean).join(' ')}
+              {[carCoach && t('wallet.coach_abbr', { coach: carCoach }), seat && t('wallet.seat_abbr', { seat })].filter(Boolean).join(' ')}
             </div>
           </div>
         )}
@@ -250,7 +252,7 @@ export function TransitTicketCard({
           }}
         >
           <div className="font-mono text-muted" style={{ fontSize: '9px', color: 'var(--color-text-muted, #64748B)' }}>
-            TARIFF
+            {t('wallet.tariff_label')}
           </div>
           <div className="font-mono" style={{ fontSize: '11px', color: '#7C3AED', fontWeight: 600 }}>
             {tariffCategory}
@@ -262,7 +264,7 @@ export function TransitTicketCard({
       {ticket.attachments && ticket.attachments.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>
           <PaperclipIcon size={12} color="var(--color-text-muted, #64748B)" />
-          <span className="font-mono">ATTACHED DOCUMENT AVAILABLE</span>
+          <span className="font-mono">{t('wallet.attached_doc_available')}</span>
         </div>
       )}
     </TicketShell>

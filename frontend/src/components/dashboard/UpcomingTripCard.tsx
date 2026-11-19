@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Trip } from '@/hooks/useTrips';
 import {
   extractTripTitle,
@@ -76,6 +77,8 @@ function resolveTripPhoto(
 }
 
 export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: UpcomingTripCardProps) {
+  const { t, locale } = useTranslation();
+  const intlLocale = locale === 'en' ? 'en-US' : locale;
   const destination = trip.destination;
   const rawCity = useMemo(() => (destination ? destination.split(',')[0].trim() : ''), [destination]);
 
@@ -125,12 +128,12 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
   }, [trip.destination]);
 
   const destinationDisplay = useMemo(() => {
-    if (!trip.destination) return 'Active Expedition';
+    if (!trip.destination) return t('dashboard.active_expedition');
     if (trip.destination.includes(',')) return trip.destination;
     return country && country.toLowerCase() !== trip.destination.toLowerCase()
       ? `${trip.destination}, ${country}`
       : trip.destination;
-  }, [trip.destination, country]);
+  }, [trip.destination, country, t]);
 
   // Date and duration calculations
   const { totalDays, dateRangeStr, countdownStr } = useMemo(() => {
@@ -148,9 +151,9 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
 
     let range = '';
     if (isValidStart) {
-      const startFmt = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const startFmt = start.toLocaleDateString(intlLocale, { month: 'short', day: 'numeric' });
       if (isValidEnd) {
-        const endFmt = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const endFmt = end.toLocaleDateString(intlLocale, { month: 'short', day: 'numeric' });
         range = `${startFmt} - ${endFmt}`;
       } else {
         range = startFmt;
@@ -162,11 +165,14 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
       const diffMs = start.getTime() - now.getTime();
       const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
       if (diffDays > 0) {
-        countdown = `${diffDays} ${diffDays === 1 ? 'day' : 'days'}`;
+        countdown =
+          diffDays === 1
+            ? t('dashboard.countdown_day_singular')
+            : t('dashboard.countdown_day_plural', { count: diffDays });
       } else if (diffDays === 0) {
-        countdown = 'Today';
+        countdown = t('dashboard.countdown_today_title');
       } else {
-        countdown = 'Active';
+        countdown = t('dashboard.countdown_active_title');
       }
     }
 
@@ -175,7 +181,7 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
       dateRangeStr: range,
       countdownStr: countdown,
     };
-  }, [trip.start_date, trip.end_date]);
+  }, [trip.start_date, trip.end_date, intlLocale, t]);
 
   // Dynamic Photo Resolution
   const photoUrl = resolveTripPhoto(externalPhotoUrl, trip.itinerary_data, destination, rawCity, getPhoto);
@@ -201,7 +207,7 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
     if (stops > 0) {
       list.push({
         id: 'stops',
-        label: `${stops} ${stops === 1 ? 'stop' : 'stops'}`,
+        label: stops === 1 ? t('dashboard.stop_singular') : t('dashboard.stops_plural', { count: stops }),
         variant: 'pillMint',
         icon: (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -217,7 +223,7 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
     if (cost && cost > 0) {
       list.push({
         id: 'cost',
-        label: `€${cost.toLocaleString()}`,
+        label: `€${cost.toLocaleString(intlLocale)}`,
         variant: 'pillAmber',
         icon: (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -229,7 +235,7 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
     } else if (itin?.travel_constraints?.budget_usd) {
       list.push({
         id: 'budget',
-        label: `$${itin.travel_constraints.budget_usd.toLocaleString()}`,
+        label: `$${itin.travel_constraints.budget_usd.toLocaleString(intlLocale)}`,
         variant: 'pillAmber',
         icon: (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -243,9 +249,24 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
     // 3. Pace
     if (itin?.travel_constraints?.pace) {
       const pace = itin.travel_constraints.pace;
+      const paceLower = pace.toLowerCase();
+      const localizedPace =
+        paceLower === 'leisurely'
+          ? t('dashboard.pace_leisurely')
+          : paceLower === 'balanced'
+          ? t('dashboard.pace_balanced')
+          : paceLower === 'intense'
+          ? t('dashboard.pace_intense')
+          : paceLower === 'relaxed'
+          ? t('dashboard.pace_relaxed')
+          : paceLower === 'moderate'
+          ? t('dashboard.pace_moderate')
+          : paceLower === 'packed'
+          ? t('dashboard.pace_packed')
+          : pace.charAt(0).toUpperCase() + pace.slice(1);
       list.push({
         id: 'pace',
-        label: `${pace.charAt(0).toUpperCase() + pace.slice(1)} pace`,
+        label: t('dashboard.pace_label', { pace: localizedPace }),
         variant: 'pillLavender',
         icon: (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -260,7 +281,10 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
     if (trip.tickets_count && trip.tickets_count > 0) {
       list.push({
         id: 'tickets',
-        label: `${trip.tickets_count} ${trip.tickets_count === 1 ? 'ticket' : 'tickets'}`,
+        label:
+          trip.tickets_count === 1
+            ? t('dashboard.ticket_singular')
+            : t('dashboard.tickets_plural', { count: trip.tickets_count }),
         variant: 'pillSky',
         icon: (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -272,7 +296,7 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
     }
 
     return list.slice(0, 3);
-  }, [trip.itinerary_data, trip.tickets_count]);
+  }, [trip.itinerary_data, trip.tickets_count, intlLocale, t]);
 
   const participants = trip.participants || [];
 
@@ -282,7 +306,7 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
       <div className={styles.headerTop}>
         <h3 className={styles.title}>{title}</h3>
         {corridorDisplay && (
-          <div className={styles.corridorBadge} data-testid="trip-corridor-badge" title={`Transit Corridor: ${corridorDisplay}`}>
+          <div className={styles.corridorBadge} data-testid="trip-corridor-badge" title={t('dashboard.transit_corridor_title', { corridor: corridorDisplay })}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
             </svg>
@@ -303,7 +327,11 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
             <line x1="8" y1="2" x2="8" y2="6" />
             <line x1="3" y1="10" x2="21" y2="10" />
           </svg>
-          <span>{totalDays} {totalDays === 1 ? 'day' : 'days'}</span>
+          <span>
+            {totalDays === 1
+              ? t('dashboard.countdown_day_singular')
+              : t('dashboard.countdown_day_plural', { count: totalDays })}
+          </span>
         </div>
 
         {dateRangeStr && (
@@ -349,7 +377,7 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
 
       {/* Going / Crew Row */}
       <div className={styles.goingRow}>
-        <span className={styles.label}>going:</span>
+        <span className={styles.label}>{t('dashboard.going_label')}</span>
         <div className={styles.avatarsList}>
           {participants.length > 0 ? (
             participants.slice(0, 4).map((p, idx) => {
@@ -363,7 +391,7 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
               );
             })
           ) : (
-            <div className={styles.avatar} title="1 Traveler">
+            <div className={styles.avatar} title={t('dashboard.one_traveler')}>
               <span>TR</span>
             </div>
           )}
@@ -378,11 +406,11 @@ export function UpcomingTripCard({ trip, photoUrl: externalPhotoUrl, onAbort }: 
             onClick={() => onAbort(trip.id!)}
             className={styles.abortBtn}
           >
-            ABORT
+            {t('dashboard.abort_btn')}
           </button>
         )}
         <Link href={`/trips/${trip.id}`} className={styles.detailsLink}>
-          View more details
+          {t('dashboard.view_more_details')}
         </Link>
       </div>
     </div>

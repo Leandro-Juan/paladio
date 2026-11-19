@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
+import { translate } from '@/stores/localeStore';
 import { Trip, getApiBaseUrl } from '@/hooks/useTrips';
 import { isTripCompleted } from '@/utils/tripParser';
 import { PastTripRecap } from '@/components/past-trip/PastTripRecap';
@@ -12,6 +14,7 @@ import { ChevronLeftIcon } from '@/components/icons';
 export default function VaultTripRecapPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,7 +31,7 @@ export default function VaultTripRecapPage({ params }: { params: Promise<{ id: s
           if (res.status === 404) {
             setTrip(null);
           } else {
-            throw new Error(`Server returned HTTP ${res.status}`);
+            throw new Error(translate('vault.server_http_error', { status: res.status }));
           }
         } else {
           const data: Trip = await res.json();
@@ -41,7 +44,7 @@ export default function VaultTripRecapPage({ params }: { params: Promise<{ id: s
         }
       } catch (err: unknown) {
         if (!isMounted) return;
-        const msg = err instanceof Error ? err.message : 'Failed to connect to backend';
+        const msg = err instanceof Error ? err.message : translate('vault.backend_connect_error');
         setError(msg);
       } finally {
         if (isMounted) setLoading(false);
@@ -95,7 +98,7 @@ export default function VaultTripRecapPage({ params }: { params: Promise<{ id: s
           }}
         >
           <h3 className="font-display" style={{ color: 'var(--color-danger)', margin: 0 }}>
-            MISSION TELEMETRY ERROR
+            {t('workspace.mission_telemetry_error')}
           </h3>
           <p className="font-mono text-muted text-sm mt-2">{error}</p>
           <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
@@ -112,7 +115,7 @@ export default function VaultTripRecapPage({ params }: { params: Promise<{ id: s
                 fontWeight: 600,
               }}
             >
-              RETRY
+              {t('vault.retry_upper')}
             </button>
             <Link
               href="/vault"
@@ -128,7 +131,7 @@ export default function VaultTripRecapPage({ params }: { params: Promise<{ id: s
                 alignItems: 'center',
               }}
             >
-              <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> RETURN TO VAULT
+              <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> {t('vault.return_to_vault')}
             </Link>
           </div>
         </div>
@@ -160,10 +163,10 @@ export default function VaultTripRecapPage({ params }: { params: Promise<{ id: s
           }}
         >
           <h3 className="font-display" style={{ color: 'var(--color-text-main)', margin: 0 }}>
-            MISSION NOT FOUND
+            {t('vault.mission_not_found')}
           </h3>
           <p className="font-mono text-muted text-sm mt-2">
-            [ MISSION DATA NOT FOUND FOR ID: {id} ]
+            {t('vault.mission_data_not_found_id', { id })}
           </p>
           <Link
             href="/vault"
@@ -182,7 +185,7 @@ export default function VaultTripRecapPage({ params }: { params: Promise<{ id: s
               fontWeight: 600,
             }}
           >
-            <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> RETURN TO VAULT
+            <ChevronLeftIcon size={14} style={{ marginRight: '6px' }} /> {t('vault.return_to_vault')}
           </Link>
         </div>
       </div>

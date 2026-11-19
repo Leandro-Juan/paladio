@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import styles from './AgentDock.module.css';
 
 interface AgentComposerProps {
@@ -11,14 +12,15 @@ interface AgentComposerProps {
 }
 
 const QUICK_PROMPTS = [
-  { label: 'Optimize Day', prompt: 'Optimize the current day route for minimum walking time and open hours.' },
-  { label: 'Fit Budget', prompt: 'Review our stops and recommend cheaper alternatives to fit our budget.' },
-  { label: 'Fix Issues', prompt: 'Check our itinerary for opening hour conflicts and pacing issues, then propose fixes.' },
-  { label: 'Rainy Day', prompt: 'Suggest indoor cultural stops for a rainy day.' },
-  { label: 'Add Dinner', prompt: 'Find an authentic local dinner spot near our last stop and add it to our schedule.' },
+  { labelKey: 'trip_agent.quick_optimize_day', prompt: 'Optimize the current day route for minimum walking time and open hours.' },
+  { labelKey: 'trip_agent.quick_fit_budget', prompt: 'Review our stops and recommend cheaper alternatives to fit our budget.' },
+  { labelKey: 'trip_agent.quick_fix_issues', prompt: 'Check our itinerary for opening hour conflicts and pacing issues, then propose fixes.' },
+  { labelKey: 'trip_agent.quick_rainy_day', prompt: 'Suggest indoor cultural stops for a rainy day.' },
+  { labelKey: 'trip_agent.quick_add_dinner', prompt: 'Find an authentic local dinner spot near our last stop and add it to our schedule.' },
 ];
 
 export function AgentComposer({ onSendMessage, onCancel, isWorking, disabled }: AgentComposerProps) {
+  const { t } = useTranslation();
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -71,7 +73,7 @@ export function AgentComposer({ onSendMessage, onCancel, isWorking, disabled }: 
             onClick={() => onSendMessage(qp.prompt)}
             disabled={isWorking || disabled}
           >
-            {qp.label}
+            {t(qp.labelKey)}
           </button>
         ))}
       </div>
@@ -83,7 +85,7 @@ export function AgentComposer({ onSendMessage, onCancel, isWorking, disabled }: 
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isWorking ? "Agent is working..." : "Ask Paladio Agent or use /optimize, /budget..."}
+          placeholder={isWorking ? t('trip_agent.agent_working') : t('trip_agent.ask_placeholder')}
           rows={1}
           disabled={disabled}
         />
@@ -93,7 +95,7 @@ export function AgentComposer({ onSendMessage, onCancel, isWorking, disabled }: 
             type="button"
             className={styles.cancelBtn}
             onClick={onCancel}
-            title="Cancel Generation"
+            title={t('trip_agent.cancel_generation')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <rect x="6" y="6" width="12" height="12" rx="2" />
@@ -105,7 +107,7 @@ export function AgentComposer({ onSendMessage, onCancel, isWorking, disabled }: 
             className={styles.sendBtn}
             onClick={handleSend}
             disabled={!text.trim() || disabled}
-            title="Send Message (Enter)"
+            title={t('trip_agent.send_message')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="19" x2="12" y2="5" />

@@ -1,4 +1,7 @@
+"use client";
+
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { TransitLeg, TransitStep, TransitRecommendation } from '../types/domain';
 import { apiFetch } from '@/utils/api';
 import {
@@ -33,6 +36,7 @@ export function TransitLegView({
   onInspectPoi,
   onSelectTransitLine,
 }: TransitLegViewProps) {
+  const { t } = useTranslation();
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
   const isExpanded = userExpanded !== null ? userExpanded : defaultExpanded;
 
@@ -441,10 +445,10 @@ export function TransitLegView({
             )}
           </span>
           <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-            {isTransit ? 'PUBLIC TRANSIT' : 'WALK'}
+            {isTransit ? t('transit.public_transit_label') : t('transit.walk_label')}
           </span>
           <span style={{ color: 'var(--color-text-muted)' }}>·</span>
-          <span style={{ color: 'var(--color-text-muted)' }}>{duration_mins} MINS</span>
+          <span style={{ color: 'var(--color-text-muted)' }}>{t('transit.mins_upper', { count: duration_mins })}</span>
 
           {/* Transit Line Chips */}
           {transitLines.map((line, idx) => {
@@ -453,13 +457,13 @@ export function TransitLegView({
             const chipTextColor = stepWithColor?.route_text_color || '#FFFFFF';
             const displayLabel =
               line.toLowerCase() === 'transit'
-                ? 'TRANSIT'
+                ? t('transit.transit_chip_label')
                 : line.toLowerCase().includes('line') ||
                   line.toLowerCase().includes('metro') ||
                   line.toLowerCase().includes('tram') ||
                   line.toLowerCase().includes('rer')
                   ? line.toUpperCase()
-                  : `LINE ${line}`;
+                  : t('transit.line_chip_label', { line });
 
             return (
               <button
@@ -470,7 +474,7 @@ export function TransitLegView({
                   e.stopPropagation();
                   handleLineClick(line, stepWithColor?.route_color || undefined);
                 }}
-                title={`Show full ${displayLabel} route and stations on map`}
+                title={t('transit.show_line_route_title', { line: displayLabel })}
                 style={{
                   background: chipColor,
                   color: chipTextColor,
@@ -504,13 +508,13 @@ export function TransitLegView({
           <span style={{ color: 'var(--color-text-muted)' }}>·</span>
           {cost_eur > 0 ? (
             <span
-              title="Public transit fares are fetched automatically and may not be 100% accurate"
+              title={t('transit.fare_disclaimer_short')}
               style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}
             >
               {cost_eur.toFixed(2)} €
             </span>
           ) : (
-            <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>FREE</span>
+            <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>{t('transit.free_upper')}</span>
           )}
 
           {airport_surcharge_eur > 0 && (
@@ -527,7 +531,7 @@ export function TransitLegView({
                 letterSpacing: '0.3px',
               }}
             >
-              +{airport_surcharge_eur.toFixed(2)} € AIRPORT SURCHARGE INCLUDED
+              {t('transit.airport_surcharge_included', { amount: airport_surcharge_eur.toFixed(2) })}
             </span>
           )}
 
@@ -540,7 +544,7 @@ export function TransitLegView({
                 fontStyle: 'italic',
               }}
             >
-              Official {price_source.replace('official_', '').replace(/_/g, ' ').toUpperCase()} tariff
+              {t('transit.official_tariff', { source: price_source.replace('official_', '').replace(/_/g, ' ').toUpperCase() })}
             </span>
           )}
 
@@ -557,7 +561,7 @@ export function TransitLegView({
                 fontWeight: 500,
               }}
             >
-              ESTIMATED FARE
+              {t('transit.estimated_fare_badge')}
             </span>
           )}
         </div>
@@ -586,7 +590,7 @@ export function TransitLegView({
               padding: '2px 4px',
             }}
           >
-            {isExpanded ? `HIDE DIRECTIONS ▲` : `DIRECTIONS (${steps.length} STEPS) ▼`}
+            {isExpanded ? t('transit.hide_directions') : t('transit.show_directions', { count: steps.length })}
           </button>
         )}
       </div>
@@ -621,11 +625,11 @@ export function TransitLegView({
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <TransitIcon size={12} color="currentColor" />
-              <span>Stations to Go</span>
+              <span>{t('transit.stations_to_go')}</span>
             </span>
             {stationFlow.intermediateStops.length > 0 && (
               <span style={{ color: 'var(--color-text-muted)', fontWeight: 500, fontSize: '0.65rem' }}>
-                {stationFlow.intermediateStops.length} stops
+                {t('transit.stops_count', { count: stationFlow.intermediateStops.length })}
               </span>
             )}
           </div>
@@ -636,7 +640,7 @@ export function TransitLegView({
               const isBoard = st.role === 'board';
               const isAlight = st.role === 'alight';
               const dotColor = isBoard ? '#10B981' : isAlight ? '#EF4444' : '#F59E0B';
-              const roleLabel = isBoard ? 'BOARD AT' : isAlight ? 'ALIGHT AT' : 'TRANSFER AT';
+              const roleLabel = isBoard ? t('transit.board_at') : isAlight ? t('transit.alight_at') : t('transit.transfer_at');
 
               return (
                 <div key={sIdx} style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
@@ -696,7 +700,7 @@ export function TransitLegView({
                       e.currentTarget.style.borderColor = 'var(--color-border)';
                       e.currentTarget.style.transform = 'translateY(0)';
                     }}
-                    title={`Inspect ${st.name} station on map & in drawer`}
+                    title={t('transit.inspect_station_title', { name: st.name })}
                   >
                     <span>{st.name}</span>
                   </button>
@@ -749,7 +753,7 @@ export function TransitLegView({
                 }}
               >
                 <span style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-                  Via:
+                  {t('transit.via_label')}
                 </span>
                 {stationFlow.intermediateStops.map((ist, isIdx) => (
                   <React.Fragment key={isIdx}>
@@ -772,7 +776,7 @@ export function TransitLegView({
                         textDecoration: 'underline',
                         textDecorationColor: 'rgba(15, 76, 92, 0.35)',
                       }}
-                      title={`Inspect ${ist.name} stop`}
+                      title={t('transit.inspect_stop_title', { name: ist.name })}
                     >
                       {ist.name}
                     </button>
@@ -846,7 +850,7 @@ export function TransitLegView({
                           e.stopPropagation();
                           handleLineClick(step.transit_line!, step.route_color || undefined);
                         }}
-                        title={`Inspect line ${step.transit_line} on map`}
+                        title={t('transit.inspect_line_title', { line: step.transit_line })}
                         style={{
                           background: step.route_color || 'rgba(15, 76, 92, 0.12)',
                           color:
@@ -865,10 +869,10 @@ export function TransitLegView({
                         {step.transit_line}
                       </button>
                     )}
-                    {step.headsign && <span>Towards: {step.headsign}</span>}
+                    {step.headsign && <span>{t('transit.towards_headsign', { headsign: step.headsign })}</span>}
                     {step.station_name && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <span>Station:</span>
+                        <span>{t('transit.station_label')}</span>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -885,7 +889,7 @@ export function TransitLegView({
                             textDecoration: 'underline',
                             fontSize: 'inherit',
                           }}
-                          title={`Inspect ${step.station_name}`}
+                          title={t('transit.inspect_name_title', { name: step.station_name })}
                         >
                           {step.station_name}
                         </button>
@@ -905,7 +909,7 @@ export function TransitLegView({
                       }}
                     >
                       <span style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginRight: '4px' }}>
-                        Intermediate Stops ({step.intermediate_stops.length}):
+                        {t('transit.intermediate_stops_count', { count: step.intermediate_stops.length })}
                       </span>
                       {step.intermediate_stops.map((stopName, sIdx) => {
                         const detailObj = step.intermediate_stop_details?.find((d) => d.name === stopName);
@@ -930,7 +934,7 @@ export function TransitLegView({
                                 textDecoration: 'underline',
                                 textDecorationColor: 'rgba(15, 76, 92, 0.4)',
                               }}
-                              title={`Inspect ${stopName}`}
+                              title={t('transit.inspect_name_title', { name: stopName })}
                             >
                               {stopName}
                             </button>
@@ -955,7 +959,7 @@ export function TransitLegView({
               opacity: 0.85,
             }}
           >
-            * Notice: Public transit fares and schedules are fetched automatically and may not be 100% accurate.
+            {t('transit.steps_disclaimer')}
           </div>
         </div>
       )}
@@ -968,6 +972,7 @@ interface TransitRecommendationCardProps {
 }
 
 export function TransitRecommendationCard({ recommendation }: TransitRecommendationCardProps) {
+  const { t } = useTranslation();
   if (!recommendation) return null;
 
   const isPassRecommended = recommendation.type === '24H_PASS_RECOMMENDED';
@@ -1000,15 +1005,22 @@ export function TransitRecommendationCard({ recommendation }: TransitRecommendat
             fontSize: '0.85rem',
           }}
         >
-          {isPassRecommended ? 'TRANSIT PASS ADVISORY: 24H PASS RECOMMENDED' : 'TRANSIT FARE SUMMARY'}
+          {isPassRecommended ? t('transit.pass_advisory_title') : t('transit.fare_summary_title')}
         </span>
       </div>
 
       <p style={{ color: 'var(--color-text-primary)', margin: '0.25rem 0', lineHeight: 1.4 }}>
         {recommendation.message || (
           isPassRecommended
-            ? `Buy the ${recommendation.pass_name || '24h Tourist Pass'} for ${recommendation.pass_price_eur?.toFixed(2)}€ instead of individual fares (${recommendation.single_tickets_total_eur.toFixed(2)}€) to save ${recommendation.savings_eur.toFixed(2)}€!`
-            : `Individual single tickets optimal (${recommendation.single_tickets_total_eur.toFixed(2)}€ total).`
+            ? t('transit.pass_advisory_msg', {
+                passName: recommendation.pass_name || t('transit.default_pass_name'),
+                passPrice: recommendation.pass_price_eur?.toFixed(2) ?? '',
+                singleTotal: recommendation.single_tickets_total_eur.toFixed(2),
+                savings: recommendation.savings_eur.toFixed(2),
+              })
+            : t('transit.single_tickets_optimal_msg', {
+                total: recommendation.single_tickets_total_eur.toFixed(2),
+              })
         )}
       </p>
 
@@ -1021,13 +1033,13 @@ export function TransitRecommendationCard({ recommendation }: TransitRecommendat
           marginTop: '0.4rem',
         }}
       >
-        <span>Individual Tickets: {recommendation.single_tickets_total_eur.toFixed(2)}€</span>
+        <span>{t('transit.individual_tickets_cost', { amount: recommendation.single_tickets_total_eur.toFixed(2) })}</span>
         {recommendation.pass_price_eur != null && (
-          <span>24h Pass Price: {recommendation.pass_price_eur.toFixed(2)}€</span>
+          <span>{t('transit.pass_price_cost', { amount: recommendation.pass_price_eur.toFixed(2) })}</span>
         )}
         {recommendation.savings_eur > 0 && (
           <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
-            Estimated Savings: +{recommendation.savings_eur.toFixed(2)}€
+            {t('transit.estimated_savings_cost', { amount: recommendation.savings_eur.toFixed(2) })}
           </span>
         )}
       </div>
@@ -1044,7 +1056,7 @@ export function TransitRecommendationCard({ recommendation }: TransitRecommendat
           opacity: 0.85,
         }}
       >
-        * Notice: Public transit fares are fetched automatically and may not be 100% accurate. Please verify with local transit authorities.
+        {t('transit.card_disclaimer')}
       </div>
     </div>
   );

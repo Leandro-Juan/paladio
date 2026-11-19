@@ -1,5 +1,6 @@
 'use strict';
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export interface ContextMenuItem {
   id: string;
@@ -21,11 +22,13 @@ interface SettingsContextMenuProps {
 export function SettingsContextMenu({
   items,
   triggerLabel,
-  ariaLabel = 'Options menu',
+  ariaLabel,
   align = 'right',
 }: SettingsContextMenuProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const resolvedAriaLabel = ariaLabel ? t(ariaLabel) : t('config.options_menu');
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -53,7 +56,7 @@ export function SettingsContextMenu({
     <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button
         type="button"
-        aria-label={ariaLabel}
+        aria-label={resolvedAriaLabel}
         aria-expanded={isOpen}
         onClick={(e) => {
           e.stopPropagation();
@@ -77,7 +80,7 @@ export function SettingsContextMenu({
         }}
       >
         {triggerLabel ? (
-          <span style={{ fontSize: '12px', fontWeight: 600 }}>{triggerLabel}</span>
+          <span style={{ fontSize: '12px', fontWeight: 600 }}>{t(triggerLabel)}</span>
         ) : (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="12" cy="5" r="2" />
@@ -169,7 +172,7 @@ export function SettingsContextMenu({
                     {item.icon}
                   </span>
                 )}
-                <span>{item.label}</span>
+                <span>{t(item.label)}</span>
               </button>
             </React.Fragment>
           ))}
