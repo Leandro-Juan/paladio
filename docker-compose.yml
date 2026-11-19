@@ -88,7 +88,7 @@ services:
     environment:
       - serve_rst=True
       - server_threads=2
-      - use_tiles_ignore_pbf=False
+      - use_tiles_ignore_pbf=True
       - force_rebuild=False
       - build_elevation=False
       - build_transit=False

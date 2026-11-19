@@ -1615,7 +1615,8 @@ def build_city_map_task(self, city_name: str, trip_id: str | None = None):
         from app.services.osm_map_service import OSMMapService
 
         url, file_name = _run_async(OSMMapService.resolve_osm_pbf_url(city_lower))
-        dest_path = f"/custom_files/{file_name}"
+        osm_dir = os.environ.get("OSM_PBF_DIR", "/custom_files")
+        dest_path = os.path.join(osm_dir, file_name)
 
         # Download OSM .pbf if not present
         if not os.path.exists(dest_path) or os.path.getsize(dest_path) == 0:
