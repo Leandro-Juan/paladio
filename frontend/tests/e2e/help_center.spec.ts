@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { mockAuthenticatedUser } from './test-utils';
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || (process.env.PORT ? `http://localhost:${process.env.PORT}` : 'http://localhost:3000');
 
 const CATEGORY_TITLES = [
   'Getting Started',

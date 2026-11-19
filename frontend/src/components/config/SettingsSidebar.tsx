@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
-import { SETTINGS_CATEGORIES, SettingsTabId, SettingCardItem } from './settingsData';
+import { SETTINGS_CATEGORIES, SettingsTabId, SettingCardItem, SettingCategoryGroup } from './settingsData';
 import { SettingsIconRenderer } from './SettingsIconRenderer';
 import styles from '@/app/config/config.module.css';
 
@@ -24,6 +24,18 @@ interface SettingsSuggestionItem {
   iconName: SettingCardItem['iconName'];
   iconTone?: 'coral' | 'teal' | 'gold';
   score: number;
+}
+
+function getCategoryTitle(cat: SettingCategoryGroup, t: (k: string) => string): string {
+  const key = `config_data.cat_${cat.id}_title`;
+  const val = t(key);
+  return val === key ? cat.title : val;
+}
+
+function getItemTitle(item: SettingCardItem, t: (k: string) => string): string {
+  const key = `config_data.item_${item.id}_title`;
+  const val = t(key);
+  return val === key ? item.title : val;
 }
 
 function getSettingsSuggestions(
@@ -52,15 +64,15 @@ function getSettingsSuggestions(
   }
 
   for (const cat of SETTINGS_CATEGORIES) {
-    const localizedCatTitle = t(cat.title);
+    const localizedCatTitle = getCategoryTitle(cat, t);
     const catLower = cat.title.toLowerCase();
     const localizedCatLower = localizedCatTitle.toLowerCase();
 
     for (const item of cat.items) {
       if (item.requiresAdmin && !isAdmin) continue;
 
-      const localizedItemTitle = t(item.title);
-      const localizedItemDesc = t(item.description);
+      const localizedItemTitle = getItemTitle(item, t);
+      const localizedItemDesc = t(`config_data.item_${item.id}_desc`);
       const titleLower = item.title.toLowerCase();
       const localizedTitleLower = localizedItemTitle.toLowerCase();
       const descLower = item.description.toLowerCase();
@@ -354,7 +366,7 @@ export function SettingsSidebar({
 
         return (
           <div key={cat.id} className={styles.navGroup}>
-            <div className={styles.navGroupTitle}>{t(cat.title)}</div>
+            <div className={styles.navGroupTitle}>{getCategoryTitle(cat, t)}</div>
             {visibleItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
@@ -371,7 +383,7 @@ export function SettingsSidebar({
                       size={14}
                       color={isActive ? 'var(--color-accent-teal)' : 'var(--color-text-muted)'}
                     />
-                    <span>{t(item.title)}</span>
+                    <span>{getItemTitle(item, t)}</span>
                   </div>
                 </button>
               );

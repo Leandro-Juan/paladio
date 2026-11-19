@@ -26,11 +26,13 @@ test.describe('Wheel Dial Pickers (Language, Country, Currency)', () => {
     // Verify modal closed
     await expect(dialog).toHaveCount(0);
 
-    // Reopen and test Chinese (Simplified)
-    await changeLangBtn.click();
+    // Reopen and test Chinese (Simplified) - note: UI is now in Spanish!
+    const reloadedChangeBtn = page.getByTestId('change-language-button');
+    await expect(reloadedChangeBtn).toBeVisible();
+    await reloadedChangeBtn.click();
     await expect(dialog).toBeVisible();
-    await dialog.getByPlaceholder('Search language or code...').fill('Chinese');
-    const zhBtn = dialog.getByRole('button', { name: /Use Chinese \(Simplified\)/i });
+    await dialog.getByPlaceholder('Buscar idioma o código...').fill('Chinese');
+    const zhBtn = dialog.getByRole('button', { name: /Usar Chino/i });
     await expect(zhBtn).toBeVisible({ timeout: 5000 });
     await expect(zhBtn).toContainText('ZH-CN');
     await zhBtn.click();

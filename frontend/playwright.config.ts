@@ -16,6 +16,7 @@ export default defineConfig({
   reporter: [['html', { open: 'never' }], ['list']],
   use: {
     baseURL,
+    serviceWorkers: 'block',
     trace: 'on-first-retry',
     launchOptions: {
       args: ['--disable-dev-shm-usage', '--no-sandbox'],

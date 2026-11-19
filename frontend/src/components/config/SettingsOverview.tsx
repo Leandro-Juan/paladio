@@ -2,10 +2,34 @@
 
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
-import { SETTINGS_CATEGORIES, SettingCardItem, SettingsTabId } from './settingsData';
+import { SETTINGS_CATEGORIES, SettingCardItem, SettingsTabId, SettingCategoryGroup } from './settingsData';
 import { SettingsIconRenderer } from './SettingsIconRenderer';
 import { Modal } from '@/components/Modal';
 import styles from '@/app/config/config.module.css';
+
+function getCategoryTitle(cat: SettingCategoryGroup, t: (k: string) => string): string {
+  const key = `config_data.cat_${cat.id}_title`;
+  const val = t(key);
+  return val === key ? cat.title : val;
+}
+
+function getCategorySubtitle(cat: SettingCategoryGroup, t: (k: string) => string): string {
+  const key = `config_data.cat_${cat.id}_subtitle`;
+  const val = t(key);
+  return val === key ? cat.subtitle : val;
+}
+
+function getItemTitle(item: SettingCardItem, t: (k: string) => string): string {
+  const key = `config_data.item_${item.id}_title`;
+  const val = t(key);
+  return val === key ? item.title : val;
+}
+
+function getItemDesc(item: SettingCardItem, t: (k: string) => string): string {
+  const key = `config_data.item_${item.id}_desc`;
+  const val = t(key);
+  return val === key ? item.description : val;
+}
 
 interface SettingsOverviewProps {
   onSelectTab: (tab: SettingsTabId) => void;
@@ -234,8 +258,8 @@ export function SettingsOverview({
         filteredCategories.map((cat) => (
           <section key={cat.id} className={styles.overviewSection}>
             <div className={styles.overviewSectionHeader}>
-              <h2 className={styles.overviewSectionTitle}>{t(cat.title)}</h2>
-              <p className={styles.overviewSectionSubtitle}>{t(cat.subtitle)}</p>
+              <h2 className={styles.overviewSectionTitle}>{getCategoryTitle(cat, t)}</h2>
+              <p className={styles.overviewSectionSubtitle}>{getCategorySubtitle(cat, t)}</p>
             </div>
 
             <div className={styles.cardsGrid}>
@@ -243,7 +267,7 @@ export function SettingsOverview({
                 const badge = getItemBadge(item.id);
                 const displayBadgeText = badge?.text || (item.statusBadge ? t(item.statusBadge) : undefined);
                 const isBadgeActive = badge ? badge.active : true;
-                const localizedTitle = t(item.title);
+                const localizedTitle = getItemTitle(item, t);
 
                 return (
                   <button
@@ -266,7 +290,7 @@ export function SettingsOverview({
                           </span>
                         )}
                       </div>
-                      <p className={styles.cardDescription}>{t(item.description)}</p>
+                      <p className={styles.cardDescription}>{getItemDesc(item, t)}</p>
                     </div>
                   </button>
                 );

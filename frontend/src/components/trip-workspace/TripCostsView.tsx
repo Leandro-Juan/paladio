@@ -315,7 +315,7 @@ export function TripCostsView({ trip, itinerary, onTripUpdated }: TripCostsViewP
 
       return true;
     });
-  }, [allItems, search, categoryFilter, dayFilter, scopeFilter, currentUserId]);
+  }, [allItems, search, categoryFilter, dayFilter, scopeFilter, currentUserId, t]);
 
   // Available day options for dropdown
   const dayOptions = useMemo(() => {

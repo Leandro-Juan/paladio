@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockAuthenticatedUser } from './test-utils';
+import { mockAuthenticatedUser, getCorsHeaders } from './test-utils';
 
 test.describe('Trips Page - Abort Mission Modal', () => {
   test.beforeEach(async ({ page }) => {
@@ -14,6 +14,7 @@ test.describe('Trips Page - Abort Mission Modal', () => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
+          headers: getCorsHeaders(route),
           contentType: 'application/json',
           body: JSON.stringify([
             {
@@ -26,7 +27,7 @@ test.describe('Trips Page - Abort Mission Modal', () => {
           ]),
         });
       } else {
-        await route.continue();
+        await route.fallback();
       }
     });
 

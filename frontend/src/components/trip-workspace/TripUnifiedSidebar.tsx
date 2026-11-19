@@ -2282,7 +2282,7 @@ export function TripUnifiedSidebar({
         }
       );
     },
-    [itinerary, onItineraryUpdate, destinationCity, tripId]
+    [itinerary, onItineraryUpdate, destinationCity, tripId, t]
   );
 
   // Remove scheduled waypoint from the route (e.g. dropped outside route or collection, or '-' in edit mode)
@@ -2327,7 +2327,7 @@ export function TripUnifiedSidebar({
         }
       }
     },
-    [itinerary, onItineraryUpdate, destinationCity, tripId]
+    [itinerary, onItineraryUpdate, destinationCity, tripId, t]
   );
 
   // Drag and drop handlers for Route reordering
@@ -2435,7 +2435,7 @@ export function TripUnifiedSidebar({
         console.error('Failed to execute drop:', err);
       }
     },
-    [itinerary, onItineraryUpdate, destinationCity, tripId]
+    [itinerary, onItineraryUpdate, destinationCity, tripId, t]
   );
 
   const handleDrop = (e: React.DragEvent, targetDayNum: number, targetIdx: number) => {
