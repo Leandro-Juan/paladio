@@ -1551,17 +1551,24 @@ export function TripUnifiedSidebar({
       window.removeEventListener('paladio:poi-deleted', handlePoiDeleted);
     };
   }, [onCategoryPoisChange, activeTab]);
+  const [isExternalPoiDragging, setIsExternalPoiDragging] = useState(false);
   const setActiveTab = useCallback(
     (tab: MainTabType) => {
       setInternalActiveTab(tab);
       onTabChange?.(tab);
-      if (tab === 'route') {
+      const hasWindowDrag =
+        typeof window !== 'undefined' &&
+        Boolean(
+          (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi ||
+            (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi
+        );
+      if (tab === 'route' && !hasWindowDrag && !isExternalPoiDragging && !spatialCircle) {
         setActiveCategory('all');
         onCategoryFilterChange?.(null);
         onCategoryPoisChange?.([]);
       }
     },
-    [onTabChange, onCategoryFilterChange, onCategoryPoisChange]
+    [onTabChange, onCategoryFilterChange, onCategoryPoisChange, isExternalPoiDragging, spatialCircle]
   );
 
   // Filters state
@@ -1632,11 +1639,13 @@ export function TripUnifiedSidebar({
   // Auto-switch to route tab when any POI begins being dragged from search or inspector
   useEffect(() => {
     const handleSwitchToRoute = () => {
-      setActiveTab('route');
+      setIsExternalPoiDragging(true);
+      setInternalActiveTab('route');
+      onTabChange?.('route');
     };
     window.addEventListener('paladio:switch-to-route', handleSwitchToRoute);
     return () => window.removeEventListener('paladio:switch-to-route', handleSwitchToRoute);
-  }, []);
+  }, [onTabChange]);
 
   // Day Hover Switch State & Timer during POI drag
   const [dragHoveredDay, setDragHoveredDay] = useState<number | 'all' | null>(null);
@@ -1771,6 +1780,7 @@ export function TripUnifiedSidebar({
       setActiveDropTarget(null);
       window.setTimeout(() => {
         setDraggedPoi(null);
+        setIsExternalPoiDragging(false);
         if (typeof window !== 'undefined') {
           (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
           (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
@@ -2305,8 +2315,9 @@ export function TripUnifiedSidebar({
 
   // Displayed days in Route tab
   const displayedDays = useMemo(() => {
-    return selectedDay === 'all' ? days : days.filter((d) => d.day === selectedDay);
-  }, [days, selectedDay]);
+    if (selectedDay === 'all') return days;
+    return days.filter((d) => d.day === selectedDay || (draggedPoi !== null && d.day === draggedPoi.day));
+  }, [days, selectedDay, draggedPoi]);
 
   // Anchor check helper
   const checkFixedAnchor = useCallback(
@@ -3472,7 +3483,8 @@ export function TripUnifiedSidebar({
                       if (activeDropTarget) {
                         handleDrop(e, activeDropTarget.day, activeDropTarget.index);
                       } else if (displayedDays.length > 0) {
-                        const fallbackDay = displayedDays[0];
+                        const fallbackDay =
+                          displayedDays.find((d) => selectedDay === 'all' || d.day === selectedDay) || displayedDays[0];
                         handleDrop(e, fallbackDay.day, fallbackDay.itinerary?.path?.length || 0);
                       }
                     }}
@@ -3481,6 +3493,8 @@ export function TripUnifiedSidebar({
                     {/* Scheduled Days and Stops Timeline */}
                     {displayedDays.map((dayObj) => {
                       const path = dayObj.itinerary?.path || [];
+                      const isHiddenDraggedSourceDay =
+                        draggedPoi !== null && selectedDay !== 'all' && dayObj.day !== selectedDay;
 
                       return (
                         <div
@@ -3532,7 +3546,21 @@ export function TripUnifiedSidebar({
                             }
                             handleDrop(e, dayObj.day, targetIdx);
                           }}
-                          style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+                          style={
+                            isHiddenDraggedSourceDay
+                              ? {
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '8px',
+                                  position: 'fixed',
+                                  left: '-9999px',
+                                  top: 0,
+                                  width: '360px',
+                                  opacity: 0,
+                                  pointerEvents: 'none',
+                                }
+                              : { display: 'flex', flexDirection: 'column', gap: '8px' }
+                          }
                         >
                           <div
                             onDragOver={(e) => {
@@ -3926,12 +3954,32 @@ export function TripUnifiedSidebar({
 
                 {/* VIEW B: SEARCH TAB CONTENT (Exact Match to User Reference Layout) */}
                 <div
-                  style={{
-                    display: activeTab === 'search' ? 'flex' : 'none',
-                    flexDirection: 'column',
-                    flex: 1,
-                    minHeight: 0,
-                  }}
+                  style={
+                    activeTab === 'search'
+                      ? {
+                          display: 'flex',
+                          flexDirection: 'column',
+                          flex: 1,
+                          minHeight: 0,
+                        }
+                      : isExternalPoiDragging
+                      ? {
+                          display: 'flex',
+                          flexDirection: 'column',
+                          position: 'fixed',
+                          left: '-9999px',
+                          top: 0,
+                          width: '360px',
+                          opacity: 0,
+                          pointerEvents: 'none',
+                        }
+                      : {
+                          display: 'none',
+                          flexDirection: 'column',
+                          flex: 1,
+                          minHeight: 0,
+                        }
+                  }
                 >
                   <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     {/* 1. Top Options Pill Dropdowns & Add POI button */}
@@ -4329,9 +4377,6 @@ export function TripUnifiedSidebar({
 
                             // Switch to Route tab automatically so user can drop into any day
                             window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
-                            setTimeout(() => {
-                              setActiveTab('route');
-                            }, 50);
                           }}
                           onDragEnd={() => {
                             cleanupCustomDragPreview();
@@ -4667,12 +4712,32 @@ export function TripUnifiedSidebar({
 
                 {/* VIEW D: COLLECTIONS TAB CONTENT */}
                 <div
-                  style={{
-                    display: activeTab === 'saved' ? 'flex' : 'none',
-                    flexDirection: 'column',
-                    flex: 1,
-                    minHeight: 0,
-                  }}
+                  style={
+                    activeTab === 'saved'
+                      ? {
+                          display: 'flex',
+                          flexDirection: 'column',
+                          flex: 1,
+                          minHeight: 0,
+                        }
+                      : isExternalPoiDragging
+                      ? {
+                          display: 'flex',
+                          flexDirection: 'column',
+                          position: 'fixed',
+                          left: '-9999px',
+                          top: 0,
+                          width: '360px',
+                          opacity: 0,
+                          pointerEvents: 'none',
+                        }
+                      : {
+                          display: 'none',
+                          flexDirection: 'column',
+                          flex: 1,
+                          minHeight: 0,
+                        }
+                  }
                 >
                   <CollectionsTab
                     tripId={tripId || ''}

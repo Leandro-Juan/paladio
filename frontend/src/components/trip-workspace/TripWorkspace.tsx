@@ -63,6 +63,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
   const [activeMapPickField, setActiveMapPickField] = useState<'origin' | 'destination' | null>(null);
   const [spatialCircle, setSpatialCircle] = useState<SpatialCircleFilter | null>(null);
   const [isDroppingWaypoint, setIsDroppingWaypoint] = useState(false);
+  const [isDraggingPoi, setIsDraggingPoi] = useState(false);
+  const isDraggingPoiRef = useRef(false);
 
   const handleToggleDropWaypoint = useCallback(() => {
     setIsDroppingWaypoint((prev) => {
@@ -143,7 +145,14 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
         window.dispatchEvent(new CustomEvent('paladio:clear-transit-line'));
       }
     }
-    if (tab === 'route' || tab === 'transit' || tab === 'weather' || tab === 'agent') {
+    const hasActiveDrag =
+      isDraggingPoiRef.current ||
+      (typeof window !== 'undefined' &&
+        Boolean(
+          (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi ||
+            (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi
+        ));
+    if (!hasActiveDrag && (tab === 'route' || tab === 'transit' || tab === 'weather' || tab === 'agent')) {
       // Clear category search results
       setCategoryFilter(null);
       setCategoryPois([]);
@@ -741,7 +750,28 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
 
   useEffect(() => {
     const handleSwitchToRoute = () => {
+      isDraggingPoiRef.current = true;
+      setIsDraggingPoi(true);
       setIsSidebarOpen(true);
+    };
+    const handleDragStart = (e: DragEvent) => {
+      const target = e.target as HTMLElement | null;
+      const win =
+        typeof window !== 'undefined'
+          ? (window as unknown as { __paladioActivePoi?: unknown; __paladioActiveSearchPoi?: unknown })
+          : null;
+      if (
+        win?.__paladioActivePoi ||
+        win?.__paladioActiveSearchPoi ||
+        target?.closest?.('[data-paladio-draggable-poi], [data-testid^="poi-card-"], [data-testid^="collection-item-"]')
+      ) {
+        isDraggingPoiRef.current = true;
+        setIsDraggingPoi(true);
+      }
+    };
+    const handleDragEnd = () => {
+      isDraggingPoiRef.current = false;
+      setIsDraggingPoi(false);
     };
     const handleShowTransitLine = (e: Event) => {
       const customEvent = e as CustomEvent<ActiveTransitLineData>;
@@ -770,12 +800,18 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     };
 
     window.addEventListener('paladio:switch-to-route', handleSwitchToRoute);
+    window.addEventListener('dragstart', handleDragStart, true);
+    window.addEventListener('dragend', handleDragEnd, true);
+    window.addEventListener('paladio:drag-ended', handleDragEnd, true);
     window.addEventListener('paladio:show-transit-line', handleShowTransitLine);
     window.addEventListener('paladio:clear-transit-line', handleClearTransitLine);
     window.addEventListener('paladio:inspect-poi', handleInspectPoiEvent);
     window.addEventListener('paladio:poi-deleted', handlePoiDeleted);
     return () => {
       window.removeEventListener('paladio:switch-to-route', handleSwitchToRoute);
+      window.removeEventListener('dragstart', handleDragStart, true);
+      window.removeEventListener('dragend', handleDragEnd, true);
+      window.removeEventListener('paladio:drag-ended', handleDragEnd, true);
       window.removeEventListener('paladio:show-transit-line', handleShowTransitLine);
       window.removeEventListener('paladio:clear-transit-line', handleClearTransitLine);
       window.removeEventListener('paladio:inspect-poi', handleInspectPoiEvent);
@@ -985,10 +1021,10 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onDayChange={handleSelectDay}
             focusedPlace={focusedPlace}
             onClearFocus={handleClearFocus}
-            categoryFilter={sidebarTab === 'route' ? null : categoryFilter}
+            categoryFilter={sidebarTab === 'route' && !isDraggingPoi && !spatialCircle ? null : categoryFilter}
             onCategoryFilterChange={handleCategoryFilterChange}
             transitMode={transitMode}
-            categoryPois={sidebarTab === 'route' ? [] : categoryPois}
+            categoryPois={sidebarTab === 'route' && !isDraggingPoi && !spatialCircle ? [] : categoryPois}
             isSidebarOpen={isSidebarOpen}
             sidebarTab={sidebarTab}
             destinationCity={trip.destination}
@@ -1029,7 +1065,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onSelectDay={handleSelectDay}
             itinerary={itinerary as OptimizationResult}
             onItineraryUpdate={handleItineraryUpdate}
-            categoryFilter={sidebarTab === 'route' ? null : categoryFilter}
+            categoryFilter={sidebarTab === 'route' && !isDraggingPoi && !spatialCircle ? null : categoryFilter}
             onCategoryFilterChange={handleCategoryFilterChange}
             transitMode={transitMode}
             onTransitModeChange={handleTransitModeChange}

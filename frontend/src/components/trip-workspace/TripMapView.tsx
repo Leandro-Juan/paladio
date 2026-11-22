@@ -132,8 +132,28 @@ export interface SpatialCircleFilter {
   radiusMeters: number;
 }
 
+const divIconCache = new Map<string, L.DivIcon>();
+
+function getCachedDivIcon(options: L.DivIconOptions): L.DivIcon {
+  const sizeKey = Array.isArray(options.iconSize) ? options.iconSize.join(',') : String(options.iconSize ?? '');
+  const anchorKey = Array.isArray(options.iconAnchor) ? options.iconAnchor.join(',') : String(options.iconAnchor ?? '');
+  const popupKey = Array.isArray(options.popupAnchor) ? options.popupAnchor.join(',') : String(options.popupAnchor ?? '');
+  const htmlStr = typeof options.html === 'string' ? options.html : '';
+  const cacheKey = `${options.className || ''}|${sizeKey}|${anchorKey}|${popupKey}|${htmlStr}`;
+  const cached = divIconCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  if (divIconCache.size >= 2000) {
+    divIconCache.clear();
+  }
+  const icon = L.divIcon(options);
+  divIconCache.set(cacheKey, icon);
+  return icon;
+}
+
 function createDirectionsTacticalPinIcon(label: 'A' | 'B', color: string): L.DivIcon {
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-directions-pin',
     html: `
       <div style="
@@ -161,7 +181,7 @@ function createDirectionsTacticalPinIcon(label: 'A' | 'B', color: string): L.Div
 
 function createDirectionsStationIcon(role: 'board' | 'transfer' | 'alight'): L.DivIcon {
   const bg = role === 'transfer' ? '#D97706' : role === 'alight' ? '#059669' : '#0F4C5C';
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-directions-station-node',
     html: `
       <div style="
@@ -189,7 +209,7 @@ function createDirectionsStationIcon(role: 'board' | 'transfer' | 'alight'): L.D
 }
 
 function createIntermediateStopIcon(color: string): L.DivIcon {
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-intermediate-stop-node',
     html: `
       <div style="
@@ -771,13 +791,15 @@ function renderTeardropPinHtml({
     ? `<div style="position:absolute;top:0;left:0;width:34px;height:34px;border-radius:50%;background:rgba(20, 120, 141, 0.35);animation:pinGlow 1.8s ease-in-out infinite;pointer-events:none;z-index:0;"></div>`
     : '';
 
-  const animStyle = typeof animationDelayMs === 'number' ? `animation-delay: ${animationDelayMs}ms;` : '';
+  const effectiveDelayMs = isFocused ? undefined : animationDelayMs;
+  const animStyle = typeof effectiveDelayMs === 'number' ? `animation-delay: ${effectiveDelayMs}ms;` : '';
   const canDrag = !readOnly && Boolean(poiPayload);
 
   return `
     <div 
       ${canDrag ? `draggable="true" data-paladio-draggable-poi="${poiPayload}"` : 'draggable="false"'}
       class="${animationClass}"
+      onanimationend="this.classList.remove('paladio-waypoint-pin-pop-in');this.style.animationDelay='';"
       style="position:relative;width:34px;height:44px;display:flex;align-items:flex-start;justify-content:center;cursor:${canDrag ? 'grab' : 'pointer'};user-select:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.32));${animStyle}"
     >
       ${focusGlow}
@@ -838,7 +860,7 @@ function createWaypointIcon(
       }).replace(/"/g, '&quot;')
     : '';
 
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-waypoint-icon',
     html: renderTeardropPinHtml({
       categoryType,
@@ -934,7 +956,7 @@ function createHotelIcon(
       }).replace(/"/g, '&quot;')
     : '';
 
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-hotel-icon',
     html: renderTeardropPinHtml({
       categoryType: 'hotel',
@@ -975,7 +997,7 @@ function createAirportIcon(
       }).replace(/"/g, '&quot;')
     : '';
 
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-airport-icon',
     html: renderTeardropPinHtml({
       categoryType: 'airport',
@@ -1008,7 +1030,7 @@ function createFocusedWaypointIcon(place: FocusedWaypointPlace, photoUrl?: strin
     location: { latitude: place.lat, longitude: place.lng },
   }).replace(/"/g, '&quot;');
 
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-focused-waypoint-icon',
     html: renderTeardropPinHtml({
       categoryType: cat,
@@ -1044,7 +1066,7 @@ function createCategoryPoiIcon(
       }).replace(/"/g, '&quot;')
     : '';
 
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-category-poi-icon',
     html: renderTeardropPinHtml({
       categoryType,
@@ -1334,6 +1356,12 @@ function MapViewportController({
       handleMouseUp();
     };
 
+    const handlePaladioDragEnded = () => {
+      if (map && !map.dragging.enabled()) {
+        map.dragging.enable();
+      }
+    };
+
     mapContainer.addEventListener('dragover', handleMapDragOver);
     mapContainer.addEventListener('drop', handleMapDrop);
 
@@ -1341,11 +1369,13 @@ function MapViewportController({
     document.addEventListener('dragend', handleMouseUp, true);
     document.addEventListener('mousedown', handleMouseDown, true);
     document.addEventListener('mouseup', handleMouseUp, true);
+    window.addEventListener('paladio:drag-ended', handlePaladioDragEnded);
     return () => {
       document.removeEventListener('dragstart', handleDragStart);
       document.removeEventListener('dragend', handleMouseUp, true);
       document.removeEventListener('mousedown', handleMouseDown, true);
       document.removeEventListener('mouseup', handleMouseUp, true);
+      window.removeEventListener('paladio:drag-ended', handlePaladioDragEnded);
       mapContainer.removeEventListener('dragover', handleMapDragOver);
       mapContainer.removeEventListener('drop', handleMapDrop);
     };
@@ -1646,6 +1676,9 @@ export default function TripMapView({
   const activeCategory = categoryFilter !== undefined ? categoryFilter : internalCatFilter;
   const [mapStations, setMapStations] = useState<StationBboxItem[]>([]);
   const [mapZoom, setMapZoom] = useState<number>(13);
+  const handleZoomThresholdChange = useCallback((z: number) => {
+    setMapZoom((prev) => ((prev >= 14) === (z >= 14) ? prev : z));
+  }, []);
   const [transitSubView, setTransitSubView] = useState<'directions' | 'lines' | 'nearby'>('directions');
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
 
@@ -2318,7 +2351,7 @@ export default function TripMapView({
           enabled={sidebarTab === 'transit' && transitSubView === 'nearby'}
           city={destinationCity}
           onStationsLoaded={setMapStations}
-          onZoomChange={setMapZoom}
+          onZoomChange={handleZoomThresholdChange}
         />
 
         {focusedPlace &&
@@ -2936,7 +2969,7 @@ export default function TripMapView({
 
               return (
                 <Marker
-                  key={`marker-active-${activeDay}-d${dayData.dayNumber}-${poi.name}-${poi.lat}-${poi.lng}-${stopCounter}-${idx}`}
+                  key={`marker-d${dayData.dayNumber}-${poi.id || poi.name}-${poi.lat}-${poi.lng}-${stopCounter}-${idx}`}
                   position={[poi.lat, poi.lng]}
                   icon={markerIcon}
                   zIndexOffset={isPoiFocused ? 2500 : isCurrentDayHovered ? 800 : 500}
