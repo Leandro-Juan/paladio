@@ -888,10 +888,13 @@ async def search_pois(
 
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
         r = redis.from_url(redis_url)
-        is_hydrating = bool(
-            r.exists(f"paladio:lock:hydrate_city:{city_clean}")
-            or r.get(f"paladio:city_hydration_active:{city_clean}")
-        )
+        if city_total_pois == 0:
+            is_hydrating = bool(
+                r.exists(f"paladio:lock:hydrate_city:{city_clean}")
+                or r.get(f"paladio:city_hydration_active:{city_clean}")
+            )
+        else:
+            is_hydrating = bool(r.exists(f"paladio:lock:hydrate_city:{city_clean}"))
     except Exception:
         pass
 
@@ -1997,10 +2000,13 @@ async def get_city_pois_status(
 
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
         r = redis.from_url(redis_url)
-        is_hydrating = bool(
-            r.exists(f"paladio:lock:hydrate_city:{city_clean}")
-            or r.get(f"paladio:city_hydration_active:{city_clean}")
-        )
+        if count == 0:
+            is_hydrating = bool(
+                r.exists(f"paladio:lock:hydrate_city:{city_clean}")
+                or r.get(f"paladio:city_hydration_active:{city_clean}")
+            )
+        else:
+            is_hydrating = bool(r.exists(f"paladio:lock:hydrate_city:{city_clean}"))
     except Exception:
         pass
 

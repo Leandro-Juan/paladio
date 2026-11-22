@@ -496,7 +496,336 @@ test.describe('Trip Workspace Renovated Components', () => {
     await expect(spinnerState).toBeVisible();
     await expect(spinnerState).toHaveText(/Downloading POIs? database for Bangkok/i);
   });
+
+  test('TripUnifiedSidebar allows editing day name in edit mode and fires onRenameDay', async ({ mount }) => {
+    let renamedDay: number | null = null;
+    let renamedTitle: string | null = null;
+
+    const mockDays: DayOutput[] = [
+      {
+        day: 1,
+        theme: 'Fashion & Boutiques',
+        itinerary: { path: [] },
+      },
+      {
+        day: 2,
+        theme: 'Temples & Riverside',
+        itinerary: { path: [] },
+      },
+    ];
+
+    // 1. Outside edit mode, input is not rendered
+    const component = await mount(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Bangkok"
+        days={mockDays}
+        selectedDay={1}
+        onSelectDay={() => {}}
+        isEditMode={false}
+      />
+    );
+
+    await expect(component.getByTestId('edit-day-name-input-1')).toHaveCount(0);
+    await expect(component.getByText(/Día 1 — Fashion & Boutiques|Day 1 — Fashion & Boutiques/i)).toBeVisible();
+
+    // 2. In edit mode, input is rendered with current theme
+    await component.update(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Bangkok"
+        days={mockDays}
+        selectedDay={1}
+        onSelectDay={() => {}}
+        isEditMode={true}
+        onRenameDay={(day, newTheme) => {
+          renamedDay = day;
+          renamedTitle = newTheme;
+        }}
+      />
+    );
+
+    const input = component.getByTestId('edit-day-name-input-1');
+    await expect(input).toBeVisible();
+    await expect(input).toHaveValue('Fashion & Boutiques');
+
+    // 3. Edit the day name and press Enter
+    await input.fill('Shopping & Night Markets');
+    await input.press('Enter');
+
+    expect(renamedDay).toBe(1);
+    expect(renamedTitle).toBe('Shopping & Night Markets');
+  });
+
+  test('TripUnifiedSidebar switches day on hover during POI drag', async ({ mount, page }) => {
+    let selectedDay: number | 'all' = 1;
+    const mockDays: any[] = [
+      {
+        day: 1,
+        theme: 'Historical Shrines',
+        itinerary: {
+          path: [
+            {
+              poi: {
+                id: 'poi-1',
+                name: 'Senso-ji Temple',
+                category: 'attraction',
+                lat: 35.7147,
+                lng: 139.7966,
+                duration_mins: 60,
+                cost_eur: 0,
+              },
+              arrival_time: '09:00',
+              departure_time: '10:00',
+              visit_duration_minutes: 60,
+            },
+          ],
+        },
+      },
+      {
+        day: 2,
+        theme: 'Modern Architecture',
+        itinerary: {
+          path: [
+            {
+              poi: {
+                id: 'poi-2',
+                name: 'Tokyo Skytree',
+                category: 'attraction',
+                lat: 35.71,
+                lng: 139.8107,
+                duration_mins: 75,
+                cost_eur: 18,
+              },
+              arrival_time: '11:00',
+              departure_time: '12:15',
+              visit_duration_minutes: 75,
+            },
+          ],
+        },
+      },
+    ];
+
+    const component = await mount(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Tokyo"
+        days={mockDays as DayOutput[]}
+        selectedDay={selectedDay}
+        onSelectDay={(d) => {
+          selectedDay = d;
+        }}
+        isEditMode={false}
+      />
+    );
+
+    // Set simulated active POI on window
+    await page.evaluate(() => {
+      (window as any).__paladioActivePoi = {
+        source: 'map',
+        poi: { id: 'poi-3', name: 'Ueno Park', category: 'park' },
+      };
+    });
+
+    const day2Tab = component.getByTestId('day-tab-2');
+    await expect(day2Tab).toBeVisible();
+
+    // Trigger dragover on Day 2 tab with real DataTransfer object
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="day-tab-2"]');
+      const dt = new DataTransfer();
+      dt.setData('application/paladio-poi', 'test');
+      const ev = new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt });
+      el?.dispatchEvent(ev);
+    });
+
+    // Wait for the hover dwell time (180ms)
+    await page.waitForTimeout(250);
+
+    expect(selectedDay).toBe(2);
+  });
+
+  test('cleanupCustomDragPreview applies fade-out animation and transition styles on drag end', async ({ mount, page }) => {
+    const mockDays: DayOutput[] = [
+      {
+        day: 1,
+        theme: 'Historical Shrines',
+        itinerary: { path: [] },
+      },
+    ];
+
+    await mount(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Tokyo"
+        days={mockDays}
+        selectedDay={1}
+        onSelectDay={() => {}}
+        isEditMode={false}
+      />
+    );
+
+    // Wait for useEffect listeners to register
+    await page.waitForTimeout(100);
+
+    await page.evaluate(() => {
+      const el = document.createElement('div');
+      el.setAttribute('data-paladio-custom-drag-preview', 'true');
+      el.style.opacity = '1';
+      document.body.appendChild(el);
+      window.dispatchEvent(new CustomEvent('paladio:drag-ended'));
+    });
+
+    const isFading = await page.evaluate(() => {
+      const el = document.querySelector('[data-paladio-custom-drag-preview]');
+      return {
+        fadingAttr: el?.getAttribute('data-paladio-fading-out'),
+        opacity: (el as HTMLElement)?.style.opacity,
+        transition: (el as HTMLElement)?.style.transition,
+      };
+    });
+
+    expect(isFading.fadingAttr).toBe('true');
+    expect(isFading.opacity).toBe('0');
+    expect(isFading.transition).toContain('opacity 220ms');
+  });
+
+  test('TripUnifiedSidebar auto-scrolls route content when dragging near top/bottom edges', async ({ mount, page }) => {
+    // Generate 15 stops so the container is tall and scrollable
+    const pathStops = Array.from({ length: 15 }, (_, i) => ({
+      poi: {
+        id: `stop-${i + 1}`,
+        name: `Stop Venue #${i + 1}`,
+        category: 'attraction',
+        lat: 35.6 + i * 0.005,
+        lng: 139.7 + i * 0.005,
+        duration_mins: 45,
+        cost_eur: 5,
+      },
+      arrival_time: `${9 + Math.floor(i / 2)}:${i % 2 === 0 ? '00' : '30'}`,
+      departure_time: `${10 + Math.floor(i / 2)}:${i % 2 === 0 ? '00' : '30'}`,
+      visit_duration_minutes: 45,
+    }));
+
+    const mockDays: any[] = [
+      {
+        day: 1,
+        theme: 'Long Day of Exploration',
+        itinerary: { path: pathStops },
+      },
+    ];
+
+    const component = await mount(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Tokyo"
+        days={mockDays as DayOutput[]}
+        selectedDay={1}
+        onSelectDay={() => {}}
+        isEditMode={false}
+      />
+    );
+
+    // Set simulated active POI on window
+    await page.evaluate(() => {
+      (window as any).__paladioActivePoi = {
+        source: 'map',
+        poi: { id: 'poi-dragged', name: 'Floating Place', category: 'attraction' },
+      };
+    });
+
+    // Make sure scroll container has overflow and measurable height in test runner
+    const scrollContainer = component.locator('.no-scrollbar').first();
+    await expect(scrollContainer).toBeVisible();
+
+    await page.evaluate(() => {
+      const el = document.querySelector('.no-scrollbar') as HTMLElement | null;
+      if (el) {
+        el.style.height = '300px';
+        el.style.maxHeight = '300px';
+        el.style.overflowY = 'auto';
+      }
+    });
+
+    // Initial scrollTop is 0
+    const initialScrollTop = await page.evaluate(() => {
+      const el = document.querySelector('.no-scrollbar') as HTMLElement | null;
+      return el?.scrollTop ?? 0;
+    });
+    expect(initialScrollTop).toBe(0);
+
+    // Hover near the bottom edge of the scroll container
+    await page.evaluate(() => {
+      const el = document.querySelector('.no-scrollbar') as HTMLElement | null;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const dt = new DataTransfer();
+        dt.setData('application/paladio-poi', 'test');
+        // Dispatch dragover 15px from bottom
+        const ev = new DragEvent('dragover', {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: dt,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.bottom - 15,
+        });
+        window.dispatchEvent(ev);
+      }
+    });
+
+    // Let the rAF loop run for a few frames
+    await page.waitForTimeout(200);
+
+    const scrolledDownTop = await page.evaluate(() => {
+      const el = document.querySelector('.no-scrollbar') as HTMLElement | null;
+      return el?.scrollTop ?? 0;
+    });
+
+    // Must have scrolled down
+    expect(scrolledDownTop).toBeGreaterThan(0);
+
+    // Now hover near the top edge to scroll back up
+    await page.evaluate(() => {
+      const el = document.querySelector('.no-scrollbar') as HTMLElement | null;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const dt = new DataTransfer();
+        dt.setData('application/paladio-poi', 'test');
+        // Dispatch dragover 15px from top
+        const ev = new DragEvent('dragover', {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: dt,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + 15,
+        });
+        window.dispatchEvent(ev);
+      }
+    });
+
+    // Let rAF scroll up
+    await page.waitForTimeout(200);
+
+    const scrolledUpTop = await page.evaluate(() => {
+      const el = document.querySelector('.no-scrollbar') as HTMLElement | null;
+      return el?.scrollTop ?? 0;
+    });
+
+    // Must have scrolled back towards 0
+    expect(scrolledUpTop).toBeLessThan(scrolledDownTop);
+
+    // Dispatch dragend to ensure animation loop terminates cleanly
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('paladio:drag-ended'));
+    });
+  });
 });
+
 
 
 

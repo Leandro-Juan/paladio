@@ -373,6 +373,30 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
     notify.success(t('workspace.days_reordered_title'), t('workspace.days_reordered_desc', { from: fromDayNum, to: toIdx + 1 }));
   }, [currentItinerary, selectedDay, trip.id, updateTrip, onTripUpdated, t]);
 
+  const handleRenameDay = useCallback(
+    (dayNum: number, newTheme: string) => {
+      if (!currentItinerary || !Array.isArray(currentItinerary.days)) return;
+      const cloned: RouteItineraryData = JSON.parse(JSON.stringify(currentItinerary));
+      const daysArr = cloned.days || [];
+      const targetDay = daysArr.find((d, idx) => (d.day ?? idx + 1) === dayNum);
+      if (!targetDay) return;
+
+      const trimmed = newTheme.trim();
+      targetDay.theme = trimmed || undefined;
+      cloned.days = daysArr;
+
+      setCurrentItinerary(cloned);
+      if (trip.id) {
+        updateTrip(trip.id, {
+          itinerary_data: cloned as unknown as Record<string, unknown>,
+        }).then(() => {
+          onTripUpdated?.();
+        });
+      }
+    },
+    [currentItinerary, trip.id, updateTrip, onTripUpdated]
+  );
+
   const handleReoptimizeDay = useCallback(async () => {
     if (isReoptimizing) return;
     if (!trip.id) {
@@ -1021,6 +1045,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             onAddDay={handleAddDay}
             onRemoveDay={handleRemoveDay}
             onReorderDays={handleReorderDays}
+            onRenameDay={handleRenameDay}
             onFocusFromInspector={handleFocusFromDrawer}
             availableDays={daysOutput.map((d) => d.day)}
             initialDay={typeof selectedDay === 'number' ? selectedDay : 1}

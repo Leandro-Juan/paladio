@@ -71,6 +71,8 @@ class DayPlan(BaseModel):
     flight_info: Optional[dict[str, Any]] = None
     lodging: Optional[dict[str, Any]] = None
     hotel_depot: Optional[dict[str, Any]] = None
+    theme: Optional[str] = None
+    anchor: Optional[str] = None
     locked_stops: Optional[list[str]] = Field(default_factory=list)
 
     @model_validator(mode="before")

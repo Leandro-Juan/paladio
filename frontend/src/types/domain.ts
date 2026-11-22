@@ -163,6 +163,8 @@ export interface RouteItineraryData {
   };
   days?: Array<{
     day: number;
+    theme?: string;
+    anchor?: string;
     flight_info?: {
       origin_iata?: string;
       destination_iata?: string;

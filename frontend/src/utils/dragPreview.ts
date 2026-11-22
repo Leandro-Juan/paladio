@@ -1,10 +1,34 @@
 /**
- * Removes all custom drag preview floating cards from the document immediately.
+ * Removes or smoothly fades out custom drag preview floating cards from the document.
+ * When immediate is true, all previews are stripped instantly (e.g. before launching a new drag).
+ * When immediate is false (default), the preview smoothly fades out with a subtle scale-down.
  */
-export function cleanupCustomDragPreview(): void {
+export function cleanupCustomDragPreview(immediate: boolean = false): void {
   if (typeof document === 'undefined') return;
-  const existing = document.querySelectorAll('[data-paladio-custom-drag-preview]');
-  existing.forEach((node) => node.remove());
+  const existing = document.querySelectorAll<HTMLElement>('[data-paladio-custom-drag-preview]');
+  existing.forEach((node) => {
+    if (immediate) {
+      node.remove();
+      return;
+    }
+    if (node.getAttribute('data-paladio-fading-out') === 'true') {
+      return;
+    }
+    node.setAttribute('data-paladio-fading-out', 'true');
+    node.style.pointerEvents = 'none';
+    node.style.transition = 'opacity 220ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms cubic-bezier(0.16, 1, 0.3, 1)';
+    node.style.opacity = '0';
+    node.style.transform = 'scale(0.92)';
+
+    const onEnd = () => {
+      node.removeEventListener('transitionend', onEnd);
+      if (node.parentElement) {
+        node.remove();
+      }
+    };
+    node.addEventListener('transitionend', onEnd);
+    setTimeout(onEnd, 260);
+  });
 }
 
 /**
@@ -44,8 +68,8 @@ export function startCustomDragPreview(
     }
   }
 
-  // Remove any stale custom drag clones immediately
-  cleanupCustomDragPreview();
+  // Remove any stale custom drag clones immediately without animation
+  cleanupCustomDragPreview(true);
 
   // 2. Create the floating solid opaque card clone
   const el = document.createElement('div');
@@ -69,6 +93,8 @@ export function startCustomDragPreview(
   el.style.zIndex = '999999';
   el.style.pointerEvents = 'none';
   el.style.opacity = '1';
+  el.style.transform = 'scale(1)';
+  el.style.transformOrigin = 'center center';
   el.style.userSelect = 'none';
   el.style.transition = 'none';
 
@@ -99,9 +125,20 @@ export function startCustomDragPreview(
 
   // 3. Track cursor coordinates smoothly on drag / dragover
   const handleDragUpdate = (ev: DragEvent | MouseEvent) => {
+    // If mouseup occurred or no buttons are held during non-HTML5 drag events, cleanly abort
+    if (ev.type !== 'drag' && (ev as MouseEvent).buttons === 0) {
+      cleanup();
+      return;
+    }
     if (ev.clientX !== 0 || ev.clientY !== 0) {
       el.style.top = `${ev.clientY - 20}px`;
       el.style.left = `${ev.clientX - 24}px`;
+    }
+  };
+
+  const handleKeyDown = (ev: KeyboardEvent) => {
+    if (ev.key === 'Escape') {
+      cleanup();
     }
   };
 
@@ -119,14 +156,12 @@ export function startCustomDragPreview(
     window.removeEventListener('pointerup', cleanup, true);
     window.removeEventListener('touchend', cleanup, true);
     window.removeEventListener('drop', cleanup, false);
+    window.removeEventListener('keydown', handleKeyDown, true);
   };
 
   const cleanup = () => {
     removeListeners();
-    cleanupCustomDragPreview();
-    if (el.parentElement) {
-      el.remove();
-    }
+    cleanupCustomDragPreview(false);
     // Defer clearing active POI slightly to allow onDrop handlers in the DOM to consume the payload
     window.setTimeout(() => {
       if (typeof window !== 'undefined') {
@@ -150,6 +185,7 @@ export function startCustomDragPreview(
   window.addEventListener('pointerup', cleanup, true);
   window.addEventListener('touchend', cleanup, true);
   window.addEventListener('drop', cleanup, false);
+  window.addEventListener('keydown', handleKeyDown, true);
 
   return el;
 }

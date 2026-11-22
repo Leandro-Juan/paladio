@@ -185,6 +185,7 @@ export interface TripUnifiedSidebarProps {
   onAddDay?: () => void;
   onRemoveDay?: (dayNum: number) => void;
   onReorderDays?: (fromDayNum: number, toDayNum: number) => void;
+  onRenameDay?: (dayNumber: number, newTheme: string) => void;
   onFocusFromInspector?: (poi: {
     lat: number;
     lng: number;
@@ -227,6 +228,127 @@ const PROJECT_CATEGORIES: { id: string; labelKey: string; iconType: PoiCategoryT
   { id: 'park', labelKey: 'sidebar.cat_parks', iconType: 'park' },
   { id: 'shopping', labelKey: 'sidebar.cat_shopping', iconType: 'shopping' },
 ];
+
+interface DayNameInlineEditorProps {
+  dayNumber: number;
+  theme: string;
+  dayLabel: string;
+  placeholder?: string;
+  onSave?: (newName: string) => void;
+}
+
+function DayNameInlineEditor({
+  dayNumber,
+  theme,
+  dayLabel,
+  placeholder,
+  onSave,
+}: DayNameInlineEditorProps) {
+  const [prevTheme, setPrevTheme] = useState(theme);
+  const [value, setValue] = useState(theme);
+  const [isFocused, setIsFocused] = useState(false);
+
+  if (theme !== prevTheme) {
+    setPrevTheme(theme);
+    setValue(theme);
+  }
+
+  const handleCommit = useCallback(() => {
+    setIsFocused(false);
+    const trimmed = value.trim();
+    if (trimmed !== (theme || '').trim()) {
+      onSave?.(trimmed);
+    }
+  }, [value, theme, onSave]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.currentTarget.blur();
+      } else if (e.key === 'Escape') {
+        setValue(theme || '');
+        e.currentTarget.blur();
+      }
+    },
+    [theme]
+  );
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        flex: 1,
+        minWidth: 0,
+      }}
+    >
+      <span
+        style={{
+          fontSize: '13px',
+          fontWeight: 700,
+          color: 'var(--color-text-primary)',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+        }}
+      >
+        {dayLabel} —
+      </span>
+      <div
+        style={{
+          position: 'relative',
+          display: 'inline-flex',
+          alignItems: 'center',
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
+        <input
+          type="text"
+          data-testid={`edit-day-name-input-${dayNumber}`}
+          aria-label={`${dayLabel} name`}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={handleCommit}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          maxLength={60}
+          style={{
+            width: '100%',
+            height: '24px',
+            padding: '2px 22px 2px 7px',
+            fontSize: '12px',
+            fontWeight: 600,
+            fontFamily: 'inherit',
+            color: 'var(--color-text-primary)',
+            background: isFocused
+              ? 'var(--color-surface, #FFFFFF)'
+              : 'var(--color-surface-subtle, rgba(0, 0, 0, 0.03))',
+            border: `1px solid ${isFocused ? 'var(--color-accent-primary, #0F4C5C)' : 'var(--color-border)'}`,
+            borderRadius: '6px',
+            outline: 'none',
+            boxShadow: isFocused ? '0 0 0 2px rgba(15, 76, 92, 0.15)' : 'none',
+            transition: 'all 0.15s ease',
+          }}
+        />
+        <EditIcon
+          size={11}
+          color={isFocused ? 'var(--color-accent-primary, #0F4C5C)' : 'var(--color-text-muted)'}
+          style={{
+            position: 'absolute',
+            right: '6px',
+            pointerEvents: 'none',
+            opacity: isFocused ? 1 : 0.6,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
 
 interface HoverScrollRowProps {
   children: React.ReactNode;
@@ -1250,6 +1372,7 @@ export function TripUnifiedSidebar({
   onAddDay,
   onRemoveDay,
   onReorderDays,
+  onRenameDay,
   onFocusFromInspector,
   availableDays = [],
   initialDay = 1,
@@ -1515,10 +1638,136 @@ export function TripUnifiedSidebar({
     return () => window.removeEventListener('paladio:switch-to-route', handleSwitchToRoute);
   }, []);
 
+  // Day Hover Switch State & Timer during POI drag
+  const [dragHoveredDay, setDragHoveredDay] = useState<number | 'all' | null>(null);
+  const dayHoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const clearDayHoverTimer = useCallback(() => {
+    if (dayHoverTimerRef.current) {
+      clearTimeout(dayHoverTimerRef.current);
+      dayHoverTimerRef.current = null;
+    }
+    setDragHoveredDay(null);
+  }, []);
+
+  const isPoiDragActive = useCallback((e?: React.DragEvent | DragEvent) => {
+    if (draggedPoi !== null) return true;
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as { __paladioActivePoi?: unknown; __paladioActiveSearchPoi?: unknown };
+      if (win.__paladioActivePoi || win.__paladioActiveSearchPoi) return true;
+    }
+    if (e && 'dataTransfer' in e && e.dataTransfer) {
+      return e.dataTransfer.types.includes('application/paladio-poi') || e.dataTransfer.types.includes('text/plain');
+    }
+    return false;
+  }, [draggedPoi]);
+
+  const handleDayTabDragOver = useCallback((e: React.DragEvent, targetDay: number | 'all') => {
+    if (!isPoiDragActive(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+    setDragHoveredDay(targetDay);
+    if (targetDay !== selectedDay && !dayHoverTimerRef.current) {
+      dayHoverTimerRef.current = setTimeout(() => {
+        onSelectDay(targetDay);
+        dayHoverTimerRef.current = null;
+      }, 180);
+    }
+  }, [isPoiDragActive, selectedDay, onSelectDay]);
+
+  const handleDayTabDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.relatedTarget && (e.currentTarget as Node).contains(e.relatedTarget as Node)) {
+      return;
+    }
+    clearDayHoverTimer();
+  }, [clearDayHoverTimer]);
+
+  // Vertical edge-hover auto-scrolling for Route itinerary when dragging a POI
+  const mainContentScrollRef = useRef<HTMLDivElement>(null);
+  const verticalScrollRafRef = useRef<number | null>(null);
+  const verticalScrollVelocityRef = useRef<number>(0);
+
+  const stopVerticalScroll = useCallback(() => {
+    if (verticalScrollRafRef.current !== null) {
+      cancelAnimationFrame(verticalScrollRafRef.current);
+      verticalScrollRafRef.current = null;
+    }
+    verticalScrollVelocityRef.current = 0;
+  }, []);
+
+  const startVerticalScroll = useCallback(() => {
+    if (verticalScrollRafRef.current !== null) return;
+    const loop = () => {
+      const el = mainContentScrollRef.current;
+      if (!el || verticalScrollVelocityRef.current === 0) {
+        stopVerticalScroll();
+        return;
+      }
+      el.scrollTop += verticalScrollVelocityRef.current;
+      verticalScrollRafRef.current = requestAnimationFrame(loop);
+    };
+    verticalScrollRafRef.current = requestAnimationFrame(loop);
+  }, [stopVerticalScroll]);
+
+  const updateVerticalScrollVelocity = useCallback((clientY: number) => {
+    const el = mainContentScrollRef.current;
+    if (!el || activeTab !== 'route') {
+      stopVerticalScroll();
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const edgeThreshold = 75; // px from top or bottom edge
+    const maxSpeed = 16;      // max pixels per frame
+
+    const distFromTop = clientY - rect.top;
+    const distFromBottom = rect.bottom - clientY;
+
+    if (distFromBottom >= -40 && distFromBottom < edgeThreshold) {
+      const clamped = Math.max(0, distFromBottom);
+      const intensity = (edgeThreshold - clamped) / edgeThreshold;
+      verticalScrollVelocityRef.current = Math.max(3, Math.round(intensity * maxSpeed));
+      startVerticalScroll();
+    } else if (distFromTop >= -20 && distFromTop < edgeThreshold) {
+      const clamped = Math.max(0, distFromTop);
+      const intensity = (edgeThreshold - clamped) / edgeThreshold;
+      verticalScrollVelocityRef.current = -Math.max(3, Math.round(intensity * maxSpeed));
+      startVerticalScroll();
+    } else {
+      stopVerticalScroll();
+    }
+  }, [activeTab, startVerticalScroll, stopVerticalScroll]);
+
+  useEffect(() => {
+    const handleWindowDragOver = (e: DragEvent) => {
+      if (!isPoiDragActive(e)) {
+        stopVerticalScroll();
+        return;
+      }
+      const el = mainContentScrollRef.current;
+      if (!el || activeTab !== 'route') return;
+      const rect = el.getBoundingClientRect();
+      if (e.clientX >= rect.left - 20 && e.clientX <= rect.right + 20) {
+        updateVerticalScrollVelocity(e.clientY);
+      } else {
+        stopVerticalScroll();
+      }
+    };
+
+    window.addEventListener('dragover', handleWindowDragOver);
+    return () => {
+      window.removeEventListener('dragover', handleWindowDragOver);
+      stopVerticalScroll();
+    };
+  }, [isPoiDragActive, activeTab, updateVerticalScrollVelocity, stopVerticalScroll]);
+
   // Reset active drop target and clean up drag state if dragging ends anywhere without inserting
   useEffect(() => {
     const handleDragEnded = () => {
-      cleanupCustomDragPreview();
+      cleanupCustomDragPreview(false);
+      clearDayHoverTimer();
+      stopVerticalScroll();
       setActiveDropTarget(null);
       window.setTimeout(() => {
         setDraggedPoi(null);
@@ -1539,7 +1788,7 @@ export function TripUnifiedSidebar({
       window.removeEventListener('drop', handleDragEnded, false);
       window.removeEventListener('paladio:drag-ended', handleDragEnded, true);
     };
-  }, []);
+  }, [clearDayHoverTimer, stopVerticalScroll]);
 
 
   // Active Day Convex Hull for POI search prioritization (excluding transit and lodging anchors to match map territory)
@@ -1748,10 +1997,10 @@ export function TripUnifiedSidebar({
           });
         } else {
           setSearchData(data);
-          if (data.is_hydrating) {
-            setIsDownloadingPois(true);
-          } else if ((data.city_total_pois || 0) > 0) {
+          if ((data.city_total_pois || 0) > 0) {
             setIsDownloadingPois(false);
+          } else if (data.is_hydrating) {
+            setIsDownloadingPois(true);
           }
           if (onCategoryPoisChange && activeTab === 'search' && reqId === searchReqSeqRef.current) {
             onCategoryPoisChange(data.results || []);
@@ -1812,12 +2061,12 @@ export function TripUnifiedSidebar({
       const eventCity = (customEvt.detail?.city || customEvt.detail?.city_name || customEvt.detail?.city_id || '').toLowerCase();
       if (!eventCity || cleanDest.includes(eventCity) || eventCity.includes(cleanDest)) {
         if (e.type === 'paladio:city_hydration_started') {
-          setIsDownloadingPois(true);
-        } else if (e.type === 'paladio:city_hydration_completed') {
+          if ((searchData?.city_total_pois || 0) === 0) {
+            setIsDownloadingPois(true);
+          }
+        } else if (e.type === 'paladio:city_hydration_completed' || e.type === 'paladio:city_hydration_failed') {
           setIsDownloadingPois(false);
           void executeSearch(searchQuery, activeCategory);
-        } else if (e.type === 'paladio:city_hydration_failed') {
-          setIsDownloadingPois(false);
         }
       }
     };
@@ -1831,7 +2080,7 @@ export function TripUnifiedSidebar({
       window.removeEventListener('paladio:city_hydration_completed', handleHydrationEvent);
       window.removeEventListener('paladio:city_hydration_failed', handleHydrationEvent);
     };
-  }, [destinationCity, executeSearch, searchQuery, activeCategory]);
+  }, [destinationCity, executeSearch, searchQuery, activeCategory, searchData?.city_total_pois]);
 
   // Polling fallback when isDownloadingPois is active
   useEffect(() => {
@@ -1840,7 +2089,7 @@ export function TripUnifiedSidebar({
     const interval = setInterval(async () => {
       try {
         const status = await fetchCityPoisStatusApi(destinationCity);
-        if (status.poi_count > 0 && !status.is_hydrating) {
+        if (status.poi_count > 0 || !status.is_hydrating) {
           setIsDownloadingPois(false);
           void executeSearch(searchQuery, activeCategory);
         }
@@ -2520,6 +2769,22 @@ export function TripUnifiedSidebar({
     }
   };
 
+  const handleDayTabDrop = useCallback((e: React.DragEvent, targetDay: number | 'all') => {
+    clearDayHoverTimer();
+    stopVerticalScroll();
+    if (targetDay !== 'all') {
+      onSelectDay(targetDay);
+      const targetDayData = days.find((d) => d.day === targetDay);
+      const targetLen = targetDayData?.itinerary?.path?.length || 0;
+      handleDrop(e, targetDay, targetLen);
+    } else {
+      onSelectDay('all');
+      if (displayedDays.length > 0) {
+        handleDrop(e, displayedDays[0].day, 0);
+      }
+    }
+  }, [clearDayHoverTimer, stopVerticalScroll, onSelectDay, days, displayedDays, handleDrop]);
+
   return (
     <div
       style={{
@@ -2919,8 +3184,12 @@ export function TripUnifiedSidebar({
                       type="button"
                       data-testid="day-tab-all"
                       onClick={() => onSelectDay('all')}
+                      onDragOver={(e) => handleDayTabDragOver(e, 'all')}
+                      onDragLeave={handleDayTabDragLeave}
+                      onDrop={(e) => handleDayTabDrop(e, 'all')}
                       style={{
-                        background: 'transparent',
+                        background: dragHoveredDay === 'all' ? 'rgba(15, 76, 92, 0.12)' : 'transparent',
+                        borderRadius: dragHoveredDay === 'all' ? '6px 6px 0 0' : 0,
                         border: 'none',
                         borderBottom: selectedDay === 'all' ? '2.5px solid var(--color-accent-primary)' : '2.5px solid transparent',
                         padding: '6px 4px',
@@ -2941,6 +3210,7 @@ export function TripUnifiedSidebar({
                     {days.map((d) => {
                       const isSel = selectedDay === d.day;
                       const isDragOver = dragOverDayTab === d.day && draggedDayTab !== d.day;
+                      const isPoiDragHover = dragHoveredDay === d.day;
                       return (
                         <div
                           key={d.day}
@@ -2952,28 +3222,38 @@ export function TripUnifiedSidebar({
                             e.dataTransfer.effectAllowed = 'move';
                           }}
                           onDragOver={(e) => {
-                            if (!isEditMode || draggedDayTab === null || draggedDayTab === d.day) return;
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = 'move';
-                            setDragOverDayTab(d.day);
+                            if (draggedDayTab !== null) {
+                              if (!isEditMode || draggedDayTab === d.day) return;
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = 'move';
+                              setDragOverDayTab(d.day);
+                              return;
+                            }
+                            handleDayTabDragOver(e, d.day);
                           }}
-                          onDragLeave={() => {
+                          onDragLeave={(e) => {
                             if (dragOverDayTab === d.day) setDragOverDayTab(null);
+                            handleDayTabDragLeave(e);
                           }}
                           onDrop={(e) => {
-                            if (!isEditMode || draggedDayTab === null) return;
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const fromDay = draggedDayTab;
-                            setDraggedDayTab(null);
-                            setDragOverDayTab(null);
-                            if (fromDay !== d.day) {
-                              onReorderDays?.(fromDay, d.day);
+                            if (draggedDayTab !== null) {
+                              if (!isEditMode) return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const fromDay = draggedDayTab;
+                              setDraggedDayTab(null);
+                              setDragOverDayTab(null);
+                              if (fromDay !== d.day) {
+                                onReorderDays?.(fromDay, d.day);
+                              }
+                              return;
                             }
+                            handleDayTabDrop(e, d.day);
                           }}
                           onDragEnd={() => {
                             setDraggedDayTab(null);
                             setDragOverDayTab(null);
+                            clearDayHoverTimer();
                           }}
                           style={{
                             display: 'inline-flex',
@@ -2981,8 +3261,8 @@ export function TripUnifiedSidebar({
                             gap: '4px',
                             borderBottom: isSel ? '2.5px solid var(--color-accent-primary)' : '2.5px solid transparent',
                             borderLeft: isDragOver ? '2px solid var(--color-accent-primary)' : 'none',
-                            background: isDragOver ? 'rgba(15, 76, 92, 0.08)' : 'transparent',
-                            borderRadius: isDragOver ? '6px 6px 0 0' : 0,
+                            background: isDragOver || isPoiDragHover ? 'rgba(15, 76, 92, 0.12)' : 'transparent',
+                            borderRadius: isDragOver || isPoiDragHover ? '6px 6px 0 0' : 0,
                             padding: isEditMode ? '0 2px' : '0 6px',
                             flexShrink: 0,
                             opacity: draggedDayTab === d.day ? 0.5 : 1,
@@ -2994,9 +3274,21 @@ export function TripUnifiedSidebar({
                             type="button"
                             data-testid={`day-tab-${d.day}`}
                             onClick={() => onSelectDay(d.day)}
+                            onDoubleClick={() => {
+                              if (isEditMode) {
+                                onSelectDay(d.day);
+                                setTimeout(() => {
+                                  const input = document.querySelector<HTMLInputElement>(`[data-testid="edit-day-name-input-${d.day}"]`);
+                                  input?.focus();
+                                  input?.select();
+                                }, 60);
+                              }
+                            }}
                             title={
                               isEditMode && days.length > 1 && onReorderDays
                                 ? t('sidebar.day_tab_reorder_title', { day: d.day })
+                                : d.theme
+                                ? `${t('trips.day_label', { number: d.day })} — ${d.theme}`
                                 : t('trips.day_label', { number: d.day })
                             }
                             style={{
@@ -3134,7 +3426,19 @@ export function TripUnifiedSidebar({
 
               {/* Main Content Area */}
               <div
+                ref={mainContentScrollRef}
                 className="no-scrollbar"
+                onDragOver={(e) => {
+                  if (isPoiDragActive(e)) {
+                    updateVerticalScrollVelocity(e.clientY);
+                  }
+                }}
+                onDragLeave={(e) => {
+                  if (e.relatedTarget && (e.currentTarget as Node).contains(e.relatedTarget as Node)) {
+                    return;
+                  }
+                  stopVerticalScroll();
+                }}
                 style={{
                   flex: 1,
                   overflowY: activeTab === 'agent' ? 'hidden' : 'auto',
@@ -3247,12 +3551,23 @@ export function TripUnifiedSidebar({
                               alignItems: 'center',
                               borderBottom: '1px solid var(--color-border)',
                               paddingBottom: '4px',
+                              gap: '8px',
                             }}
                           >
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                              {t('trips.day_label', { number: dayObj.day })}{dayObj.theme ? ` — ${dayObj.theme}` : ''}
-                            </span>
-                            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
+                            {isEditMode && onRenameDay ? (
+                              <DayNameInlineEditor
+                                dayNumber={dayObj.day}
+                                theme={dayObj.theme || ''}
+                                dayLabel={t('trips.day_label', { number: dayObj.day })}
+                                placeholder={t('sidebar.day_name_placeholder') || 'Day theme or name...'}
+                                onSave={(newName) => onRenameDay(dayObj.day, newName)}
+                              />
+                            ) : (
+                              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                                {t('trips.day_label', { number: dayObj.day })}{dayObj.theme ? ` — ${dayObj.theme}` : ''}
+                              </span>
+                            )}
+                            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)', flexShrink: 0 }}>
                               {t('sidebar.stops_upper_count', { count: path.length })}
                             </span>
                           </div>
@@ -3864,7 +4179,7 @@ export function TripUnifiedSidebar({
                     </div>
 
                     {/* POI Database Download Card */}
-                    {(isPoiDatabaseEmpty || isDownloadingPois) && (
+                    {(isPoiDatabaseEmpty || (isDownloadingPois && (searchData?.city_total_pois || 0) === 0)) && (
                       <div
                         data-testid="poi-database-download-card"
                         style={{

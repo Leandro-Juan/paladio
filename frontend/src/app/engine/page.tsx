@@ -45,6 +45,7 @@ export default function EnginePage() {
   const {
     status,
     itinerary,
+    clearItinerary,
     verificationPayload,
     clearVerification,
     overlapWarning,
@@ -96,7 +97,12 @@ export default function EnginePage() {
   const lastExtrasRef = useRef<Record<string, unknown>>({});
 
   const handlePrepSubmit = (prompt: string, extras: Record<string, unknown>) => {
+    savedTripIdRef.current = null;
+    isSavingRef.current = false;
+    setIsSaving(false);
     setIsSubmitting(true);
+    clearItinerary();
+    useLogStore.getState().clearLogs();
     lastExtrasRef.current = extras;
     const newThreadId = 'paladio_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
     sendMessage(prompt, { ...extras, auto_verify: true, thread_id: newThreadId });
@@ -150,13 +156,25 @@ export default function EnginePage() {
     if (saved?.id) {
       useTripDraftStore.getState().resetDraft();
       savedTripIdRef.current = saved.id;
+      clearItinerary();
+      useLogStore.getState().clearLogs();
+      setIsSaving(false);
+      setIsSubmitting(false);
       router.push(`/trips/${saved.id}`);
     } else {
       isSavingRef.current = false;
       setIsSaving(false);
       setIsSubmitting(false);
     }
-  }, [itinerary, saveTrip, router]);
+  }, [itinerary, saveTrip, router, clearItinerary]);
+
+  // Clean up any stale itinerary or logs when mounting fresh
+  useEffect(() => {
+    clearItinerary();
+    useLogStore.getState().clearLogs();
+    savedTripIdRef.current = null;
+    isSavingRef.current = false;
+  }, [clearItinerary]);
 
   // Ensure WebSocket uplink is connected when entering Engine cockpit
   useEffect(() => {
@@ -167,10 +185,10 @@ export default function EnginePage() {
 
   // When personalized optimization finishes, auto-save and redirect to trip workspace
   useEffect(() => {
-    if (itinerary && !isSavingRef.current && !savedTripIdRef.current) {
+    if (isSubmitting && itinerary && !isSavingRef.current && !savedTripIdRef.current) {
       void handleSaveTrip();
     }
-  }, [itinerary, handleSaveTrip]);
+  }, [isSubmitting, itinerary, handleSaveTrip]);
 
   const isCreatingTrip = isSubmitting || status === 'inferencing' || isSaving || Boolean(blankCreationStatus);
 
@@ -203,6 +221,8 @@ export default function EnginePage() {
             setIsSubmitting(false);
             setBlankCreationStatus(null);
             clearVerification();
+            clearItinerary();
+            useLogStore.getState().clearLogs();
           }}
         />
 
@@ -292,7 +312,14 @@ export default function EnginePage() {
       <TripCreationBoxes
         key={queryPrefillKey || 'default'}
         onPersonalizedSubmit={handlePrepSubmit}
-        onBlankSubmitStart={(msg) => setBlankCreationStatus(msg || t('engine.creating_blank_workspace'))}
+        onBlankSubmitStart={(msg) => {
+          savedTripIdRef.current = null;
+          isSavingRef.current = false;
+          setIsSaving(false);
+          clearItinerary();
+          useLogStore.getState().clearLogs();
+          setBlankCreationStatus(msg || t('engine.creating_blank_workspace'));
+        }}
         disabled={false}
         initialDestination={queryDest || 'Paris'}
         initialOrigin={queryOrigin || 'Madrid'}

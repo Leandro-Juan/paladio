@@ -442,26 +442,37 @@ function InteractiveSpatialCircleLayer({
     if (handleMarkerRef.current) {
       const dLng = spatialCircle.radiusMeters / (111320.0 * Math.max(0.0001, Math.cos((spatialCircle.lat * Math.PI) / 180.0)));
       handleMarkerRef.current.setLatLng([spatialCircle.lat, spatialCircle.lng + dLng]);
-      handleMarkerRef.current.setTooltipContent(`${spatialCircle.radiusMeters}m`);
+      if (handleMarkerRef.current.getTooltip()) {
+        handleMarkerRef.current.setTooltipContent(`${spatialCircle.radiusMeters}m`);
+      }
     }
     if (centerMarkerRef.current) {
       centerMarkerRef.current.setLatLng([spatialCircle.lat, spatialCircle.lng]);
     }
   }, [spatialCircle.lat, spatialCircle.lng, spatialCircle.radiusMeters]);
 
-  // Safely close popups and tooltips on unmount only if marker is still attached to a map
+  // Native Leaflet tooltip binding on handle marker to prevent React VDOM removeChild reconciliation conflicts
+  useEffect(() => {
+    const marker = handleMarkerRef.current;
+    if (!marker) return;
+    marker.bindTooltip(`${spatialCircle.radiusMeters}m`, {
+      direction: 'right',
+      offset: [12, 0],
+      opacity: 0.95,
+    });
+    return () => {
+      marker.unbindTooltip();
+    };
+  }, []);
+
+  // Safely close popups on unmount only if marker is still attached to a map
   useEffect(() => {
     const centerRef = centerMarkerRef;
-    const handleRef = handleMarkerRef;
     return () => {
       try {
         const cm = centerRef.current as (L.Marker & { _map?: unknown }) | null;
         if (cm && cm._map && cm.isPopupOpen()) {
           cm.closePopup();
-        }
-        const hm = handleRef.current as (L.Marker & { _map?: unknown }) | null;
-        if (hm && hm._map && hm.isTooltipOpen()) {
-          hm.closeTooltip();
         }
       } catch {
         // ignore unmount cleanup errors
@@ -484,8 +495,10 @@ function InteractiveSpatialCircleLayer({
       if (circleRef.current) {
         circleRef.current.setRadius(clampedDist);
       }
-      marker.setTooltipContent(`${clampedDist}m`);
-      marker.openTooltip();
+      if (marker.getTooltip()) {
+        marker.setTooltipContent(`${clampedDist}m`);
+        marker.openTooltip();
+      }
     },
     dragend: (e: L.LeafletEvent) => {
       const marker = e.target as L.Marker;
@@ -496,7 +509,9 @@ function InteractiveSpatialCircleLayer({
       // Snap handle back to the East perimeter of the circle
       const dLng = clampedDist / (111320.0 * Math.max(0.0001, Math.cos((spatialCircle.lat * Math.PI) / 180.0)));
       marker.setLatLng([spatialCircle.lat, spatialCircle.lng + dLng]);
-      marker.setTooltipContent(`${clampedDist}m`);
+      if (marker.getTooltip()) {
+        marker.setTooltipContent(`${clampedDist}m`);
+      }
 
       isDraggingRef.current = false;
 
@@ -607,13 +622,7 @@ function InteractiveSpatialCircleLayer({
         icon={handleIcon}
         zIndexOffset={5000}
         eventHandlers={handleEventHandlers}
-      >
-        <Tooltip direction="right" offset={[12, 0]} opacity={0.95}>
-          <div style={{ fontSize: '11px', fontWeight: 600 }}>
-            {spatialCircle.radiusMeters}m
-          </div>
-        </Tooltip>
-      </Marker>
+      />
     </>
   );
 }
@@ -1300,7 +1309,7 @@ function MapViewportController({
       if (map && !map.dragging.enabled()) {
         map.dragging.enable();
       }
-      cleanupCustomDragPreview();
+      cleanupCustomDragPreview(false);
       window.setTimeout(() => {
         if (typeof window !== 'undefined') {
           (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
@@ -1309,6 +1318,24 @@ function MapViewportController({
         }
       }, 50);
     };
+
+    const mapContainer = map.getContainer();
+    const handleMapDragOver = (e: DragEvent) => {
+      const win = typeof window !== 'undefined' ? (window as unknown as { __paladioActivePoi?: unknown }) : null;
+      if (win?.__paladioActivePoi || e.dataTransfer?.types.includes('application/paladio-poi')) {
+        e.preventDefault();
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = 'none';
+        }
+      }
+    };
+    const handleMapDrop = (e: DragEvent) => {
+      e.preventDefault();
+      handleMouseUp();
+    };
+
+    mapContainer.addEventListener('dragover', handleMapDragOver);
+    mapContainer.addEventListener('drop', handleMapDrop);
 
     document.addEventListener('dragstart', handleDragStart);
     document.addEventListener('dragend', handleMouseUp, true);
@@ -1319,6 +1346,8 @@ function MapViewportController({
       document.removeEventListener('dragend', handleMouseUp, true);
       document.removeEventListener('mousedown', handleMouseDown, true);
       document.removeEventListener('mouseup', handleMouseUp, true);
+      mapContainer.removeEventListener('dragover', handleMapDragOver);
+      mapContainer.removeEventListener('drop', handleMapDrop);
     };
   }, [map, readOnly]);
 

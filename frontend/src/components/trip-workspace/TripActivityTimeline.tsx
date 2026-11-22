@@ -44,7 +44,7 @@ function formatRelativeTime(
   if (dayDiff === 1) return t('activity.yesterday');
   if (dayDiff < 7) return t('activity.days_ago', { count: dayDiff });
 
-  return new Intl.DateTimeFormat(locale === 'en' ? undefined : locale, {
+  return new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -55,7 +55,7 @@ function formatRelativeTime(
 function formatExactTime(isoDate: string, locale: string): string {
   const parsed = new Date(isoDate);
   if (Number.isNaN(parsed.getTime())) return isoDate;
-  return new Intl.DateTimeFormat(locale === 'en' ? undefined : locale, {
+  return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -188,24 +188,161 @@ function TimelineKindIcon({ kind }: { kind: string }) {
   }
 }
 
-function ChangeSentence({ change }: { change: TripRevisionChangeItem }) {
+function normalizeKey(str: string): string {
+  return str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function translateVerb(verb: string | undefined, t: (k: string, p?: Record<string, string | number>) => string): string {
+  if (!verb) return '';
+  const key = `activity.verbs.${normalizeKey(verb)}`;
+  const translated = t(key);
+  if (translated !== key) return translated;
+  const fallback = t(verb);
+  return fallback || verb;
+}
+
+function translateConnector(connector: string | null | undefined, t: (k: string, p?: Record<string, string | number>) => string): string {
+  if (!connector) return '';
+  const key = `activity.connectors.${normalizeKey(connector)}`;
+  const translated = t(key);
+  if (translated !== key) return translated;
+  const fallback = t(connector);
+  return fallback || connector;
+}
+
+function formatIsoDate(dateStr: string, locale: string): string {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(d);
+}
+
+function translateLabel(
+  label: string | null | undefined,
+  field: string | null | undefined,
+  locale: string,
+  t: (k: string, p?: Record<string, string | number>) => string
+): string {
+  if (!label) return '';
+  const trimmed = label.trim();
+
+  // 1. Day number pattern: "Day 1", "Day 2", etc.
+  const dayMatch = trimmed.match(/^Day\s+(\d+)$/i);
+  if (dayMatch) {
+    return t('activity.labels.day_number', { number: dayMatch[1] });
+  }
+
+  // 2. Version pattern: "Version v2", "v2"
+  const verMatch = trimmed.match(/^(?:Version\s+)?v(\d+)$/i);
+  if (verMatch) {
+    return t('activity.labels.version_number', { number: verMatch[1] });
+  }
+
+  // 3. Date range or date: if field is 'dates' or contains ISO date string
+  if (field === 'dates' || /\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+    const parts = trimmed.split(/\s+[–—-]\s+/);
+    if (parts.length === 2) {
+      const formatted0 = formatIsoDate(parts[0], locale);
+      const formatted1 = formatIsoDate(parts[1], locale);
+      if (formatted0 !== parts[0] || formatted1 !== parts[1]) {
+        return `${formatted0} – ${formatted1}`;
+      }
+    } else {
+      const single = formatIsoDate(trimmed, locale);
+      if (single !== trimmed) return single;
+    }
+  }
+
+  // 4. Summaries fallback patterns
+  const createdMatch = trimmed.match(/^Created\s+(.+)$/i);
+  if (createdMatch) {
+    return t('activity.summaries.created', { title: createdMatch[1] });
+  }
+  const editedMatch = trimmed.match(/^Edited(?:\s+the)?\s+(.+)$/i);
+  if (editedMatch) {
+    return t('activity.summaries.edited', { title: editedMatch[1] });
+  }
+  const revertedMatch = trimmed.match(/^Reverted(?:\s+to\s+revision)?\s+(?:v)?(\d+)$/i);
+  if (revertedMatch) {
+    return t('activity.summaries.reverted_revision', { revision: revertedMatch[1] });
+  }
+  const restoredMatch = trimmed.match(/^Restored(?:\s+version)?\s+(?:v)?(\d+)$/i);
+  if (restoredMatch) {
+    return t('activity.summaries.restored_version', { revision: restoredMatch[1] });
+  }
+  if (trimmed.toLowerCase() === 'updated trip via api') {
+    return t('activity.summaries.updated_via_api');
+  }
+  const moreMatch = trimmed.match(/^\+(\d+)\s+more$/i);
+  if (moreMatch) {
+    return t('activity.summaries.more_count', { count: moreMatch[1] });
+  }
+
+  // 5. Special tokens: Unset, Lodging, statuses, pace
+  const tokenKey = `activity.labels.${normalizeKey(trimmed)}`;
+  const tokenTranslated = t(tokenKey);
+  if (tokenTranslated !== tokenKey) {
+    return tokenTranslated;
+  }
+
+  // 6. Direct translation lookup for any other string
+  const direct = t(trimmed);
+  return direct || trimmed;
+}
+
+function formatActorName(
+  actorName: string,
+  actor: string,
+  t: (k: string, p?: Record<string, string | number>) => string
+): string {
+  const norm = (actorName || '').toLowerCase().trim();
+  if (actor === 'system' || norm === 'system') {
+    return t('activity.actors.system');
+  }
+  if (actor === 'agent' || norm === 'paladio agent') {
+    return t('activity.actors.agent');
+  }
+  if (norm === 'traveler') {
+    return t('activity.actors.traveler');
+  }
+  return actorName;
+}
+
+function ChangeSentence({
+  change,
+  locale,
+  t,
+}: {
+  change: TripRevisionChangeItem;
+  locale: string;
+  t: (k: string, p?: Record<string, string | number>) => string;
+}) {
+  const verbText = translateVerb(change.verb, t);
+  const connectorText = translateConnector(change.connector, t);
+  const beforeText = translateLabel(change.before_label, change.field, locale, t);
+  const afterText = translateLabel(change.after_label, change.field, locale, t);
+  const targetText = translateLabel(change.target_label, change.field, locale, t);
+
   return (
     <>
-      <span style={{ color: 'var(--color-text-muted)' }}>{change.verb}</span>{' '}
-      {change.before_label && change.connector ? (
+      <span style={{ color: 'var(--color-text-muted)' }}>{verbText}</span>{' '}
+      {beforeText && connectorText ? (
         <>
-          <strong style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{change.before_label}</strong>{' '}
-          <span style={{ color: 'var(--color-text-muted)' }}>{change.connector}</span>{' '}
-          <strong style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{change.after_label}</strong>
+          <strong style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{beforeText}</strong>{' '}
+          <span style={{ color: 'var(--color-text-muted)' }}>{connectorText}</span>{' '}
+          <strong style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{afterText}</strong>
         </>
       ) : (
         <>
-          <strong style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{change.after_label}</strong>
-          {change.connector && change.target_label ? (
+          <strong style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{afterText}</strong>
+          {connectorText && targetText ? (
             <>
               {' '}
-              <span style={{ color: 'var(--color-text-muted)' }}>{change.connector}</span>{' '}
-              <strong style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{change.target_label}</strong>
+              <span style={{ color: 'var(--color-text-muted)' }}>{connectorText}</span>{' '}
+              <strong style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{targetText}</strong>
             </>
           ) : null}
         </>
@@ -463,8 +600,8 @@ export function TripActivityTimeline({
                         wordBreak: 'break-word',
                       }}
                     >
-                      <strong style={{ fontWeight: 600 }}>{item.actor_name}</strong>{' '}
-                      <ChangeSentence change={primaryChange} />
+                      <strong style={{ fontWeight: 600 }}>{formatActorName(item.actor_name, item.actor, t)}</strong>{' '}
+                      <ChangeSentence change={primaryChange} locale={locale} t={t} />
                     </div>
 
                     {extraChanges.length > 0 && (
@@ -482,7 +619,7 @@ export function TripActivityTimeline({
                       >
                         {extraChanges.map((extra, extraIdx) => (
                           <div key={extraIdx}>
-                            <ChangeSentence change={extra} />
+                            <ChangeSentence change={extra} locale={locale} t={t} />
                           </div>
                         ))}
                       </div>

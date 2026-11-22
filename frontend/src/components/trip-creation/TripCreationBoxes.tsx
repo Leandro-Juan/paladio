@@ -27,6 +27,7 @@ import { PaladioDateRangePicker } from './PaladioDateRangePicker';
 import { DocumentUploadModal, ExtractedTravelDocData } from './DocumentUploadModal';
 import { TravelDocumentDraft } from '@/hooks/useTripTickets';
 import { useTripDraftStore } from '@/stores/tripDraftStore';
+import { useLogStore } from '@/contexts/SocketContext';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, CurrencyInfo } from '@/utils/currencyResolver';
@@ -792,6 +793,7 @@ export function TripCreationBoxes({
 
       if (createdTrip?.id) {
         resetDraft();
+        useLogStore.getState().clearLogs();
         setBlankSuccess(t('engine.blank_trip_created_msg'));
         setTimeout(() => {
           router.push(`/trips/${createdTrip.id}`);
