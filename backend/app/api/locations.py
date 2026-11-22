@@ -70,6 +70,8 @@ async def resolve_city_airport(
                 "name": first["airport_name"],
                 "city": first["city"],
                 "country": first["country"],
+                "latitude": first.get("latitude"),
+                "longitude": first.get("longitude"),
                 "distance_km": first.get("distance_km"),
             }
         return {"iata": None, "name": None, "city": city}
@@ -125,17 +127,36 @@ async def search_hotels(
         try:
             db_res = (await session.execute(stmt)).scalars().all()
             for poi in db_res:
+                loc = poi.location if isinstance(poi.location, dict) else {}
+                lat = loc.get("latitude")
+                lng = loc.get("longitude")
+                if lat is None or lng is None:
+                    continue
                 norm = poi.name.lower().strip()
                 if norm not in seen_names:
                     seen_names.add(norm)
+                    meta = (
+                        poi.metadata_field
+                        if isinstance(poi.metadata_field, dict)
+                        else {}
+                    )
+                    addr = (
+                        meta.get("address")
+                        or (
+                            f"{poi.neighborhood}, {poi.city}"
+                            if poi.neighborhood
+                            else None
+                        )
+                        or f"{poi.name}, {poi.city}"
+                    )
                     results.append(
                         {
                             "name": poi.name,
                             "display_name": f"{poi.name}, {poi.city}",
-                            "address": poi.address or f"{poi.name}, {poi.city}",
+                            "address": addr,
                             "city": poi.city,
-                            "lat": float(poi.latitude),
-                            "lng": float(poi.longitude),
+                            "lat": float(lat),
+                            "lng": float(lng),
                             "category": "hotel",
                         }
                     )
@@ -543,10 +564,20 @@ async def search_places(
         try:
             db_res = (await session.execute(stmt)).scalars().all()
             for poi in db_res:
+                loc = poi.location if isinstance(poi.location, dict) else {}
+                lat = loc.get("latitude")
+                lng = loc.get("longitude")
+                if lat is None or lng is None:
+                    continue
                 norm = poi.name.lower().strip()
                 if norm not in seen_names:
                     seen_names.add(norm)
-                    formatted_addr = (
+                    meta = (
+                        poi.metadata_field
+                        if isinstance(poi.metadata_field, dict)
+                        else {}
+                    )
+                    formatted_addr = meta.get("address") or (
                         f"{poi.neighborhood}, {poi.city}"
                         if poi.neighborhood
                         else f"{poi.name}, {poi.city}"
@@ -557,8 +588,8 @@ async def search_places(
                             "display_name": f"{poi.name}, {poi.city}",
                             "address": formatted_addr,
                             "city": poi.city,
-                            "lat": float(poi.latitude),
-                            "lng": float(poi.longitude),
+                            "lat": float(lat),
+                            "lng": float(lng),
                             "category": poi.category or "attraction",
                         }
                     )

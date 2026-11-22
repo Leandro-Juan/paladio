@@ -828,6 +828,7 @@ class AirportService:
             ):
                 seen_keys.add(sec_key)
                 seen_iatas.add(sec_item.get("airport_iata"))
+                results.append(sec_item)
         if not results and "," in raw_query:
             ap_fallback = self.resolve_airport_for_city(raw_query)
             if ap_fallback:

@@ -137,38 +137,46 @@ class FetchTravelContextUseCase:
                 )
                 hotel_lat, hotel_lon = center_lat, center_lon
                 hotel_name = f"Hotel in {city.title()}"
+            elif (
+                hotel_anchor.lat is not None
+                and hotel_anchor.lng is not None
+                and (hotel_anchor.lat != 0.0 or hotel_anchor.lng != 0.0)
+            ):
+                hotel_name = hotel_anchor.name
+                hotel_lat = float(hotel_anchor.lat)
+                hotel_lon = float(hotel_anchor.lng)
             else:
                 hotel_name = hotel_anchor.name
                 query = f"{hotel_anchor.name}, {hotel_anchor.address or ''}, {hotel_anchor.city}"
-            try:
-                import urllib.parse
+                try:
+                    import urllib.parse
 
-                import httpx
+                    import httpx
 
-                q = urllib.parse.quote(query)
-                url = f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1"
-                async with httpx.AsyncClient(timeout=5.0) as client:
-                    resp = await client.get(
-                        url, headers={"User-Agent": "PaladioApp/1.0"}
-                    )
-                    if resp.status_code == 200 and resp.json():
-                        data = resp.json()[0]
-                        hotel_lat = float(data["lat"])
-                        hotel_lon = float(data["lon"])
-                        logger.info(f"Geocoded hotel {hotel_name}")
-                    else:
-                        logger.warning(
-                            f"Nominatim returned no results for hotel: {hotel_name}"
+                    q = urllib.parse.quote(query)
+                    url = f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1"
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(
+                            url, headers={"User-Agent": "PaladioApp/1.0"}
                         )
-            except (
-                httpx.HTTPError,
-                TimeoutError,
-                ValueError,
-                KeyError,
-                RuntimeError,
-                OSError,
-            ) as e:
-                logger.warning(f"Failed to geocode hotel {hotel_name}: {e}")
+                        if resp.status_code == 200 and resp.json():
+                            data = resp.json()[0]
+                            hotel_lat = float(data["lat"])
+                            hotel_lon = float(data["lon"])
+                            logger.info(f"Geocoded hotel {hotel_name}")
+                        else:
+                            logger.warning(
+                                f"Nominatim returned no results for hotel: {hotel_name}"
+                            )
+                except (
+                    httpx.HTTPError,
+                    TimeoutError,
+                    ValueError,
+                    KeyError,
+                    RuntimeError,
+                    OSError,
+                ) as e:
+                    logger.warning(f"Failed to geocode hotel {hotel_name}: {e}")
 
         outbound_flight = booking_anchors.outbound_flight if booking_anchors else None
         return_flight = booking_anchors.return_flight if booking_anchors else None

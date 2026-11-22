@@ -74,10 +74,14 @@ def parse_iata_bcbp(raw: str, trip_start_year: int = 2026) -> dict[str, Any] | N
         if julian_day_str.isdigit():
             day_of_year = int(julian_day_str)
             try:
-                # Calculate from Jan 1 of trip year
+                # Calculate from Jan 1 of trip year, rolling forward to next year only when >180 days in the past (next-year wrap)
                 base_date = date(trip_start_year, 1, 1) + timedelta(
                     days=day_of_year - 1
                 )
+                if (date.today() - base_date).days > 180:
+                    base_date = date(trip_start_year + 1, 1, 1) + timedelta(
+                        days=day_of_year - 1
+                    )
                 flight_date = base_date.isoformat()
             except Exception:
                 pass
@@ -525,7 +529,10 @@ def extract_dates_from_text(text: str, trip_start_year: int = 2026) -> list[str]
         yr = int(m.group(3)) if m.group(3) else trip_start_year
         if mon_str in month_map:
             try:
-                iso = date(yr, month_map[mon_str], day).isoformat()
+                parsed_d = date(yr, month_map[mon_str], day)
+                if not m.group(3) and (date.today() - parsed_d).days > 180:
+                    parsed_d = date(yr + 1, month_map[mon_str], day)
+                iso = parsed_d.isoformat()
                 if iso not in found_dates:
                     found_dates.append(iso)
             except Exception:
@@ -540,7 +547,10 @@ def extract_dates_from_text(text: str, trip_start_year: int = 2026) -> list[str]
         yr = int(m.group(3)) if m.group(3) else trip_start_year
         if mon_str in month_map:
             try:
-                iso = date(yr, month_map[mon_str], day).isoformat()
+                parsed_d = date(yr, month_map[mon_str], day)
+                if not m.group(3) and (date.today() - parsed_d).days > 180:
+                    parsed_d = date(yr + 1, month_map[mon_str], day)
+                iso = parsed_d.isoformat()
                 if iso not in found_dates:
                     found_dates.append(iso)
             except Exception:

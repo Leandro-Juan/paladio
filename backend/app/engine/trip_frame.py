@@ -216,9 +216,11 @@ def build_trip_frame(
                 end_time = min(end_time, int(bp["end_time_mins"]))
 
         # Arrival day window shrink (flight arrival + 120m buffer)
+        arrival_buffered_start: int | None = None
         if is_arr and arrival_flight_mins is not None:
             buffered_start = arrival_flight_mins + 120
-            start_time = max(start_time, min(1200, buffered_start))
+            arrival_buffered_start = min(1200, buffered_start)
+            start_time = max(start_time, arrival_buffered_start)
 
         # Departure day window shrink (flight departure - 180m buffer)
         if is_dep and departure_flight_mins is not None:
@@ -277,7 +279,12 @@ def build_trip_frame(
                     ) and end_time >= b_start + 30:
                         if "breakfast" not in day_meals:
                             day_meals.append("breakfast")
-                            start_time = min(start_time, b_start)
+                            next_start = min(start_time, b_start)
+                            start_time = (
+                                max(arrival_buffered_start, next_start)
+                                if arrival_buffered_start is not None
+                                else next_start
+                            )
                 elif "lunch" in m_type:
                     if start_time <= l_start + 60 and end_time >= l_start + 60:
                         if "lunch" not in day_meals:
@@ -301,7 +308,12 @@ def build_trip_frame(
                     arrival_flight_mins is None or start_time <= b_start + 90
                 ) and end_time >= b_start + 90:
                     meals_single.append("breakfast")
-                    start_time = min(start_time, b_start)
+                    next_start = min(start_time, b_start)
+                    start_time = (
+                        max(arrival_buffered_start, next_start)
+                        if arrival_buffered_start is not None
+                        else next_start
+                    )
                 if start_time <= l_start + 60 and end_time >= l_start + 60:
                     meals_single.append("lunch")
                 if start_time <= d_start + 60 and end_time >= d_start + 60:
@@ -313,7 +325,12 @@ def build_trip_frame(
                     arrival_flight_mins is None or start_time <= b_start + 90
                 ) and end_time >= b_start + 90:
                     meals_arr.append("breakfast")
-                    start_time = min(start_time, b_start)
+                    next_start = min(start_time, b_start)
+                    start_time = (
+                        max(arrival_buffered_start, next_start)
+                        if arrival_buffered_start is not None
+                        else next_start
+                    )
                 if start_time <= l_start + 60:
                     meals_arr.append("lunch")
                 if start_time <= d_start + 90:
@@ -353,10 +370,12 @@ def build_trip_frame(
         ):
             end_time = max(end_time, day_cin_mins)
 
-        if day_cout_mins is not None:
+        if day_cout_mins is not None and not is_arr:
             start_time = min(start_time, day_cout_mins)
-        if is_dep and departure_flight_mins is not None:
+        if is_dep and departure_flight_mins is not None and not is_arr:
             start_time = min(start_time, max(360, departure_flight_mins - 180))
+        if arrival_buffered_start is not None:
+            start_time = max(start_time, arrival_buffered_start)
         if start_time > end_time:
             end_time = min(1440, start_time + 60)
 
