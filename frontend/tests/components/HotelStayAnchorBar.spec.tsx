@@ -54,4 +54,42 @@ test.describe('HotelStayAnchorBar Check-In & Check-Out Controls', () => {
     expect(latestCheckOutHour).toBe('10:00');
     await component.getByRole('button', { name: 'Confirm Time' }).click();
   });
+
+  test('clamps check-out date when check-in exceeds it and clears coordinates on manual edit', async ({ mount }) => {
+    test.setTimeout(30000);
+    let latestCheckInDate = '2026-12-01';
+    let latestCheckOutDate = '2026-12-03';
+    const changeCalls: Array<{ name: string; extra?: { address?: string; lat?: number; lng?: number } }> = [];
+
+    const component = await mount(
+      <HotelStayAnchorBar
+        hotelArea="Hotel Ritz"
+        hotelAddress="15 Place Vendome"
+        hotelLat={48.868}
+        hotelLng={2.328}
+        destination="Paris"
+        checkInDate="2026-12-01"
+        checkOutDate="2026-12-03"
+        tripStartDate="2026-12-01"
+        tripEndDate="2026-12-10"
+        onCheckInDateChange={(val) => { latestCheckInDate = val; }}
+        onCheckOutDateChange={(val) => { latestCheckOutDate = val; }}
+        onChange={(name, extra) => { changeCalls.push({ name, extra }); }}
+      />
+    );
+
+    await expect(component.getByTestId('hotel-verified-tick')).toBeVisible();
+
+    // Moving check-in past check-out must advance check-out to prevent inverted range
+    await component.getByLabel('Hotel check-in date').fill('2026-12-06');
+    expect(latestCheckInDate).toBe('2026-12-06');
+    expect(latestCheckOutDate).toBe('2026-12-06');
+
+    // Editing hotel name manually invokes onChange without stale coordinates
+    const input = component.locator('input[type="text"]');
+    await input.fill('My Unlisted Stay');
+    const lastCall = changeCalls[changeCalls.length - 1];
+    expect(lastCall.name).toBe('My Unlisted Stay');
+    expect(lastCall.extra).toBeUndefined();
+  });
 });
