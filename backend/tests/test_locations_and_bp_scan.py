@@ -239,11 +239,14 @@ async def test_scan_image_with_tesseract_ocr(async_client: AsyncClient):
     if font is None:
         font = ImageFont.load_default()
 
+    from datetime import date
+
+    future_ocr_date = (date.today() + timedelta(days=14)).isoformat()
     img = Image.new("RGB", (500, 160), color="white")
     draw = ImageDraw.Draw(img)
     draw.text(
         (10, 10),
-        "Flight IB3166\nMAD to SVQ\nDeparture: 2026-11-20\nDeparts: 08:30 Arrives: 09:45",
+        f"Flight IB3166\nMAD to SVQ\nDeparture: {future_ocr_date}\nDeparts: 08:30 Arrives: 09:45",
         font=font,
         fill="black",
     )
@@ -285,6 +288,10 @@ async def test_scan_ryanair_boarding_pass_ocr(async_client: AsyncClient):
     assert "precedes the current date" in res_past.json()["detail"]
 
     # 2. Upcoming pass with valid future date must succeed
+    from datetime import date
+
+    future_ryanair = date.today() + timedelta(days=14)
+    future_ryanair_str = future_ryanair.strftime("%d %b %Y")
     raw_ocr_future = (
         "Lynsey-Anne Duncan-Williams\n\n"
         "Queue\nPriority\nBoarding\nFront Door\n\n"
@@ -294,7 +301,7 @@ async def test_scan_ryanair_boarding_pass_ocr(async_client: AsyncClient):
         "DUB —— MAD\n\n"
         "Dublin Madrid\n\n"
         "Date Boarding Departs\n"
-        "18 Nov 2026 12.35 13:05"
+        f"{future_ryanair_str} 12.35 13:05"
     )
 
     res = await async_client.post(
@@ -312,7 +319,7 @@ async def test_scan_ryanair_boarding_pass_ocr(async_client: AsyncClient):
     assert data["seat"] == "28A"
     assert data["reference_code"] == "OSGTSE"
     assert data["holder_name"] == "Lynsey-Anne Duncan-Williams"
-    assert data["departure_date"] == "2026-11-18"
+    assert data["departure_date"] == future_ryanair.isoformat()
     assert data["flight_departure_hour"] == "13:05"
 
 
