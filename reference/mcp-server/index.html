@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="100% Sovereign Travel Intelligence, LangGraph Multi-Agent Swarms, Continuous ML Taste Learning, and Deterministic C++ Routing.">
+        <meta name="description" content="Self-hosted travel intelligence: deterministic C++20 routing, LangGraph swarm, CPU ONNX semantic RAG, Deal Engine, and optional 13-provider AI assistant.">
       
       
         <meta name="author" content="Leandro Juan">
@@ -15,17 +15,21 @@
         <link rel="canonical" href="https://leandro-juan.github.io/paladio/reference/mcp-server/">
       
       
+        <link rel="prev" href="../websockets/">
+      
+      
+        <link rel="next" href="../database-schema/">
       
       
         
       
       
       <link rel="icon" href="../../assets/logo.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
-        <title>Reference: Paladio Trip MCP Server - Paladio</title>
+        <title>MCP Server (82 Tools) - Paladio</title>
       
     
     
@@ -80,7 +84,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#reference-paladio-trip-mcp-server" class="md-skip">
+        <a href="#mcp-server-reference" class="md-skip">
           Skip to content
         </a>
       
@@ -113,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Reference: Paladio Trip MCP Server
+              MCP Server (82 Tools)
             
           </span>
         </div>
@@ -247,11 +251,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../tutorials/quickstart-docker/" class="md-tabs__link">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
           
   
   
-  Tutorials
+  Getting Started
 
         </a>
       </li>
@@ -267,11 +271,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../how-to/run-offline-swarm/" class="md-tabs__link">
+        <a href="../../user-guide/control-center-and-taste/" class="md-tabs__link">
           
   
   
-  How-To Guides
+  User Guide
 
         </a>
       </li>
@@ -287,11 +291,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../langgraph-swarm-architecture/" class="md-tabs__link">
+        <a href="../../self-hosting/configuration/" class="md-tabs__link">
           
   
   
-  Technical Reference
+  Self-Hosting
 
         </a>
       </li>
@@ -307,11 +311,53 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../explanation/system-architecture/" class="md-tabs__link">
+        <a href="../../architecture/system-overview/" class="md-tabs__link">
           
   
   
-  Architectural Explanation
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../rest-api/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../contributing/developer-guide/" class="md-tabs__link">
+          
+  
+  
+  Contributing
 
         </a>
       </li>
@@ -420,7 +466,7 @@
   <span class="md-ellipsis">
     
   
-    Tutorials
+    Getting Started
   
 
     
@@ -436,7 +482,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Tutorials
+    Getting Started
   
 
           </label>
@@ -449,14 +495,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../tutorials/quickstart-docker/" class="md-nav__link">
+      <a href="../../getting-started/installation/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Quickstart with Docker
+    Install with Docker
   
 
     
@@ -477,14 +523,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../../tutorials/first-autonomous-swarm-trip/" class="md-nav__link">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    First Autonomous Swarm Trip
+    Quickstart: First Trip
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/local-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Development
   
 
     
@@ -535,7 +609,7 @@
   <span class="md-ellipsis">
     
   
-    How-To Guides
+    User Guide
   
 
     
@@ -551,7 +625,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    How-To Guides
+    User Guide
   
 
           </label>
@@ -564,14 +638,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../how-to/run-offline-swarm/" class="md-nav__link">
+      <a href="../../user-guide/control-center-and-taste/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Run Offline Swarm
+    Control Center & Taste Star
   
 
     
@@ -592,14 +666,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../how-to/add-custom-langgraph-agent/" class="md-nav__link">
+      <a href="../../user-guide/trip-creation/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Add Custom LangGraph Agent
+    Creating Trips (/engine)
   
 
     
@@ -620,14 +694,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../how-to/modify-engine-constraints/" class="md-nav__link">
+      <a href="../../user-guide/trip-workspace/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Modify Engine Constraints
+    Trip Workspace & Speed Dial
   
 
     
@@ -648,14 +722,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../how-to/tune-ml-taste-learning/" class="md-nav__link">
+      <a href="../../user-guide/public-transit-and-routing/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Tune ML Taste Learning
+    Public Transit & Valhalla
   
 
     
@@ -676,14 +750,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../how-to/configure-hybrid-scoring-weights/" class="md-nav__link">
+      <a href="../../user-guide/bookings-wallet/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Configure Hybrid Scoring Weights
+    Bookings Wallet & Passes
   
 
     
@@ -704,14 +778,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../how-to/handle-human-in-the-loop/" class="md-nav__link">
+      <a href="../../user-guide/route-monitoring-and-deals/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Handle Human-in-the-Loop
+    Route Monitoring & Deals
   
 
     
@@ -732,14 +806,70 @@
   
   
     <li class="md-nav__item">
-      <a href="../../how-to/hydrate-poi-embeddings/" class="md-nav__link">
+      <a href="../../user-guide/costs-and-group-splitting/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Hydrate POI Embeddings
+    Costs & Group Splitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/vault-photos-and-sharing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trip Archive, Photos & Sharing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/ai-travel-assistant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Travel Assistant
   
 
     
@@ -790,7 +920,7 @@
   <span class="md-ellipsis">
     
   
-    Technical Reference
+    Self-Hosting
   
 
     
@@ -806,7 +936,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Technical Reference
+    Self-Hosting
   
 
           </label>
@@ -819,14 +949,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../langgraph-swarm-architecture/" class="md-nav__link">
+      <a href="../../self-hosting/configuration/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    LangGraph Swarm Architecture
+    Configuration & Env Vars
   
 
     
@@ -847,14 +977,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../ml-feature-tensor-16d/" class="md-nav__link">
+      <a href="../../self-hosting/city-data-and-gtfs/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    16-D Feature Tensor (PoiEncoder)
+    City POIs, Maps & GTFS
   
 
     
@@ -875,14 +1005,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../semantic-learning-engine/" class="md-nav__link">
+      <a href="../../self-hosting/llm-providers-and-mcp/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Semantic Learning Engine
+    LLM Providers & MCP Clients
   
 
     
@@ -903,14 +1033,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../poi-database-schema/" class="md-nav__link">
+      <a href="../../self-hosting/integrations-and-vault/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    POI Database & Vault Schema
+    Photo Sync, Relays & Secrets
   
 
     
@@ -931,14 +1061,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend-architecture/" class="md-nav__link">
+      <a href="../../self-hosting/reverse-proxy-and-security/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Next.js Frontend Architecture
+    Reverse Proxy & Security
   
 
     
@@ -959,98 +1089,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../websocket-gateway-telemetry/" class="md-nav__link">
+      <a href="../../self-hosting/backups-updates-and-troubleshooting/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    WebSocket Gateway Telemetry
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../fastapi-gateway/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    FastAPI Gateway
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../scraper_json_formats/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Scraper JSON Formats
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../core-engine/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    C++ Combinatorial Core (paladio-core)
+    Backups, Updates & Troubleshooting
   
 
     
@@ -1101,7 +1147,7 @@
   <span class="md-ellipsis">
     
   
-    Architectural Explanation
+    Architecture
   
 
     
@@ -1117,7 +1163,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Architectural Explanation
+    Architecture
   
 
           </label>
@@ -1130,14 +1176,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../explanation/system-architecture/" class="md-nav__link">
+      <a href="../../architecture/system-overview/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Macro System Architecture
+    System Overview
   
 
     
@@ -1158,14 +1204,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../explanation/langgraph-vs-chains/" class="md-nav__link">
+      <a href="../../architecture/deterministic-trip-engine/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    LangGraph Swarm vs Linear Chains
+    Deterministic Trip Engine
   
 
     
@@ -1186,14 +1232,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../explanation/sovereign-ml-and-semantic-rag/" class="md-nav__link">
+      <a href="../../architecture/cpp-combinatorial-core/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Sovereign ML & Dense Semantic RAG
+    C++20 Combinatorial Core
   
 
     
@@ -1214,14 +1260,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../explanation/continuous-to-discrete-harmonics/" class="md-nav__link">
+      <a href="../../architecture/semantic-rag-and-taste-learning/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Continuous-to-Discrete Harmonics
+    Semantic RAG & Taste Learning
   
 
     
@@ -1242,14 +1288,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../explanation/resilient-scraping-architecture/" class="md-nav__link">
+      <a href="../../architecture/deal-engine-and-transit/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Resilient Scraping Architecture
+    Deal Engine & Multi-Modal Transit
   
 
     
@@ -1270,14 +1316,469 @@
   
   
     <li class="md-nav__item">
-      <a href="../../explanation/roadmap-and-future-horizons/" class="md-nav__link">
+      <a href="../../architecture/agent-and-mcp-safety/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Strategic Roadmap & Future Horizons
+    Agent & MCP Safety Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/frontend-and-demo-mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Frontend, PWA & Demo Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API (FastAPI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websockets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket Protocols
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server (82 Tools)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server (82 Tools)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#transport-endpoints-and-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transport endpoints and authentication
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-catalog-of-82-mcp-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete catalog of 82 MCP tools
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registered-mcp-resources-6-and-prompts-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registered MCP resources (6) and prompts (6)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../database-schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database, Redis & Celery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cpp-python-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++20 & Python API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trip-file-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    .trip Package Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/developer-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
   
 
     
@@ -1325,10 +1826,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#transport-endpoints-and-authentication" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        Transport endpoints and authentication
       
     </span>
   </a>
@@ -1336,10 +1837,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#architecture-transports" class="md-nav__link">
+  <a href="#complete-catalog-of-82-mcp-tools" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Architecture &amp; Transports
+        Complete catalog of 82 MCP tools
       
     </span>
   </a>
@@ -1347,159 +1848,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#security-permission-tiers" class="md-nav__link">
+  <a href="#registered-mcp-resources-6-and-prompts-6" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Security &amp; Permission Tiers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tool-catalog-by-domain" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tool Catalog by Domain
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Tool Catalog by Domain">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-trip-context-appmcptoolstrip" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Trip &amp; Context (app.mcp.tools.trip)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-itinerary-mutation-appmcptoolsitinerary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Itinerary Mutation (app.mcp.tools.itinerary)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-optimization-engine-appmcptoolsengine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Optimization &amp; Engine (app.mcp.tools.engine)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-poi-discovery-appmcptoolspois" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. POI Discovery (app.mcp.tools.pois)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#5-transit-mobility-appmcptoolstransit" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. Transit &amp; Mobility (app.mcp.tools.transit)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#6-expenses-budget-appmcptoolsexpenses" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. Expenses &amp; Budget (app.mcp.tools.expenses)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#7-wallet-bookings-appmcptoolstickets" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7. Wallet &amp; Bookings (app.mcp.tools.tickets)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#8-collaboration-roles-appmcptoolscollab" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        8. Collaboration &amp; Roles (app.mcp.tools.collab)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#9-saved-collections-appmcptoolscollections" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        9. Saved Collections (app.mcp.tools.collections)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#10-market-scraper-appmcptoolsmarket" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        10. Market &amp; Scraper (app.mcp.tools.market)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#11-async-jobs-appmcptoolsjobs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        11. Async Jobs (app.mcp.tools.jobs)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tool-return-contract" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tool Return Contract
+        Registered MCP resources (6) and prompts (6)
       
     </span>
   </a>
@@ -1531,161 +1883,177 @@
   
 
 
-<h1 id="reference-paladio-trip-mcp-server">Reference: Paladio Trip MCP Server<a class="headerlink" href="#reference-paladio-trip-mcp-server" title="Permanent link">&para;</a></h1>
-<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Paladio exposes an in-process and network-accessible FastMCP server providing <strong>77 deterministic tools</strong>, resources, and prompt templates for conversational trip planning and itinerary manipulation.</p>
-<p>The server adheres to Paladio's strict sovereign architecture:
-- <strong>100% Air-Gapped &amp; Self-Hosted</strong>: Operates entirely with local Ollama (<code>qwen2.5:latest</code> 7.6B) or in-memory FastMCP runners.
-- <strong>Zero Legacy Compatibility</strong>: Modern unified API, clean models, strictly dynamic data.
-- <strong>Auditable Reversibility</strong>: All mutations yield undo tokens and CAS optimistic concurrency checks.</p>
-<hr />
-<h2 id="architecture-transports">Architecture &amp; Transports<a class="headerlink" href="#architecture-transports" title="Permanent link">&para;</a></h2>
-<p>The MCP server is defined in <code>backend/app/mcp/</code> and supports two transports:
-1. <strong>HTTP/SSE Transport</strong>: Mounted directly onto the FastAPI application at <code>/mcp</code> via <code>FastMCP.mount()</code>.
-2. <strong>Standard I/O (stdio) Transport</strong>: Executable entrypoint for desktop clients (Claude Desktop, cursor, CLI):
-   <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python<span class="w"> </span>-m<span class="w"> </span>app.mcp.server
-</span></code></pre></div></p>
-<hr />
-<h2 id="security-permission-tiers">Security &amp; Permission Tiers<a class="headerlink" href="#security-permission-tiers" title="Permanent link">&para;</a></h2>
-<p>Every tool is assigned to an authorization tier:</p>
+<h1 id="mcp-server-reference">MCP server reference<a class="headerlink" href="#mcp-server-reference" title="Permanent link">&para;</a></h1>
+<p>Paladio's FastMCP server (<code>backend/app/mcp/server.py</code>, name <code>"paladio"</code>) registers <strong>82 tools</strong> across 11 categories, <strong>6 resources</strong>, and <strong>6 prompts</strong>, serving both Streamable HTTP at <code>/mcp</code> and <code>stdio</code> via <code>python -m app.mcp</code>.</p>
+<h2 id="transport-endpoints-and-authentication">Transport endpoints and authentication<a class="headerlink" href="#transport-endpoints-and-authentication" title="Permanent link">&para;</a></h2>
+<p>Every external MCP tool call resolves an authenticated <code>UserModel</code> and checks trip access via <code>assert_trip_access</code> before querying or modifying PostgreSQL.</p>
 <table>
 <thead>
 <tr>
-<th>Tier</th>
-<th>Name</th>
-<th>Mutation Behavior</th>
-<th>Confirmation Requirement</th>
-<th>Examples</th>
+<th style="text-align: left;">Transport</th>
+<th style="text-align: left;">Entrypoint</th>
+<th style="text-align: left;">Authentication &amp; origin rules</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Tier A</strong></td>
-<td>Read / Query</td>
-<td>Pure read, zero side effects</td>
-<td>Executed immediately</td>
-<td><code>get_trip_overview</code>, <code>get_itinerary</code>, <code>search_pois</code>, <code>list_expenses</code></td>
+<td style="text-align: left;"><strong>Streamable HTTP</strong></td>
+<td style="text-align: left;"><code>POST/GET /mcp</code> (<code>mount_mcp_app</code> in FastAPI)</td>
+<td style="text-align: left;">Requires <code>Authorization: Bearer your_jwt_here</code> plus <code>verify_origin_and_host</code> (<code>Host</code>/<code>Origin</code> restricted to <code>localhost</code>, <code>127.0.0.1</code>, <code>0.0.0.0</code>)</td>
 </tr>
 <tr>
-<td><strong>Tier B</strong></td>
-<td>Direct Reversible</td>
-<td>Modifies route with instant rollback token</td>
-<td>Executed immediately, emits <code>trip_updated</code> with <code>undo_token</code></td>
-<td><code>add_stop</code>, <code>remove_stop</code>, <code>move_stop</code>, <code>optimize_day</code>, <code>swap_days</code></td>
+<td style="text-align: left;"><strong><code>stdio</code></strong></td>
+<td style="text-align: left;"><code>python -m app.mcp</code> (<code>backend/app/mcp/__main__.py</code>)</td>
+<td style="text-align: left;">Authenticates against <code>PALADIO_API_TOKEN</code> (resolving the earliest active account) or decodes a JWT fallback</td>
 </tr>
 <tr>
-<td><strong>Tier C</strong></td>
-<td>Destructive / Cost</td>
-<td>Irreversible, high-cost, or multi-day deletions</td>
-<td>Intercepted into a <code>ProposalData</code> with TTL; awaits user confirmation</td>
-<td><code>rebalance_days</code>, <code>clear_day</code>, <code>delete_expense</code>, <code>confirm_ticket_drafts</code></td>
+<td style="text-align: left;"><strong>In-process</strong></td>
+<td style="text-align: left;"><code>TripAgentRunner</code> (<code>with_user_context</code>)</td>
+<td style="text-align: left;">Shares the active WebSocket user and SQLAlchemy session directly without HTTP overhead</td>
 </tr>
 </tbody>
 </table>
-<hr />
-<h2 id="tool-catalog-by-domain">Tool Catalog by Domain<a class="headerlink" href="#tool-catalog-by-domain" title="Permanent link">&para;</a></h2>
-<h3 id="1-trip-context-appmcptoolstrip">1. Trip &amp; Context (<code>app.mcp.tools.trip</code>)<a class="headerlink" href="#1-trip-context-appmcptoolstrip" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>get_trip_overview(trip_id)</code>: High-level overview, date ranges, participant count, and budget.</li>
-<li><code>get_itinerary(trip_id, detail='compact')</code>: Complete multi-day route and stop sequence.</li>
-<li><code>get_stop(trip_id, stop_id)</code>: Precise stop details and scheduling metadata.</li>
-<li><code>resolve_stop(trip_id, query, day)</code>: Fuzzy search resolving text into existing stops.</li>
-<li><code>get_trip_issues(trip_id)</code>: Validates hours, lunch windows, and ping-pong routing.</li>
-<li><code>export_trip(trip_id, format='json')</code>: Generates self-contained sovereign trip bundle.</li>
-</ul>
-<h3 id="2-itinerary-mutation-appmcptoolsitinerary">2. Itinerary Mutation (<code>app.mcp.tools.itinerary</code>)<a class="headerlink" href="#2-itinerary-mutation-appmcptoolsitinerary" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>add_stop(trip_id, day, poi_id, after_stop_id, duration_mins)</code>: Adds a waypoint.</li>
-<li><code>remove_stop(trip_id, stop_id)</code>: Deletes a waypoint and reflows times.</li>
-<li><code>move_stop(trip_id, stop_id, to_day, after_stop_id)</code>: Transfers stop across days.</li>
-<li><code>reorder_stops(trip_id, day, stop_ids)</code>: Re-sequences stops in a specific day.</li>
-<li><code>lock_stop(trip_id, stop_id)</code>: Locks stop time window against optimizer changes.</li>
-<li><code>unlock_stop(trip_id, stop_id)</code>: Unlocks stop for flexible TSPTW sequencing.</li>
-<li><code>swap_days(trip_id, day_a, day_b)</code>: Swaps activities between two days.</li>
-<li><code>clear_day(trip_id, day, confirmed)</code>: Clears all stops on a day (Tier C).</li>
-<li><code>undo_last_change(trip_id)</code>: Restores the preceding revision.</li>
-<li><code>undo_to(trip_id, revision)</code>: Reverts itinerary to a historical revision.</li>
-</ul>
-<h3 id="3-optimization-engine-appmcptoolsengine">3. Optimization &amp; Engine (<code>app.mcp.tools.engine</code>)<a class="headerlink" href="#3-optimization-engine-appmcptoolsengine" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>optimize_day(trip_id, day)</code>: Solves TSPTW combinatorial order using C++20 <code>paladio_core</code>.</li>
-<li><code>optimize_trip(trip_id)</code>: Re-optimizes all itinerary days in sequence.</li>
-<li><code>rebalance_days(trip_id, confirmed)</code>: Re-clusters stops across days based on geographic density.</li>
-<li><code>what_if(trip_id, action, params)</code>: Simulates edits and returns quality score deltas without saving.</li>
-</ul>
-<h3 id="4-poi-discovery-appmcptoolspois">4. POI Discovery (<code>app.mcp.tools.pois</code>)<a class="headerlink" href="#4-poi-discovery-appmcptoolspois" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>search_pois(trip_id, query, category, limit)</code>: Semantic RAG search via pgvector.</li>
-<li><code>get_poi_details(trip_id, poi_id)</code>: Opening hours, tickets, coordinates, and notes.</li>
-<li><code>recommend_pois(trip_id, day, category, limit)</code>: Context-aware recommendations for itinerary gaps.</li>
-<li><code>add_custom_poi(trip_id, name, lat, lon, category)</code>: Creates user-defined waypoint.</li>
-</ul>
-<h3 id="5-transit-mobility-appmcptoolstransit">5. Transit &amp; Mobility (<code>app.mcp.tools.transit</code>)<a class="headerlink" href="#5-transit-mobility-appmcptoolstransit" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>get_transit_route(trip_id, from_stop_id, to_stop_id)</code>: Live GTFS multimodal routing.</li>
-<li><code>get_transit_matrix(trip_id, day)</code>: Full travel duration and distance matrix.</li>
-<li><code>compute_transfer(trip_id, origin, destination)</code>: Airport / station transfer recommendations.</li>
-<li><code>list_transit_lines(trip_id, latitude, longitude)</code>: Nearby transit lines and frequencies.</li>
-</ul>
-<h3 id="6-expenses-budget-appmcptoolsexpenses">6. Expenses &amp; Budget (<code>app.mcp.tools.expenses</code>)<a class="headerlink" href="#6-expenses-budget-appmcptoolsexpenses" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>list_expenses(trip_id)</code>: Recorded costs and participant shares.</li>
-<li><code>add_expense(trip_id, payer_id, amount, description, split_type, excluded_participant_ids)</code>: Splits costs.</li>
-<li><code>update_expense(trip_id, expense_id, amount, description)</code>: Modifies recorded expense.</li>
-<li><code>delete_expense(trip_id, expense_id, confirmed)</code>: Removes expense (Tier C).</li>
-<li><code>get_budget_summary(trip_id)</code>: Total budget, expenditure, and category breakdowns.</li>
-<li><code>convert_currency(amount, from_curr, to_curr)</code>: Currency conversion using live rates.</li>
-<li><code>get_settlement(trip_id)</code>: Minimized pairwise payment plan among participants.</li>
-</ul>
-<h3 id="7-wallet-bookings-appmcptoolstickets">7. Wallet &amp; Bookings (<code>app.mcp.tools.tickets</code>)<a class="headerlink" href="#7-wallet-bookings-appmcptoolstickets" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>list_tickets(trip_id)</code>: Boarding passes, hotel vouchers, and attraction bookings with redacted secrets.</li>
-<li><code>get_ticket(trip_id, ticket_id)</code>: Full ticket metadata with redacted access PIN.</li>
-<li><code>create_ticket(trip_id, ticket_data)</code>: Manually adds confirmation record.</li>
-<li><code>parse_booking_text(text_content)</code>: AI extraction of booking confirmations into drafts.</li>
-<li><code>sync_anchors_from_tickets(trip_id)</code>: Automatically updates flight/hotel anchors in itinerary.</li>
-</ul>
-<h3 id="8-collaboration-roles-appmcptoolscollab">8. Collaboration &amp; Roles (<code>app.mcp.tools.collab</code>)<a class="headerlink" href="#8-collaboration-roles-appmcptoolscollab" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>list_participants(trip_id)</code>: Viewers, editors, and trip owner.</li>
-<li><code>add_participant(trip_id, email, role)</code>: Invites traveler to trip.</li>
-<li><code>update_participant_role(trip_id, participant_id, role)</code>: Modifies editor/viewer permission.</li>
-<li><code>remove_participant(trip_id, participant_id)</code>: Revokes trip access.</li>
-<li><code>get_access_level(trip_id)</code>: Inspects active user's permissions.</li>
-</ul>
-<h3 id="9-saved-collections-appmcptoolscollections">9. Saved Collections (<code>app.mcp.tools.collections</code>)<a class="headerlink" href="#9-saved-collections-appmcptoolscollections" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>list_collections(trip_id)</code>: Trip collections and saved POI categories.</li>
-<li><code>create_collection(trip_id, name, description)</code>: Creates custom POI wishlist.</li>
-<li><code>add_to_collection(trip_id, collection_id, poi_id)</code>: Bookmarks POI.</li>
-<li><code>remove_from_collection(trip_id, collection_id, poi_id)</code>: Removes bookmark.</li>
-<li><code>list_saved_pois(trip_id, collection_id)</code>: Lists bookmarks in collection.</li>
-</ul>
-<h3 id="10-market-scraper-appmcptoolsmarket">10. Market &amp; Scraper (<code>app.mcp.tools.market</code>)<a class="headerlink" href="#10-market-scraper-appmcptoolsmarket" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>scan_flight_deals(origin, destination, date)</code>: Airfare deals via sovereign scraping engine.</li>
-<li><code>scan_hotel_deals(destination, check_in, check_out)</code>: Hotel offers.</li>
-<li><code>get_price_trends(origin, destination)</code>: Historical price distributions and volatility.</li>
-</ul>
-<h3 id="11-async-jobs-appmcptoolsjobs">11. Async Jobs (<code>app.mcp.tools.jobs</code>)<a class="headerlink" href="#11-async-jobs-appmcptoolsjobs" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>get_job_status(job_id)</code>: Queries progress of background Celery tasks.</li>
-<li><code>cancel_job(job_id)</code>: Terminates background job.</li>
-</ul>
-<hr />
-<h2 id="tool-return-contract">Tool Return Contract<a class="headerlink" href="#tool-return-contract" title="Permanent link">&para;</a></h2>
-<p>All tools return a <code>ToolResult</code> model:
-<div class="language-json highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"ok"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">"summary"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Added Colosseum to Day 1 (14:30 - 15:30)."</span><span class="p">,</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">"change_set"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nt">"revision"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nt">"undo_token"</span><span class="p">:</span><span class="w"> </span><span class="s2">"rev_3_uuid"</span><span class="p">,</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="nt">"changes"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">"day"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">"stop_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"poi_123"</span><span class="p">,</span><span class="w"> </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"added"</span><span class="p">}]</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="p">},</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="nt">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">...</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="p">}</span>
-</span></code></pre></div></p>
+<h2 id="complete-catalog-of-82-mcp-tools">Complete catalog of 82 MCP tools<a class="headerlink" href="#complete-catalog-of-82-mcp-tools" title="Permanent link">&para;</a></h2>
+<p>Tools marked <code>(Read)</code> never mutate data, <code>(Tier W)</code> write immediately with a revision snapshot, and <code>(Tier C)</code> return a confirmation proposal (<code>600s</code> TTL) unless <code>confirmed=true</code>.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Category</th>
+<th style="text-align: center;">Count</th>
+<th style="text-align: left;">Registered tools</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>1. Trip &amp; Context</strong></td>
+<td style="text-align: center;">12</td>
+<td style="text-align: left;"><code>get_trip_overview</code> (Read), <code>get_itinerary</code> (Read), <code>get_stop</code> (Read), <code>resolve_stop</code> (Read), <code>get_trip_issues</code> (Read), <code>update_trip_details</code> (Tier W; Tier C for dates/destination), <code>export_trip_package</code> (Read / Tier C for <code>community_shareable</code>), <code>shift_trip_dates</code> (Tier W), <code>duplicate_trip</code> (Tier W), <code>record_taste_preference</code> (Tier W), <code>forget_taste_preference</code> (Tier W), <code>describe_taste_profile</code> (Read)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>2. POIs &amp; Discovery</strong></td>
+<td style="text-align: center;">6</td>
+<td style="text-align: left;"><code>search_pois</code> (Read, capped at 50), <code>get_poi_details</code> (Read), <code>search_places</code> (Read), <code>find_nearby</code> (Read), <code>suggest_additions</code> (Read), <code>create_custom_stop</code> (Tier W, trip-scoped)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>3. Itinerary Editing</strong></td>
+<td style="text-align: center;">18</td>
+<td style="text-align: left;"><code>add_stop</code> (Tier W), <code>remove_stop</code> (Tier W; Tier C on locked/flight/hotel stops), <code>move_stop</code> (Tier W), <code>reorder_day</code> (Tier W), <code>swap_days</code> (Tier C), <code>set_stop_time</code> (Tier W), <code>set_stop_duration</code> (Tier W), <code>lock_stop</code> (Tier W), <code>unlock_stop</code> (Tier W), <code>add_meal</code> (Tier W), <code>add_free_time</code> (Tier W), <code>set_stop_notes</code> (Tier W), <code>add_day</code> (Tier W), <code>remove_day</code> (Tier C), <code>set_day_bounds</code> (Tier W), <code>set_pace</code> (Tier W), <code>undo_last_change</code> (Tier W), <code>undo_to</code> (Tier W)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>4. Engine &amp; Optimization</strong></td>
+<td style="text-align: center;">8</td>
+<td style="text-align: left;"><code>optimize_day</code> (Tier W), <code>optimize_trip</code> (Tier C), <code>what_if</code> (Read simulation), <code>rebalance_days</code> (Tier C), <code>fit_to_budget</code> (Tier C), <code>fill_gaps</code> (Tier W), <code>explain_schedule</code> (Read), <code>compare_metrics</code> (Read)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>5. Transit &amp; Mobility</strong></td>
+<td style="text-align: center;">8</td>
+<td style="text-align: left;"><code>get_transit_status</code> (Read), <code>request_transit_build</code> (Tier J async job), <code>upgrade_trip_transit</code> (Tier W), <code>get_directions</code> (Read), <code>get_leg_options</code> (Read), <code>set_leg_mode</code> (Tier W), <code>nearby_stations</code> (Read), <code>get_transit_pass_advice</code> (Read)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>6. Tickets &amp; Wallet</strong></td>
+<td style="text-align: center;">8</td>
+<td style="text-align: left;"><code>list_tickets</code> (Read, secrets masked), <code>get_ticket</code> (Read, secrets masked), <code>create_ticket</code> (Tier W), <code>update_ticket</code> (Tier W), <code>delete_ticket</code> (Tier C), <code>parse_booking_text</code> (Read), <code>confirm_ticket_drafts</code> (Tier W), <code>sync_anchors_from_tickets</code> (Tier W)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>7. Expenses &amp; Budget</strong></td>
+<td style="text-align: center;">7</td>
+<td style="text-align: left;"><code>list_expenses</code> (Read), <code>add_expense</code> (Tier W), <code>update_expense</code> (Tier W), <code>delete_expense</code> (Tier C), <code>get_budget_breakdown</code> (Read), <code>get_settlement</code> (Read), <code>convert_currency</code> (Read)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>8. Collaboration</strong></td>
+<td style="text-align: center;">3</td>
+<td style="text-align: left;"><code>list_participants</code> (Read), <code>add_participant</code> (Tier W), <code>remove_participant</code> (Tier C, blocks removing last participant)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>9. Collections &amp; Photos</strong></td>
+<td style="text-align: center;">5</td>
+<td style="text-align: left;"><code>list_collections</code> (Read), <code>create_collection</code> (Tier W), <code>add_to_collection</code> (Tier W), <code>remove_from_collection</code> (Tier W), <code>list_photos</code> (Read metadata only)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>10. Market &amp; Weather</strong></td>
+<td style="text-align: center;">4</td>
+<td style="text-align: left;"><code>get_weather_forecast</code> (Read), <code>suggest_weather_swaps</code> (Read), <code>get_route_price_history</code> (Read), <code>change_hotel_anchor</code> (Tier C)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>11. Toolset &amp; Jobs</strong></td>
+<td style="text-align: center;">3</td>
+<td style="text-align: left;"><code>load_toolset</code> (Read), <code>get_job_status</code> (Read), <code>cancel_job</code> (Tier W)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="registered-mcp-resources-6-and-prompts-6">Registered MCP resources (6) and prompts (6)<a class="headerlink" href="#registered-mcp-resources-6-and-prompts-6" title="Permanent link">&para;</a></h2>
+<p>MCP clients can read structured JSON documents directly via resource URIs or launch pre-built multi-step agent workflows via prompts.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Identifier</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Resource</strong></td>
+<td style="text-align: left;"><code>trip://{trip_id}/overview</code></td>
+<td style="text-align: left;">High-level trip JSON (destination, title, dates, day count, revision)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Resource</strong></td>
+<td style="text-align: left;"><code>trip://{trip_id}/day/{day_number}</code></td>
+<td style="text-align: left;">Single day schedule JSON for <code>day_number</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Resource</strong></td>
+<td style="text-align: left;"><code>trip://{trip_id}/expenses</code></td>
+<td style="text-align: left;">Recorded trip expenses and computed debt settlement</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Resource</strong></td>
+<td style="text-align: left;"><code>trip://{trip_id}/wallet</code></td>
+<td style="text-align: left;">Trip tickets JSON with all sensitive secrets redacted</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Resource</strong></td>
+<td style="text-align: left;"><code>paladio://taxonomy</code></td>
+<td style="text-align: left;">Static JSON listing valid POI categories, meal types, and transport modes</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Resource</strong></td>
+<td style="text-align: left;"><code>paladio://itinerary-schema</code></td>
+<td style="text-align: left;">Full Pydantic JSON Schema for <code>ItineraryDocument</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Prompt</strong></td>
+<td style="text-align: left;"><code>review_my_trip(trip_id)</code></td>
+<td style="text-align: left;">Inspects day pacing, meal slots, opening hours, and transfer issues</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Prompt</strong></td>
+<td style="text-align: left;"><code>fix_all_issues(trip_id)</code></td>
+<td style="text-align: left;">Resolves schedule collisions and tight legs with <code>set_stop_time</code> and <code>optimize_day</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Prompt</strong></td>
+<td style="text-align: left;"><code>rainy_day_plan(trip_id, day)</code></td>
+<td style="text-align: left;">Simulates indoor museum/gallery swaps for bad weather using <code>what_if</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Prompt</strong></td>
+<td style="text-align: left;"><code>split_the_bill(trip_id)</code></td>
+<td style="text-align: left;">Computes expenses and minimum debt-settlement transfers</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Prompt</strong></td>
+<td style="text-align: left;"><code>make_day_relaxed(trip_id, day)</code></td>
+<td style="text-align: left;">Caps stops, adds a 90-minute meal and 60-minute free-time break, and re-optimizes</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Prompt</strong></td>
+<td style="text-align: left;"><code>add_dinner_near(trip_id, day)</code></td>
+<td style="text-align: left;">Finds nearby restaurants within <code>1,000 m</code> of the last stop and schedules dinner</td>
+</tr>
+</tbody>
+</table>
 
 
 
