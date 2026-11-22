@@ -63,12 +63,25 @@ export function PaladioSingleDatePicker({
     return Array.from({ length: 12 }, (_, m) => fmt.format(new Date(2024, m, 1)));
   }, [intlLocale]);
 
-  const initialDate = useMemo(() => parseDateStr(selectedDate) || new Date(), [selectedDate]);
+  const initialDate = useMemo(
+    () => parseDateStr(selectedDate) || parseDateStr(minDate || '') || new Date(),
+    [selectedDate, minDate]
+  );
 
   // Current viewed month (first day of viewed month)
   const [viewMonthDate, setViewMonthDate] = useState<Date>(() => {
     return new Date(initialDate.getFullYear(), initialDate.getMonth(), 1);
   });
+
+  const [prevSyncKey, setPrevSyncKey] = useState(`${selectedDate}|${minDate ?? ''}`);
+  const syncKey = `${selectedDate}|${minDate ?? ''}`;
+  if (syncKey !== prevSyncKey) {
+    setPrevSyncKey(syncKey);
+    const nextAnchor = parseDateStr(selectedDate) || parseDateStr(minDate || '');
+    if (nextAnchor) {
+      setViewMonthDate(new Date(nextAnchor.getFullYear(), nextAnchor.getMonth(), 1));
+    }
+  }
 
   const todayStr = useMemo(() => formatDateStr(new Date()), []);
 
@@ -249,10 +262,9 @@ export function PaladioSingleDatePicker({
           const dateStr = formatDateStr(currentD);
           const isSelected = selectedDate === dateStr;
           const isToday = dateStr === todayStr;
-          const isPast = dateStr < todayStr;
           const isBeforeMin = minDate ? dateStr < minDate : false;
           const isAfterMax = maxDate ? dateStr > maxDate : false;
-          const isDisabled = isPast || isBeforeMin || isAfterMax;
+          const isDisabled = isBeforeMin || isAfterMax;
 
           let cellBg = 'transparent';
           let cellColor = isDisabled ? 'var(--color-text-muted, #A8A29E)' : 'var(--color-text-primary, #1A1A1A)';

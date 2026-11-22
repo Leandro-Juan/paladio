@@ -110,6 +110,7 @@ export function RouteIntakeBar({
 
   // Swap animation trigger
   const [isSwapping, setIsSwapping] = useState(false);
+  const swapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Custom Hour Picker Modal state: null | 'departure' | 'arrival'
   const [activeHourPicker, setActiveHourPicker] = useState<'departure' | 'arrival' | null>(null);
@@ -117,12 +118,18 @@ export function RouteIntakeBar({
   // Refs for click outside
   const containerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    return () => {
+      if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
+    };
+  }, []);
+
   // Dynamic search fetcher
-  const fetchLocations = useCallback(async (query: string): Promise<LocationItem[]> => {
+  const fetchLocations = useCallback(async (query: string, signal?: AbortSignal): Promise<LocationItem[]> => {
     if (!query || query.trim().length < 1) return [];
     try {
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/locations/search?q=${encodeURIComponent(query.trim())}&limit=8`);
+      const res = await fetch(`${baseUrl}/locations/search?q=${encodeURIComponent(query.trim())}&limit=8`, { signal });
       if (!res.ok) return [];
       const data = await res.json();
       return Array.isArray(data) ? data : [];
@@ -158,25 +165,53 @@ export function RouteIntakeBar({
   // Debounced search for Origin
   useEffect(() => {
     if (activeMenu !== 'origin') return;
+    const query = (originQuery || origin).trim();
+    if (!query) {
+      const timer = setTimeout(() => {
+        setOriginResults([]);
+        setIsLoadingOrigin(false);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setIsLoadingOrigin(true);
-      const results = await fetchLocations(originQuery || origin);
-      setOriginResults(results);
-      setIsLoadingOrigin(false);
+      const results = await fetchLocations(query, controller.signal);
+      if (!controller.signal.aborted) {
+        setOriginResults(results);
+        setIsLoadingOrigin(false);
+      }
     }, 200);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [originQuery, activeMenu, fetchLocations, origin]);
 
   // Debounced search for Destination
   useEffect(() => {
     if (activeMenu !== 'destination') return;
+    const query = (destinationQuery || destination).trim();
+    if (!query) {
+      const timer = setTimeout(() => {
+        setDestinationResults([]);
+        setIsLoadingDest(false);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setIsLoadingDest(true);
-      const results = await fetchLocations(destinationQuery || destination);
-      setDestinationResults(results);
-      setIsLoadingDest(false);
+      const results = await fetchLocations(query, controller.signal);
+      if (!controller.signal.aborted) {
+        setDestinationResults(results);
+        setIsLoadingDest(false);
+      }
     }, 200);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [destinationQuery, activeMenu, fetchLocations, destination]);
 
   // Swap origin and destination
@@ -191,11 +226,8 @@ export function RouteIntakeBar({
     setDestinationQuery(tempOrig);
     setOriginIata(destIata);
     setDestIata(tempIata);
-    if (departureHour && arrivalHour && onDepartureHourChange && onArrivalHourChange) {
-      onDepartureHourChange(arrivalHour);
-      onArrivalHourChange(departureHour);
-    }
-    setTimeout(() => setIsSwapping(false), 300);
+    if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
+    swapTimerRef.current = setTimeout(() => setIsSwapping(false), 300);
   };
 
   const handleSelectOrigin = (item: LocationItem) => {
@@ -302,12 +334,20 @@ export function RouteIntakeBar({
               onChange={(e) => {
                 setOriginQuery(e.target.value);
                 onOriginChange(e.target.value);
+                if (originIata) setOriginIata('');
                 setActiveMenu('origin');
               }}
               onFocus={() => {
                 setActiveMenu('origin');
-                if (originResults.length === 0) {
-                  void fetchLocations(originQuery || origin).then(setOriginResults);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setActiveMenu(null);
+                } else if (e.key === 'Enter' && activeMenu === 'origin') {
+                  e.preventDefault();
+                  if (originResults.length > 0) {
+                    handleSelectOrigin(originResults[0]);
+                  }
                 }
               }}
               placeholder={t('engine.search_city_airport_placeholder')}
@@ -465,12 +505,20 @@ export function RouteIntakeBar({
               onChange={(e) => {
                 setDestinationQuery(e.target.value);
                 onDestinationChange(e.target.value);
+                if (destIata) setDestIata('');
                 setActiveMenu('destination');
               }}
               onFocus={() => {
                 setActiveMenu('destination');
-                if (destinationResults.length === 0) {
-                  void fetchLocations(destinationQuery || destination).then(setDestinationResults);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setActiveMenu(null);
+                } else if (e.key === 'Enter' && activeMenu === 'destination') {
+                  e.preventDefault();
+                  if (destinationResults.length > 0) {
+                    handleSelectDest(destinationResults[0]);
+                  }
                 }
               }}
               placeholder={t('engine.search_city_airport_placeholder')}
@@ -543,7 +591,7 @@ export function RouteIntakeBar({
       </div>
 
       {/* Deployed Dropdown Menu for Origin */}
-      {activeMenu === 'origin' && (
+      {activeMenu === 'origin' && (originQuery.trim().length > 0 || originResults.length > 0 || isLoadingOrigin) && (
         <div
           style={{
             position: 'absolute',
@@ -568,7 +616,7 @@ export function RouteIntakeBar({
               msOverflowStyle: 'none',
             }}
           >
-            {originResults.length === 0 && !isLoadingOrigin && (
+            {originQuery.trim().length > 0 && originResults.length === 0 && !isLoadingOrigin && (
               <div
                 style={{
                   padding: '12px',
@@ -658,7 +706,7 @@ export function RouteIntakeBar({
       )}
 
       {/* Deployed Dropdown Menu for Destination */}
-      {activeMenu === 'destination' && (
+      {activeMenu === 'destination' && (destinationQuery.trim().length > 0 || destinationResults.length > 0 || isLoadingDest) && (
         <div
           style={{
             position: 'absolute',
@@ -683,7 +731,7 @@ export function RouteIntakeBar({
               msOverflowStyle: 'none',
             }}
           >
-            {destinationResults.length === 0 && !isLoadingDest && (
+            {destinationQuery.trim().length > 0 && destinationResults.length === 0 && !isLoadingDest && (
               <div
                 style={{
                   padding: '12px',

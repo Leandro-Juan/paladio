@@ -62,39 +62,27 @@ export function HotelMapModal({
   onConfirm,
 }: HotelMapModalProps) {
   const { t } = useTranslation();
-  const destLower = (destination || '').toLowerCase().trim();
-  const addressLower = (initialHotelAddress || '').toLowerCase().trim();
-  const nameLower = (initialHotelName || '').toLowerCase().trim();
-  // Check if initial hotel belongs to a previous / different destination
-  const isCityMismatch = Boolean(
-    destLower &&
-      (addressLower || nameLower) &&
-      !addressLower.includes(destLower) &&
-      !nameLower.includes(destLower) &&
-      !destLower.includes(addressLower)
-  );
+  const hasValidInitialCoords =
+    typeof initialLat === 'number' &&
+    typeof initialLng === 'number' &&
+    Number.isFinite(initialLat) &&
+    Number.isFinite(initialLng) &&
+    (initialLat !== 0 || initialLng !== 0);
 
-  const [hotelName, setHotelName] = useState(isCityMismatch ? '' : initialHotelName);
-  const [hotelAddress, setHotelAddress] = useState(isCityMismatch ? '' : initialHotelAddress);
+  const [hotelName, setHotelName] = useState(initialHotelName);
+  const [hotelAddress, setHotelAddress] = useState(initialHotelAddress);
   const [prevInitialName, setPrevInitialName] = useState(initialHotelName);
   const [prevInitialAddress, setPrevInitialAddress] = useState(initialHotelAddress);
   const [prevDestination, setPrevDestination] = useState(destination);
 
   if (initialHotelName !== prevInitialName) {
     setPrevInitialName(initialHotelName);
-    if (!isCityMismatch) setHotelName(initialHotelName);
+    setHotelName(initialHotelName);
   }
   if (initialHotelAddress !== prevInitialAddress) {
     setPrevInitialAddress(initialHotelAddress);
-    if (!isCityMismatch) setHotelAddress(initialHotelAddress);
+    setHotelAddress(initialHotelAddress);
   }
-  if (destination !== prevDestination) {
-    setPrevDestination(destination);
-    setHotelName('');
-    setHotelAddress('');
-  }
-
-  const hasValidInitialCoords = Boolean(initialLat && initialLng && !isCityMismatch);
   const [pinPos, setPinPos] = useState<[number, number] | null>(
     hasValidInitialCoords ? [initialLat!, initialLng!] : null
   );
@@ -106,14 +94,26 @@ export function HotelMapModal({
   const [isLocating, setIsLocating] = useState<boolean>(!hasValidInitialCoords);
   const [locationError, setLocationError] = useState<string | null>(null);
 
+  if (destination !== prevDestination) {
+    setPrevDestination(destination);
+    setHotelName('');
+    setHotelAddress('');
+    setPinPos(null);
+    setCenter(null);
+    setLocationError(null);
+  }
+
   if (initialLat !== prevLat || initialLng !== prevLng) {
     setPrevLat(initialLat);
     setPrevLng(initialLng);
-    if (initialLat && initialLng && !isCityMismatch) {
-      setPinPos([initialLat, initialLng]);
-      setCenter([initialLat, initialLng]);
+    if (hasValidInitialCoords) {
+      setPinPos([initialLat!, initialLng!]);
+      setCenter([initialLat!, initialLng!]);
       setIsLocating(false);
       setLocationError(null);
+    } else {
+      setPinPos(null);
+      setCenter(null);
     }
   }
 
@@ -131,32 +131,54 @@ export function HotelMapModal({
   const [isSearching, setIsSearching] = useState(false);
   const [isReverseLoading, setIsReverseLoading] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const reverseAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!isOpen && reverseAbortRef.current) {
+      reverseAbortRef.current.abort();
+      reverseAbortRef.current = null;
+    }
+    return () => {
+      if (reverseAbortRef.current) {
+        reverseAbortRef.current.abort();
+        reverseAbortRef.current = null;
+      }
+    };
+  }, [isOpen]);
 
   // Automatically locate accommodation / destination dynamically when opened
   useEffect(() => {
     if (!isOpen) return;
 
-    if (initialLat && initialLng && !isCityMismatch) {
+    if (hasValidInitialCoords) {
       return;
     }
 
+    const controller = new AbortController();
     let isMounted = true;
 
     const resolveLocation = async () => {
       const baseUrl = getApiBaseUrl();
-      const targetQuery = isCityMismatch ? '' : (initialHotelName?.trim() || '');
+      const targetQuery = initialHotelName?.trim() || '';
       const destQuery = destination?.trim() || '';
 
-      // 1. If an accommodation name is provided and matches destination, search & pin the hotel dynamically
-      if (targetQuery && !isCityMismatch) {
+      // 1. If an accommodation name is provided, search & pin the hotel dynamically
+      if (targetQuery) {
         try {
           const hotelUrl = `${baseUrl}/locations/hotels?city=${encodeURIComponent(
             destQuery
           )}&q=${encodeURIComponent(targetQuery)}&limit=1`;
-          const res = await fetch(hotelUrl);
+          const res = await fetch(hotelUrl, { signal: controller.signal });
           if (res.ok) {
             const data = await res.json();
-            if (Array.isArray(data) && data.length > 0 && data[0].lat && data[0].lng) {
+            if (
+              Array.isArray(data) &&
+              data.length > 0 &&
+              typeof data[0].lat === 'number' &&
+              Number.isFinite(data[0].lat) &&
+              typeof data[0].lng === 'number' &&
+              Number.isFinite(data[0].lng)
+            ) {
               if (isMounted) {
                 const hotel = data[0];
                 setPinPos([hotel.lat, hotel.lng]);
@@ -177,10 +199,16 @@ export function HotelMapModal({
       if (destQuery) {
         try {
           const apUrl = `${baseUrl}/locations/resolve-airport?city=${encodeURIComponent(destQuery)}`;
-          const res = await fetch(apUrl);
+          const res = await fetch(apUrl, { signal: controller.signal });
           if (res.ok) {
             const ap = await res.json();
-            if (ap && ap.latitude && ap.longitude) {
+            if (
+              ap &&
+              typeof ap.latitude === 'number' &&
+              Number.isFinite(ap.latitude) &&
+              typeof ap.longitude === 'number' &&
+              Number.isFinite(ap.longitude)
+            ) {
               if (isMounted) {
                 setCenter([ap.latitude, ap.longitude]);
                 setIsLocating(false);
@@ -195,10 +223,17 @@ export function HotelMapModal({
         // 3. Fallback: query locations/search dynamically
         try {
           const destUrl = `${baseUrl}/locations/search?q=${encodeURIComponent(destQuery)}&limit=1`;
-          const res = await fetch(destUrl);
+          const res = await fetch(destUrl, { signal: controller.signal });
           if (res.ok) {
             const items = await res.json();
-            if (Array.isArray(items) && items.length > 0 && items[0].latitude && items[0].longitude) {
+            if (
+              Array.isArray(items) &&
+              items.length > 0 &&
+              typeof items[0].latitude === 'number' &&
+              Number.isFinite(items[0].latitude) &&
+              typeof items[0].longitude === 'number' &&
+              Number.isFinite(items[0].longitude)
+            ) {
               if (isMounted) {
                 setCenter([items[0].latitude, items[0].longitude]);
                 setIsLocating(false);
@@ -213,10 +248,17 @@ export function HotelMapModal({
         // 4. Fallback: query Nominatim dynamically for destination city
         try {
           const osmUrl = `${baseUrl}/locations/hotels?city=${encodeURIComponent(destQuery)}&q=${encodeURIComponent(destQuery)}&limit=1`;
-          const res = await fetch(osmUrl);
+          const res = await fetch(osmUrl, { signal: controller.signal });
           if (res.ok) {
             const data = await res.json();
-            if (Array.isArray(data) && data.length > 0 && data[0].lat && data[0].lng) {
+            if (
+              Array.isArray(data) &&
+              data.length > 0 &&
+              typeof data[0].lat === 'number' &&
+              Number.isFinite(data[0].lat) &&
+              typeof data[0].lng === 'number' &&
+              Number.isFinite(data[0].lng)
+            ) {
               if (isMounted) {
                 setCenter([data[0].lat, data[0].lng]);
                 setIsLocating(false);
@@ -242,26 +284,37 @@ export function HotelMapModal({
 
     return () => {
       isMounted = false;
+      controller.abort();
     };
-  }, [isOpen, initialHotelName, initialHotelAddress, initialLat, initialLng, destination, isCityMismatch, t]);
+  }, [isOpen, initialHotelName, initialHotelAddress, initialLat, initialLng, destination, hasValidInitialCoords, t]);
 
   // Handle map click with reverse geocode
   const handleMapClick = useCallback(async (lat: number, lng: number) => {
+    if (reverseAbortRef.current) reverseAbortRef.current.abort();
+    const controller = new AbortController();
+    reverseAbortRef.current = controller;
+
     setSearchResults([]);
     setPinPos([lat, lng]);
     setIsReverseLoading(true);
     try {
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/locations/reverse?lat=${lat}&lon=${lng}`);
-      if (res.ok) {
+      const res = await fetch(`${baseUrl}/locations/reverse?lat=${lat}&lon=${lng}`, {
+        signal: controller.signal,
+      });
+      if (res.ok && !controller.signal.aborted) {
         const data = await res.json();
-        if (data.name) setHotelName(data.name);
-        if (data.address) setHotelAddress(data.address);
+        if (!controller.signal.aborted) {
+          if (data.name) setHotelName(data.name);
+          if (data.address) setHotelAddress(data.address);
+        }
       }
     } catch {
-      // Keep existing or generic
+      // Keep existing or ignore aborts
     } finally {
-      setIsReverseLoading(false);
+      if (!controller.signal.aborted) {
+        setIsReverseLoading(false);
+      }
     }
   }, []);
 
@@ -278,35 +331,54 @@ export function HotelMapModal({
 
   // Debounced search within map modal
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      return;
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      const timer = setTimeout(() => {
+        setSearchResults([]);
+        setIsSearching(false);
+      }, 0);
+      return () => clearTimeout(timer);
     }
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
         const baseUrl = getApiBaseUrl();
         const res = await fetch(
           `${baseUrl}/locations/hotels?city=${encodeURIComponent(destination || '')}&q=${encodeURIComponent(
-            searchQuery.trim()
-          )}&limit=6`
+            trimmed
+          )}&limit=6`,
+          { signal: controller.signal }
         );
-        if (res.ok) {
+        if (res.ok && !controller.signal.aborted) {
           const data = await res.json();
-          setSearchResults(Array.isArray(data) ? data : []);
+          if (!controller.signal.aborted) {
+            setSearchResults(Array.isArray(data) ? data : []);
+          }
         }
       } catch {
-        setSearchResults([]);
+        if (!controller.signal.aborted) {
+          setSearchResults([]);
+        }
       } finally {
-        setIsSearching(false);
+        if (!controller.signal.aborted) {
+          setIsSearching(false);
+        }
       }
     }, 250);
 
     return () => {
       clearTimeout(timer);
+      controller.abort();
     };
   }, [searchQuery, destination]);
 
   const handleSelectSearchResult = (item: HotelSearchResult) => {
+    if (reverseAbortRef.current) {
+      reverseAbortRef.current.abort();
+      reverseAbortRef.current = null;
+      setIsReverseLoading(false);
+    }
     setHotelName(item.name);
     setHotelAddress(item.address);
     setPinPos([item.lat, item.lng]);

@@ -21,6 +21,15 @@ export function PhotoUploadModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (!isOpen) {
+      setErrorMessage(null);
+      setIsDragOver(false);
+    }
+  }
+
   // Close on Escape key
   useEffect(() => {
     if (!isOpen) return;
@@ -47,6 +56,40 @@ export function PhotoUploadModal({
 
   if (!isOpen) return null;
 
+  const downscaleDataUrlIfNeeded = (dataUrl: string, mimeType: string, callback: (out: string) => void) => {
+    if (mimeType === 'image/gif' || mimeType === 'image/svg+xml') {
+      callback(dataUrl);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 1600;
+      if (img.width <= maxDim && img.height <= maxDim && dataUrl.length <= 500_000) {
+        callback(dataUrl);
+        return;
+      }
+      const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+      const targetW = Math.max(1, Math.round(img.width * scale));
+      const targetH = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        callback(dataUrl);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+      try {
+        callback(canvas.toDataURL('image/jpeg', 0.85));
+      } catch {
+        callback(dataUrl);
+      }
+    };
+    img.onerror = () => callback(dataUrl);
+    img.src = dataUrl;
+  };
+
   const handleFileProcess = (file: File) => {
     setErrorMessage(null);
     if (!file.type.startsWith('image/')) {
@@ -62,7 +105,7 @@ export function PhotoUploadModal({
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        onPhotoSelect(reader.result);
+        downscaleDataUrlIfNeeded(reader.result, file.type, onPhotoSelect);
       }
     };
     reader.onerror = () => {
@@ -73,6 +116,7 @@ export function PhotoUploadModal({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (file) {
       handleFileProcess(file);
     }
@@ -87,7 +131,9 @@ export function PhotoUploadModal({
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragOver(false);
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {

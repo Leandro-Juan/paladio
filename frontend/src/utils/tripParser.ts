@@ -1,6 +1,14 @@
 export function extractDestination(itineraryData: any): string {
   if (!itineraryData) return "Unknown Destination";
-  
+
+  if (typeof itineraryData.destination === 'string' && itineraryData.destination.trim() && itineraryData.destination.trim() !== 'Unknown') {
+    return itineraryData.destination.trim();
+  }
+  const destCity = itineraryData.travel_constraints?.destination_city;
+  if (typeof destCity === 'string' && destCity.trim() && destCity.trim() !== 'Unknown') {
+    return destCity.trim();
+  }
+
   if (Array.isArray(itineraryData.days)) {
     for (const day of itineraryData.days) {
       if (day.flight_info && day.flight_info.destination) {
@@ -33,10 +41,6 @@ export function countWaypoints(itineraryData: any): number {
   
   if (Array.isArray(itineraryData)) {
     return itineraryData.length;
-  }
-  
-  if (typeof itineraryData === 'object') {
-    return Object.keys(itineraryData).length;
   }
   
   return 0;
@@ -138,13 +142,17 @@ export function getTripReturnDateTime(trip: {
     parsedDate.getSeconds() === 0;
 
   if (isUtcMidnight || isLocalMidnight) {
+    const baseLocalDate =
+      isUtcMidnight && rawEndDate.includes('Z')
+        ? new Date(parsedDate.getUTCFullYear(), parsedDate.getUTCMonth(), parsedDate.getUTCDate())
+        : new Date(parsedDate);
     if (explicitTimeStr) {
       const timeMatch = explicitTimeStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
       if (timeMatch) {
         const hours = parseInt(timeMatch[1], 10);
         const minutes = parseInt(timeMatch[2], 10);
         const seconds = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
-        const res = new Date(parsedDate);
+        const res = new Date(baseLocalDate);
         res.setHours(hours, minutes, seconds, 0);
         return res;
       }
@@ -154,7 +162,7 @@ export function getTripReturnDateTime(trip: {
       }
     }
     // If midnight without explicit time, treat as end of that day
-    const endOfDay = new Date(parsedDate);
+    const endOfDay = new Date(baseLocalDate);
     endOfDay.setHours(23, 59, 59, 999);
     return endOfDay;
   }
@@ -247,10 +255,21 @@ export function extractRouteCorridor(itineraryData: unknown): {
 } | null {
   if (!itineraryData || typeof itineraryData !== 'object') return null;
   const itin = itineraryData as {
+    origin?: string;
+    outbound_flight?: {
+      origin_iata?: string;
+      destination_iata?: string;
+    };
     travel_constraints?: {
       origin_city?: string;
       origin_iata?: string;
       destination_iata?: string;
+      booking_anchors?: {
+        outbound_flight?: {
+          origin_iata?: string;
+          destination_iata?: string;
+        };
+      };
     };
     days?: Array<{
       flight_info?: {
@@ -260,14 +279,21 @@ export function extractRouteCorridor(itineraryData: unknown): {
     }>;
   };
   const constraints = itin.travel_constraints;
-  let origin = constraints?.origin_city;
-  let originIata = constraints?.origin_iata;
-  let destinationIata = constraints?.destination_iata;
+  const cleanOrigin = (v?: string) => (v && v.trim() && v.trim().toLowerCase() !== 'unknown' ? v.trim() : undefined);
+  let origin = cleanOrigin(constraints?.origin_city) || cleanOrigin(itin.origin);
+  let originIata =
+    constraints?.origin_iata ||
+    constraints?.booking_anchors?.outbound_flight?.origin_iata ||
+    itin.outbound_flight?.origin_iata;
+  let destinationIata =
+    constraints?.destination_iata ||
+    constraints?.booking_anchors?.outbound_flight?.destination_iata ||
+    itin.outbound_flight?.destination_iata;
 
   if (Array.isArray(itin.days)) {
     for (const day of itin.days) {
       if (day.flight_info) {
-        origin = origin || day.flight_info.origin_iata;
+        origin = origin || cleanOrigin(day.flight_info.origin_iata);
         originIata = originIata || day.flight_info.origin_iata;
         destinationIata = destinationIata || day.flight_info.destination_iata;
         break;

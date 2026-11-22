@@ -29,9 +29,15 @@ function formatDisplayDate(dateStr: string, intlLocale: string): string {
   }).format(parsed);
 }
 
+function normalizeIsoDate(str?: string | null): string {
+  if (!str) return '';
+  return str.split('T')[0].split(' ')[0].trim();
+}
+
 function parseDateStr(str: string): Date | null {
-  if (!str) return null;
-  const parts = str.split('-');
+  const clean = normalizeIsoDate(str);
+  if (!clean) return null;
+  const parts = clean.split('-');
   if (parts.length !== 3) return null;
   const y = parseInt(parts[0], 10);
   const m = parseInt(parts[1], 10) - 1;
@@ -76,9 +82,13 @@ export function PaladioDateRangePicker({
   const { trips: fetchedTrips } = useTrips();
   const tripsToUse = existingTrips ?? fetchedTrips;
   const relevantTrips = useMemo(() => {
-    return (tripsToUse || []).filter(
-      (t) => t.start_date && t.end_date && (!excludeTripId || t.id !== excludeTripId)
-    );
+    return (tripsToUse || [])
+      .filter((t) => t.start_date && t.end_date && (!excludeTripId || t.id !== excludeTripId))
+      .map((t) => ({
+        ...t,
+        start_date: normalizeIsoDate(t.start_date),
+        end_date: normalizeIsoDate(t.end_date),
+      }));
   }, [tripsToUse, excludeTripId]);
 
   const [localHolidays] = useState<Set<string>>(() => {
@@ -119,9 +129,11 @@ export function PaladioDateRangePicker({
   const [viewMonth, setViewMonth] = useState(() => initialStart.getMonth());
 
   // Intermediate selection state: 'start' or 'end'
+  const normalizedPropStart = normalizeIsoDate(startDate);
+  const normalizedPropEnd = normalizeIsoDate(endDate);
   const [selectingStep, setSelectingStep] = useState<'start' | 'end'>('start');
-  const [tempStart, setTempStart] = useState<string>(startDate || '');
-  const [tempEnd, setTempEnd] = useState<string>(endDate || '');
+  const [tempStart, setTempStart] = useState<string>(normalizedPropStart);
+  const [tempEnd, setTempEnd] = useState<string>(normalizedPropEnd);
   const [hoverDate, setHoverDate] = useState<string | null>(null);
 
   // Sync internal state if controlled props change
@@ -130,9 +142,11 @@ export function PaladioDateRangePicker({
   if (startDate !== lastPropStart || endDate !== lastPropEnd) {
     setLastPropStart(startDate);
     setLastPropEnd(endDate);
-    setTempStart(startDate || '');
-    setTempEnd(endDate || '');
-    const parsedStart = parseDateStr(startDate);
+    setTempStart(normalizedPropStart);
+    setTempEnd(normalizedPropEnd);
+    setSelectingStep('start');
+    setHoverDate(null);
+    const parsedStart = parseDateStr(normalizedPropStart);
     if (parsedStart) {
       setViewYear(parsedStart.getFullYear());
       setViewMonth(parsedStart.getMonth());
@@ -245,13 +259,14 @@ export function PaladioDateRangePicker({
   const leftDays = useMemo(() => getDaysGrid(leftMonthDate.getFullYear(), leftMonthDate.getMonth()), [leftMonthDate]);
   const rightDays = useMemo(() => getDaysGrid(rightMonthDate.getFullYear(), rightMonthDate.getMonth()), [rightMonthDate]);
 
-  // Duration in days
+  // Duration in inclusive calendar days
   const durationDays = useMemo(() => {
     const s = parseDateStr(tempStart);
+    if (!s) return 0;
     const e = parseDateStr(tempEnd);
-    if (!s || !e) return 0;
+    if (!e) return 1;
     const diff = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24));
-    return diff >= 0 ? diff : 0;
+    return diff >= 0 ? diff + 1 : 1;
   }, [tempStart, tempEnd]);
 
   const renderMonth = (mDate: Date, days: (number | null)[]) => {
@@ -358,7 +373,7 @@ export function PaladioDateRangePicker({
               cellBg = 'var(--color-accent-primary, #0F4C5C)';
               cellColor = '#FFFFFF';
               cellBorderRadius = isStart
-                ? (inRange || effectiveEnd ? '8px 0 0 8px' : '8px')
+                ? (isEnd || !effectiveEnd || effectiveEnd === tempStart ? '8px' : '8px 0 0 8px')
                 : '0 8px 8px 0';
               cellBorder = 'none';
               cellFontWeight = 600;
@@ -593,8 +608,9 @@ export function PaladioDateRangePicker({
           <button
             type="button"
             onClick={() => {
-              if (tempStart && tempEnd) {
-                onChange(tempStart, tempEnd);
+              if (tempStart) {
+                onChange(tempStart, tempEnd || tempStart);
+                setSelectingStep('start');
               }
               onClose();
             }}
