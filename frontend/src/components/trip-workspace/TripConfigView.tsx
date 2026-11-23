@@ -767,14 +767,12 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             hotelLat={hotelLat}
             hotelLng={hotelLng}
             destination={destination}
-            checkInDate={hotelCheckInDate || startDate}
-            checkOutDate={hotelCheckOutDate || endDate}
+            checkInDate={startDate}
+            checkOutDate={endDate}
             checkInHour={hotelCheckInHour}
             checkOutHour={hotelCheckOutHour}
             tripStartDate={startDate}
             tripEndDate={endDate}
-            onCheckInDateChange={setHotelCheckInDate}
-            onCheckOutDateChange={setHotelCheckOutDate}
             onCheckInHourChange={setHotelCheckInHour}
             onCheckOutHourChange={setHotelCheckOutHour}
             onChange={setHotelInfo}

@@ -60,8 +60,6 @@ interface HotelStayAnchorBarProps {
   checkOutHour?: string;
   tripStartDate?: string;
   tripEndDate?: string;
-  onCheckInDateChange?: (val: string) => void;
-  onCheckOutDateChange?: (val: string) => void;
   onCheckInHourChange?: (val: string) => void;
   onCheckOutHourChange?: (val: string) => void;
   onChange: (
@@ -83,8 +81,6 @@ export function HotelStayAnchorBar({
   checkOutHour = '11:00',
   tripStartDate,
   tripEndDate,
-  onCheckInDateChange,
-  onCheckOutDateChange,
   onCheckInHourChange,
   onCheckOutHourChange,
   onChange,
@@ -395,7 +391,7 @@ export function HotelStayAnchorBar({
       </div>
 
       {/* Hotel Check-In & Check-Out Schedule Controls */}
-      {(onCheckInHourChange || onCheckOutHourChange || onCheckInDateChange || onCheckOutDateChange) && (
+      {(onCheckInHourChange || onCheckOutHourChange || tripStartDate || tripEndDate || checkInDate || checkOutDate) && (
         <div
           style={{
             display: 'grid',
@@ -429,39 +425,17 @@ export function HotelStayAnchorBar({
               >
                 {t('engine.check_in_label')}
               </span>
-              {onCheckInDateChange ? (
-                <input
-                  type="date"
-                  aria-label={t('engine.hotel_checkin_date_aria')}
-                  disabled={disabled}
-                  value={checkInDate || tripStartDate || ''}
-                  min={tripStartDate || undefined}
-                  max={tripEndDate || undefined}
-                  onChange={(e) => {
-                    const nextVal = e.target.value;
-                    onCheckInDateChange(nextVal);
-                    if (checkOutDate && nextVal && nextVal > checkOutDate) {
-                      onCheckOutDateChange?.(nextVal);
-                    }
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    color: 'var(--color-text-primary, #1A1A1A)',
-                    padding: 0,
-                    width: '100%',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                  }}
-                />
-              ) : (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11.5px', fontWeight: 600 }}>
-                  {checkInDate || tripStartDate || t('engine.arrival_fallback')}
-                </span>
-              )}
+              <span
+                data-testid="hotel-checkin-date-text"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  color: 'var(--color-text-primary, #1A1A1A)',
+                }}
+              >
+                {tripStartDate || checkInDate || t('engine.arrival_fallback')}
+              </span>
             </div>
             {onCheckInHourChange && (
               <button
@@ -518,39 +492,17 @@ export function HotelStayAnchorBar({
               >
                 {t('engine.check_out_label')}
               </span>
-              {onCheckOutDateChange ? (
-                <input
-                  type="date"
-                  aria-label={t('engine.hotel_checkout_date_aria')}
-                  disabled={disabled}
-                  value={checkOutDate || tripEndDate || ''}
-                  min={checkInDate || tripStartDate || undefined}
-                  max={tripEndDate || undefined}
-                  onChange={(e) => {
-                    const nextVal = e.target.value;
-                    onCheckOutDateChange(nextVal);
-                    if (checkInDate && nextVal && nextVal < checkInDate) {
-                      onCheckInDateChange?.(nextVal);
-                    }
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    color: 'var(--color-text-primary, #1A1A1A)',
-                    padding: 0,
-                    width: '100%',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                  }}
-                />
-              ) : (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11.5px', fontWeight: 600 }}>
-                  {checkOutDate || tripEndDate || t('engine.departure_fallback')}
-                </span>
-              )}
+              <span
+                data-testid="hotel-checkout-date-text"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  color: 'var(--color-text-primary, #1A1A1A)',
+                }}
+              >
+                {tripEndDate || checkOutDate || t('engine.departure_fallback')}
+              </span>
             </div>
             {onCheckOutHourChange && (
               <button

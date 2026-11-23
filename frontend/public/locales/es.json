@@ -1924,7 +1924,8 @@
     "verification_title": "[VERIFICACIÓN DE RESTRICCIONES] REVISAR PARÁMETROS DEL VIAJE",
     "verified_hotel_location": "Ubicación de Hotel Verificada",
     "view_map": "Ver Mapa",
-    "you_badge": "Tú"
+    "you_badge": "Tú",
+    "manual_time_input_aria": "Introducir hora manualmente (HH:MM)"
   },
   "errors": {
     "action_failed": "No se pudo completar la acción solicitada.",

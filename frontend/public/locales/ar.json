@@ -1924,7 +1924,8 @@
     "verification_title": "[التحقق من القيود] مراجعة معاملات الرحلة",
     "verified_hotel_location": "موقع فندق موثق",
     "view_map": "عرض الخريطة",
-    "you_badge": "أنت"
+    "you_badge": "أنت",
+    "manual_time_input_aria": "أدخل الوقت يدوياً (HH:MM)"
   },
   "errors": {
     "action_failed": "تعذر إكمال الإجراء المطلوب.",

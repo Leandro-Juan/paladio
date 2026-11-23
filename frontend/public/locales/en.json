@@ -1924,7 +1924,8 @@
     "verification_title": "[CONSTRAINTS VERIFICATION] REVIEW TRIP PARAMETERS",
     "verified_hotel_location": "Verified Hotel Location",
     "view_map": "View Map",
-    "you_badge": "You"
+    "you_badge": "You",
+    "manual_time_input_aria": "Enter time manually (HH:MM)"
   },
   "errors": {
     "action_failed": "The requested action could not be completed.",

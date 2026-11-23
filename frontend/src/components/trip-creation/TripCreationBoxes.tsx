@@ -309,8 +309,6 @@ export function TripCreationBoxes({
       hotelLng: extra.lng,
     });
   };
-  const setHotelCheckInDate = (val: string) => updateDraft({ hotelCheckInDate: val });
-  const setHotelCheckOutDate = (val: string) => updateDraft({ hotelCheckOutDate: val });
   const setHotelCheckInHour = (val: string) => updateDraft({ hotelCheckInHour: val });
   const setHotelCheckOutHour = (val: string) => updateDraft({ hotelCheckOutHour: val });
   const setParticipants = (val: SelectedParticipant[]) => updateDraft({ participants: val });
@@ -1466,14 +1464,12 @@ export function TripCreationBoxes({
               hotelLat={hotelLat}
               hotelLng={hotelLng}
               destination={destination}
-              checkInDate={hotelCheckInDate || startDate}
-              checkOutDate={hotelCheckOutDate || endDate}
+              checkInDate={startDate}
+              checkOutDate={endDate}
               checkInHour={hotelCheckInHour}
               checkOutHour={hotelCheckOutHour}
               tripStartDate={startDate}
               tripEndDate={endDate}
-              onCheckInDateChange={setHotelCheckInDate}
-              onCheckOutDateChange={setHotelCheckOutDate}
               onCheckInHourChange={setHotelCheckInHour}
               onCheckOutHourChange={setHotelCheckOutHour}
               onChange={setHotelInfo}
@@ -1599,14 +1595,12 @@ export function TripCreationBoxes({
               startDate={startDate}
               endDate={endDate}
               onChange={(start, end) => {
-                const updates: Partial<typeof draft> = { startDate: start, endDate: end };
-                if (!hotelCheckInDate || hotelCheckInDate === startDate || hotelCheckInDate < start || hotelCheckInDate > end) {
-                  updates.hotelCheckInDate = start;
-                }
-                if (!hotelCheckOutDate || hotelCheckOutDate === endDate || hotelCheckOutDate > end || hotelCheckOutDate < start) {
-                  updates.hotelCheckOutDate = end;
-                }
-                updateDraft(updates);
+                updateDraft({
+                  startDate: start,
+                  endDate: end,
+                  hotelCheckInDate: start,
+                  hotelCheckOutDate: end,
+                });
               }}
               disabled={disabled}
               inline={true}
