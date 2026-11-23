@@ -14,7 +14,7 @@ exclude_docs: |
 theme:
   name: material
   logo: assets/logo.png
-  favicon: assets/logo.png
+  favicon: assets/logo-white.png
   language: en
   palette:
     - scheme: slate
