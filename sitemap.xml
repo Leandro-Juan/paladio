@@ -2,138 +2,138 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://leandro-juan.github.io/paladio/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/architecture/agent-and-mcp-safety/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/architecture/cpp-combinatorial-core/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/architecture/deal-engine-and-transit/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/architecture/deterministic-trip-engine/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/architecture/frontend-and-demo-mode/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/architecture/semantic-rag-and-taste-learning/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/architecture/system-overview/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/contributing/developer-guide/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/getting-started/installation/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/getting-started/local-development/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/getting-started/quickstart/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/reference/cpp-python-api/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/reference/database-schema/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/reference/glossary/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/reference/mcp-server/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/reference/rest-api/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/reference/trip-file-format/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/reference/websockets/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/self-hosting/backups-updates-and-troubleshooting/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/self-hosting/city-data-and-gtfs/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/self-hosting/configuration/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/self-hosting/integrations-and-vault/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/self-hosting/llm-providers-and-mcp/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/self-hosting/reverse-proxy-and-security/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/user-guide/ai-travel-assistant/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/user-guide/bookings-wallet/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/user-guide/control-center-and-taste/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/user-guide/costs-and-group-splitting/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/user-guide/public-transit-and-routing/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/user-guide/route-monitoring-and-deals/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/user-guide/trip-creation/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/user-guide/trip-workspace/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
     <url>
          <loc>https://leandro-juan.github.io/paladio/user-guide/vault-photos-and-sharing/</loc>
-         <lastmod>2026-11-22</lastmod>
+         <lastmod>2026-11-23</lastmod>
     </url>
 </urlset>
