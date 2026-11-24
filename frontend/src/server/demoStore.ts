@@ -38,8 +38,54 @@ function deepClone<T>(val: T): T {
   return JSON.parse(JSON.stringify(val)) as T;
 }
 
+const CITY_COUNTRY_META: Record<string, { country: string; code: string }> = {
+  Tokyo: { country: 'Japan', code: 'JP' },
+  Madrid: { country: 'Spain', code: 'ES' },
+  London: { country: 'United Kingdom', code: 'GB' },
+  Zurich: { country: 'Switzerland', code: 'CH' },
+  Paris: { country: 'France', code: 'FR' },
+  Lisbon: { country: 'Portugal', code: 'PT' },
+};
+
+export function buildCollectionPoiSummary(
+  poi: Record<string, unknown>,
+  fallbackCity?: string
+): Record<string, unknown> {
+  const city = String(poi.city || fallbackCity || '');
+  const meta = CITY_COUNTRY_META[city];
+  const scoring = (poi.scoring || {}) as Record<string, unknown>;
+  const loc = (poi.location || {}) as Record<string, unknown>;
+  return {
+    id: poi.id,
+    name: poi.name,
+    category: poi.category || 'attraction',
+    cost_eur: poi.cost_eur ?? 0,
+    duration_mins: poi.duration_mins ?? 60,
+    lat: poi.lat ?? loc.latitude ?? loc.lat ?? null,
+    lng: poi.lng ?? loc.longitude ?? loc.lng ?? null,
+    photo_url: poi.photo_url || poi.thumbnail_url || null,
+    thumbnail_url: poi.thumbnail_url || poi.photo_url || null,
+    rating: scoring.rating ?? poi.rating ?? 4.6,
+    formatted_address:
+      poi.address ||
+      (poi.neighborhood && city ? `${String(poi.neighborhood)}, ${city}` : city || null),
+    description: poi.description || null,
+    city: city || null,
+    country: meta?.country || (poi.country as string) || null,
+    country_code: meta?.code || (poi.country_code as string) || null,
+  };
+}
+
 function buildFreshSession(sid: string, baseline: DemoSnapshotRaw, nextResetAt: number): DemoSessionState {
   const now = new Date();
+  const poiByIdMap = new Map<string, Record<string, unknown>>();
+  for (const [cityName, cityPois] of Object.entries(baseline.pois_by_city || {})) {
+    for (const p of cityPois) {
+      if (p.id) {
+        poiByIdMap.set(String(p.id), { ...p, city: p.city || cityName });
+      }
+    }
+  }
   const trips: Array<Record<string, unknown>> = [];
   const revisionsByTrip: Record<string, Array<Record<string, unknown>>> = {};
   const ticketsByTrip: Record<string, Array<Record<string, unknown>>> = {};
@@ -108,12 +154,25 @@ function buildFreshSession(sid: string, baseline: DemoSnapshotRaw, nextResetAt: 
     const rawCols = (trip.collections as Array<Record<string, unknown>>) || [];
     collectionsByTrip[tripId] = rawCols.map((col) => {
       const copy = deepClone(col);
-      copy.items = ((copy.item_ids as string[]) || []).map((pid, idx) => ({
-        id: `${copy.id}-item-${idx}`,
-        collection_id: copy.id,
-        poi_id: pid,
-        created_at: addHoursIso(now, -24),
-      }));
+      copy.trip_id = tripId;
+      copy.trip_destination = trip.destination;
+      copy.trip_title = itin.title || trip.destination;
+      copy.created_at = addHoursIso(now, -48);
+      copy.updated_at = addHoursIso(now, -12);
+      copy.items = ((copy.item_ids as string[]) || []).map((pid, idx) => {
+        const foundPoi = poiByIdMap.get(String(pid));
+        return {
+          id: `${copy.id}-item-${idx}`,
+          collection_id: copy.id,
+          poi_id: pid,
+          notes: null,
+          visit_status: 'want_to_go',
+          order_index: idx,
+          created_at: addHoursIso(now, -24),
+          poi: foundPoi ? buildCollectionPoiSummary(foundPoi, String(trip.destination || '')) : null,
+        };
+      });
+      copy.items_count = (copy.items as unknown[]).length;
       copy.item_count = (copy.items as unknown[]).length;
       delete copy.item_ids;
       return copy;
@@ -138,37 +197,58 @@ function buildFreshSession(sid: string, baseline: DemoSnapshotRaw, nextResetAt: 
     });
   }
 
-  // Global saved collections derived from the first 2 active trips
+  // Global saved collections curated from Tokyo & Madrid POIs with verified photos
   const savedCollections: Array<Record<string, unknown>> = [
     {
       id: 'demo-saved-col-1',
+      trip_id: null,
       name: 'Architectural Landmarks',
       description: 'Brutalist concrete, shrines & modern pavilions',
       color: '#0F4C5C',
       items: [],
+      items_count: 0,
       item_count: 0,
       created_at: addHoursIso(now, -120),
+      updated_at: addHoursIso(now, -24),
     },
     {
       id: 'demo-saved-col-2',
+      trip_id: null,
       name: 'Late-Night Kissaten & Markets',
-      description: 'Listening bars, coffee counters & street food stops',
+      description: 'Listening bars, coffee counters & historic markets',
       color: '#E2B33C',
       items: [],
+      items_count: 0,
       item_count: 0,
       created_at: addHoursIso(now, -96),
+      updated_at: addHoursIso(now, -24),
     },
   ];
 
-  // Populate saved collections with first few POIs from Tokyo & Madrid
   const tokyoPois = baseline.pois_by_city['Tokyo'] || [];
   const madridPois = baseline.pois_by_city['Madrid'] || [];
-  for (const p of tokyoPois.slice(0, 3).concat(madridPois.slice(0, 2))) {
+  const hasRealPhoto = (p: Record<string, unknown>) => {
+    const u = String(p.photo_url || '');
+    return Boolean(u && !u.toLowerCase().includes('.svg'));
+  };
+
+  const archPois = tokyoPois
+    .filter((p) => (p.category === 'museum' || p.category === 'monument') && hasRealPhoto(p))
+    .slice(0, 3)
+    .concat(
+      madridPois
+        .filter((p) => (p.category === 'museum' || p.category === 'monument') && hasRealPhoto(p))
+        .slice(0, 2)
+    );
+  archPois.forEach((p, idx) => {
     (savedCollections[0].items as unknown[]).push({
       id: `sc1-${p.id}`,
       collection_id: 'demo-saved-col-1',
       poi_id: p.id,
-      poi: p,
+      visit_status: 'want_to_go',
+      order_index: idx,
+      created_at: addHoursIso(now, -72),
+      poi: buildCollectionPoiSummary(p),
       city: p.city,
       name: p.name,
       category: p.category,
@@ -176,23 +256,25 @@ function buildFreshSession(sid: string, baseline: DemoSnapshotRaw, nextResetAt: 
       lng: p.lng,
       photo_url: p.photo_url,
     });
-  }
-  savedCollections[0].item_count = (savedCollections[0].items as unknown[]).length;
+  });
+  savedCollections[0].items_count = (savedCollections[0].items as unknown[]).length;
+  savedCollections[0].item_count = savedCollections[0].items_count;
 
+  const isFoodCat = (p: Record<string, unknown>) =>
+    ['restaurant', 'cafe', 'bar', 'market'].includes(String(p.category || '').toLowerCase());
   const foodPois = tokyoPois
-    .filter((p) => p.category === 'restaurant' || p.category === 'cafe' || p.category === 'bar')
+    .filter((p) => isFoodCat(p) && hasRealPhoto(p))
     .slice(0, 3)
-    .concat(
-      madridPois
-        .filter((p) => p.category === 'restaurant' || p.category === 'market')
-        .slice(0, 2)
-    );
-  for (const p of foodPois) {
+    .concat(madridPois.filter((p) => isFoodCat(p) && hasRealPhoto(p)).slice(0, 2));
+  foodPois.forEach((p, idx) => {
     (savedCollections[1].items as unknown[]).push({
       id: `sc2-${p.id}`,
       collection_id: 'demo-saved-col-2',
       poi_id: p.id,
-      poi: p,
+      visit_status: 'want_to_go',
+      order_index: idx,
+      created_at: addHoursIso(now, -60),
+      poi: buildCollectionPoiSummary(p),
       city: p.city,
       name: p.name,
       category: p.category,
@@ -200,8 +282,9 @@ function buildFreshSession(sid: string, baseline: DemoSnapshotRaw, nextResetAt: 
       lng: p.lng,
       photo_url: p.photo_url,
     });
-  }
-  savedCollections[1].item_count = (savedCollections[1].items as unknown[]).length;
+  });
+  savedCollections[1].items_count = (savedCollections[1].items as unknown[]).length;
+  savedCollections[1].item_count = savedCollections[1].items_count;
 
   return {
     sid,

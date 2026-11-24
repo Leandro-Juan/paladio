@@ -23,10 +23,54 @@ function convertAmount(eur: number, targetCurrency: string): number {
 
 function materializeDeal(raw: Record<string, unknown>, now: Date, currency: string): Record<string, unknown> {
   const copy = JSON.parse(JSON.stringify(raw)) as Record<string, unknown>;
-  copy.depart_date = addDaysIso(now, Number(copy.depart_offset_days ?? 20));
-  copy.return_date = addDaysIso(now, Number(copy.return_offset_days ?? 26));
+  const departDate = addDaysIso(now, Number(copy.depart_offset_days ?? 20));
+  const returnDate = addDaysIso(now, Number(copy.return_offset_days ?? 26));
+  copy.depart_date = departDate;
+  copy.return_date = returnDate;
   copy.detected_at = addHoursIso(now, Number(copy.detected_offset_hours ?? -3));
   copy.currency = currency;
+
+  for (const field of [
+    'total_price_eur',
+    'price_per_traveler_eur',
+    'baseline_median_eur',
+    'median_per_traveler_eur',
+    'savings_eur',
+    'savings_per_traveler_eur',
+  ]) {
+    if (typeof copy[field] === 'number') {
+      copy[field] = convertAmount(copy[field] as number, currency);
+    }
+  }
+
+  const convertFlight = (fObj: unknown, legDate: string, defDep: string, defArr: string) => {
+    if (!fObj || typeof fObj !== 'object') return;
+    const f = fObj as Record<string, unknown>;
+    const depClock = String(f.depart_clock || (typeof f.depart_time === 'string' && f.depart_time.length === 5 ? f.depart_time : defDep));
+    const arrClock = String(f.arrival_clock || (typeof f.arrival_time === 'string' && f.arrival_time.length === 5 ? f.arrival_time : defArr));
+    f.depart_time = `${legDate}T${depClock}:00Z`;
+    f.arrival_time = `${legDate}T${arrClock}:00Z`;
+    delete f.depart_clock;
+    delete f.arrival_clock;
+    for (const mf of ['base_price_eur', 'landed_price_eur', 'unit_price_eur']) {
+      if (typeof f[mf] === 'number') {
+        f[mf] = convertAmount(f[mf] as number, currency);
+      }
+    }
+  };
+  convertFlight(copy.flight, departDate, '10:15', '14:30');
+  convertFlight(copy.return_flight, returnDate, '11:40', '17:15');
+
+  if (copy.lodging && typeof copy.lodging === 'object') {
+    const lodg = copy.lodging as Record<string, unknown>;
+    if (typeof lodg.nightly_base_eur === 'number') {
+      lodg.nightly_base_eur = convertAmount(lodg.nightly_base_eur, currency);
+    }
+    if (typeof lodg.landed_total_eur === 'number') {
+      lodg.landed_total_eur = convertAmount(lodg.landed_total_eur, currency);
+    }
+  }
+
   delete copy.depart_offset_days;
   delete copy.return_offset_days;
   delete copy.detected_offset_hours;
@@ -35,20 +79,47 @@ function materializeDeal(raw: Record<string, unknown>, now: Date, currency: stri
 
 function buildCalendarMonths(
   routeMeta: Record<string, unknown>,
+  forwardCurve: Array<Record<string, unknown>>,
+  lodgingCurve: Array<Record<string, unknown>>,
   now: Date,
   monthsCount: number,
+  view: string,
   pricing: string,
   currency: string
 ) {
   const months: Array<Record<string, unknown>> = [];
   const baseFlight = Number(routeMeta.base_flight_eur || 250);
-  const hotelNightly = Number(routeMeta.hotel_nightly_eur || 140);
   const nights = Number(routeMeta.min_nights || 5);
-  const p10 = Number(routeMeta.p10_eur || baseFlight * 1.05);
-  const p50 = Number(routeMeta.p50_eur || baseFlight * 1.4);
-  const p90 = Number(routeMeta.p90_eur || baseFlight * 1.9);
+  const travelers = Math.max(1, Number(routeMeta.travelers || 2));
 
+  const curveByOffset = new Map<number, Record<string, unknown>>();
+  const lodgingByOffset = new Map<number, Record<string, unknown>>();
+  for (const pt of forwardCurve) {
+    curveByOffset.set(Number(pt.day_offset ?? 0), pt);
+  }
+  for (const lp of lodgingCurve) {
+    lodgingByOffset.set(Number(lp.day_offset ?? 0), lp);
+  }
+
+  const viewPrices: number[] = [];
+  for (const pt of forwardCurve) {
+    const off = Number(pt.day_offset ?? 0);
+    const outP = Number(pt.price_eur ?? 0) * travelers;
+    const retPt = curveByOffset.get(off + nights) ?? pt;
+    const retP = Number(retPt.price_return_eur ?? pt.price_return_eur ?? (Number(pt.price_eur ?? 0) * 0.94)) * travelers;
+    const vp = view === 'outbound' ? outP : view === 'inbound' ? retP : outP + retP;
+    if (vp > 0) viewPrices.push(vp);
+  }
+  viewPrices.sort((a, b) => a - b);
+  const qVal = (q: number, fallback: number) =>
+    viewPrices.length > 0 ? viewPrices[Math.min(viewPrices.length - 1, Math.floor((viewPrices.length - 1) * q))] : fallback;
+  const p10 = qVal(0.1, baseFlight * travelers * 0.85);
+  const p50 = qVal(0.5, baseFlight * travelers);
+  const p90 = qVal(0.9, baseFlight * travelers * 1.35);
+
+  const todayUtcMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const cheapestCandidates: Array<{ date: string; price: number }> = [];
 
   for (let m = 0; m < monthsCount; m++) {
     const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + m, 1));
@@ -60,8 +131,9 @@ function buildCalendarMonths(
     for (let d = 1; d <= daysInMonth; d++) {
       const dt = new Date(Date.UTC(year, month - 1, d));
       const iso = dt.toISOString().slice(0, 10);
-      const isPast = dt.getTime() < Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-      if (isPast) {
+      const offsetDays = Math.round((dt.getTime() - todayUtcMs) / 86_400_000);
+      const pt = offsetDays >= 1 ? curveByOffset.get(offsetDays) : undefined;
+      if (!pt) {
         days.push({
           date: iso,
           day: d,
@@ -78,52 +150,92 @@ function buildCalendarMonths(
         continue;
       }
 
-      const wave = Math.sin(d * 0.48 + m * 1.3);
-      const flightPrice = Math.round(baseFlight + Math.max(0, wave * (p50 - baseFlight) * 0.9));
-      const tier = flightPrice <= p10 * 1.05 ? 'deal' : flightPrice <= p50 * 0.95 ? 'fair' : flightPrice <= p50 * 1.25 ? 'standard' : 'peak';
-      const totalPrice = pricing === 'package' ? flightPrice * Number(routeMeta.travelers || 2) + hotelNightly * nights : flightPrice;
+      const weekday = (dt.getUTCDay() + 6) % 7; // 0=Mon..6=Sun
+      const retPt = curveByOffset.get(offsetDays + nights) ?? pt;
+      const outboundEur = Math.round(Number(pt.price_eur ?? baseFlight) * travelers * 100) / 100;
+      const returnEur = Math.round(Number(retPt.price_return_eur ?? pt.price_return_eur ?? baseFlight * 0.95) * travelers * 100) / 100;
+      const flightPrice =
+        view === 'outbound'
+          ? outboundEur
+          : view === 'inbound'
+          ? returnEur
+          : Math.round((outboundEur + returnEur) * 100) / 100;
+
+      const tier =
+        flightPrice <= p10 * 1.02
+          ? 'deal'
+          : flightPrice <= p50 * 0.98
+          ? 'fair'
+          : flightPrice <= p90 * 0.95
+          ? 'standard'
+          : 'peak';
+
+      const lodgPt = lodgingByOffset.get(offsetDays);
+      const hotelNightly = Number(lodgPt?.nightly_price_eur ?? routeMeta.hotel_nightly_eur ?? 140);
+      const hotelStayTotal = Math.round(hotelNightly * nights * 100) / 100;
+
+      const totalPrice =
+        pricing === 'package' && view === 'roundtrip'
+          ? Math.round((flightPrice + hotelStayTotal) * 100) / 100
+          : flightPrice;
+      const convertedTotal = convertAmount(totalPrice, currency);
+      cheapestCandidates.push({ date: iso, price: convertedTotal });
+
       const retDt = new Date(dt.getTime() + nights * 86_400_000);
+      const activeCarrier = view === 'inbound' ? (retPt.return_carrier ?? pt.return_carrier ?? routeMeta.airline) : (pt.carrier ?? routeMeta.airline);
+      const activeFlightNo = view === 'inbound' ? (retPt.return_flight_number ?? pt.return_flight_number ?? routeMeta.return_flight_no) : (pt.flight_number ?? routeMeta.flight_no);
+      const activeDepClock = view === 'inbound' ? (retPt.return_depart_clock ?? pt.return_depart_clock ?? '11:40') : (pt.depart_clock ?? '10:15');
+      const activeDur = Number(pt.duration_mins ?? routeMeta.duration_mins ?? 180);
+
       days.push({
         date: iso,
         day: d,
-        weekday: (dt.getUTCDay() + 6) % 7,
-        price_eur: convertAmount(totalPrice, currency),
+        weekday,
+        price_eur: convertedTotal,
         price_tier: tier,
-        carrier: routeMeta.airline,
-        flight_number: routeMeta.flight_no,
-        duration_mins: routeMeta.duration_mins,
-        departure_time: '10:15',
+        carrier: activeCarrier,
+        flight_number: activeFlightNo,
+        duration_mins: activeDur,
+        departure_time: activeDepClock,
         booking_url: null,
-        is_holiday: d === 15 || d === 1,
+        is_holiday: weekday === 6,
         nights,
         return_date: retDt.toISOString().slice(0, 10),
         outbound_flight: {
-          carrier: routeMeta.airline,
-          flight_number: routeMeta.flight_no,
-          duration_mins: routeMeta.duration_mins,
-          departure_time: '10:15',
+          carrier: pt.carrier ?? routeMeta.airline,
+          flight_number: pt.flight_number ?? routeMeta.flight_no,
+          duration_mins: activeDur,
+          departure_time: pt.depart_clock ?? '10:15',
           booking_url: null,
-          price_eur: convertAmount(Math.round(flightPrice * 0.52), currency),
+          price_eur: convertAmount(outboundEur, currency),
         },
         return_flight: {
-          carrier: routeMeta.airline,
-          flight_number: routeMeta.return_flight_no,
-          duration_mins: routeMeta.duration_mins,
-          departure_time: '11:40',
+          carrier: retPt.return_carrier ?? pt.return_carrier ?? routeMeta.airline,
+          flight_number: retPt.return_flight_number ?? pt.return_flight_number ?? routeMeta.return_flight_no,
+          duration_mins: activeDur,
+          departure_time: retPt.return_depart_clock ?? pt.return_depart_clock ?? '11:40',
           booking_url: null,
-          price_eur: convertAmount(Math.round(flightPrice * 0.48), currency),
+          price_eur: convertAmount(returnEur, currency),
         },
-        lodging: {
-          nights,
-          price_per_night_eur: convertAmount(hotelNightly, currency),
-          total_lodging_eur: convertAmount(hotelNightly * nights, currency),
-          property_name: routeMeta.hotel_name,
-          stars: routeMeta.hotel_stars,
-          review_score: routeMeta.hotel_score,
-          review_count: routeMeta.hotel_reviews,
-          source: 'booking_curated',
-          currency,
-        },
+        lodging:
+          pricing === 'package'
+            ? {
+                nights,
+                price_per_night_eur: convertAmount(hotelNightly, currency),
+                total_lodging_eur: convertAmount(hotelStayTotal, currency),
+                property_name: lodgPt?.property_name ?? routeMeta.hotel_name,
+                stars: lodgPt?.stars ?? routeMeta.hotel_stars,
+                review_score: lodgPt?.review_score ?? routeMeta.hotel_score,
+                review_count: lodgPt?.review_count ?? routeMeta.hotel_reviews,
+                photo_url: (lodgPt?.photo_url as string) || (routeMeta.hotel_photo_url as string) || null,
+                booking_url: null,
+                source: 'synthetic_demo_catalog',
+                currency,
+                value_score: lodgPt?.value_score ?? 91,
+                badge: lodgPt?.badge ?? 'best_value',
+                rank_reasons: (lodgPt?.rank_reasons as string[]) || [],
+              }
+            : null,
       });
     }
 
@@ -135,14 +247,18 @@ function buildCalendarMonths(
     });
   }
 
+  cheapestCandidates.sort((a, b) => a.price - b.price);
+  const topDates = cheapestCandidates.slice(0, 3).map((c) => c.date);
+
   return {
     months,
     route_label: `${String(routeMeta.origin_iata)} → ${String(routeMeta.destination_code)}`,
-    p10_deal_eur: convertAmount(p10, currency),
-    p50_median_eur: convertAmount(p50, currency),
-    p90_peak_eur: convertAmount(p90, currency),
-    view: 'roundtrip',
+    p10_deal_eur: convertAmount(Math.round(p10), currency),
+    p50_median_eur: convertAmount(Math.round(p50), currency),
+    p90_peak_eur: convertAmount(Math.round(p90), currency),
+    view,
     pricing,
+    top_dates: topDates,
     currency,
   };
 }
@@ -233,6 +349,24 @@ export async function handleMarketAndSystemRoutes(
     const currency = (url.searchParams.get('currency') || 'EUR').toUpperCase();
     const market = baseline.market;
 
+    if (sub[0] === 'hotels' && sub[1] === 'photos' && sub[2] && method === 'GET') {
+      const photoId = decodeURIComponent(sub[2]);
+      const blob =
+        session.mediaBlobs[`hotel-${photoId}`] ||
+        baseline.media_blobs?.[`hotel-${photoId}`] ||
+        session.mediaBlobs[photoId] ||
+        baseline.media_blobs?.[photoId];
+      if (!blob) return errRes('Hotel photo not found', 404);
+      const bytes = Buffer.from(blob.b64, 'base64');
+      return new NextResponse(bytes, {
+        status: 200,
+        headers: {
+          'Content-Type': blob.mime_type || 'image/jpeg',
+          'Cache-Control': 'public, max-age=3600',
+        },
+      });
+    }
+
     if (sub[0] === 'summary' && method === 'GET') {
       return jsonRes(market.summary);
     }
@@ -242,9 +376,14 @@ export async function handleMarketAndSystemRoutes(
         const out = market.routes.map((r) => {
           const copy = JSON.parse(JSON.stringify(r)) as Record<string, unknown>;
           copy.earliest_date = addDaysIso(now, Number(copy.earliest_offset_days ?? 14));
-          copy.latest_date = addDaysIso(now, Number(copy.latest_offset_days ?? 120));
+          copy.latest_date = addDaysIso(now, Number(copy.latest_offset_days ?? 180));
           copy.last_scanned_at = addHoursIso(now, -2);
           copy.currency = currency;
+          for (const mf of ['current_price_eur', 'baseline_p50_eur', 'baseline_p10_eur', 'lowest_ever_eur', 'max_budget_eur']) {
+            if (typeof copy[mf] === 'number') {
+              copy[mf] = convertAmount(copy[mf] as number, currency);
+            }
+          }
           delete copy.earliest_offset_days;
           delete copy.latest_offset_days;
           return copy;
@@ -273,17 +412,17 @@ export async function handleMarketAndSystemRoutes(
 
     if (sub[0] === 'providers' && sub[1] === 'health' && method === 'GET') {
       return jsonRes([
-        { provider: 'skyscanner_live', asset_type: 'flight', status: 'healthy', last_ok_at: addHoursIso(now, -1), failure_count: 0, consecutive_failures: 0, updated_at: addHoursIso(now, -1) },
-        { provider: 'booking_curated', asset_type: 'lodging', status: 'healthy', last_ok_at: addHoursIso(now, -1), failure_count: 0, consecutive_failures: 0, updated_at: addHoursIso(now, -1) },
+        { provider: 'synthetic_flight_feed', asset_type: 'flight', status: 'healthy', last_ok_at: addHoursIso(now, -1), failure_count: 0, consecutive_failures: 0, updated_at: addHoursIso(now, -1) },
+        { provider: 'synthetic_lodging_catalog', asset_type: 'lodging', status: 'healthy', last_ok_at: addHoursIso(now, -1), failure_count: 0, consecutive_failures: 0, updated_at: addHoursIso(now, -1) },
       ]);
     }
 
     if (sub[0] === 'telemetry' && sub[1] === 'daily-report' && method === 'GET') {
       return jsonRes({
         generated_at: now.toISOString(),
-        routes_checked: 3,
-        ticks_ingested: 186,
-        deals_detected: 4,
+        routes_checked: market.routes.length,
+        ticks_ingested: Number(market.summary?.ticks_scanned_today ?? 990),
+        deals_detected: Number(market.summary?.deals_detected ?? market.deals.length),
       });
     }
 
@@ -305,8 +444,22 @@ export async function handleMarketAndSystemRoutes(
 
       if (sub[2] === 'stats' && method === 'GET') {
         const stats = JSON.parse(JSON.stringify(rBundle.stats)) as Record<string, unknown>;
-        stats.lowest_ever_date = addDaysIso(now, Number(stats.lowest_ever_offset_days ?? -19));
+        stats.lowest_ever_date = addDaysIso(now, Number(stats.lowest_ever_offset_days ?? -17));
         stats.currency = currency;
+        for (const mf of [
+          'current_price_eur',
+          'p10_deal_eur',
+          'p25_eur',
+          'p50_median_eur',
+          'p75_eur',
+          'p90_peak_eur',
+          'lowest_ever_eur',
+          'deal_savings_eur',
+        ]) {
+          if (typeof stats[mf] === 'number') {
+            stats[mf] = convertAmount(stats[mf] as number, currency);
+          }
+        }
         delete stats.lowest_ever_offset_days;
         return jsonRes(stats);
       }
@@ -314,29 +467,102 @@ export async function handleMarketAndSystemRoutes(
       if (sub[2] === 'history' && method === 'GET') {
         const hist = JSON.parse(JSON.stringify(rBundle.history)) as Record<string, unknown>;
         hist.currency = currency;
+        for (const mf of [
+          'p10_deal_eur',
+          'p25_eur',
+          'p50_median_eur',
+          'p75_eur',
+          'p90_peak_eur',
+          'inbound_p10_deal_eur',
+          'inbound_p50_median_eur',
+          'inbound_p90_peak_eur',
+          'lowest_ever_eur',
+        ]) {
+          if (typeof hist[mf] === 'number') {
+            hist[mf] = convertAmount(hist[mf] as number, currency);
+          }
+        }
+        if (hist.corpus && typeof hist.corpus === 'object') {
+          const corpus = hist.corpus as Record<string, unknown>;
+          for (const mf of ['min_price_eur', 'max_price_eur', 'median_price_eur']) {
+            if (typeof corpus[mf] === 'number') {
+              corpus[mf] = convertAmount(corpus[mf] as number, currency);
+            }
+          }
+        }
+        if (hist.verdict && typeof hist.verdict === 'object') {
+          const verdict = hist.verdict as Record<string, unknown>;
+          for (const mf of [
+            'price_eur',
+            'baseline_p10_eur',
+            'baseline_p25_eur',
+            'baseline_p50_eur',
+            'baseline_p75_eur',
+            'baseline_p90_eur',
+          ]) {
+            if (typeof verdict[mf] === 'number') {
+              verdict[mf] = convertAmount(verdict[mf] as number, currency);
+            }
+          }
+        }
         hist.points = ((hist.points as Array<Record<string, unknown>>) || []).map((pt) => {
           const d = addDaysIso(now, Number(pt.day_offset ?? 0));
-          return { ...pt, date: d, timestamp: `${d}T10:00:00Z` };
+          return {
+            ...pt,
+            min_price_eur: convertAmount(Number(pt.min_price_eur ?? 0), currency),
+            median_price_eur: convertAmount(Number(pt.median_price_eur ?? 0), currency),
+            date: d,
+            timestamp: `${d}T10:00:00Z`,
+          };
         });
         hist.return_points = ((hist.return_points as Array<Record<string, unknown>>) || []).map((pt) => {
           const d = addDaysIso(now, Number(pt.day_offset ?? 0));
-          return { ...pt, date: d, timestamp: `${d}T10:00:00Z` };
+          return {
+            ...pt,
+            min_price_eur: convertAmount(Number(pt.min_price_eur ?? 0), currency),
+            median_price_eur: convertAmount(Number(pt.median_price_eur ?? 0), currency),
+            date: d,
+            timestamp: `${d}T10:00:00Z`,
+          };
         });
         hist.forward_curve = ((hist.forward_curve as Array<Record<string, unknown>>) || []).map((pt) => ({
           ...pt,
+          price_eur: convertAmount(Number(pt.price_eur ?? 0), currency),
+          price_return_eur: convertAmount(Number(pt.price_return_eur ?? 0), currency),
           depart_date: addDaysIso(now, Number(pt.day_offset ?? 7)),
         }));
         hist.lodging_curve = ((hist.lodging_curve as Array<Record<string, unknown>>) || []).map((pt) => ({
           ...pt,
+          nightly_price_eur: convertAmount(Number(pt.nightly_price_eur ?? 0), currency),
+          total_stay_eur: convertAmount(Number(pt.total_stay_eur ?? 0), currency),
+          min_eur: typeof pt.min_eur === 'number' ? convertAmount(pt.min_eur, currency) : pt.min_eur,
+          p25_eur: typeof pt.p25_eur === 'number' ? convertAmount(pt.p25_eur, currency) : pt.p25_eur,
+          median_eur: typeof pt.median_eur === 'number' ? convertAmount(pt.median_eur, currency) : pt.median_eur,
+          p75_eur: typeof pt.p75_eur === 'number' ? convertAmount(pt.p75_eur, currency) : pt.p75_eur,
           date: addDaysIso(now, Number(pt.day_offset ?? 0)),
         }));
         return jsonRes(hist);
       }
 
       if (sub[2] === 'calendar' && method === 'GET') {
-        const months = Math.min(6, Math.max(1, Number(url.searchParams.get('months') || 4)));
-        const pricing = url.searchParams.get('pricing') || 'package';
-        return jsonRes(buildCalendarMonths(rBundle.route_meta as Record<string, unknown>, now, months, pricing, currency));
+        const months = Math.min(12, Math.max(1, Number(url.searchParams.get('months') || 4)));
+        const view = url.searchParams.get('view') || 'roundtrip';
+        const pricing = url.searchParams.get('pricing') || 'flights';
+        const histObj = (rBundle.history as Record<string, unknown>) || {};
+        const forwardCurve = (histObj.forward_curve as Array<Record<string, unknown>>) || [];
+        const lodgingCurve = (histObj.lodging_curve as Array<Record<string, unknown>>) || [];
+        return jsonRes(
+          buildCalendarMonths(
+            rBundle.route_meta as Record<string, unknown>,
+            forwardCurve,
+            lodgingCurve,
+            now,
+            months,
+            view,
+            pricing,
+            currency
+          )
+        );
       }
 
       if (sub[2] === 'events' && method === 'GET') {
@@ -355,59 +581,298 @@ export async function handleMarketAndSystemRoutes(
       }
 
       if (sub[2] === 'lodging' && method === 'GET') {
-        return jsonRes(rBundle.lodging);
+        const routeMeta = (rBundle.route_meta as Record<string, unknown>) || {};
+        const requestedNights = Math.min(14, Math.max(1, Number(url.searchParams.get('nights') || routeMeta.min_nights || 3)));
+        const checkIn = url.searchParams.get('check_in');
+        const lodgingCurve = (((rBundle.history as Record<string, unknown>)?.lodging_curve as Array<Record<string, unknown>>) || []);
+        let targetOffset = 14;
+        if (checkIn && !Number.isNaN(Date.parse(`${checkIn}T00:00:00Z`))) {
+          const todayUtcMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+          const rawOff = Math.round((Date.parse(`${checkIn}T00:00:00Z`) - todayUtcMs) / 86_400_000);
+          targetOffset = Math.min(330, Math.max(1, rawOff));
+        }
+        const matchedLodg =
+          lodgingCurve.find((pt) => Number(pt.day_offset ?? 0) === targetOffset) ||
+          lodgingCurve[0] ||
+          (rBundle.lodging as Record<string, unknown>);
+        const nightlyEur = Number(matchedLodg?.nightly_price_eur ?? matchedLodg?.price_per_night_eur ?? routeMeta.hotel_nightly_eur ?? 140);
+        const totalEur = Math.round(nightlyEur * requestedNights * 100) / 100;
+        const fallbackLodg = (rBundle.lodging as Record<string, unknown>) || {};
+        return jsonRes({
+          nights: requestedNights,
+          price_per_night_eur: convertAmount(nightlyEur, currency),
+          total_lodging_eur: convertAmount(totalEur, currency),
+          property_name: matchedLodg?.property_name ?? fallbackLodg.property_name ?? routeMeta.hotel_name,
+          stars: matchedLodg?.stars ?? fallbackLodg.stars ?? routeMeta.hotel_stars,
+          review_score: matchedLodg?.review_score ?? fallbackLodg.review_score ?? routeMeta.hotel_score,
+          review_count: matchedLodg?.review_count ?? fallbackLodg.review_count ?? routeMeta.hotel_reviews,
+          photo_url: matchedLodg?.photo_url ?? fallbackLodg.photo_url ?? routeMeta.hotel_photo_url ?? null,
+          booking_url: null,
+          source: 'synthetic_demo_catalog',
+          currency,
+          value_score: matchedLodg?.value_score ?? fallbackLodg.value_score ?? 91,
+          badge: matchedLodg?.badge ?? fallbackLodg.badge ?? 'best_value',
+          rank_reasons: (matchedLodg?.rank_reasons as string[]) || (fallbackLodg.rank_reasons as string[]) || [],
+        });
       }
 
       if (sub[2] === 'corpus' && method === 'GET') {
-        return jsonRes((rBundle.history as Record<string, unknown>).corpus);
+        const corpus = JSON.parse(JSON.stringify((rBundle.history as Record<string, unknown>).corpus || {})) as Record<string, unknown>;
+        for (const mf of ['min_price_eur', 'max_price_eur', 'median_price_eur']) {
+          if (typeof corpus[mf] === 'number') {
+            corpus[mf] = convertAmount(corpus[mf] as number, currency);
+          }
+        }
+        return jsonRes(corpus);
       }
     }
     return null;
   }
 
-  // --- Weather ---
+  // --- Weather (100% Mocked in Demo Mode) ---
   if (root === 'weather' && sub[0] === 'forecast' && method === 'GET') {
     const city = url.searchParams.get('city') || 'Tokyo';
-    const baseTemp = city.toLowerCase().includes('singapore') ? 30 : city.toLowerCase().includes('madrid') ? 21 : city.toLowerCase().includes('london') ? 15 : 18;
-    const forecastDays = Array.from({ length: 7 }, (_, i) => {
-      const dt = new Date(now.getTime() + i * 86_400_000);
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const cityLower = city.toLowerCase();
+    const qLat = url.searchParams.get('lat') ? Number(url.searchParams.get('lat')) : null;
+    const qLon = url.searchParams.get('lon') ? Number(url.searchParams.get('lon')) : null;
+    const startStr = url.searchParams.get('start_date');
+    const endStr = url.searchParams.get('end_date');
+
+    const profiles: Array<{
+      match: string;
+      lat: number;
+      lon: number;
+      tz: string;
+      maxC: number;
+      minC: number;
+      humidity: number;
+      wind: number;
+      uv: number;
+      aqi: number;
+      sunrise: string;
+      sunset: string;
+      pattern: Array<{ code: number; cond: string; icon: string }>;
+      advisory: string;
+    }> = [
+      {
+        match: 'tokyo',
+        lat: 35.6762,
+        lon: 139.6503,
+        tz: 'Asia/Tokyo',
+        maxC: 16,
+        minC: 8,
+        humidity: 52,
+        wind: 11,
+        uv: 4,
+        aqi: 24,
+        sunrise: '06:34 AM',
+        sunset: '04:29 PM',
+        pattern: [
+          { code: 0, cond: 'Crisp & Sunny', icon: 'clear' },
+          { code: 1, cond: 'Partly Cloudy', icon: 'partly-cloudy' },
+          { code: 0, cond: 'Clear Sky', icon: 'clear' },
+          { code: 2, cond: 'High Clouds', icon: 'partly-cloudy' },
+          { code: 61, cond: 'Evening Drizzle', icon: 'rain' },
+          { code: 0, cond: 'Clear & Bright', icon: 'clear' },
+          { code: 1, cond: 'Sunny Intervals', icon: 'partly-cloudy' },
+        ],
+        advisory: 'Crisp late-autumn sunshine across Tokyo — pack a light insulated layer for evening shrine walks and observation decks.',
+      },
+      {
+        match: 'madrid',
+        lat: 40.4168,
+        lon: -3.7038,
+        tz: 'Europe/Madrid',
+        maxC: 18,
+        minC: 7,
+        humidity: 46,
+        wind: 10,
+        uv: 5,
+        aqi: 29,
+        sunrise: '08:12 AM',
+        sunset: '05:51 PM',
+        pattern: [
+          { code: 0, cond: 'Clear Sky', icon: 'clear' },
+          { code: 0, cond: 'Bright Sun', icon: 'clear' },
+          { code: 2, cond: 'Partly Cloudy', icon: 'partly-cloudy' },
+          { code: 1, cond: 'Mild Breeze', icon: 'partly-cloudy' },
+          { code: 0, cond: 'Clear Sky', icon: 'clear' },
+        ],
+        advisory: 'Dry Castilian sunshine with cool mornings in Madrid — ideal conditions for Retiro Park strolls and rooftop terraces.',
+      },
+      {
+        match: 'london',
+        lat: 51.5074,
+        lon: -0.1278,
+        tz: 'Europe/London',
+        maxC: 12,
+        minC: 6,
+        humidity: 74,
+        wind: 18,
+        uv: 2,
+        aqi: 22,
+        sunrise: '07:42 AM',
+        sunset: '04:01 PM',
+        pattern: [
+          { code: 2, cond: 'Partly Cloudy', icon: 'partly-cloudy' },
+          { code: 61, cond: 'Light Showers', icon: 'rain' },
+          { code: 3, cond: 'Overcast', icon: 'cloudy' },
+          { code: 1, cond: 'Sunny Breaks', icon: 'partly-cloudy' },
+          { code: 61, cond: 'Passing Rain', icon: 'rain' },
+        ],
+        advisory: 'Classic brisk Thames weather in London — bring a compact waterproof shell for outdoor markets and riverside walks.',
+      },
+      {
+        match: 'zurich',
+        lat: 47.3769,
+        lon: 8.5417,
+        tz: 'Europe/Zurich',
+        maxC: 17,
+        minC: 9,
+        humidity: 66,
+        wind: 12,
+        uv: 5,
+        aqi: 18,
+        sunrise: '06:58 AM',
+        sunset: '07:12 PM',
+        pattern: [
+          { code: 0, cond: 'Crisp Alpine Sky', icon: 'clear' },
+          { code: 1, cond: 'Mild & Sunny', icon: 'partly-cloudy' },
+          { code: 2, cond: 'Lake Breeze Clouds', icon: 'partly-cloudy' },
+          { code: 61, cond: 'Light Passing Shower', icon: 'rain' },
+          { code: 0, cond: 'Clear Horizon', icon: 'clear' },
+        ],
+        advisory: 'Fresh lakeside air in Zurich — plan Limmatquai promenades and Uetliberg ridge viewpoints early, keeping afternoon museum stops flexible.',
+      },
+      {
+        match: 'paris',
+        lat: 48.8566,
+        lon: 2.3522,
+        tz: 'Europe/Paris',
+        maxC: 14,
+        minC: 7,
+        humidity: 66,
+        wind: 14,
+        uv: 3,
+        aqi: 27,
+        sunrise: '08:16 AM',
+        sunset: '04:58 PM',
+        pattern: [
+          { code: 2, cond: 'Partly Cloudy', icon: 'partly-cloudy' },
+          { code: 0, cond: 'Crisp Sunlight', icon: 'clear' },
+          { code: 61, cond: 'Light Drizzle', icon: 'rain' },
+          { code: 1, cond: 'Clear Intervals', icon: 'partly-cloudy' },
+          { code: 0, cond: 'Clear Sky', icon: 'clear' },
+        ],
+        advisory: 'Mild Seine valley weather in Paris — pack a trench coat for evening Left Bank strolls.',
+      },
+      {
+        match: 'lisbon',
+        lat: 38.7223,
+        lon: -9.1393,
+        tz: 'Europe/Lisbon',
+        maxC: 19,
+        minC: 12,
+        humidity: 61,
+        wind: 16,
+        uv: 5,
+        aqi: 19,
+        sunrise: '07:31 AM',
+        sunset: '05:22 PM',
+        pattern: [
+          { code: 0, cond: 'Atlantic Sun', icon: 'clear' },
+          { code: 1, cond: 'Breezy & Clear', icon: 'partly-cloudy' },
+          { code: 0, cond: 'Clear Sky', icon: 'clear' },
+          { code: 2, cond: 'Coastal Clouds', icon: 'partly-cloudy' },
+          { code: 0, cond: 'Golden Sunshine', icon: 'clear' },
+        ],
+        advisory: 'Bright Atlantic light across Lisbon — great visibility for miradouros and tramway climbs.',
+      },
+    ];
+
+    const prof = profiles.find((p) => cityLower.includes(p.match)) || {
+      match: 'default',
+      lat: qLat ?? 35.68,
+      lon: qLon ?? 139.76,
+      tz: 'UTC',
+      maxC: 20,
+      minC: 12,
+      humidity: 58,
+      wind: 12,
+      uv: 4,
+      aqi: 25,
+      sunrise: '06:58 AM',
+      sunset: '06:24 PM',
+      pattern: [
+        { code: 0, cond: 'Clear Sky', icon: 'clear' },
+        { code: 2, cond: 'Partly Cloudy', icon: 'partly-cloudy' },
+        { code: 61, cond: 'Light Rain', icon: 'rain' },
+      ],
+      advisory: `Favorable walking conditions in ${city} with mild afternoon warmth.`,
+    };
+
+    const startDate = startStr && !Number.isNaN(Date.parse(`${startStr}T00:00:00Z`))
+      ? new Date(`${startStr}T00:00:00Z`)
+      : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    let numDays = 7;
+    if (endStr && !Number.isNaN(Date.parse(`${endStr}T00:00:00Z`))) {
+      const endDate = new Date(`${endStr}T00:00:00Z`);
+      const diff = Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1;
+      numDays = Math.min(14, Math.max(3, diff));
+    }
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const cardinals = ['WSW', 'SW', 'WNW', 'NW', 'SSE', 'SSW', 'W'];
+    const degs = [245, 225, 290, 315, 160, 205, 270];
+
+    const forecastDays = Array.from({ length: numDays }, (_, i) => {
+      const dt = new Date(startDate.getTime() + i * 86_400_000);
+      const slot = prof.pattern[i % prof.pattern.length];
+      const tempDelta = [0, 1, -1, 2, -2, 1, 0][i % 7];
+      const uvVal = Math.max(1, Math.min(11, prof.uv + (slot.icon === 'rain' ? -2 : slot.icon === 'clear' ? 1 : 0)));
+      const humVal = Math.min(92, Math.max(35, prof.humidity + (slot.icon === 'rain' ? 14 : (i % 3) * 3 - 3)));
+      const windVal = Math.max(5, prof.wind + ((i * 3) % 7) - 2);
+      const visVal = slot.icon === 'rain' ? 9.5 : slot.icon === 'partly-cloudy' ? 14.5 : 18.0;
+      const aqiVal = Math.max(12, prof.aqi + ((i * 5) % 11) - 4);
+
       return {
         date: dt.toISOString().slice(0, 10),
         day_name: dayNames[dt.getUTCDay()],
-        weather_code: i === 2 ? 2 : i === 4 ? 61 : 0,
-        condition: i === 2 ? 'Partly Cloudy' : i === 4 ? 'Light Rain' : 'Clear Sky',
-        icon_type: i === 2 ? 'partly-cloudy' : i === 4 ? 'rain' : 'clear',
-        temp_max_c: baseTemp + 2 + (i % 3),
-        temp_min_c: baseTemp - 5 + (i % 2),
+        weather_code: slot.code,
+        condition: slot.cond,
+        icon_type: slot.icon,
+        temp_max_c: prof.maxC + tempDelta,
+        temp_min_c: prof.minC + (i % 2 === 0 ? 0 : 1),
         highlights: {
-          uv_index: 4.5,
-          uv_status: 'Moderate',
-          wind_speed_kmh: 12 + (i % 5),
-          wind_direction_deg: 220,
-          wind_direction_cardinal: 'SW',
-          sunrise: '06:58',
-          sunset: '18:24',
-          humidity_pct: 58,
-          humidity_status: 'Comfortable',
-          visibility_km: 16.0,
-          visibility_status: 'Excellent',
-          aqi: 26,
-          aqi_status: 'Good',
+          uv_index: uvVal,
+          uv_status: uvVal >= 8 ? 'Very High' : uvVal >= 6 ? 'High' : uvVal >= 3 ? 'Moderate' : 'Low',
+          wind_speed_kmh: windVal,
+          wind_direction_deg: degs[i % degs.length],
+          wind_direction_cardinal: cardinals[i % cardinals.length],
+          sunrise: prof.sunrise,
+          sunset: prof.sunset,
+          humidity_pct: humVal,
+          humidity_status: humVal > 72 ? 'Humid' : humVal < 45 ? 'Crisp' : 'Comfortable',
+          visibility_km: visVal,
+          visibility_status: visVal >= 14 ? 'Excellent' : 'Good',
+          aqi: aqiVal,
+          aqi_status: aqiVal <= 50 ? 'Good' : 'Moderate',
         },
       };
     });
+
+    const firstDay = forecastDays[0];
     return jsonRes({
       city,
-      latitude: 35.68,
-      longitude: 139.76,
-      timezone: 'UTC',
-      current_temp_c: baseTemp,
-      current_condition: 'Clear Sky',
-      current_weather_code: 0,
-      current_icon_type: 'clear',
+      latitude: Number.isFinite(qLat) && qLat !== null ? qLat : prof.lat,
+      longitude: Number.isFinite(qLon) && qLon !== null ? qLon : prof.lon,
+      timezone: prof.tz,
+      current_temp_c: Math.round((firstDay.temp_max_c + firstDay.temp_min_c) / 2) + 2,
+      current_condition: firstDay.condition,
+      current_weather_code: firstDay.weather_code,
+      current_icon_type: firstDay.icon_type,
       forecast_days: forecastDays,
-      travel_advisory: `Favorable walking conditions in ${city} with mild afternoon warmth.`,
+      travel_advisory: prof.advisory,
     });
   }
 
@@ -426,7 +891,7 @@ export async function handleMarketAndSystemRoutes(
       const dest = (url.searchParams.get('destination') || '').toLowerCase();
       if (dest.includes('tokyo') || dest.includes('japan')) return jsonRes({ destination: dest, country_code: 'JP', currency: 'JPY' });
       if (dest.includes('london') || dest.includes('uk')) return jsonRes({ destination: dest, country_code: 'GB', currency: 'GBP' });
-      if (dest.includes('singapore')) return jsonRes({ destination: dest, country_code: 'SG', currency: 'SGD' });
+      if (dest.includes('zurich') || dest.includes('zürich') || dest.includes('switzerland')) return jsonRes({ destination: dest, country_code: 'CH', currency: 'CHF' });
       return jsonRes({ destination: dest, country_code: 'ES', currency: 'EUR' });
     }
   }
@@ -439,7 +904,7 @@ export async function handleMarketAndSystemRoutes(
         { code: 'GB', name: 'United Kingdom' },
         { code: 'FR', name: 'France' },
         { code: 'JP', name: 'Japan' },
-        { code: 'SG', name: 'Singapore' },
+        { code: 'CH', name: 'Switzerland' },
         { code: 'US', name: 'United States' },
       ]);
     }
@@ -461,7 +926,7 @@ export async function handleMarketAndSystemRoutes(
       { city: 'Madrid', country: 'ES', country_name: 'Spain', display_name: 'Madrid, Spain', airport_iata: 'MAD', airport_name: 'Adolfo Suárez Madrid-Barajas', latitude: 40.4168, longitude: -3.7038 },
       { city: 'Tokyo', country: 'JP', country_name: 'Japan', display_name: 'Tokyo, Japan', airport_iata: 'HND', airport_name: 'Tokyo Haneda International', latitude: 35.6762, longitude: 139.6503 },
       { city: 'London', country: 'GB', country_name: 'United Kingdom', display_name: 'London, United Kingdom', airport_iata: 'LHR', airport_name: 'London Heathrow', latitude: 51.5074, longitude: -0.1278 },
-      { city: 'Singapore', country: 'SG', country_name: 'Singapore', display_name: 'Singapore', airport_iata: 'SIN', airport_name: 'Singapore Changi', latitude: 1.3521, longitude: 103.8198 },
+      { city: 'Zurich', country: 'CH', country_name: 'Switzerland', display_name: 'Zurich, Switzerland', airport_iata: 'ZRH', airport_name: 'Zurich Airport', latitude: 47.3769, longitude: 8.5417 },
       { city: 'Paris', country: 'FR', country_name: 'France', display_name: 'Paris, France', airport_iata: 'CDG', airport_name: 'Paris Charles de Gaulle', latitude: 48.8566, longitude: 2.3522 },
       { city: 'Lisbon', country: 'PT', country_name: 'Portugal', display_name: 'Lisbon, Portugal', airport_iata: 'LIS', airport_name: 'Lisbon Humberto Delgado', latitude: 38.7223, longitude: -9.1393 },
     ];

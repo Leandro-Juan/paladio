@@ -130,7 +130,7 @@ export default function LoginPage() {
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <h1 className="font-display text-accent" style={{ fontSize: '1.5rem', margin: 0, color: 'var(--color-text-primary)' }}>
+            <h1 className="font-display text-accent" style={{ fontSize: '1.5rem', margin: 0, color: 'var(--color-accent-primary)' }}>
               PALADIO
             </h1>
           </div>
@@ -259,9 +259,10 @@ export default function LoginPage() {
               style={{
                 marginTop: '0.5rem',
                 padding: '12px',
-                background: 'var(--color-accent-primary)',
-                color: 'var(--color-btn-primary-text, #FFFFFF)',
-                border: 'none',
+                background: 'linear-gradient(135deg, #1B8FA6 0%, #0284C7 100%)',
+                color: '#FFFFFF',
+                border: '1px solid #0284C7',
+                boxShadow: '0 4px 14px rgba(2, 132, 199, 0.28)',
                 borderRadius: '6px',
                 fontWeight: 600,
                 fontSize: '14px',

@@ -1,0 +1,3448 @@
+{
+  "demo-trip-tokyo-active": {
+    "days": [
+      {
+        "day": 1,
+        "theme": "Edo Heritage & Asakusa",
+        "stops": [
+          {
+            "id": "demo-poi-tokyo-fuglen-asakusa",
+            "city": "Tokyo",
+            "name": "Fuglen Asakusa",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.7145,
+            "lng": 139.7931,
+            "duration_mins": 40,
+            "cost_eur": 9.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:50",
+            "neighborhood": "Asakusa",
+            "description": "Norwegian-Japanese espresso roastery and waffle café beside Hanayashiki in historic Asakusa.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-173154847",
+            "city": "Tokyo",
+            "name": "Sensō-ji",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 35.71346535,
+            "lng": 139.7967208,
+            "duration_mins": 70,
+            "cost_eur": 0.0,
+            "scheduled_start": "10:05",
+            "scheduled_end": "11:15",
+            "neighborhood": "Asakusa",
+            "description": "Sensō-ji , is an ancient Buddhist temple in Asakusa, Tokyo, Japan. It is Tokyo's oldest established temple and one of its most significant. It is dedicated to Kannon, the bodhisattva of compassion. Structures in the temple complex include the main hall, a five-story pagoda and large gates. It is the most widely visited religious site in the world with over 30 million visitors annually. The temple is the 13th stop on the Bandō Sanjūsankasho pilgrimage route.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Sensoji_2023.jpg/330px-Sensoji_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Sensoji_2023.jpg/330px-Sensoji_2023.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "demo-poi-tokyo-nakamise-dori",
+            "city": "Tokyo",
+            "name": "Nakamise-dori",
+            "category": "market",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.7126,
+            "lng": 139.7965,
+            "duration_mins": 55,
+            "cost_eur": 8.0,
+            "scheduled_start": "11:20",
+            "scheduled_end": "12:15",
+            "neighborhood": "Asakusa",
+            "description": "Centuries-old temple approach lane lined with artisanal craft stalls, ningyo-yaki bakers, and Edo souvenirs.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-sumida-park",
+            "city": "Tokyo",
+            "name": "Sumida Park",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 35.714,
+            "lng": 139.8021,
+            "duration_mins": 40,
+            "cost_eur": 0.0,
+            "scheduled_start": "12:25",
+            "scheduled_end": "13:05",
+            "neighborhood": "Asakusa",
+            "description": "Riverside promenade along the Sumida River framing clear views toward Azumabashi and eastern Tokyo.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-asakusa-imahan",
+            "city": "Tokyo",
+            "name": "Asakusa Imahan",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.7124,
+            "lng": 139.7936,
+            "duration_mins": 70,
+            "cost_eur": 34.0,
+            "scheduled_start": "13:15",
+            "scheduled_end": "14:25",
+            "neighborhood": "Asakusa",
+            "description": "Historic 1895 sukiyaki dining house serving tender Wagyu beef simmered tableside.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-edo-tokyo-traditional-crafts-center",
+            "city": "Tokyo",
+            "name": "Edo-Tokyo Traditional Crafts Center",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 35.714,
+            "lng": 139.7934,
+            "duration_mins": 70,
+            "cost_eur": 0.0,
+            "scheduled_start": "14:40",
+            "scheduled_end": "15:50",
+            "neighborhood": "Asakusa",
+            "description": "Gallery showcasing hand-carved Edo kiriko cut glass, textiles, lacquerware, and woodblock printmaking.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-hoppy-street-izakaya",
+            "city": "Tokyo",
+            "name": "Hoppy Street Izakaya",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 35.7136,
+            "lng": 139.7945,
+            "duration_mins": 90,
+            "cost_eur": 24.0,
+            "scheduled_start": "19:00",
+            "scheduled_end": "20:30",
+            "neighborhood": "Asakusa",
+            "description": "Lantern-hung alleyway of lively open-front Shitamachi taverns serving nikomi stew and cold draft.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 2,
+        "theme": "Modernist Aoyama & Omotesando",
+        "stops": [
+          {
+            "id": "demo-poi-tokyo-koffee-mameya",
+            "city": "Tokyo",
+            "name": "Koffee Mameya",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.6673,
+            "lng": 139.7104,
+            "duration_mins": 40,
+            "cost_eur": 10.0,
+            "scheduled_start": "09:15",
+            "scheduled_end": "09:55",
+            "neighborhood": "Omotesando",
+            "description": "Minimalist cedar coffee tasting bar curated like an apothecary by single-origin baristas.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-139972313",
+            "city": "Tokyo",
+            "name": "Nezu Museum",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 35.66225165,
+            "lng": 139.7173702,
+            "duration_mins": 90,
+            "cost_eur": 11.0,
+            "scheduled_start": "10:10",
+            "scheduled_end": "11:40",
+            "neighborhood": "Minami-Aoyama",
+            "description": "Kengo Kuma's bamboo-lined sanctuary housing pre-modern Japanese and East Asian art around a mossy strolling garden.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-omotesando-hills",
+            "city": "Tokyo",
+            "name": "Omotesando Hills",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 35.6674,
+            "lng": 139.7087,
+            "duration_mins": 60,
+            "cost_eur": 0.0,
+            "scheduled_start": "11:55",
+            "scheduled_end": "12:55",
+            "neighborhood": "Omotesando",
+            "description": "Tadao Ando's spiraling concrete architectural landmark along zelkova-shaded Omotesando Avenue.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-tonkatsu-maisen-aoyama",
+            "city": "Tokyo",
+            "name": "Tonkatsu Maisen Aoyama",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.6661,
+            "lng": 139.7109,
+            "duration_mins": 60,
+            "cost_eur": 22.0,
+            "scheduled_start": "13:05",
+            "scheduled_end": "14:05",
+            "neighborhood": "Aoyama",
+            "description": "Beloved tonkatsu house set inside a converted 1930s wooden public bathhouse.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-103425086",
+            "city": "Tokyo",
+            "name": "National Art Center, Tokyo",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 35.66477295,
+            "lng": 139.72670365,
+            "duration_mins": 85,
+            "cost_eur": 12.0,
+            "scheduled_start": "14:25",
+            "scheduled_end": "15:50",
+            "neighborhood": "Roppongi",
+            "description": "国立新美術館 は、東京・六本木にある美術館。日本で5館目の国立美術館として、2007年（平成19年）1月に開館した。黒川紀章設計。",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/2018_National_Art_Center%2C_Tokyo_2.jpg/330px-2018_National_Art_Center%2C_Tokyo_2.jpg?utm_source=ja.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/2018_National_Art_Center%2C_Tokyo_2.jpg/330px-2018_National_Art_Center%2C_Tokyo_2.jpg?utm_source=ja.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "OSM-node-4807675725",
+            "city": "Tokyo",
+            "name": "Suntory Museum of Art",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 35.6664346,
+            "lng": 139.7304575,
+            "duration_mins": 75,
+            "cost_eur": 11.0,
+            "scheduled_start": "16:05",
+            "scheduled_end": "17:20",
+            "neighborhood": "Tokyo Midtown",
+            "description": "The Suntory Museum of Art  is an arts museum located in Tokyo Midtown, Roppongi, Tokyo. It is owned by the Suntory corporation. The collection theme of the art works is \"Art in life\" and they mainly have Japanese antiques. The museum houses more than 3,000 cultural objects, one of which have been designated by the Japanese government as National Treasures, 16 as Important Cultural Properties, and 21 as Important Art Objects.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Tokyo-Midtown-Suntory-Museum-of-Art-01.jpg/330px-Tokyo-Midtown-Suntory-Museum-of-Art-01.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Tokyo-Midtown-Suntory-Museum-of-Art-01.jpg/330px-Tokyo-Midtown-Suntory-Museum-of-Art-01.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "OSM-node-4884402822",
+            "city": "Tokyo",
+            "name": "Bar Trench",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 35.648424,
+            "lng": 139.7079184,
+            "duration_mins": 90,
+            "cost_eur": 26.0,
+            "scheduled_start": "19:30",
+            "scheduled_end": "21:00",
+            "neighborhood": "Ebisu",
+            "description": "Intimate craft cocktail sanctuary in Ebisu celebrated for botanical bitters and precision mixology.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 3,
+        "theme": "Yanaka Craft & Ueno Museums",
+        "stops": [
+          {
+            "id": "demo-poi-tokyo-kayaba-coffee",
+            "city": "Tokyo",
+            "name": "Kayaba Coffee",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.7219,
+            "lng": 139.7706,
+            "duration_mins": 45,
+            "cost_eur": 10.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:55",
+            "neighborhood": "Yanaka",
+            "description": "Preserved 1938 Taisho-era machiya kissaten famous for thick egg sandwiches and retro stained glass.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-33439660",
+            "city": "Tokyo",
+            "name": "Tokyo National Museum",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 35.71890225,
+            "lng": 139.7760247,
+            "duration_mins": 95,
+            "cost_eur": 8.0,
+            "scheduled_start": "10:10",
+            "scheduled_end": "11:45",
+            "neighborhood": "Ueno",
+            "description": "The Tokyo National Museum  or TNM is an art museum in Ueno Park in the Taitō ward of Tokyo, Japan. It is considered the oldest national museum and the largest art museum in Japan. The museum collects, preserves, and displays a comprehensive collection of artwork and cultural objects from Asia, with a focus on ancient and medieval Japanese art and Asian art along the Silk Road. There is also a large collection of Greco-Buddhist art. As of April 2023, the museum held approximately 120,000 Cultural Properties, including 89 National Treasures, 319 Horyuji Treasures, and 649 Important Cultural Properties. As of the same date, the Japanese government had designated 902 works of art and crafts as National Treasures and 10,820 works of art and crafts as Important Cultural Properties, so the museum holds about 10% of the works of art and crafts designated as National Treasures and 6% of those designated as Important Cultural Properties.\nThe museum also holds 2,651 cultural properties deposited by individuals and organisations, of which 54 are National Treasures and 262 are Important Cultural Properties. Of these, 3,000 cultural properties are on display at one time, with each changing for between four and eight weeks. The museum also conducts research and organizes educational events related to its collection.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Tokyo_National_Museum%2C_Honkan_2010.jpg/330px-Tokyo_National_Museum%2C_Honkan_2010.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Tokyo_National_Museum%2C_Honkan_2010.jpg/330px-Tokyo_National_Museum%2C_Honkan_2010.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "OSM-way-203960903",
+            "city": "Tokyo",
+            "name": "The National Museum of Western Art",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 35.7155742,
+            "lng": 139.7755226,
+            "duration_mins": 70,
+            "cost_eur": 9.0,
+            "scheduled_start": "11:55",
+            "scheduled_end": "13:05",
+            "neighborhood": "Ueno",
+            "description": "The National Museum of Western Art  is the premier public art gallery in Japan specializing in art from the Western tradition. The museum is in the Ueno Park in Taitō, central Tokyo. It received 1,162,345 visitors in 2016.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/National_museum_of_western_art05s3200.jpg/330px-National_museum_of_western_art05s3200.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/National_museum_of_western_art05s3200.jpg/330px-National_museum_of_western_art05s3200.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "demo-poi-tokyo-soba-yoshinoya-yanaka",
+            "city": "Tokyo",
+            "name": "Soba Yoshinoya Yanaka",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.7248,
+            "lng": 139.7662,
+            "duration_mins": 60,
+            "cost_eur": 16.0,
+            "scheduled_start": "13:20",
+            "scheduled_end": "14:20",
+            "neighborhood": "Yanaka",
+            "description": "Quiet neighborhood soba house serving stone-milled buckwheat noodles and crisp seasonal tempura.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-yanaka-ginza",
+            "city": "Tokyo",
+            "name": "Yanaka Ginza",
+            "category": "market",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.7276,
+            "lng": 139.7657,
+            "duration_mins": 75,
+            "cost_eur": 8.0,
+            "scheduled_start": "14:35",
+            "scheduled_end": "15:50",
+            "neighborhood": "Yanaka",
+            "description": "Nostalgic post-war Shitamachi shopping street tucked beneath Yuyake Dandan sunset steps.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-asakura-museum-of-sculpture",
+            "city": "Tokyo",
+            "name": "Asakura Museum of Sculpture",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 35.7267,
+            "lng": 139.7689,
+            "duration_mins": 65,
+            "cost_eur": 5.0,
+            "scheduled_start": "16:00",
+            "scheduled_end": "17:05",
+            "neighborhood": "Yanaka",
+            "description": "Architecturally dramatic residence and atelier of sculptor Fumio Asakura surrounding a koi courtyard garden.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-ameyoko-night-izakaya",
+            "city": "Tokyo",
+            "name": "Ameyoko Night Izakaya",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 35.7107,
+            "lng": 139.7745,
+            "duration_mins": 90,
+            "cost_eur": 22.0,
+            "scheduled_start": "19:00",
+            "scheduled_end": "20:30",
+            "neighborhood": "Ueno",
+            "description": "Bustling under-the-tracks market quarter glowing with charcoal yakitori stalls at dusk.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 4,
+        "theme": "Waterfront Bay & Ginza",
+        "stops": [
+          {
+            "id": "demo-poi-tokyo-turret-coffee-tsukiji",
+            "city": "Tokyo",
+            "name": "Turret Coffee Tsukiji",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.6673,
+            "lng": 139.7717,
+            "duration_mins": 40,
+            "cost_eur": 7.0,
+            "scheduled_start": "09:05",
+            "scheduled_end": "09:45",
+            "neighborhood": "Tsukiji",
+            "description": "Neighborhood espresso bar anchored by an antique Tsukiji market turret truck.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-tsukiji-outer-market",
+            "city": "Tokyo",
+            "name": "Tsukiji Outer Market",
+            "category": "market",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.6655,
+            "lng": 139.7707,
+            "duration_mins": 80,
+            "cost_eur": 18.0,
+            "scheduled_start": "09:55",
+            "scheduled_end": "11:15",
+            "neighborhood": "Tsukiji",
+            "description": "Lively morning culinary lanes of knife smiths, dashi stalls, tamagoyaki grills, and fresh seafood counters.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-7836744",
+            "city": "Tokyo",
+            "name": "Hama-rikyu Gardens",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 35.659594325,
+            "lng": 139.76492426250002,
+            "duration_mins": 80,
+            "cost_eur": 3.0,
+            "scheduled_start": "11:30",
+            "scheduled_end": "12:50",
+            "neighborhood": "Shiodome",
+            "description": "Edo-era tidal pond garden with a wooden Nakajima teahouse framed against modern Shiodome glass towers.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-ginza-kagari",
+            "city": "Tokyo",
+            "name": "Ginza Kagari",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.6713,
+            "lng": 139.7615,
+            "duration_mins": 65,
+            "cost_eur": 18.0,
+            "scheduled_start": "13:10",
+            "scheduled_end": "14:15",
+            "neighborhood": "Ginza",
+            "description": "Renowned Ginza counter famed for rich velvety tori-paitan chicken broth ramen topped with seasonal greens.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-306116935",
+            "city": "Tokyo",
+            "name": "Mitsubishi Ichigokan Museum",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 35.678521399999994,
+            "lng": 139.76309215,
+            "duration_mins": 80,
+            "cost_eur": 12.0,
+            "scheduled_start": "14:35",
+            "scheduled_end": "15:55",
+            "neighborhood": "Marunouchi",
+            "description": "Red-brick Queen Anne-style 1894 landmark rebuilt by Josiah Conder's plans for 19th-century European art.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-imperial-palace-east-gardens",
+            "city": "Tokyo",
+            "name": "Imperial Palace East Gardens",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 35.6876,
+            "lng": 139.7568,
+            "duration_mins": 70,
+            "cost_eur": 0.0,
+            "scheduled_start": "16:10",
+            "scheduled_end": "17:20",
+            "neighborhood": "Chiyoda",
+            "description": "Expansive Edo Castle stone foundations, guardhouses, and tranquil Ninomaru gardens.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-node-4551289990",
+            "city": "Tokyo",
+            "name": "Bar High Five",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 35.6715955,
+            "lng": 139.7629368,
+            "duration_mins": 90,
+            "cost_eur": 32.0,
+            "scheduled_start": "19:30",
+            "scheduled_end": "21:00",
+            "neighborhood": "Ginza",
+            "description": "World-renowned bespoke Ginza cocktail room where drinks are hand-carved over crystal diamond ice.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 5,
+        "theme": "Shimokitazawa & Shinjuku Dusk",
+        "stops": [
+          {
+            "id": "demo-poi-tokyo-ogawa-coffee-laboratory",
+            "city": "Tokyo",
+            "name": "Ogawa Coffee Laboratory",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.6619,
+            "lng": 139.6693,
+            "duration_mins": 45,
+            "cost_eur": 10.0,
+            "scheduled_start": "09:15",
+            "scheduled_end": "10:00",
+            "neighborhood": "Shimokitazawa",
+            "description": "Architectural minimalist coffee lab in Shimokitazawa offering single-estate pour-overs and toast.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-15772074",
+            "city": "Tokyo",
+            "name": "Shinjuku Gyoen National Garden",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 35.6846337125,
+            "lng": 139.710399675,
+            "duration_mins": 95,
+            "cost_eur": 4.0,
+            "scheduled_start": "10:25",
+            "scheduled_end": "12:00",
+            "neighborhood": "Shinjuku",
+            "description": "Shinjuku Gyo-en  or Shinjuku Gyoen National Garden is a large public garden in Shinjuku and Shibuya, Tokyo, Japan. Originally a residence of the Naitō family in the Edo period, it later became a garden under the management of Japan Imperial Household Agency and is now a national garden under the jurisdiction of the Ministry of the Environment.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Shinjuku_Gyoen_National_Garden_-_sakura_3.JPG/330px-Shinjuku_Gyoen_National_Garden_-_sakura_3.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Shinjuku_Gyoen_National_Garden_-_sakura_3.JPG/330px-Shinjuku_Gyoen_National_Garden_-_sakura_3.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "OSM-node-4154282189",
+            "city": "Tokyo",
+            "name": "Omoide-yokochō",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 35.6930689,
+            "lng": 139.6995016,
+            "duration_mins": 70,
+            "cost_eur": 20.0,
+            "scheduled_start": "12:20",
+            "scheduled_end": "13:30",
+            "neighborhood": "Shinjuku",
+            "description": "Atmospheric narrow Showa-era lantern alley beside Shinjuku West serving skewers and noodle bowls.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-tokyo-metropolitan-government-building",
+            "city": "Tokyo",
+            "name": "Tokyo Metropolitan Government Building",
+            "category": "viewpoint",
+            "taxonomy_category": "scenic_views",
+            "lat": 35.6896,
+            "lng": 139.6917,
+            "duration_mins": 70,
+            "cost_eur": 0.0,
+            "scheduled_start": "13:50",
+            "scheduled_end": "15:00",
+            "neighborhood": "Nishi-Shinjuku",
+            "description": "Kenzo Tange's monumental twin-tower civic complex with free 45th-floor panoramic decks over Kanto.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-tokyo-shimokitazawa-vinyl---books",
+            "city": "Tokyo",
+            "name": "Shimokitazawa Vinyl & Books",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 35.6615,
+            "lng": 139.6681,
+            "duration_mins": 90,
+            "cost_eur": 0.0,
+            "scheduled_start": "15:25",
+            "scheduled_end": "16:55",
+            "neighborhood": "Shimokitazawa",
+            "description": "Bohemian pedestrian lanes packed with independent record crates, vintage denim shops, and tiny galleries.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-node-11423054170",
+            "city": "Tokyo",
+            "name": "Jazz Spot Intro",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 35.7128885,
+            "lng": 139.7062849,
+            "duration_mins": 100,
+            "cost_eur": 22.0,
+            "scheduled_start": "19:15",
+            "scheduled_end": "20:55",
+            "neighborhood": "Takadanobaba",
+            "description": "Classic basement jazz kissa and live session room beloved by Tokyo musicians since 1975.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      }
+    ]
+  },
+  "demo-trip-madrid-active": {
+    "days": [
+      {
+        "day": 1,
+        "theme": "Paseo del Arte & Retiro",
+        "stops": [
+          {
+            "id": "demo-poi-madrid-toma-café",
+            "city": "Madrid",
+            "name": "Toma Café",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 40.4278,
+            "lng": -3.7042,
+            "duration_mins": 40,
+            "cost_eur": 8.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:50",
+            "neighborhood": "Malasaña",
+            "description": "Pioneering Madrid specialty espresso bar serving seasonal single-origin roasts and cardamom buns.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-madrid-museo-nacional-del-prado",
+            "city": "Madrid",
+            "name": "Museo Nacional del Prado",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 40.4138,
+            "lng": -3.6921,
+            "duration_mins": 125,
+            "cost_eur": 15.0,
+            "scheduled_start": "10:10",
+            "scheduled_end": "12:15",
+            "neighborhood": "Paseo del Prado",
+            "description": "Spain's premier national art museum housing masterworks by Velázquez, Goya, El Greco, and Bosch.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-madrid-museo-nacional-thyssen-bornemisza",
+            "city": "Madrid",
+            "name": "Museo Nacional Thyssen-Bornemisza",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 40.416,
+            "lng": -3.6949,
+            "duration_mins": 70,
+            "cost_eur": 13.0,
+            "scheduled_start": "12:25",
+            "scheduled_end": "13:35",
+            "neighborhood": "Paseo del Prado",
+            "description": "Palacio de Villahermosa collection bridging Renaissance portraiture, Impressionism, and 20th-century Expressionism.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-madrid-taberna-laredo",
+            "city": "Madrid",
+            "name": "Taberna Laredo",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 40.4188,
+            "lng": -3.6791,
+            "duration_mins": 75,
+            "cost_eur": 38.0,
+            "scheduled_start": "13:50",
+            "scheduled_end": "15:05",
+            "neighborhood": "Retiro",
+            "description": "Celebrated seasonal Madrid tavern near Retiro known for market fish, slow-cooked classics, and a deep wine cellar.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-madrid-puerta-de-alcalá",
+            "city": "Madrid",
+            "name": "Puerta de Alcalá",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 40.42,
+            "lng": -3.6887,
+            "duration_mins": 35,
+            "cost_eur": 0.0,
+            "scheduled_start": "15:20",
+            "scheduled_end": "15:55",
+            "neighborhood": "Salamanca",
+            "description": "Neoclassical 1778 triumphal granite archway framing the grand entrance to El Retiro.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-madrid-parque-del-buen-retiro",
+            "city": "Madrid",
+            "name": "Parque del Buen Retiro",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 40.4153,
+            "lng": -3.6845,
+            "duration_mins": 90,
+            "cost_eur": 0.0,
+            "scheduled_start": "16:05",
+            "scheduled_end": "17:35",
+            "neighborhood": "Retiro",
+            "description": "19th-century royal park shaded by chestnut avenues, fountains, and the sweeping Alfonso XII colonnade.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-madrid-salmon-guru",
+            "city": "Madrid",
+            "name": "Salmon Guru",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 40.4143,
+            "lng": -3.6967,
+            "duration_mins": 90,
+            "cost_eur": 24.0,
+            "scheduled_start": "19:45",
+            "scheduled_end": "21:15",
+            "neighborhood": "Las Letras",
+            "description": "Theatrical Barrio de las Letras craft cocktail room consistently ranked among the world's top bars.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 2,
+        "theme": "Habsburg Madrid & La Latina",
+        "stops": [
+          {
+            "id": "demo-poi-madrid-chocolatería-san-ginés",
+            "city": "Madrid",
+            "name": "Chocolatería San Ginés",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 40.4167,
+            "lng": -3.707,
+            "duration_mins": 45,
+            "cost_eur": 8.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:55",
+            "neighborhood": "Sol",
+            "description": "Iconic 1894 green-velvet salon tucked into Pasadizo de San Ginés serving crisp churros with thick hot chocolate.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-node-4451986389",
+            "city": "Madrid",
+            "name": "Royal Palace of Madrid",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 40.4167403,
+            "lng": -3.7136222,
+            "duration_mins": 100,
+            "cost_eur": 14.0,
+            "scheduled_start": "10:15",
+            "scheduled_end": "11:55",
+            "neighborhood": "Palacio",
+            "description": "The Royal Palace of Madrid is the official residence of the Spanish royal family and is used primarily for state ceremonies. With over 135,000 m2 (1,450,000 sq ft) of floor space and 3,418 rooms, the Royal Palace of Madrid is the largest palace in Western Europe, the largest royal palace in Europe, and among the largest palaces in the world.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Palacio_Real_de_Madrid_Julio_2016_%28cropped%29.jpg/330px-Palacio_Real_de_Madrid_Julio_2016_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Palacio_Real_de_Madrid_Julio_2016_%28cropped%29.jpg/330px-Palacio_Real_de_Madrid_Julio_2016_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "demo-poi-madrid-almudena-cathedral",
+            "city": "Madrid",
+            "name": "Almudena Cathedral",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 40.4157,
+            "lng": -3.7146,
+            "duration_mins": 50,
+            "cost_eur": 1.0,
+            "scheduled_start": "12:05",
+            "scheduled_end": "12:55",
+            "neighborhood": "Palacio",
+            "description": "Neoclassical cathedral facing the Plaza de la Armería with vibrant Pop-Art stained-glass ceilings.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-4518846",
+            "city": "Madrid",
+            "name": "Mercado de San Miguel",
+            "category": "market",
+            "taxonomy_category": "food_culinary",
+            "lat": 40.41531965,
+            "lng": -3.7090137,
+            "duration_mins": 60,
+            "cost_eur": 18.0,
+            "scheduled_start": "13:10",
+            "scheduled_end": "14:10",
+            "neighborhood": "Centro",
+            "description": "The Market of San Miguel is a covered market located in Madrid, Spain. Originally built in 1916, it was purchased by private investors in 2003 who renovated the iron structure and reopened it in 2009.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-madrid-juana-la-loca",
+            "city": "Madrid",
+            "name": "Juana La Loca",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 40.4119,
+            "lng": -3.7116,
+            "duration_mins": 70,
+            "cost_eur": 32.0,
+            "scheduled_start": "14:25",
+            "scheduled_end": "15:35",
+            "neighborhood": "La Latina",
+            "description": "Beloved La Latina pintxo kitchen famed for its caramelized-onion tortilla and warm seasonal plates.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-28702618",
+            "city": "Madrid",
+            "name": "Real Basílica de San Francisco el Grande",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 40.410507100000004,
+            "lng": -3.7145155,
+            "duration_mins": 60,
+            "cost_eur": 5.0,
+            "scheduled_start": "15:50",
+            "scheduled_end": "16:50",
+            "neighborhood": "La Latina",
+            "description": "La Real Basílica de San Francisco el Grande, oficialmente Basílica de Nuestra Señora de los Ángeles, es una iglesia católica en Madrid, en el barrio de Palacio, dentro del casco histórico de la capital de España. Preside la cara occidental de la plaza de San Francisco, configurada por la intersección de la calle Bailén y la Carrera de San Francisco. Forma parte del convento franciscano de Jesús y María, fundado a principios del siglo XIII, sobre una desaparecida ermita dedicada a santa María.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/Bas%C3%ADlica_de_San_Francisco_el_Grande_%28Madrid%29_13.jpg/330px-Bas%C3%ADlica_de_San_Francisco_el_Grande_%28Madrid%29_13.jpg?utm_source=es.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/Bas%C3%ADlica_de_San_Francisco_el_Grande_%28Madrid%29_13.jpg/330px-Bas%C3%ADlica_de_San_Francisco_el_Grande_%28Madrid%29_13.jpg?utm_source=es.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "demo-poi-madrid-cava-baja-tabernas",
+            "city": "Madrid",
+            "name": "Cava Baja Tabernas",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 40.4126,
+            "lng": -3.7096,
+            "duration_mins": 90,
+            "cost_eur": 22.0,
+            "scheduled_start": "19:30",
+            "scheduled_end": "21:00",
+            "neighborhood": "La Latina",
+            "description": "Medieval cobblestone tavern lane buzzing with sherry pours, vermouth taps, and castizo late-evening energy.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 3,
+        "theme": "Chamberí Markets & Malasaña",
+        "stops": [
+          {
+            "id": "demo-poi-madrid-hanso-café",
+            "city": "Madrid",
+            "name": "HanSo Café",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 40.4258,
+            "lng": -3.7047,
+            "duration_mins": 45,
+            "cost_eur": 9.0,
+            "scheduled_start": "09:15",
+            "scheduled_end": "10:00",
+            "neighborhood": "Malasaña",
+            "description": "Bright Malasaña specialty café pairing flat whites with matcha pastries and soft brioche sandwiches.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-node-1719813601",
+            "city": "Madrid",
+            "name": "Museo Sorolla",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 40.4353934,
+            "lng": -3.692512,
+            "duration_mins": 85,
+            "cost_eur": 3.0,
+            "scheduled_start": "10:20",
+            "scheduled_end": "11:45",
+            "neighborhood": "Chamberí",
+            "description": "The Sorolla Museum is a single-artist museum in Madrid, Spain, devoted to the work and life of Joaquín Sorolla and the members of his family, such as his wife Clotilde and daughter Elena. The museum is located in the house that was the artist's home and workshop.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/Museo_Sorolla_%28Madrid%29_01.jpg/330px-Museo_Sorolla_%28Madrid%29_01.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/Museo_Sorolla_%28Madrid%29_01.jpg/330px-Museo_Sorolla_%28Madrid%29_01.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "OSM-way-161858028",
+            "city": "Madrid",
+            "name": "Mercado de San Antón",
+            "category": "market",
+            "taxonomy_category": "food_culinary",
+            "lat": 40.421819049999996,
+            "lng": -3.6976195499999998,
+            "duration_mins": 60,
+            "cost_eur": 12.0,
+            "scheduled_start": "12:05",
+            "scheduled_end": "13:05",
+            "neighborhood": "Chueca",
+            "description": "Modern three-story neighborhood market with gourmet food counters and a sunny rooftop terrace.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-madrid-sala-de-despiece",
+            "city": "Madrid",
+            "name": "Sala de Despiece",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 40.4384,
+            "lng": -3.7001,
+            "duration_mins": 75,
+            "cost_eur": 35.0,
+            "scheduled_start": "13:20",
+            "scheduled_end": "14:35",
+            "neighborhood": "Chamberí",
+            "description": "Theatrical Ponzano stainless-steel counter serving elevated Spanish produce prepared tableside.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-madrid-museo-del-romanticismo",
+            "city": "Madrid",
+            "name": "Museo del Romanticismo",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 40.4259,
+            "lng": -3.6987,
+            "duration_mins": 70,
+            "cost_eur": 3.0,
+            "scheduled_start": "14:55",
+            "scheduled_end": "16:05",
+            "neighborhood": "Justicia",
+            "description": "Preserved 18th-century noble palace filled with porcelain, period salons, and a quiet magnolia courtyard.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-madrid-centro-cultural-conde-duque",
+            "city": "Madrid",
+            "name": "Centro Cultural Conde Duque",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 40.4274,
+            "lng": -3.7106,
+            "duration_mins": 65,
+            "cost_eur": 0.0,
+            "scheduled_start": "16:20",
+            "scheduled_end": "17:25",
+            "neighborhood": "Conde Duque",
+            "description": "Monumental 1717 Baroque barracks transformed into contemporary art patios and photography galleries.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-madrid-1862-dry-bar",
+            "city": "Madrid",
+            "name": "1862 Dry Bar",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 40.4264,
+            "lng": -3.7044,
+            "duration_mins": 90,
+            "cost_eur": 22.0,
+            "scheduled_start": "19:30",
+            "scheduled_end": "21:00",
+            "neighborhood": "Malasaña",
+            "description": "Candlelit pre-Prohibition cocktail institution set inside a restored 19th-century stone townhouse.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 4,
+        "theme": "Literary Quarter & Atocha",
+        "stops": [
+          {
+            "id": "demo-poi-madrid-acid-bakehouse",
+            "city": "Madrid",
+            "name": "Acid Bakehouse",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 40.4119,
+            "lng": -3.6979,
+            "duration_mins": 40,
+            "cost_eur": 9.0,
+            "scheduled_start": "09:15",
+            "scheduled_end": "09:55",
+            "neighborhood": "Las Letras",
+            "description": "Cult artisan sourdough bakery and espresso counter tucked off Calle de la Magdalena.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-991444051",
+            "city": "Madrid",
+            "name": "Museo Nacional Centro de Arte Reina Sofía",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 40.40792705,
+            "lng": -3.6948441,
+            "duration_mins": 115,
+            "cost_eur": 12.0,
+            "scheduled_start": "10:15",
+            "scheduled_end": "12:10",
+            "neighborhood": "Atocha",
+            "description": "The Museo Nacional Centro de Arte Reina Sofía is Spain's national museum of 20th-century art. The museum was officially inaugurated on September 10, 1992, and is named for Queen Sofía. It is located in Madrid, near the Atocha train and metro stations, at the southern end of what is known as the Golden Triangle of Art.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Museo_Nacional_Centro_de_Arte_Reina_Sof%C3%ADa_logo.svg/330px-Museo_Nacional_Centro_de_Arte_Reina_Sof%C3%ADa_logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Museo_Nacional_Centro_de_Arte_Reina_Sof%C3%ADa_logo.svg/330px-Museo_Nacional_Centro_de_Arte_Reina_Sof%C3%ADa_logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "OSM-way-286816147",
+            "city": "Madrid",
+            "name": "CaixaForum Madrid",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 40.4111065,
+            "lng": -3.69356455,
+            "duration_mins": 65,
+            "cost_eur": 6.0,
+            "scheduled_start": "12:20",
+            "scheduled_end": "13:25",
+            "neighborhood": "Paseo del Prado",
+            "description": "CaixaForum Madrid is a cultural center in Madrid, Spain. Located in Paseo del Prado in a former power station, it is owned by the not-for-profit banking foundation \"la Caixa\". The art center opened its doors in 2008 and it hosts temporary art exhibitions and cultural events.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Caixaforum_Madrid_2024.jpg/330px-Caixaforum_Madrid_2024.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Caixaforum_Madrid_2024.jpg/330px-Caixaforum_Madrid_2024.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "demo-poi-madrid-casa-alberto",
+            "city": "Madrid",
+            "name": "Casa Alberto",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 40.4143,
+            "lng": -3.6994,
+            "duration_mins": 75,
+            "cost_eur": 32.0,
+            "scheduled_start": "13:40",
+            "scheduled_end": "14:55",
+            "neighborhood": "Las Letras",
+            "description": "1827 wood-paneled Barrio de las Letras tavern serving vermouth on tap and slow-braised oxtail.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-15244804",
+            "city": "Madrid",
+            "name": "Royal Botanical Garden of Madrid",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 40.4123028,
+            "lng": -3.6898028,
+            "duration_mins": 75,
+            "cost_eur": 6.0,
+            "scheduled_start": "15:10",
+            "scheduled_end": "16:25",
+            "neighborhood": "Paseo del Prado",
+            "description": "Real Jardín Botánico de Madrid is an 8 hectares botanical garden in Madrid (Spain). The public entrance is located at Plaza de Murillo, next to the Prado Museum.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/Puerta_de_Murillo%2C_Real_Jard%C3%ADn_Bot%C3%A1nico_de_Madrid.jpg/330px-Puerta_de_Murillo%2C_Real_Jard%C3%ADn_Bot%C3%A1nico_de_Madrid.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/Puerta_de_Murillo%2C_Real_Jard%C3%ADn_Bot%C3%A1nico_de_Madrid.jpg/330px-Puerta_de_Murillo%2C_Real_Jard%C3%ADn_Bot%C3%A1nico_de_Madrid.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "OSM-way-319609029",
+            "city": "Madrid",
+            "name": "Casa Museo Lope de Vega",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 40.4144159,
+            "lng": -3.6975230000000003,
+            "duration_mins": 60,
+            "cost_eur": 0.0,
+            "scheduled_start": "16:40",
+            "scheduled_end": "17:40",
+            "neighborhood": "Las Letras",
+            "description": "La Casa-Museo de Lope de Vega se encuentra en el número 11 de la calle de Cervantes de la ciudad española de Madrid.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/Casa-Museo_de_Lope_de_Vega_%28Madrid%29_01.jpg/330px-Casa-Museo_de_Lope_de_Vega_%28Madrid%29_01.jpg?utm_source=es.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/Casa-Museo_de_Lope_de_Vega_%28Madrid%29_01.jpg/330px-Casa-Museo_de_Lope_de_Vega_%28Madrid%29_01.jpg?utm_source=es.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "demo-poi-madrid-azotea-del-círculo",
+            "city": "Madrid",
+            "name": "Azotea del Círculo",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 40.4184,
+            "lng": -3.6966,
+            "duration_mins": 100,
+            "cost_eur": 20.0,
+            "scheduled_start": "19:15",
+            "scheduled_end": "20:55",
+            "neighborhood": "Gran Vía",
+            "description": "Iconic Beaux-Arts rooftop terrace overlooking the Metrópolis dome and Madrid skyline at twilight.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      }
+    ]
+  },
+  "demo-trip-london-active": {
+    "days": [
+      {
+        "day": 1,
+        "theme": "Southbank & Tower Bridge",
+        "stops": [
+          {
+            "id": "demo-poi-london-monmouth-coffee-borough",
+            "city": "London",
+            "name": "Monmouth Coffee Borough",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 51.5054,
+            "lng": -0.0908,
+            "duration_mins": 40,
+            "cost_eur": 7.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:50",
+            "neighborhood": "Southwark",
+            "description": "Beloved small-batch London roastery tucked beside Borough Market serving single-estate filter brews.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-24282400",
+            "city": "London",
+            "name": "Borough Market",
+            "category": "market",
+            "taxonomy_category": "food_culinary",
+            "lat": 51.505623,
+            "lng": -0.09047605,
+            "duration_mins": 75,
+            "cost_eur": 16.0,
+            "scheduled_start": "10:00",
+            "scheduled_end": "11:15",
+            "neighborhood": "Southwark",
+            "description": "London's oldest food market under Victorian green-iron viaduct arches with artisanal cheeses, oysters, and pastries.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-26183417",
+            "city": "London",
+            "name": "Southwark Cathedral",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 51.50612265,
+            "lng": -0.08968435,
+            "duration_mins": 50,
+            "cost_eur": 0.0,
+            "scheduled_start": "11:25",
+            "scheduled_end": "12:15",
+            "neighborhood": "Southwark",
+            "description": "Southwark Cathedral, formally the Cathedral and Collegiate Church of St Saviour and St Mary Overie, is a Church of England cathedral in Southwark, London, near the south bank of the River Thames and close to London Bridge. It is the mother church of the Diocese of Southwark. It has been a place of Christian worship for more than 1,000 years, but the church was not raised to cathedral status until the creation of the diocese of Southwark in 1905.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/Northwest_View_of_Southwark_Cathedral_%2801%29.jpg/330px-Northwest_View_of_Southwark_Cathedral_%2801%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/Northwest_View_of_Southwark_Cathedral_%2801%29.jpg/330px-Northwest_View_of_Southwark_Cathedral_%2801%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "demo-poi-london-padella",
+            "city": "London",
+            "name": "Padella",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 51.505,
+            "lng": -0.0901,
+            "duration_mins": 75,
+            "cost_eur": 26.0,
+            "scheduled_start": "12:30",
+            "scheduled_end": "13:45",
+            "neighborhood": "Borough",
+            "description": "Fresh hand-rolled pasta bar overlooking Borough Market famed for pici cacio e pepe.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-369161987",
+            "city": "London",
+            "name": "St Paul's Cathedral",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 51.51377315,
+            "lng": -0.09824089999999999,
+            "duration_mins": 80,
+            "cost_eur": 24.0,
+            "scheduled_start": "14:05",
+            "scheduled_end": "15:25",
+            "neighborhood": "City of London",
+            "description": "St Paul's Cathedral, formally the Cathedral Church of St Paul in London, is an Anglican cathedral in London, England, the seat of the bishop of London. The cathedral serves as the mother church of the Diocese of London in the Church of England. It is on Ludgate Hill at the highest point of the City of London. Its dedication in honour of Paul the Apostle dates back to the original cathedral church on this site, founded in AD 604. The high-domed present structure, which was completed in 1710, is a Grade I listed building that was designed in the English Baroque style by Sir Christopher Wren. The cathedral's reconstruction was part of a major rebuilding programme initiated in the aftermath of the Great Fire of London. The earlier Gothic cathedral, largely destroyed in the Great Fire, was a central focus for medieval and early modern London, including Paul's walk and St Paul's Churchyard, being the site of St Paul's Cross.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/St_Pauls_aerial_%28cropped%29.jpg/330px-St_Pauls_aerial_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/St_Pauls_aerial_%28cropped%29.jpg/330px-St_Pauls_aerial_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "OSM-way-370870741",
+            "city": "London",
+            "name": "Tower of London",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 51.508031849999995,
+            "lng": -0.0762182,
+            "duration_mins": 80,
+            "cost_eur": 34.0,
+            "scheduled_start": "15:45",
+            "scheduled_end": "17:05",
+            "neighborhood": "Tower Hill",
+            "description": "The Tower of London, officially His Majesty's Royal Palace and Fortress of the Tower of London, is a historic citadel and castle on the north bank of the River Thames in London, England. It lies within the London Borough of Tower Hamlets, which is separated from the eastern edge of the square mile of the City of London by the open space known as Tower Hill. It was founded toward the end of 1066 as part of the Norman Conquest. The White Tower, which gives the castle its name, was built by William the Conqueror in 1078 and was initially a resented symbol of oppression. A grand palace early in its history, it served as a royal residence. The Tower is a complex of several buildings set within two concentric rings of defensive walls and a moat. There were several phases of expansion, mainly under kings Richard I, Henry III, and Edward I in the 12th and 13th centuries.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Tower_of_London_from_the_Shard_%288515883950%29.jpg/330px-Tower_of_London_from_the_Shard_%288515883950%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Tower_of_London_from_the_Shard_%288515883950%29.jpg/330px-Tower_of_London_from_the_Shard_%288515883950%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "OSM-node-2079674503",
+            "city": "London",
+            "name": "Tower Bridge",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 51.5055166,
+            "lng": -0.0753662,
+            "duration_mins": 50,
+            "cost_eur": 13.0,
+            "scheduled_start": "17:15",
+            "scheduled_end": "18:05",
+            "neighborhood": "Thames",
+            "description": "Iconic Victorian bascule bridge spanning the Thames with high-level glass walkways over the river.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-node-14181043737",
+            "city": "London",
+            "name": "George Inn",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 51.5041902,
+            "lng": -0.0899937,
+            "duration_mins": 90,
+            "cost_eur": 18.0,
+            "scheduled_start": "19:15",
+            "scheduled_end": "20:45",
+            "neighborhood": "Southwark",
+            "description": "London's last surviving 17th-century galleried coaching inn tucked down a cobbled courtyard off Borough High Street.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 2,
+        "theme": "Bloomsbury & Soho Nights",
+        "stops": [
+          {
+            "id": "demo-poi-london-bar-italia",
+            "city": "London",
+            "name": "Bar Italia",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 51.5134,
+            "lng": -0.1312,
+            "duration_mins": 40,
+            "cost_eur": 8.0,
+            "scheduled_start": "09:15",
+            "scheduled_end": "09:55",
+            "neighborhood": "Soho",
+            "description": "Iconic 1949 Frith Street Italian espresso bar with neon signage and gleaming vintage Gaggia machines.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-4372002",
+            "city": "London",
+            "name": "National Gallery",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 51.509047300000006,
+            "lng": -0.1285773,
+            "duration_mins": 105,
+            "cost_eur": 0.0,
+            "scheduled_start": "10:15",
+            "scheduled_end": "12:00",
+            "neighborhood": "Trafalgar Square",
+            "description": "Grand neoclassical collection on Trafalgar Square spanning Van Eyck, Turner, Monet, and Van Gogh.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-59161723",
+            "city": "London",
+            "name": "National Portrait Gallery",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 51.5092506,
+            "lng": -0.12801849999999998,
+            "duration_mins": 65,
+            "cost_eur": 0.0,
+            "scheduled_start": "12:10",
+            "scheduled_end": "13:15",
+            "neighborhood": "St Martin's Place",
+            "description": "National Portrait Gallery may refer to:National Portrait Gallery (Australia), in Canberra\nNational Portrait Gallery (Sweden), in Mariefred\nNational Portrait Gallery, in Washington, D.C.\nNational Portrait Gallery, London, with satellite galleries in North Yorkshire and Somerset, England\nScottish National Portrait Gallery, in Edinburgh",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-london-dishoom-covent-garden",
+            "city": "London",
+            "name": "Dishoom Covent Garden",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 51.5125,
+            "lng": -0.1268,
+            "duration_mins": 75,
+            "cost_eur": 32.0,
+            "scheduled_start": "13:30",
+            "scheduled_end": "14:45",
+            "neighborhood": "Covent Garden",
+            "description": "Warm Irani-café homage serving black daal, ruby chicken, and charred naan in a bustling timber dining room.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-372841786",
+            "city": "London",
+            "name": "Somerset House",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 51.5109959,
+            "lng": -0.1172158,
+            "duration_mins": 70,
+            "cost_eur": 0.0,
+            "scheduled_start": "15:05",
+            "scheduled_end": "16:15",
+            "neighborhood": "Strand",
+            "description": "18th-century Thameside neoclassical quadrangle hosting design exhibitions and riverside terrace cafes.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-33721672",
+            "city": "London",
+            "name": "Royal Opera House",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 51.5127358,
+            "lng": -0.12256855,
+            "duration_mins": 65,
+            "cost_eur": 0.0,
+            "scheduled_start": "16:30",
+            "scheduled_end": "17:35",
+            "neighborhood": "Covent Garden",
+            "description": "The Royal Opera House (ROH) is a theatre in Covent Garden, central London. The building is often referred to as simply Covent Garden, after a previous use of the site. The ROH is the main home of The Royal Opera, The Royal Ballet, and the Orchestra of the Royal Opera House, which are known collectively as the Royal Ballet and Opera.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Royal_Opera_House_and_ballerina.jpg/330px-Royal_Opera_House_and_ballerina.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Royal_Opera_House_and_ballerina.jpg/330px-Royal_Opera_House_and_ballerina.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "OSM-node-14178896026",
+            "city": "London",
+            "name": "Ronnie Scott's Jazz Club",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 51.5134509,
+            "lng": -0.1315177,
+            "duration_mins": 105,
+            "cost_eur": 35.0,
+            "scheduled_start": "19:45",
+            "scheduled_end": "21:30",
+            "neighborhood": "Soho",
+            "description": "Legendary 1959 Soho basement jazz club hosting international quartets beneath crimson lamp shades.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 3,
+        "theme": "Barbican & East End",
+        "stops": [
+          {
+            "id": "demo-poi-london-prufrock-coffee",
+            "city": "London",
+            "name": "Prufrock Coffee",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 51.5196,
+            "lng": -0.1092,
+            "duration_mins": 45,
+            "cost_eur": 9.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:55",
+            "neighborhood": "Clerkenwell",
+            "description": "Leather Lane specialty coffee institution serving precision single-origin espresso and poached-egg breakfasts.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-london-barbican-centre",
+            "city": "London",
+            "name": "Barbican Centre",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 51.5202,
+            "lng": -0.0938,
+            "duration_mins": 90,
+            "cost_eur": 0.0,
+            "scheduled_start": "10:15",
+            "scheduled_end": "11:45",
+            "neighborhood": "Barbican",
+            "description": "Monumental brutalist concrete arts estate centered around elevated lakeside walkways and terraced residential towers.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-143113935",
+            "city": "London",
+            "name": "Leadenhall Market",
+            "category": "market",
+            "taxonomy_category": "food_culinary",
+            "lat": 51.51283655,
+            "lng": -0.083686,
+            "duration_mins": 55,
+            "cost_eur": 0.0,
+            "scheduled_start": "12:05",
+            "scheduled_end": "13:00",
+            "neighborhood": "City of London",
+            "description": "Ornate 1881 Victorian covered market arcade painted in burgundy and cream beneath wrought-iron skylights.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-london-st--john-smithfield",
+            "city": "London",
+            "name": "St. John Smithfield",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 51.5205,
+            "lng": -0.1014,
+            "duration_mins": 85,
+            "cost_eur": 46.0,
+            "scheduled_start": "13:20",
+            "scheduled_end": "14:45",
+            "neighborhood": "Smithfield",
+            "description": "Fergus Henderson's minimalist whitewashed former smokehouse pioneering nose-to-tail British dining.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-london-old-spitalfields-market",
+            "city": "London",
+            "name": "Old Spitalfields Market",
+            "category": "market",
+            "taxonomy_category": "food_culinary",
+            "lat": 51.5197,
+            "lng": -0.0754,
+            "duration_mins": 70,
+            "cost_eur": 10.0,
+            "scheduled_start": "15:05",
+            "scheduled_end": "16:15",
+            "neighborhood": "Spitalfields",
+            "description": "Victorian market hall filled with independent craft makers, vinyl dealers, and East End food kiosks.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-london-whitechapel-gallery",
+            "city": "London",
+            "name": "Whitechapel Gallery",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 51.516,
+            "lng": -0.0701,
+            "duration_mins": 70,
+            "cost_eur": 0.0,
+            "scheduled_start": "16:30",
+            "scheduled_end": "17:40",
+            "neighborhood": "Aldgate",
+            "description": "Historic 1901 Arts & Crafts contemporary art gallery that first introduced Guernica to Britain.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-london-swift-shoreditch",
+            "city": "London",
+            "name": "Swift Shoreditch",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 51.5256,
+            "lng": -0.0785,
+            "duration_mins": 90,
+            "cost_eur": 22.0,
+            "scheduled_start": "19:30",
+            "scheduled_end": "21:00",
+            "neighborhood": "Shoreditch",
+            "description": "Sleek neighborhood cocktail bar pairing crisp Irish coffees with timeless aperitifs.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 4,
+        "theme": "South Kensington & Mayfair",
+        "stops": [
+          {
+            "id": "demo-poi-london-watchhouse-somerset",
+            "city": "London",
+            "name": "WatchHouse Somerset",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 51.5112,
+            "lng": -0.1173,
+            "duration_mins": 45,
+            "cost_eur": 9.0,
+            "scheduled_start": "09:15",
+            "scheduled_end": "10:00",
+            "neighborhood": "Strand",
+            "description": "Modern British coffee house set inside a neoclassical courtyard wing with single-origin roasts.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-london-victoria-and-albert-museum",
+            "city": "London",
+            "name": "Victoria and Albert Museum",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 51.4966,
+            "lng": -0.1722,
+            "duration_mins": 110,
+            "cost_eur": 0.0,
+            "scheduled_start": "10:25",
+            "scheduled_end": "12:15",
+            "neighborhood": "South Kensington",
+            "description": "World's largest applied arts, architecture, fashion, and sculpture museum anchored by the Cast Courts and courtyard garden.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-24436446",
+            "city": "London",
+            "name": "Natural History Museum",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 51.49641045,
+            "lng": -0.17586459999999998,
+            "duration_mins": 80,
+            "cost_eur": 0.0,
+            "scheduled_start": "12:25",
+            "scheduled_end": "13:45",
+            "neighborhood": "South Kensington",
+            "description": "Natural History Museum or Museum of Natural History may refer to:Natural history museum, a scientific institution with natural history collections\nList of natural history museums\nAmerican Museum of Natural History, New York City, United States\nCroatian Natural History Museum, Zagreb, Croatia\nMuseum of Natural History, Belgrade, Serbia\nMuseum of Natural History, Görlitz, Germany\nMuseum of Natural History, Lima, Peru\nMuseum of Natural History, University of Wrocław, Poland\nMuseum of Natural History and Archaeology, Trondheim, Norway\nNational Natural History Museum of China, Beijing\nNational Museum of Natural History, France, Paris\nNational Museum of Natural History, Washington D.C., United States\nNatural History Museum, Berlin, Germany\nNatural History Museum, London, England\nNatural History Museum, Port Louis, Mauritius\nNatural History Museum, Vienna, Austria\nNatural History Museum of the University of Zurich, Switzerland\nOxford University Museum of Natural History, England\nUniversity of Michigan Museum of Natural History, Ann Arbor, Michigan, United States",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-london-the-wolseley",
+            "city": "London",
+            "name": "The Wolseley",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 51.5074,
+            "lng": -0.1414,
+            "duration_mins": 75,
+            "cost_eur": 44.0,
+            "scheduled_start": "14:10",
+            "scheduled_end": "15:25",
+            "neighborhood": "Piccadilly",
+            "description": "Grand 1921 European-style café-restaurant inside a soaring marble-columned former car showroom.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-31510288",
+            "city": "London",
+            "name": "Royal Academy of Arts",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 51.5092162,
+            "lng": -0.1397643,
+            "duration_mins": 75,
+            "cost_eur": 18.0,
+            "scheduled_start": "15:40",
+            "scheduled_end": "16:55",
+            "neighborhood": "Mayfair",
+            "description": "Burlington House galleries presenting Britain's oldest independent visual arts academy and Michelangelo's Taddei Tondo.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-london-hyde-park-serpentine",
+            "city": "London",
+            "name": "Hyde Park Serpentine",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 51.5046,
+            "lng": -0.175,
+            "duration_mins": 55,
+            "cost_eur": 0.0,
+            "scheduled_start": "17:10",
+            "scheduled_end": "18:05",
+            "neighborhood": "Hyde Park",
+            "description": "Lakeside Kensington Gardens lawn framing the Serpentine bridge and contemporary art pavilions.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-london-connaught-bar",
+            "city": "London",
+            "name": "Connaught Bar",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 51.5102,
+            "lng": -0.1496,
+            "duration_mins": 90,
+            "cost_eur": 28.0,
+            "scheduled_start": "19:30",
+            "scheduled_end": "21:00",
+            "neighborhood": "Mayfair",
+            "description": "Cubist-inspired silver-leaf Mayfair lounge celebrated worldwide for tableside martini trolley craft.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      }
+    ]
+  },
+  "demo-trip-zurich-vault": {
+    "days": [
+      {
+        "day": 1,
+        "theme": "Altstadt & Limmat Guildhalls",
+        "stops": [
+          {
+            "id": "zurich-poi-cafe-schober",
+            "city": "Zurich",
+            "name": "Café Schober",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 47.3717,
+            "lng": 8.5441,
+            "duration_mins": 45,
+            "cost_eur": 14.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:55",
+            "neighborhood": "Niederdorf",
+            "description": "1875 patisserie and hot-chocolate salon inside the historic Péclard townhouse on Napfgasse with painted ceilings and marble tables.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.6,
+              "reviews": 3100
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-grossmunster",
+            "city": "Zurich",
+            "name": "Grossmünster",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 47.3701,
+            "lng": 8.5441,
+            "duration_mins": 60,
+            "cost_eur": 5.0,
+            "scheduled_start": "10:10",
+            "scheduled_end": "11:10",
+            "neighborhood": "Altstadt",
+            "description": "Romanesque twin-towered church overlooking the Limmat River, anchor of the Swiss Reformation with Karlsturm panoramic climbs.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 9400
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Grossm%C3%BCnster_-_M%C3%BCnsterhof_2014-05-23_12-08-43.JPG/330px-Grossm%C3%BCnster_-_M%C3%BCnsterhof_2014-05-23_12-08-43.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Grossm%C3%BCnster_-_M%C3%BCnsterhof_2014-05-23_12-08-43.JPG/330px-Grossm%C3%BCnster_-_M%C3%BCnsterhof_2014-05-23_12-08-43.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-fraumunster",
+            "city": "Zurich",
+            "name": "Fraumünster",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 47.3698,
+            "lng": 8.5413,
+            "duration_mins": 55,
+            "cost_eur": 5.0,
+            "scheduled_start": "11:20",
+            "scheduled_end": "12:15",
+            "neighborhood": "Altstadt",
+            "description": "Former 9th-century abbey church celebrated for its slender copper spire and luminous stained-glass choir windows by Marc Chagall and Augusto Giacometti.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 6800
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Z%C3%BCrich_Switzerland-M%C3%BCnsterbr%C3%BCcke-and-Fraum%C3%BCnster-01_%28cropped%29.jpg/330px-Z%C3%BCrich_Switzerland-M%C3%BCnsterbr%C3%BCcke-and-Fraum%C3%BCnster-01_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Z%C3%BCrich_Switzerland-M%C3%BCnsterbr%C3%BCcke-and-Fraum%C3%BCnster-01_%28cropped%29.jpg/330px-Z%C3%BCrich_Switzerland-M%C3%BCnsterbr%C3%BCcke-and-Fraum%C3%BCnster-01_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-lindenhof",
+            "city": "Zurich",
+            "name": "Lindenhof",
+            "category": "viewpoint",
+            "taxonomy_category": "scenic_views",
+            "lat": 47.3729,
+            "lng": 8.5408,
+            "duration_mins": 45,
+            "cost_eur": 0.0,
+            "scheduled_start": "12:25",
+            "scheduled_end": "13:10",
+            "neighborhood": "Altstadt",
+            "description": "Shaded linden-tree hilltop terrace on the site of a Roman fort offering sweeping views over Niederdorf roofs, the Limmat, and Grossmünster.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.8,
+              "reviews": 11200
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Karte_Z%C3%BCrcher_Stadtkreis_1.png/330px-Karte_Z%C3%BCrcher_Stadtkreis_1.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Karte_Z%C3%BCrcher_Stadtkreis_1.png/330px-Karte_Z%C3%BCrcher_Stadtkreis_1.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-zeughauskeller",
+            "city": "Zurich",
+            "name": "Zeughauskeller",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 47.3712,
+            "lng": 8.5397,
+            "duration_mins": 75,
+            "cost_eur": 36.0,
+            "scheduled_start": "13:25",
+            "scheduled_end": "14:40",
+            "neighborhood": "Paradeplatz",
+            "description": "Atmospheric 1487 vaulted medieval armory serving classic Zürcher Geschnetzeltes with crispy golden Rösti.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.5,
+              "reviews": 11400
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-st-peter",
+            "city": "Zurich",
+            "name": "St. Peter Church",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 47.3712,
+            "lng": 8.5407,
+            "duration_mins": 45,
+            "cost_eur": 0.0,
+            "scheduled_start": "14:55",
+            "scheduled_end": "15:40",
+            "neighborhood": "Altstadt",
+            "description": "Zurich's oldest parish church, crowned by a medieval tower holding the largest clock face in Europe.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.6,
+              "reviews": 3200
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Kirche_St._Peter_Z%C3%BCrich.jpg/330px-Kirche_St._Peter_Z%C3%BCrich.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Kirche_St._Peter_Z%C3%BCrich.jpg/330px-Kirche_St._Peter_Z%C3%BCrich.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-bahnhofstrasse",
+            "city": "Zurich",
+            "name": "Bahnhofstrasse",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 47.3724,
+            "lng": 8.5385,
+            "duration_mins": 70,
+            "cost_eur": 0.0,
+            "scheduled_start": "15:50",
+            "scheduled_end": "17:00",
+            "neighborhood": "City",
+            "description": "Tree-lined pedestrian avenue running from Zürich HB to Bürkliplatz past historic banking halls, watchmakers, and Paradeplatz.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.6,
+              "reviews": 12400
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Bahnhofstrasse-2019.jpg/330px-Bahnhofstrasse-2019.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Bahnhofstrasse-2019.jpg/330px-Bahnhofstrasse-2019.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-kronenhalle-bar",
+            "city": "Zurich",
+            "name": "Kronenhalle Bar",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 47.3673,
+            "lng": 8.5467,
+            "duration_mins": 90,
+            "cost_eur": 22.0,
+            "scheduled_start": "19:15",
+            "scheduled_end": "20:45",
+            "neighborhood": "Bellevue",
+            "description": "Mahogany-and-brass classic bar by Diego Giacometti where tuxedoed bartenders pour dry martinis beneath original artworks.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1290
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 2,
+        "theme": "Kunsthaus, Lakefront & Seefeld",
+        "stops": [
+          {
+            "id": "zurich-poi-babus",
+            "city": "Zurich",
+            "name": "Babu's Bakery & Coffeehouse",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 47.3736,
+            "lng": 8.5356,
+            "duration_mins": 45,
+            "cost_eur": 16.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:55",
+            "neighborhood": "City",
+            "description": "Light-filled all-day bakery near Bahnhofstrasse serving homemade birchermüesli, brioche, and specialty filter roasts.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.6,
+              "reviews": 2200
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-kunsthaus",
+            "city": "Zurich",
+            "name": "Kunsthaus Zürich",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 47.3702,
+            "lng": 8.5486,
+            "duration_mins": 110,
+            "cost_eur": 24.0,
+            "scheduled_start": "10:15",
+            "scheduled_end": "12:05",
+            "neighborhood": "Heimplatz",
+            "description": "Switzerland's premier fine-arts museum spanning medieval altarpieces, Giacometti sculptures, Hodler paintings, and David Chipperfield's sunlit limestone extension.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.8,
+              "reviews": 7600
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Kunsthaus_Z%C3%BCrich_2011-08-06_17-33-46.jpg/330px-Kunsthaus_Z%C3%BCrich_2011-08-06_17-33-46.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Kunsthaus_Z%C3%BCrich_2011-08-06_17-33-46.jpg/330px-Kunsthaus_Z%C3%BCrich_2011-08-06_17-33-46.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-opernhaus",
+            "city": "Zurich",
+            "name": "Opernhaus Zürich",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 47.3651,
+            "lng": 8.547,
+            "duration_mins": 50,
+            "cost_eur": 0.0,
+            "scheduled_start": "12:20",
+            "scheduled_end": "13:10",
+            "neighborhood": "Sechseläutenplatz",
+            "description": "Neo-baroque 1891 opera house fronting Lake Zurich's broad quartzite Sechseläutenplatz.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.8,
+              "reviews": 5100
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Opernhaus_Z%C3%BCrich_-_Sechsel%C3%A4utenplatz_2013-08-31_18-30-40.JPG/330px-Opernhaus_Z%C3%BCrich_-_Sechsel%C3%A4utenplatz_2013-08-31_18-30-40.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Opernhaus_Z%C3%BCrich_-_Sechsel%C3%A4utenplatz_2013-08-31_18-30-40.JPG/330px-Opernhaus_Z%C3%BCrich_-_Sechsel%C3%A4utenplatz_2013-08-31_18-30-40.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-fischerstube",
+            "city": "Zurich",
+            "name": "Fischerstube Zürichhorn",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 47.3532,
+            "lng": 8.5504,
+            "duration_mins": 75,
+            "cost_eur": 42.0,
+            "scheduled_start": "13:30",
+            "scheduled_end": "14:45",
+            "neighborhood": "Seefeld",
+            "description": "Timber lakeside pavilion built on pilings over Lake Zurich serving fresh local perch fillets and alpine wines.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.5,
+              "reviews": 1950
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-chinese-garden",
+            "city": "Zurich",
+            "name": "Chinese Garden Zurich",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 47.3549,
+            "lng": 8.5522,
+            "duration_mins": 55,
+            "cost_eur": 4.0,
+            "scheduled_start": "15:00",
+            "scheduled_end": "15:55",
+            "neighborhood": "Seefeld",
+            "description": "Gift from Zurich's partner city Kunming—walled courtyard garden with a tranquil lotus pond, lacquered pavilions, and stone bridges.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.6,
+              "reviews": 4200
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-corbusier",
+            "city": "Zurich",
+            "name": "Pavillon Le Corbusier",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 47.3562,
+            "lng": 8.5512,
+            "duration_mins": 65,
+            "cost_eur": 12.0,
+            "scheduled_start": "16:05",
+            "scheduled_end": "17:10",
+            "neighborhood": "Seefeld",
+            "description": "Le Corbusier's final architectural masterwork on the Lake Zurich promenade—a polychrome enameled steel-and-glass exhibition pavilion.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.8,
+              "reviews": 1450
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Centre_Le_Corbusier_2011-06-18_18-10-04.jpg/330px-Centre_Le_Corbusier_2011-06-18_18-10-04.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Centre_Le_Corbusier_2011-06-18_18-10-04.jpg/330px-Centre_Le_Corbusier_2011-06-18_18-10-04.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-burkliplatz",
+            "city": "Zurich",
+            "name": "Bürkliplatz Promenade",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 47.3666,
+            "lng": 8.541,
+            "duration_mins": 50,
+            "cost_eur": 0.0,
+            "scheduled_start": "17:30",
+            "scheduled_end": "18:20",
+            "neighborhood": "Lakefront",
+            "description": "Historic lakefront square and ferry pier framing the iconic Alpine panorama down Lake Zurich.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 5400
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-widder-bar",
+            "city": "Zurich",
+            "name": "Widder Bar",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 47.3721,
+            "lng": 8.5401,
+            "duration_mins": 90,
+            "cost_eur": 22.0,
+            "scheduled_start": "19:30",
+            "scheduled_end": "21:00",
+            "neighborhood": "Altstadt",
+            "description": "Renowned cocktail sanctuary set within Tilla Theus's medieval-meets-modernist townhouse, celebrated for rare spirits and live jazz nights.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1350
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 3,
+        "theme": "Zurich West, Viadukt & Design",
+        "stops": [
+          {
+            "id": "zurich-poi-mame-seefeld",
+            "city": "Zurich",
+            "name": "MAME Seefeld",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 47.3627,
+            "lng": 8.5523,
+            "duration_mins": 40,
+            "cost_eur": 8.0,
+            "scheduled_start": "09:15",
+            "scheduled_end": "09:55",
+            "neighborhood": "Seefeld",
+            "description": "Swiss Barista Champion specialty espresso and pour-over bar with minimalist timber counters.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.9,
+              "reviews": 1450
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-landesmuseum",
+            "city": "Zurich",
+            "name": "Landesmuseum Zürich",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 47.379,
+            "lng": 8.5408,
+            "duration_mins": 105,
+            "cost_eur": 13.0,
+            "scheduled_start": "10:15",
+            "scheduled_end": "12:00",
+            "neighborhood": "Bahnhofquai",
+            "description": "Swiss National Museum housed in a fairy-tale historicist château beside Zürich HB, connected to Christ & Gantenbein's angular concrete wing.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 6400
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/2026-04-26_-_Landesmuseum_Z%C3%BCrich_Schweiz.jpg/330px-2026-04-26_-_Landesmuseum_Z%C3%BCrich_Schweiz.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/2026-04-26_-_Landesmuseum_Z%C3%BCrich_Schweiz.jpg/330px-2026-04-26_-_Landesmuseum_Z%C3%BCrich_Schweiz.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-viadukt-market",
+            "city": "Zurich",
+            "name": "Markthalle Im Viadukt",
+            "category": "market",
+            "taxonomy_category": "food_culinary",
+            "lat": 47.3862,
+            "lng": 8.5231,
+            "duration_mins": 60,
+            "cost_eur": 20.0,
+            "scheduled_start": "12:20",
+            "scheduled_end": "13:20",
+            "neighborhood": "Zurich West",
+            "description": "Covered local produce, alpine cheese, artisan bakery, and street-food hall inside Zurich's historic railway viaduct.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 4100
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-frau-gerolds",
+            "city": "Zurich",
+            "name": "Frau Gerolds Garten",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 47.3856,
+            "lng": 8.5186,
+            "duration_mins": 70,
+            "cost_eur": 26.0,
+            "scheduled_start": "13:35",
+            "scheduled_end": "14:45",
+            "neighborhood": "Zurich West",
+            "description": "Urban container garden beneath the train tracks with seasonal kitchen huts, herb beds, and open-air wooden benches.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.6,
+              "reviews": 6300
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-toni-areal",
+            "city": "Zurich",
+            "name": "Museum für Gestaltung Toni-Areal",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 47.3908,
+            "lng": 8.5117,
+            "duration_mins": 90,
+            "cost_eur": 12.0,
+            "scheduled_start": "15:05",
+            "scheduled_end": "16:35",
+            "neighborhood": "Zurich West",
+            "description": "Swiss design, typography, poster graphics, and industrial architecture museum inside a converted former dairy factory in Zurich West.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.6,
+              "reviews": 1900
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-kunsthalle",
+            "city": "Zurich",
+            "name": "Kunsthalle Zürich",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 47.3895,
+            "lng": 8.5236,
+            "duration_mins": 65,
+            "cost_eur": 12.0,
+            "scheduled_start": "16:50",
+            "scheduled_end": "17:55",
+            "neighborhood": "Zurich West",
+            "description": "Internationally acclaimed contemporary art institution inside the former Löwenbräu brewery complex.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.5,
+              "reviews": 1200
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-schiffbau",
+            "city": "Zurich",
+            "name": "Schiffbau",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 47.3887,
+            "lng": 8.5192,
+            "duration_mins": 95,
+            "cost_eur": 22.0,
+            "scheduled_start": "19:15",
+            "scheduled_end": "20:50",
+            "neighborhood": "Zurich West",
+            "description": "Converted 19th-century steamship factory now housing Schauspielhaus theater stages, Moods jazz club, and industrial brick courtyards.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 2400
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 4,
+        "theme": "ETH Polybahn, Rietberg & Uetliberg",
+        "stops": [
+          {
+            "id": "zurich-poi-cafe-henrici",
+            "city": "Zurich",
+            "name": "Café Henrici",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 47.373,
+            "lng": 8.544,
+            "duration_mins": 45,
+            "cost_eur": 11.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:55",
+            "neighborhood": "Niederdorf",
+            "description": "Bohemian Niederdorf specialty coffee corner serving single-origin flat whites and warm morning croissants.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.6,
+              "reviews": 1680
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-polybahn",
+            "city": "Zurich",
+            "name": "Polybahn Funicular",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 47.3746,
+            "lng": 8.5449,
+            "duration_mins": 30,
+            "cost_eur": 2.5,
+            "scheduled_start": "10:05",
+            "scheduled_end": "10:35",
+            "neighborhood": "Central",
+            "description": "Historic crimson cable funicular climbing steeply from Central up to ETH Zurich's Polyterrasse since 1889.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 2600
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Polybahn_IMG_0396.jpg/330px-Polybahn_IMG_0396.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Polybahn_IMG_0396.jpg/330px-Polybahn_IMG_0396.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-eth-polyterrasse",
+            "city": "Zurich",
+            "name": "ETH Polyterrasse",
+            "category": "viewpoint",
+            "taxonomy_category": "scenic_views",
+            "lat": 47.3761,
+            "lng": 8.5474,
+            "duration_mins": 45,
+            "cost_eur": 0.0,
+            "scheduled_start": "10:40",
+            "scheduled_end": "11:25",
+            "neighborhood": "Hochschulquartier",
+            "description": "Elevated university stone terrace linked to Central by the red 1889 Polybahn funicular, framing the city spires and Alps.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.8,
+              "reviews": 4300
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-old-botanical",
+            "city": "Zurich",
+            "name": "Old Botanical Garden",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 47.3709,
+            "lng": 8.534,
+            "duration_mins": 55,
+            "cost_eur": 0.0,
+            "scheduled_start": "11:45",
+            "scheduled_end": "12:40",
+            "neighborhood": "City",
+            "description": "19th-century hilltop arboretum built atop the former Katz bastion moat, featuring a wooden medieval herb garden and octagonal palm house.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 2800
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-haus-hiltl",
+            "city": "Zurich",
+            "name": "Haus Hiltl",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 47.3732,
+            "lng": 8.5367,
+            "duration_mins": 70,
+            "cost_eur": 28.0,
+            "scheduled_start": "12:55",
+            "scheduled_end": "14:05",
+            "neighborhood": "Sihlstrasse",
+            "description": "Founded in 1898 and recognized as the world's oldest continuously open vegetarian restaurant, offering inventive Swiss and global dishes.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.6,
+              "reviews": 5800
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "zurich-poi-rietberg",
+            "city": "Zurich",
+            "name": "Museum Rietberg",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 47.3588,
+            "lng": 8.5297,
+            "duration_mins": 90,
+            "cost_eur": 18.0,
+            "scheduled_start": "14:25",
+            "scheduled_end": "15:55",
+            "neighborhood": "Enge",
+            "description": "Dedicated to Asian, African, American, and Oceanian art, set inside historic Villa Wesendonck and the emerald subterranean Smaragd pavilion in Rieterpark.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.8,
+              "reviews": 2900
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b1/Zuerich_Villa_Wesendonck.jpg/330px-Zuerich_Villa_Wesendonck.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b1/Zuerich_Villa_Wesendonck.jpg/330px-Zuerich_Villa_Wesendonck.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-uetliberg",
+            "city": "Zurich",
+            "name": "Uetliberg Lookout Tower",
+            "category": "viewpoint",
+            "taxonomy_category": "scenic_views",
+            "lat": 47.3496,
+            "lng": 8.4918,
+            "duration_mins": 90,
+            "cost_eur": 2.0,
+            "scheduled_start": "16:25",
+            "scheduled_end": "17:55",
+            "neighborhood": "Uetliberg",
+            "description": "Zurich's home mountain summit at 871 meters, reached via the S10 mountain rail with panoramic trails across Lake Zurich and the Alps.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.8,
+              "reviews": 8900
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Uetliberg_-_Wollishofen_-_Z%C3%BCrichhorn_2012-09-27_16-15-12.JPG/330px-Uetliberg_-_Wollishofen_-_Z%C3%BCrichhorn_2012-09-27_16-15-12.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Uetliberg_-_Wollishofen_-_Z%C3%BCrichhorn_2012-09-27_16-15-12.JPG/330px-Uetliberg_-_Wollishofen_-_Z%C3%BCrichhorn_2012-09-27_16-15-12.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "zurich-poi-oepfelchammer",
+            "city": "Zurich",
+            "name": "Oepfelchammer",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 47.3715,
+            "lng": 8.5444,
+            "duration_mins": 90,
+            "cost_eur": 18.0,
+            "scheduled_start": "19:30",
+            "scheduled_end": "21:00",
+            "neighborhood": "Niederdorf",
+            "description": "1801 historic wine tavern once frequented by Gottfried Keller, featuring carved oak booths and antique Swiss vintages.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1540
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      }
+    ]
+  },
+  "demo-trip-paris-vault": {
+    "days": [
+      {
+        "day": 1,
+        "theme": "Île de la Cité & Louvre",
+        "stops": [
+          {
+            "id": "demo-poi-paris-du-pain-et-des-idées",
+            "city": "Paris",
+            "name": "Du Pain et des Idées",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 48.8713,
+            "lng": 2.3629,
+            "duration_mins": 40,
+            "cost_eur": 9.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:50",
+            "neighborhood": "Canal Saint-Martin",
+            "description": "1875 painted-ceiling Parisian bakery famous for pistachio escargots and wood-fired pain des amis.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-louvre-museum",
+            "city": "Paris",
+            "name": "Louvre Museum",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 48.8606,
+            "lng": 2.3376,
+            "duration_mins": 125,
+            "cost_eur": 22.0,
+            "scheduled_start": "10:15",
+            "scheduled_end": "12:20",
+            "neighborhood": "1st Arr.",
+            "description": "Former royal palace anchored by I. M. Pei's glass pyramid, housing Renaissance, Classical, and French masterpieces.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-53820452",
+            "city": "Paris",
+            "name": "Tuileries Garden",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 48.8639999875,
+            "lng": 2.32651705625,
+            "duration_mins": 50,
+            "cost_eur": 0.0,
+            "scheduled_start": "12:30",
+            "scheduled_end": "13:20",
+            "neighborhood": "1st Arr.",
+            "description": "The Tuileries Garden is a public garden between the Louvre and the Place de la Concorde in the 1st arrondissement of Paris, France. Created by Catherine de' Medici as the garden of the Tuileries Palace in 1564, it was opened to the public in 1667 and became a public park after the French Revolution. Since the 19th century, it has been a place for Parisians to celebrate, meet, stroll and relax. After the demolition of the main block of the Tuileries Palace in the 1880s, the gardens expanded into the Place du Carrousel, the palace's former internal courtyard. Covering an area of 25.5 hectares, it is one of the most iconic parks in Paris. During the 2024 Summer Olympics and Paralympics, it was the site of the Olympic and Paralympic cauldron.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Crowd_in_the_Jardin_des_Tuileries%2C_Paris_July_2014.jpg/330px-Crowd_in_the_Jardin_des_Tuileries%2C_Paris_July_2014.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Crowd_in_the_Jardin_des_Tuileries%2C_Paris_July_2014.jpg/330px-Crowd_in_the_Jardin_des_Tuileries%2C_Paris_July_2014.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "demo-poi-paris-bouillon-chartier",
+            "city": "Paris",
+            "name": "Bouillon Chartier",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 48.8719,
+            "lng": 2.3431,
+            "duration_mins": 70,
+            "cost_eur": 22.0,
+            "scheduled_start": "13:40",
+            "scheduled_end": "14:50",
+            "neighborhood": "Grands Boulevards",
+            "description": "Belle Époque 1896 dining hall beneath towering brass luggage racks serving classic Parisian bistro fare.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-sainte-chapelle",
+            "city": "Paris",
+            "name": "Sainte-Chapelle",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 48.8554,
+            "lng": 2.345,
+            "duration_mins": 60,
+            "cost_eur": 13.0,
+            "scheduled_start": "15:15",
+            "scheduled_end": "16:15",
+            "neighborhood": "Île de la Cité",
+            "description": "13th-century Rayonnant Gothic royal chapel famed for fifteen soaring walls of jewel-like stained glass.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-notre-dame-de-paris",
+            "city": "Paris",
+            "name": "Notre-Dame de Paris",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 48.853,
+            "lng": 2.3499,
+            "duration_mins": 65,
+            "cost_eur": 0.0,
+            "scheduled_start": "16:25",
+            "scheduled_end": "17:30",
+            "neighborhood": "Île de la Cité",
+            "description": "Gothic cathedral anchor of Paris rising above the Seine with flying buttresses and rose windows.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-harry-s-new-york-bar",
+            "city": "Paris",
+            "name": "Harry's New York Bar",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 48.8691,
+            "lng": 2.3321,
+            "duration_mins": 90,
+            "cost_eur": 22.0,
+            "scheduled_start": "19:30",
+            "scheduled_end": "21:00",
+            "neighborhood": "Opéra",
+            "description": "1911 wood-paneled cocktail landmark on Rue Daunou, historic birthplace of the Bloody Mary and Sidecar.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 2,
+        "theme": "Saint-Germain & Orsay",
+        "stops": [
+          {
+            "id": "demo-poi-paris-café-de-flore",
+            "city": "Paris",
+            "name": "Café de Flore",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 48.854,
+            "lng": 2.3325,
+            "duration_mins": 45,
+            "cost_eur": 16.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:55",
+            "neighborhood": "Saint-Germain",
+            "description": "Historic 1887 Left Bank literary café lined with Art Deco leather banquettes.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-musée-d-orsay",
+            "city": "Paris",
+            "name": "Musée d'Orsay",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 48.86,
+            "lng": 2.3266,
+            "duration_mins": 115,
+            "cost_eur": 16.0,
+            "scheduled_start": "10:15",
+            "scheduled_end": "12:10",
+            "neighborhood": "7th Arr.",
+            "description": "Beaux-Arts 1900 railway station vaulted in iron and glass holding Impressionist and Post-Impressionist masters.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-musée-rodin",
+            "city": "Paris",
+            "name": "Musée Rodin",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 48.8553,
+            "lng": 2.3158,
+            "duration_mins": 65,
+            "cost_eur": 14.0,
+            "scheduled_start": "12:25",
+            "scheduled_end": "13:30",
+            "neighborhood": "7th Arr.",
+            "description": "Hôtel Biron rococo mansion and rose-filled sculpture garden housing The Thinker and Gates of Hell.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-le-comptoir-du-relais",
+            "city": "Paris",
+            "name": "Le Comptoir du Relais",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 48.8518,
+            "lng": 2.3389,
+            "duration_mins": 75,
+            "cost_eur": 34.0,
+            "scheduled_start": "13:50",
+            "scheduled_end": "15:05",
+            "neighborhood": "Odéon",
+            "description": "Bustling Carrefour de l'Odéon neo-bistro serving seasonal French market plates.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-jardin-du-luxembourg",
+            "city": "Paris",
+            "name": "Jardin du Luxembourg",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 48.8462,
+            "lng": 2.3372,
+            "duration_mins": 65,
+            "cost_eur": 0.0,
+            "scheduled_start": "15:20",
+            "scheduled_end": "16:25",
+            "neighborhood": "6th Arr.",
+            "description": "1612 Medici palace gardens with the octagonal Grand Bassin fountain, orchards, and tree-lined terraces.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-panthéon",
+            "city": "Paris",
+            "name": "Panthéon",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 48.8462,
+            "lng": 2.3464,
+            "duration_mins": 65,
+            "cost_eur": 13.0,
+            "scheduled_start": "16:40",
+            "scheduled_end": "17:45",
+            "neighborhood": "Latin Quarter",
+            "description": "Soufflot's neoclassical domed monument atop Montagne Sainte-Geneviève housing Foucault's Pendulum.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-shakespeare-and-company",
+            "city": "Paris",
+            "name": "Shakespeare and Company",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 48.8526,
+            "lng": 2.3471,
+            "duration_mins": 55,
+            "cost_eur": 0.0,
+            "scheduled_start": "18:00",
+            "scheduled_end": "18:55",
+            "neighborhood": "Latin Quarter",
+            "description": "Storied wooden English-language Left Bank bookshop overlooking Notre-Dame across the Seine.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 3,
+        "theme": "Le Marais & Canal Saint-Martin",
+        "stops": [
+          {
+            "id": "demo-poi-paris-ten-belles-coffee",
+            "city": "Paris",
+            "name": "Ten Belles Coffee",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 48.8732,
+            "lng": 2.3627,
+            "duration_mins": 45,
+            "cost_eur": 8.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:55",
+            "neighborhood": "Canal Saint-Martin",
+            "description": "Tiny two-level artisanal espresso bar tucked steps off Canal Saint-Martin.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-55503397",
+            "city": "Paris",
+            "name": "Centre Pompidou",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 48.8604723,
+            "lng": 2.3523749,
+            "duration_mins": 100,
+            "cost_eur": 15.0,
+            "scheduled_start": "10:15",
+            "scheduled_end": "11:55",
+            "neighborhood": "Beaubourg",
+            "description": "The Centre Pompidou, more fully the Centre national d'art et de culture Georges-Pompidou, also known as the Pompidou Centre in English and colloquially as Beaubourg, is a building complex in Paris, France. It was designed in the style of high-tech architecture by the architectural team of Richard Rogers, Su Rogers and Renzo Piano, along with Gianfranco Franchini. It is named after Georges Pompidou, the President of France from 1969 to 1974 who commissioned the building, and was officially opened on 31 January 1977 by President Valéry Giscard d'Estaing.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Le_logo_du_Centre_Pompidou_redessin%C3%A9_en_2019_%285_bandes%29.svg/330px-Le_logo_du_Centre_Pompidou_redessin%C3%A9_en_2019_%285_bandes%29.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+            "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Le_logo_du_Centre_Pompidou_redessin%C3%A9_en_2019_%285_bandes%29.svg/330px-Le_logo_du_Centre_Pompidou_redessin%C3%A9_en_2019_%285_bandes%29.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+          },
+          {
+            "id": "demo-poi-paris-marché-des-enfants-rouges",
+            "city": "Paris",
+            "name": "Marché des Enfants Rouges",
+            "category": "market",
+            "taxonomy_category": "food_culinary",
+            "lat": 48.8628,
+            "lng": 2.3621,
+            "duration_mins": 75,
+            "cost_eur": 20.0,
+            "scheduled_start": "12:15",
+            "scheduled_end": "13:30",
+            "neighborhood": "Haut-Marais",
+            "description": "Paris's oldest covered market dating to 1615, packed with galettes, Moroccan tagines, and cheese counters.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-musée-carnavalet",
+            "city": "Paris",
+            "name": "Musée Carnavalet",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 48.8573,
+            "lng": 2.3622,
+            "duration_mins": 80,
+            "cost_eur": 0.0,
+            "scheduled_start": "13:45",
+            "scheduled_end": "15:05",
+            "neighborhood": "Le Marais",
+            "description": "Twin Renaissance hôtels particuliers tracing Paris history from Gallo-Roman Lutetia through Belle Époque salons.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-place-des-vosges",
+            "city": "Paris",
+            "name": "Place des Vosges",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 48.8556,
+            "lng": 2.3655,
+            "duration_mins": 55,
+            "cost_eur": 0.0,
+            "scheduled_start": "15:15",
+            "scheduled_end": "16:10",
+            "neighborhood": "Le Marais",
+            "description": "1612 symmetrical red-brick and limestone royal square ringed by vaulted gallery arcades.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-canal-saint-martin-promenade",
+            "city": "Paris",
+            "name": "Canal Saint-Martin Promenade",
+            "category": "park",
+            "taxonomy_category": "nature_outdoors",
+            "lat": 48.8712,
+            "lng": 2.3653,
+            "duration_mins": 75,
+            "cost_eur": 0.0,
+            "scheduled_start": "16:30",
+            "scheduled_end": "17:45",
+            "neighborhood": "10th Arr.",
+            "description": "Cast-iron swing bridges and tree-lined stone locks stretching between République and Bassin de la Villette.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-le-mary-celeste",
+            "city": "Paris",
+            "name": "Le Mary Celeste",
+            "category": "bar",
+            "taxonomy_category": "nightlife",
+            "lat": 48.8617,
+            "lng": 2.365,
+            "duration_mins": 90,
+            "cost_eur": 24.0,
+            "scheduled_start": "19:30",
+            "scheduled_end": "21:00",
+            "neighborhood": "Haut-Marais",
+            "description": "Circular zinc-topped Marais bar pairing crisp craft cocktails with fresh oysters and small plates.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      },
+      {
+        "day": 4,
+        "theme": "Montmartre Heights & Grand Arcades",
+        "stops": [
+          {
+            "id": "demo-poi-paris-kb-coffee-roasters",
+            "city": "Paris",
+            "name": "KB Coffee Roasters",
+            "category": "cafe",
+            "taxonomy_category": "food_culinary",
+            "lat": 48.8825,
+            "lng": 2.3401,
+            "duration_mins": 40,
+            "cost_eur": 8.0,
+            "scheduled_start": "09:10",
+            "scheduled_end": "09:50",
+            "neighborhood": "South Pigalle",
+            "description": "Sunny triangle-plaza micro-roastery on Avenue Trudaine looking up toward Montmartre.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-sacré-cœur-basilica",
+            "city": "Paris",
+            "name": "Sacré-Cœur Basilica",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 48.8867,
+            "lng": 2.3431,
+            "duration_mins": 70,
+            "cost_eur": 0.0,
+            "scheduled_start": "10:10",
+            "scheduled_end": "11:20",
+            "neighborhood": "Montmartre",
+            "description": "White travertine Romano-Byzantine basilica crowning Butte Montmartre above all of Paris.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-place-du-tertre",
+            "city": "Paris",
+            "name": "Place du Tertre",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 48.8865,
+            "lng": 2.3408,
+            "duration_mins": 50,
+            "cost_eur": 0.0,
+            "scheduled_start": "11:30",
+            "scheduled_end": "12:20",
+            "neighborhood": "Montmartre",
+            "description": "Historic cobbled hilltop village square lined with easel painters and shaded bistro umbrellas.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "OSM-way-154679327",
+            "city": "Paris",
+            "name": "Musée de Montmartre",
+            "category": "museum",
+            "taxonomy_category": "art_culture",
+            "lat": 48.887894599999996,
+            "lng": 2.340731,
+            "duration_mins": 65,
+            "cost_eur": 15.0,
+            "scheduled_start": "12:30",
+            "scheduled_end": "13:35",
+            "neighborhood": "Montmartre",
+            "description": "17th-century Bel Air Manor overlooking Paris's last hillside vineyard, once Renoir and Utrillo's studio.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-pink-mamma",
+            "city": "Paris",
+            "name": "Pink Mamma",
+            "category": "restaurant",
+            "taxonomy_category": "food_culinary",
+            "lat": 48.8822,
+            "lng": 2.3338,
+            "duration_mins": 75,
+            "cost_eur": 30.0,
+            "scheduled_start": "13:55",
+            "scheduled_end": "15:10",
+            "neighborhood": "Pigalle",
+            "description": "Sun-drenched four-story glass-roofed Pigalle trattoria draped in vines and marble counters.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-passage-jouffroy",
+            "city": "Paris",
+            "name": "Passage Jouffroy",
+            "category": "attraction",
+            "taxonomy_category": "art_culture",
+            "lat": 48.8722,
+            "lng": 2.3422,
+            "duration_mins": 60,
+            "cost_eur": 0.0,
+            "scheduled_start": "15:35",
+            "scheduled_end": "16:35",
+            "neighborhood": "Grands Boulevards",
+            "description": "1845 iron-and-glass covered arcade featuring black-and-white marble floors and vintage bookshops.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          },
+          {
+            "id": "demo-poi-paris-palais-garnier",
+            "city": "Paris",
+            "name": "Palais Garnier",
+            "category": "monument",
+            "taxonomy_category": "architecture",
+            "lat": 48.872,
+            "lng": 2.3316,
+            "duration_mins": 75,
+            "cost_eur": 15.0,
+            "scheduled_start": "16:50",
+            "scheduled_end": "18:05",
+            "neighborhood": "Opéra",
+            "description": "Charles Garnier's Second Empire opera palace famed for its polychrome Grand Staircase and Chagall ceiling.",
+            "osm_opening_hours": "Mo-Su 09:00-22:00",
+            "scoring": {
+              "rating": 4.7,
+              "reviews": 1240
+            },
+            "photo_url": null,
+            "thumbnail_url": null
+          }
+        ]
+      }
+    ]
+  }
+}

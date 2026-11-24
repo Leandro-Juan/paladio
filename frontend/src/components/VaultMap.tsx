@@ -647,15 +647,8 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
     [85, 180]
   ];
 
-  // Calculate dynamic initial center based on valid trips
-  const initialCenter: [number, number] = useMemo(() => {
-    if (validTrips.length > 0) {
-      const avgLat = validTrips.reduce((sum, t) => sum + t.lat, 0) / validTrips.length;
-      const avgLng = validTrips.reduce((sum, t) => sum + t.lng, 0) / validTrips.length;
-      return [avgLat, avgLng];
-    }
-    return [38, 5];
-  }, [validTrips]);
+  // Default to centered European view across Scandinavia, Western/Central Europe, and the Mediterranean
+  const initialCenter: [number, number] = useMemo(() => [52.5, 13.5], []);
 
   // Group trips by destination city and distribute radially when multiple expeditions exist for the same city
   const positionedTrips: PositionedVaultTrip[] = useMemo(() => {
@@ -956,7 +949,7 @@ export default function VaultMap({ trips, focusCoords }: VaultMapProps) {
     <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
       <MapContainer 
         center={initialCenter} 
-        zoom={3.5} 
+        zoom={4} 
         minZoom={2}
         maxBounds={WORLD_BOUNDS}
         maxBoundsViscosity={1.0}

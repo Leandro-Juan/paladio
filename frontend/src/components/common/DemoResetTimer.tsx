@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { usePathname } from 'next/navigation';
 import { apiFetch } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -25,7 +24,6 @@ export function DemoResetTimer() {
   useEffect(() => {
     tRef.current = t;
   }, [t]);
-  const pathname = usePathname();
   const [nextResetAt, setNextResetAt] = useState<number | null>(null);
   const [remainingMs, setRemainingMs] = useState<number>(3600_000);
   const [isResetting, setIsResetting] = useState<boolean>(false);
@@ -50,6 +48,7 @@ export function DemoResetTimer() {
       );
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('paladio_poi_photos_cache');
+        sessionStorage.removeItem('paladio_poi_photos_cache_v2');
         window.location.reload();
       }
     } catch {
@@ -95,24 +94,23 @@ export function DemoResetTimer() {
     return () => clearInterval(timer);
   }, [nextResetAt, handleResetNow]);
 
-  const isWorkspaceRoute = Boolean(pathname && /^\/(trips|vault)\/[^\/]+/.test(pathname));
-
   return (
     <div
       data-testid="demo-reset-timer"
+      data-position="bottom-right"
       style={{
         position: 'fixed',
-        top: isWorkspaceRoute ? '58px' : '12px',
+        bottom: '16px',
         right: '16px',
         zIndex: 1100,
         display: 'inline-flex',
         alignItems: 'center',
         gap: '8px',
-        padding: '6px 10px 6px 12px',
+        padding: '6px 8px 6px 8px',
         borderRadius: '9999px',
         background: 'var(--color-surface-raised, #FFFFFF)',
-        border: '1px solid var(--color-border-bold, rgba(15, 76, 92, 0.22))',
-        boxShadow: 'var(--shadow-md, 0 4px 14px rgba(10, 42, 53, 0.14))',
+        border: '1.5px solid #1B8FA6',
+        boxShadow: 'var(--shadow-md, 0 4px 14px rgba(2, 132, 199, 0.18))',
         backdropFilter: 'blur(8px)',
         fontFamily: 'var(--font-mono, monospace)',
         fontSize: '11px',
@@ -121,27 +119,16 @@ export function DemoResetTimer() {
       }}
     >
       <span
-        aria-hidden="true"
-        style={{
-          width: '7px',
-          height: '7px',
-          borderRadius: '50%',
-          backgroundColor: remainingMs < 300_000 ? '#D42A2F' : '#1B8FA6',
-          boxShadow: remainingMs < 300_000 ? '0 0 6px #D42A2F' : '0 0 6px #1B8FA6',
-          flexShrink: 0,
-        }}
-      />
-      <span
         style={{
           fontWeight: 700,
           letterSpacing: '0.08em',
-          color: 'var(--color-accent-primary, #0F4C5C)',
+          background: 'linear-gradient(135deg, #1B8FA6 0%, #0284C7 100%)',
+          color: '#FFFFFF',
+          padding: '2px 8px',
+          borderRadius: '9999px',
         }}
       >
         {t('demo.badge_short')}
-      </span>
-      <span style={{ opacity: 0.35 }} aria-hidden="true">
-        |
       </span>
       <span
         style={{
@@ -156,7 +143,7 @@ export function DemoResetTimer() {
             <React.Fragment key={idx}>
               {part}
               {idx < arr.length - 1 && (
-                <strong style={{ color: 'var(--color-text-primary, #1A2B32)' }}>
+                <strong style={{ color: '#12708A' }}>
                   {formatCountdown(remainingMs)}
                 </strong>
               )}
@@ -176,12 +163,13 @@ export function DemoResetTimer() {
           width: '22px',
           height: '22px',
           borderRadius: '50%',
-          border: '1px solid var(--color-border, #E2D9CC)',
-          background: 'var(--color-surface-card, #FAF6F0)',
-          color: 'var(--color-text-primary, #1A2B32)',
+          border: 'none',
+          background: 'linear-gradient(135deg, #1B8FA6 0%, #0284C7 100%)',
+          color: '#FFFFFF',
+          boxShadow: '0 2px 6px rgba(2, 132, 199, 0.25)',
           cursor: isResetting ? 'wait' : 'pointer',
           padding: 0,
-          transition: 'border-color 0.15s ease',
+          transition: 'opacity 0.15s ease',
         }}
       >
         <svg

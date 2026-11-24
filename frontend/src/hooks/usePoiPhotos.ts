@@ -6,10 +6,14 @@ import { getApiBaseUrl } from '@/utils/api';
 // In-memory global cache across component mounts
 const memoryCache: Record<string, string> = {};
 
+const POI_PHOTOS_CACHE_KEY = 'paladio_poi_photos_cache_v3';
+
 // Load session storage cache if in browser
 if (typeof window !== 'undefined') {
   try {
-    const stored = sessionStorage.getItem('paladio_poi_photos_cache');
+    sessionStorage.removeItem('paladio_poi_photos_cache');
+    sessionStorage.removeItem('paladio_poi_photos_cache_v2');
+    const stored = sessionStorage.getItem(POI_PHOTOS_CACHE_KEY);
     if (stored) {
       Object.assign(memoryCache, JSON.parse(stored));
     }
@@ -21,7 +25,7 @@ if (typeof window !== 'undefined') {
 function persistCache() {
   if (typeof window !== 'undefined') {
     try {
-      sessionStorage.setItem('paladio_poi_photos_cache', JSON.stringify(memoryCache));
+      sessionStorage.setItem(POI_PHOTOS_CACHE_KEY, JSON.stringify(memoryCache));
     } catch {
       // Ignore quota errors
     }

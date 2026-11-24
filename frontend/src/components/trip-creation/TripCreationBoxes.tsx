@@ -34,11 +34,13 @@ import { ParticipantsManager, SelectedParticipant } from './ParticipantsManager'
 import { PhotoUploadModal } from './PhotoUploadModal';
 import { getApiBaseUrl } from '@/utils/api';
 import { resolveAirportIata } from '@/utils/airportResolver';
+import { DemoLockedButton } from '@/components/common/DemoFeatureGate';
 
 interface TripCreationBoxesProps {
   onPersonalizedSubmit: (prompt: string, extras: Record<string, unknown>) => void;
   onBlankSubmitStart?: (msg?: string) => void;
   disabled?: boolean;
+  demoLockedSubmit?: boolean;
   initialDestination?: string;
   initialOrigin?: string;
   initialOriginIata?: string;
@@ -63,6 +65,7 @@ export function TripCreationBoxes({
   onPersonalizedSubmit,
   onBlankSubmitStart,
   disabled = false,
+  demoLockedSubmit = false,
   initialDestination = '',
   initialOrigin = '',
   initialOriginIata,
@@ -482,6 +485,7 @@ export function TripCreationBoxes({
   // Handle Blank Trip Submission
   const handleCreateBlankTrip = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (demoLockedSubmit) return;
     if (!destination.trim()) {
       setBlankError(t('engine.err_destination_required'));
       return;
@@ -809,6 +813,7 @@ export function TripCreationBoxes({
   // Handle Personalized Trip Submission
   const handlePersonalizedSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (demoLockedSubmit) return;
     if (!personalizedPrompt.trim()) return;
     if (!startDate || !endDate) {
       setBlankError(t('engine.err_dates_required'));
@@ -1525,7 +1530,7 @@ export function TripCreationBoxes({
 
             {/* Submit Action Button */}
             <div>
-              {status === 'disconnected' && selectedMode === 'personalized' && (
+              {!demoLockedSubmit && status === 'disconnected' && selectedMode === 'personalized' && (
                 <div
                   style={{
                     marginBottom: '10px',
@@ -1561,7 +1566,13 @@ export function TripCreationBoxes({
                   )}
                 </div>
               )}
-              {selectedMode === 'personalized' ? (
+              {demoLockedSubmit ? (
+                <DemoLockedButton
+                  fullWidth
+                  label={t('demo.btn_create_trip_locked')}
+                  tooltip={t('demo.locked_engine_create')}
+                />
+              ) : selectedMode === 'personalized' ? (
                 <button
                   type="button"
                   onClick={handlePersonalizedSubmit}

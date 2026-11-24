@@ -2,7 +2,7 @@ import 'server-only';
 import crypto from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import type { DemoSnapshotRaw } from '../demoSnapshotLoader';
-import type { DemoSessionState } from '../demoStore';
+import { buildCollectionPoiSummary, DemoSessionState } from '../demoStore';
 import {
   blockedRes,
   computeSettlement,
@@ -15,6 +15,37 @@ import {
 
 function deepClone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
+}
+
+function findPoiSummary(
+  poiId: string,
+  session: DemoSessionState,
+  baseline: DemoSnapshotRaw,
+  fallbackCity?: string
+): Record<string, unknown> | null {
+  const custom = session.customPois.find((p) => String(p.id) === poiId);
+  if (custom) return buildCollectionPoiSummary(custom, fallbackCity);
+
+  for (const [cityName, list] of Object.entries(baseline.pois_by_city || {})) {
+    const match = list.find((p) => String(p.id) === poiId);
+    if (match) return buildCollectionPoiSummary({ ...match, city: match.city || cityName }, fallbackCity);
+  }
+
+  for (const t of session.trips) {
+    const itin = (t.itinerary_data || {}) as Record<string, unknown>;
+    const days = Array.isArray(itin.days) ? (itin.days as Array<Record<string, unknown>>) : [];
+    for (const d of days) {
+      const dItin = (d.itinerary || {}) as Record<string, unknown>;
+      const path = Array.isArray(dItin.path) ? (dItin.path as Array<Record<string, unknown>>) : [];
+      for (const s of path) {
+        const poi = (s.poi || {}) as Record<string, unknown>;
+        if (String(poi.id || '') === poiId) {
+          return buildCollectionPoiSummary(poi, String(t.destination || fallbackCity || ''));
+        }
+      }
+    }
+  }
+  return null;
 }
 
 function appendTripRevision(
@@ -80,12 +111,15 @@ export async function handleTripsRoutes(
         const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
         const col = {
           id: `demo-saved-col-${crypto.randomBytes(4).toString('hex')}`,
+          trip_id: null,
           name: String(body.name || 'New Collection'),
           description: body.description || '',
           color: body.color || '#0F4C5C',
           items: [],
+          items_count: 0,
           item_count: 0,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
         session.savedCollections.push(col);
         return jsonRes(col, 201);
@@ -115,9 +149,22 @@ export async function handleTripsRoutes(
       if (segments.length === 3 && method === 'POST') {
         const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
         const poiId = String(body.poi_id || crypto.randomBytes(4).toString('hex'));
-        const item = { id: `sc-${crypto.randomBytes(4).toString('hex')}`, collection_id: colId, poi_id: poiId, ...body };
+        const poiSummary =
+          (body.poi && typeof body.poi === 'object' ? (body.poi as Record<string, unknown>) : null) ||
+          findPoiSummary(poiId, session, baseline);
+        const item = {
+          id: `sc-${crypto.randomBytes(4).toString('hex')}`,
+          collection_id: colId,
+          poi_id: poiId,
+          visit_status: 'want_to_go',
+          order_index: items.length,
+          created_at: new Date().toISOString(),
+          ...body,
+          ...(poiSummary ? { poi: poiSummary } : {}),
+        };
         items.push(item);
         col.items = items;
+        col.items_count = items.length;
         col.item_count = items.length;
         return jsonRes(item, 201);
       }
@@ -127,15 +174,37 @@ export async function handleTripsRoutes(
           const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
           const exists = items.find((i) => String(i.poi_id) === poiId);
           if (exists) return jsonRes(exists);
-          const item = { id: `sc-${crypto.randomBytes(4).toString('hex')}`, collection_id: colId, poi_id: poiId, ...body };
+          const poiSummary =
+            (body.poi && typeof body.poi === 'object' ? (body.poi as Record<string, unknown>) : null) ||
+            findPoiSummary(poiId, session, baseline);
+          const item = {
+            id: `sc-${crypto.randomBytes(4).toString('hex')}`,
+            collection_id: colId,
+            poi_id: poiId,
+            visit_status: 'want_to_go',
+            order_index: items.length,
+            created_at: new Date().toISOString(),
+            ...body,
+            ...(poiSummary ? { poi: poiSummary } : {}),
+          };
           items.push(item);
           col.items = items;
+          col.items_count = items.length;
           col.item_count = items.length;
           return jsonRes(item, 201);
+        }
+        if (method === 'PATCH') {
+          const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+          const item = items.find((i) => String(i.poi_id) === poiId || String(i.id) === poiId);
+          if (!item) return errRes('Item not found', 404);
+          if (body.visit_status !== undefined) item.visit_status = body.visit_status;
+          if (body.notes !== undefined) item.notes = body.notes;
+          return jsonRes(item);
         }
         if (method === 'DELETE') {
           const next = items.filter((i) => String(i.poi_id) !== poiId && String(i.id) !== poiId);
           col.items = next;
+          col.items_count = next.length;
           col.item_count = next.length;
           return jsonRes({ status: 'success' });
         }
@@ -616,17 +685,23 @@ export async function handleTripsRoutes(
   // --- Trip Collections & Saved POIs Toggle ---
   if (sub[0] === 'collections') {
     const cols = session.collectionsByTrip[tripId] || [];
+    const tripItin = (trip.itinerary_data || {}) as Record<string, unknown>;
     if (sub.length === 1 && method === 'GET') return jsonRes(cols);
     if (sub.length === 1 && method === 'POST') {
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
       const col = {
         id: `${tripId}-col-${crypto.randomBytes(3).toString('hex')}`,
         trip_id: tripId,
+        trip_destination: trip.destination,
+        trip_title: tripItin.title || trip.destination,
         name: String(body.name || 'Collection'),
         description: body.description || '',
         color: body.color || '#0F4C5C',
         items: [],
+        items_count: 0,
         item_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
       cols.push(col);
       session.collectionsByTrip[tripId] = cols;
@@ -640,6 +715,7 @@ export async function handleTripsRoutes(
         if (method === 'PUT' || method === 'PATCH') {
           const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
           Object.assign(col, body);
+          col.updated_at = new Date().toISOString();
           return jsonRes(col);
         }
         if (method === 'DELETE') {
@@ -647,23 +723,73 @@ export async function handleTripsRoutes(
           return jsonRes({ status: 'success' });
         }
       }
-      if (sub[2] === 'items' && sub[3]) {
-        const poiId = decodeURIComponent(sub[3]);
+      if (sub[2] === 'items') {
         const items = (col.items as Array<Record<string, unknown>>) || [];
-        if (method === 'POST') {
+        if (sub.length === 3 && method === 'POST') {
+          const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+          const poiId = decodeURIComponent(String(body.poi_id || ''));
+          if (!poiId) return errRes('poi_id is required', 400);
           const exists = items.find((i) => String(i.poi_id) === poiId);
           if (exists) return jsonRes(exists);
-          const item = { id: `${col.id}-i-${crypto.randomBytes(3).toString('hex')}`, collection_id: col.id, poi_id: poiId };
+          const poiSummary =
+            (body.poi && typeof body.poi === 'object' ? (body.poi as Record<string, unknown>) : null) ||
+            findPoiSummary(poiId, session, baseline, String(trip.destination || ''));
+          const item = {
+            id: `${col.id}-i-${crypto.randomBytes(3).toString('hex')}`,
+            collection_id: col.id,
+            poi_id: poiId,
+            notes: body.notes ?? null,
+            visit_status: body.visit_status || 'want_to_go',
+            order_index: items.length,
+            created_at: new Date().toISOString(),
+            poi: poiSummary,
+          };
           items.push(item);
           col.items = items;
+          col.items_count = items.length;
           col.item_count = items.length;
           return jsonRes(item, 201);
         }
-        if (method === 'DELETE') {
-          const next = items.filter((i) => String(i.poi_id) !== poiId);
-          col.items = next;
-          col.item_count = next.length;
-          return jsonRes({ status: 'success' });
+        if (sub[3]) {
+          const poiId = decodeURIComponent(sub[3]);
+          if (method === 'POST') {
+            const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+            const exists = items.find((i) => String(i.poi_id) === poiId);
+            if (exists) return jsonRes(exists);
+            const poiSummary =
+              (body.poi && typeof body.poi === 'object' ? (body.poi as Record<string, unknown>) : null) ||
+              findPoiSummary(poiId, session, baseline, String(trip.destination || ''));
+            const item = {
+              id: `${col.id}-i-${crypto.randomBytes(3).toString('hex')}`,
+              collection_id: col.id,
+              poi_id: poiId,
+              notes: body.notes ?? null,
+              visit_status: body.visit_status || 'want_to_go',
+              order_index: items.length,
+              created_at: new Date().toISOString(),
+              poi: poiSummary,
+            };
+            items.push(item);
+            col.items = items;
+            col.items_count = items.length;
+            col.item_count = items.length;
+            return jsonRes(item, 201);
+          }
+          if (method === 'PATCH') {
+            const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+            const item = items.find((i) => String(i.poi_id) === poiId || String(i.id) === poiId);
+            if (!item) return errRes('Item not found', 404);
+            if (body.visit_status !== undefined) item.visit_status = body.visit_status;
+            if (body.notes !== undefined) item.notes = body.notes;
+            return jsonRes(item);
+          }
+          if (method === 'DELETE') {
+            const next = items.filter((i) => String(i.poi_id) !== poiId && String(i.id) !== poiId);
+            col.items = next;
+            col.items_count = next.length;
+            col.item_count = next.length;
+            return jsonRes({ status: 'success' });
+          }
         }
       }
     }
@@ -672,24 +798,50 @@ export async function handleTripsRoutes(
 
   if (sub[0] === 'pois' && sub[2] === 'toggle' && method === 'POST') {
     const poiId = decodeURIComponent(sub[1]);
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const requestedColId = body.collection_id ? String(body.collection_id) : null;
     const cols = session.collectionsByTrip[tripId] || [];
     if (cols.length === 0) {
-      cols.push({ id: `${tripId}-col-fav`, trip_id: tripId, name: 'Saved Places', items: [], item_count: 0 });
+      cols.push({
+        id: `${tripId}-col-fav`,
+        trip_id: tripId,
+        trip_destination: trip.destination,
+        name: 'Saved Places',
+        items: [],
+        items_count: 0,
+        item_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
       session.collectionsByTrip[tripId] = cols;
     }
-    const primary = cols[0];
+    const primary = (requestedColId && cols.find((c) => String(c.id) === requestedColId)) || cols[0];
     const items = (primary.items as Array<Record<string, unknown>>) || [];
     const existsIdx = items.findIndex((i) => String(i.poi_id) === poiId);
     let saved = false;
     if (existsIdx >= 0) {
       items.splice(existsIdx, 1);
     } else {
-      items.push({ id: `${primary.id}-i-${crypto.randomBytes(3).toString('hex')}`, collection_id: primary.id, poi_id: poiId });
+      const poiSummary = findPoiSummary(poiId, session, baseline, String(trip.destination || ''));
+      items.push({
+        id: `${primary.id}-i-${crypto.randomBytes(3).toString('hex')}`,
+        collection_id: primary.id,
+        poi_id: poiId,
+        notes: null,
+        visit_status: 'want_to_go',
+        order_index: items.length,
+        created_at: new Date().toISOString(),
+        poi: poiSummary,
+      });
       saved = true;
     }
     primary.items = items;
+    primary.items_count = items.length;
     primary.item_count = items.length;
-    return jsonRes({ saved, poi_id: poiId, collection_id: primary.id });
+    const collectionIds = cols
+      .filter((c) => ((c.items as Array<Record<string, unknown>>) || []).some((i) => String(i.poi_id) === poiId))
+      .map((c) => String(c.id));
+    return jsonRes({ saved, poi_id: poiId, collection_id: primary.id, collection_ids: collectionIds });
   }
 
   return null;

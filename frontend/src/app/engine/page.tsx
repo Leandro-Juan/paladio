@@ -10,7 +10,6 @@ import { TripCreationBoxes } from '@/components/trip-creation/TripCreationBoxes'
 import { useTripDraftStore } from '@/stores/tripDraftStore';
 import { useLogStore } from '@/contexts/SocketContext';
 import { ThinkingScreen } from '@/components/trip-creation/ThinkingScreen';
-import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
 function getThinkingMessage(
   lastLog: string | undefined,
@@ -290,15 +289,12 @@ export default function EnginePage() {
         </h2>
       </div>
 
-      <DemoFeatureGate
-        message={t('demo.locked_engine_create')}
-        borderRadius="18px"
-      >
-        <TripCreationBoxes
-          key={queryPrefillKey || 'default'}
-          onPersonalizedSubmit={handlePrepSubmit}
-          onBlankSubmitStart={(msg) => setBlankCreationStatus(msg || t('engine.creating_blank_workspace'))}
-          disabled={true}
+      <TripCreationBoxes
+        key={queryPrefillKey || 'default'}
+        onPersonalizedSubmit={handlePrepSubmit}
+        onBlankSubmitStart={(msg) => setBlankCreationStatus(msg || t('engine.creating_blank_workspace'))}
+        disabled={false}
+        demoLockedSubmit={true}
           initialDestination={queryDest || 'Paris'}
           initialOrigin={queryOrigin || 'Madrid'}
           initialOriginIata={queryOriginIata}
@@ -318,7 +314,6 @@ export default function EnginePage() {
           status={status}
           onReconnect={connect}
         />
-      </DemoFeatureGate>
 
       <Modal 
         isOpen={Boolean(verificationPayload)}

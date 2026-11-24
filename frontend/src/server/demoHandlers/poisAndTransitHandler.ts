@@ -57,14 +57,41 @@ export async function handlePoisRoutes(
     return jsonRes({ has_duplicates: false, candidates: [] });
   }
 
+  if (segments[0] === 'photos' && segments[1] && method === 'GET') {
+    const photoId = decodeURIComponent(segments[1]);
+    const blob = session.mediaBlobs[photoId] || baseline.media_blobs?.[photoId];
+    if (!blob) return errRes('POI photo not found', 404);
+    const bytes = Buffer.from(blob.b64, 'base64');
+    return new NextResponse(bytes, {
+      status: 200,
+      headers: {
+        'Content-Type': blob.mime_type || 'image/jpeg',
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
+  }
+
   if (segments[0] === 'batch-photos' && method === 'POST') {
     const body = (await req.json().catch(() => ({}))) as { pois?: Array<{ id?: string; name: string; city?: string }> };
     const reqPois = Array.isArray(body.pois) ? body.pois : [];
     const photos: Record<string, { url: string; thumbnail_url: string; caption?: string } | null> = {};
+    const recMap = baseline.dashboard_recommended_pois || {};
 
     for (const item of reqPois) {
       const cacheKey = item.id || item.name;
       if (!cacheKey) continue;
+
+      const recKey = item.city ? findCityKey(recMap, item.city) : null;
+      const recPool = recKey ? recMap[recKey] || [] : Object.values(recMap).flat();
+      const foundRec = recPool.find(
+        (p) => (item.id && String(p.id) === item.id) || String(p.name || '').toLowerCase() === String(item.name || '').toLowerCase()
+      );
+      if (foundRec && (foundRec.photo_url || foundRec.thumbnail_url)) {
+        const u = String(foundRec.photo_url || foundRec.thumbnail_url);
+        photos[cacheKey] = { url: u, thumbnail_url: u, caption: String(foundRec.name || item.name) };
+        continue;
+      }
+
       const cityPois = item.city ? getAllCityPois(item.city, session, baseline) : Object.values(baseline.pois_by_city).flat();
       const found = cityPois.find(
         (p) => (item.id && String(p.id) === item.id) || String(p.name || '').toLowerCase() === String(item.name || '').toLowerCase()
@@ -74,18 +101,21 @@ export async function handlePoisRoutes(
         photos[cacheKey] = { url: u, thumbnail_url: u, caption: String(found.name || item.name) };
         continue;
       }
-      // Match trip gallery photo if query is a city or landmark
-      const matchingTrip = session.trips.find((t) =>
-        String(t.destination || '').toLowerCase() === String(item.city || item.name || '').toLowerCase()
-      );
-      const itin = (matchingTrip?.itinerary_data || {}) as Record<string, unknown>;
-      const tPhotos = Array.isArray(itin.photos) ? (itin.photos as Array<Record<string, unknown>>) : [];
-      if (tPhotos.length > 0 && tPhotos[0].url) {
-        const u = String(tPhotos[0].url);
-        photos[cacheKey] = { url: u, thumbnail_url: u, caption: String(item.name) };
-      } else {
-        photos[cacheKey] = null;
+      // Match trip cover photo ONLY when explicitly requesting a city cover (never for individual POIs)
+      const isCityCoverQuery = !item.id || String(item.id).startsWith('city-');
+      if (isCityCoverQuery) {
+        const matchingTrip = session.trips.find((t) =>
+          String(t.destination || '').toLowerCase() === String(item.name || '').toLowerCase()
+        );
+        const itin = (matchingTrip?.itinerary_data || {}) as Record<string, unknown>;
+        const tPhotos = Array.isArray(itin.photos) ? (itin.photos as Array<Record<string, unknown>>) : [];
+        if (tPhotos.length > 0 && tPhotos[0].url) {
+          const u = String(tPhotos[0].url);
+          photos[cacheKey] = { url: u, thumbnail_url: u, caption: String(item.name) };
+          continue;
+        }
       }
+      photos[cacheKey] = null;
     }
     return jsonRes({ photos });
   }
@@ -100,6 +130,53 @@ export async function handlePoisRoutes(
     const circleRadiusM = url.searchParams.get('circle_radius') ? Number(url.searchParams.get('circle_radius')) : null;
     const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || 30)));
     const offset = Math.max(0, Number(url.searchParams.get('offset') || 0));
+
+    // Dashboard RecommendedPoisSection query: return ONLY curated hardcoded recommendations with local photos
+    const isDashboardRecommendationQuery =
+      !url.searchParams.has('query') &&
+      !url.searchParams.has('category') &&
+      !url.searchParams.has('offset') &&
+      !customOnly &&
+      url.searchParams.has('trip_id') &&
+      circleLat === null;
+    if (isDashboardRecommendationQuery && baseline.dashboard_recommended_pois) {
+      const recKey = findCityKey(baseline.dashboard_recommended_pois, city);
+      if (recKey) {
+        const curated = (baseline.dashboard_recommended_pois[recKey] || []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          lat: p.lat,
+          lng: p.lng,
+          duration_mins: p.duration_mins ?? 60,
+          cost_eur: p.cost_eur ?? 0,
+          similarity: p.similarity ?? 0.95,
+          taste_match: p.taste_match ?? p.similarity ?? 0.95,
+          match_type: 'curated_demo',
+          description: p.description || null,
+          neighborhood: p.neighborhood || null,
+          facets: p.facets || {},
+          doc_quality: p.doc_quality || 'A',
+          hours_known: Boolean(p.hours_known),
+          rating: (p.scoring as Record<string, unknown>)?.rating ?? 4.8,
+          iconicity_score: 0.95,
+          scoring: p.scoring || { rating: 4.8, reviews: 12000 },
+          photo_url: p.photo_url || null,
+          thumbnail_url: p.thumbnail_url || p.photo_url || null,
+        }));
+        return jsonRes({
+          city,
+          query: '',
+          search_type: 'curated_demo',
+          exact_match_found: false,
+          exact_match: null,
+          results: curated,
+          total: curated.length,
+          city_total_pois: getAllCityPois(city, session, baseline).length,
+          is_hydrating: false,
+        });
+      }
+    }
 
     let pool = customOnly
       ? session.customPois.filter((p) => !city || String(p.city || '').toLowerCase() === city.toLowerCase())

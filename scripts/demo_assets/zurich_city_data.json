@@ -1,0 +1,6436 @@
+{
+  "pois": [
+    {
+      "id": "zurich-poi-grossmunster",
+      "city": "Zurich",
+      "name": "Grossmünster",
+      "category": "monument",
+      "taxonomy_category": "architecture",
+      "lat": 47.3701,
+      "lng": 8.5441,
+      "duration_mins": 60,
+      "cost_eur": 5.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.95,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": "Grossmünster",
+      "website": null,
+      "description": "Romanesque twin-towered church overlooking the Limmat River, anchor of the Swiss Reformation with Karlsturm panoramic climbs.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 9400,
+        "similarity": 0.96
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.96,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Grossm%C3%BCnster_-_M%C3%BCnsterhof_2014-05-23_12-08-43.JPG/330px-Grossm%C3%BCnster_-_M%C3%BCnsterhof_2014-05-23_12-08-43.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Grossm%C3%BCnster_-_M%C3%BCnsterhof_2014-05-23_12-08-43.JPG/330px-Grossm%C3%BCnster_-_M%C3%BCnsterhof_2014-05-23_12-08-43.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-fraumunster",
+      "city": "Zurich",
+      "name": "Fraumünster",
+      "category": "monument",
+      "taxonomy_category": "architecture",
+      "lat": 47.3698,
+      "lng": 8.5413,
+      "duration_mins": 55,
+      "cost_eur": 5.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.94,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": "Fraumünster",
+      "website": null,
+      "description": "Former 9th-century abbey church celebrated for its slender copper spire and luminous stained-glass choir windows by Marc Chagall and Augusto Giacometti.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 6800,
+        "similarity": 0.957
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.957,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Z%C3%BCrich_Switzerland-M%C3%BCnsterbr%C3%BCcke-and-Fraum%C3%BCnster-01_%28cropped%29.jpg/330px-Z%C3%BCrich_Switzerland-M%C3%BCnsterbr%C3%BCcke-and-Fraum%C3%BCnster-01_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Z%C3%BCrich_Switzerland-M%C3%BCnsterbr%C3%BCcke-and-Fraum%C3%BCnster-01_%28cropped%29.jpg/330px-Z%C3%BCrich_Switzerland-M%C3%BCnsterbr%C3%BCcke-and-Fraum%C3%BCnster-01_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-st-peter",
+      "city": "Zurich",
+      "name": "St. Peter Church",
+      "category": "monument",
+      "taxonomy_category": "architecture",
+      "lat": 47.3712,
+      "lng": 8.5407,
+      "duration_mins": 40,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.94,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": "St. Peter, Zurich",
+      "website": null,
+      "description": "Zurich's oldest parish church, crowned by a medieval tower holding the largest clock face in Europe.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 3200,
+        "similarity": 0.954
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.954,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Kirche_St._Peter_Z%C3%BCrich.jpg/330px-Kirche_St._Peter_Z%C3%BCrich.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Kirche_St._Peter_Z%C3%BCrich.jpg/330px-Kirche_St._Peter_Z%C3%BCrich.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-lindenhof",
+      "city": "Zurich",
+      "name": "Lindenhof",
+      "category": "viewpoint",
+      "taxonomy_category": "scenic_views",
+      "lat": 47.3729,
+      "lng": 8.5408,
+      "duration_mins": 45,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.93,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": "Lindenhof (Zürich)",
+      "website": null,
+      "description": "Shaded linden-tree hilltop terrace on the site of a Roman fort offering sweeping views over Niederdorf roofs, the Limmat, and Grossmünster.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 11200,
+        "similarity": 0.951
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.951,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Karte_Z%C3%BCrcher_Stadtkreis_1.png/330px-Karte_Z%C3%BCrcher_Stadtkreis_1.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Karte_Z%C3%BCrcher_Stadtkreis_1.png/330px-Karte_Z%C3%BCrcher_Stadtkreis_1.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-kunsthaus",
+      "city": "Zurich",
+      "name": "Kunsthaus Zürich",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3702,
+      "lng": 8.5486,
+      "duration_mins": 110,
+      "cost_eur": 24.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.92,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Heimplatz",
+      "wikidata_id": null,
+      "wikipedia_title": "Kunsthaus Zürich",
+      "website": null,
+      "description": "Switzerland's premier fine-arts museum spanning medieval altarpieces, Giacometti sculptures, Hodler paintings, and David Chipperfield's sunlit limestone extension.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 7600,
+        "similarity": 0.948
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.948,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Kunsthaus_Z%C3%BCrich_2011-08-06_17-33-46.jpg/330px-Kunsthaus_Z%C3%BCrich_2011-08-06_17-33-46.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Kunsthaus_Z%C3%BCrich_2011-08-06_17-33-46.jpg/330px-Kunsthaus_Z%C3%BCrich_2011-08-06_17-33-46.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-landesmuseum",
+      "city": "Zurich",
+      "name": "Landesmuseum Zürich",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.379,
+      "lng": 8.5408,
+      "duration_mins": 105,
+      "cost_eur": 13.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.91,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Bahnhofquai",
+      "wikidata_id": null,
+      "wikipedia_title": "Swiss National Museum",
+      "website": null,
+      "description": "Swiss National Museum housed in a fairy-tale historicist château beside Zürich HB, connected to Christ & Gantenbein's angular concrete wing.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 6400,
+        "similarity": 0.945
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.945,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/2026-04-26_-_Landesmuseum_Z%C3%BCrich_Schweiz.jpg/330px-2026-04-26_-_Landesmuseum_Z%C3%BCrich_Schweiz.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/2026-04-26_-_Landesmuseum_Z%C3%BCrich_Schweiz.jpg/330px-2026-04-26_-_Landesmuseum_Z%C3%BCrich_Schweiz.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-rietberg",
+      "city": "Zurich",
+      "name": "Museum Rietberg",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3588,
+      "lng": 8.5297,
+      "duration_mins": 95,
+      "cost_eur": 18.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.91,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Enge",
+      "wikidata_id": null,
+      "wikipedia_title": "Museum Rietberg",
+      "website": null,
+      "description": "Dedicated to Asian, African, American, and Oceanian art, set inside historic Villa Wesendonck and the emerald subterranean Smaragd pavilion in Rieterpark.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 2900,
+        "similarity": 0.942
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.942,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b1/Zuerich_Villa_Wesendonck.jpg/330px-Zuerich_Villa_Wesendonck.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b1/Zuerich_Villa_Wesendonck.jpg/330px-Zuerich_Villa_Wesendonck.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-corbusier",
+      "city": "Zurich",
+      "name": "Pavillon Le Corbusier",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3562,
+      "lng": 8.5512,
+      "duration_mins": 65,
+      "cost_eur": 12.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.9,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Seefeld",
+      "wikidata_id": null,
+      "wikipedia_title": "Pavillon Le Corbusier",
+      "website": null,
+      "description": "Le Corbusier's final architectural masterwork on the Lake Zurich promenade—a polychrome enameled steel-and-glass exhibition pavilion.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 1450,
+        "similarity": 0.939
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.939,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Centre_Le_Corbusier_2011-06-18_18-10-04.jpg/330px-Centre_Le_Corbusier_2011-06-18_18-10-04.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Centre_Le_Corbusier_2011-06-18_18-10-04.jpg/330px-Centre_Le_Corbusier_2011-06-18_18-10-04.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-toni-areal",
+      "city": "Zurich",
+      "name": "Museum für Gestaltung Toni-Areal",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3908,
+      "lng": 8.5117,
+      "duration_mins": 90,
+      "cost_eur": 12.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.89,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Zurich West",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Swiss design, typography, poster graphics, and industrial architecture museum inside a converted former dairy factory in Zurich West.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 1900,
+        "similarity": 0.936
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.936,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-kunsthalle",
+      "city": "Zurich",
+      "name": "Kunsthalle Zürich",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3895,
+      "lng": 8.5236,
+      "duration_mins": 70,
+      "cost_eur": 12.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.89,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Zurich West",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Internationally acclaimed contemporary art institution inside the former Löwenbräu brewery complex.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.5,
+        "reviews": 1200,
+        "similarity": 0.933
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.933,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-helmhaus",
+      "city": "Zurich",
+      "name": "Helmhaus",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3698,
+      "lng": 8.5432,
+      "duration_mins": 50,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.88,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Municipal exhibition hall tucked beside the Wasserkirche at the Limmat bridge, presenting free contemporary Swiss art shows.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.5,
+        "reviews": 780,
+        "similarity": 0.93
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.93,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-uhrenmuseum",
+      "city": "Zurich",
+      "name": "Uhrenmuseum Beyer",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3705,
+      "lng": 8.5387,
+      "duration_mins": 50,
+      "cost_eur": 10.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.87,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Bahnhofstrasse",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Intimate underground horology museum showcasing centuries of pocket watches, marine chronometers, and astronomical timepieces.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 890,
+        "similarity": 0.927
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.927,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-opernhaus",
+      "city": "Zurich",
+      "name": "Opernhaus Zürich",
+      "category": "attraction",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3651,
+      "lng": 8.547,
+      "duration_mins": 55,
+      "cost_eur": 25.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.87,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Sechseläutenplatz",
+      "wikidata_id": null,
+      "wikipedia_title": "Zurich Opera House",
+      "website": null,
+      "description": "Neo-baroque 1891 opera house fronting Lake Zurich's broad quartzite Sechseläutenplatz.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 5100,
+        "similarity": 0.924
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.924,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Opernhaus_Z%C3%BCrich_-_Sechsel%C3%A4utenplatz_2013-08-31_18-30-40.JPG/330px-Opernhaus_Z%C3%BCrich_-_Sechsel%C3%A4utenplatz_2013-08-31_18-30-40.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Opernhaus_Z%C3%BCrich_-_Sechsel%C3%A4utenplatz_2013-08-31_18-30-40.JPG/330px-Opernhaus_Z%C3%BCrich_-_Sechsel%C3%A4utenplatz_2013-08-31_18-30-40.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-eth-polyterrasse",
+      "city": "Zurich",
+      "name": "ETH Polyterrasse",
+      "category": "viewpoint",
+      "taxonomy_category": "scenic_views",
+      "lat": 47.3761,
+      "lng": 8.5474,
+      "duration_mins": 45,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.86,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Hochschulquartier",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Elevated university stone terrace linked to Central by the red 1889 Polybahn funicular, framing the city spires and Alps.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 4300,
+        "similarity": 0.921
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.921,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-polybahn",
+      "city": "Zurich",
+      "name": "Polybahn Funicular",
+      "category": "attraction",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3746,
+      "lng": 8.5449,
+      "duration_mins": 25,
+      "cost_eur": 2.5,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.85,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Central",
+      "wikidata_id": null,
+      "wikipedia_title": "Polybahn",
+      "website": null,
+      "description": "Historic crimson cable funicular climbing steeply from Central up to ETH Zurich's Polyterrasse since 1889.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 2600,
+        "similarity": 0.918
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.918,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Polybahn_IMG_0396.jpg/330px-Polybahn_IMG_0396.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Polybahn_IMG_0396.jpg/330px-Polybahn_IMG_0396.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-old-botanical",
+      "city": "Zurich",
+      "name": "Old Botanical Garden",
+      "category": "park",
+      "taxonomy_category": "nature_outdoors",
+      "lat": 47.3709,
+      "lng": 8.534,
+      "duration_mins": 50,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.84,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "City",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "19th-century hilltop arboretum built atop the former Katz bastion moat, featuring a wooden medieval herb garden and octagonal palm house.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 2800,
+        "similarity": 0.915
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.915,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-new-botanical",
+      "city": "Zurich",
+      "name": "Botanical Garden of the University of Zurich",
+      "category": "park",
+      "taxonomy_category": "nature_outdoors",
+      "lat": 47.3586,
+      "lng": 8.5608,
+      "duration_mins": 65,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.84,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Riesbach",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Lush hillside botanical park crowned by three futuristic geodesic greenhouse domes housing tropical, subtropical, and arid biomes.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 3900,
+        "similarity": 0.912
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.912,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-chinese-garden",
+      "city": "Zurich",
+      "name": "Chinese Garden Zurich",
+      "category": "park",
+      "taxonomy_category": "nature_outdoors",
+      "lat": 47.3549,
+      "lng": 8.5522,
+      "duration_mins": 50,
+      "cost_eur": 4.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 1,
+      "iconicity_score": 0.83,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Seefeld",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Gift from Zurich's partner city Kunming—walled courtyard garden with a tranquil lotus pond, lacquered pavilions, and stone bridges.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 4200,
+        "similarity": 0.909
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.909,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-zurichhorn",
+      "city": "Zurich",
+      "name": "Zürichhorn Promenade",
+      "category": "park",
+      "taxonomy_category": "nature_outdoors",
+      "lat": 47.3536,
+      "lng": 8.5508,
+      "duration_mins": 55,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.82,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Seefeld",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Lakeside parkland dotted with Jean Tinguely's kinetic Heureka sculpture, cedar lawns, and views across to the Glarus Alps.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 6100,
+        "similarity": 0.906
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.906,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-uetliberg",
+      "city": "Zurich",
+      "name": "Uetliberg Lookout Tower",
+      "category": "viewpoint",
+      "taxonomy_category": "scenic_views",
+      "lat": 47.3496,
+      "lng": 8.4918,
+      "duration_mins": 95,
+      "cost_eur": 2.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.82,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Uetliberg",
+      "wikidata_id": null,
+      "wikipedia_title": "Uetliberg",
+      "website": null,
+      "description": "Zurich's home mountain summit at 871 meters, reached via the S10 mountain rail with panoramic trails across Lake Zurich and the Alps.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 8900,
+        "similarity": 0.903
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.903,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Uetliberg_-_Wollishofen_-_Z%C3%BCrichhorn_2012-09-27_16-15-12.JPG/330px-Uetliberg_-_Wollishofen_-_Z%C3%BCrichhorn_2012-09-27_16-15-12.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Uetliberg_-_Wollishofen_-_Z%C3%BCrichhorn_2012-09-27_16-15-12.JPG/330px-Uetliberg_-_Wollishofen_-_Z%C3%BCrichhorn_2012-09-27_16-15-12.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-burkliplatz",
+      "city": "Zurich",
+      "name": "Bürkliplatz Promenade",
+      "category": "attraction",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3666,
+      "lng": 8.541,
+      "duration_mins": 40,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.81,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Lakefront",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Historic lakefront square and ferry pier framing the iconic Alpine panorama down Lake Zurich.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 5400,
+        "similarity": 0.9
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.9,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-bahnhofstrasse",
+      "city": "Zurich",
+      "name": "Bahnhofstrasse",
+      "category": "attraction",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3724,
+      "lng": 8.5385,
+      "duration_mins": 60,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.8,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "City",
+      "wikidata_id": null,
+      "wikipedia_title": "Bahnhofstrasse",
+      "website": null,
+      "description": "Tree-lined pedestrian avenue running from Zürich HB to Bürkliplatz past historic banking halls, watchmakers, and Paradeplatz.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 12400,
+        "similarity": 0.897
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.897,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Bahnhofstrasse-2019.jpg/330px-Bahnhofstrasse-2019.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Bahnhofstrasse-2019.jpg/330px-Bahnhofstrasse-2019.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-niederdorf",
+      "city": "Zurich",
+      "name": "Niederdorf Old Town",
+      "category": "attraction",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3725,
+      "lng": 8.5442,
+      "duration_mins": 65,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.8,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Pedestrianized medieval lanes on the right bank lined with guild houses, bookshops, fountains, and independent boutiques.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 10500,
+        "similarity": 0.894
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.894,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-munsterbrucke",
+      "city": "Zurich",
+      "name": "Münsterbrücke",
+      "category": "monument",
+      "taxonomy_category": "architecture",
+      "lat": 47.37,
+      "lng": 8.5426,
+      "duration_mins": 25,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.79,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "1838 stone arch bridge linking Grossmünster and Fraumünster across the emerald Limmat.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 2900,
+        "similarity": 0.891
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.891,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-rathaus",
+      "city": "Zurich",
+      "name": "Rathaus Zürich",
+      "category": "monument",
+      "taxonomy_category": "architecture",
+      "lat": 47.3717,
+      "lng": 8.5424,
+      "duration_mins": 35,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.78,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Late-Renaissance 1698 town hall perched directly on stilts above the Limmat River.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 2100,
+        "similarity": 0.888
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.888,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-wasserkirche",
+      "city": "Zurich",
+      "name": "Wasserkirche",
+      "category": "monument",
+      "taxonomy_category": "architecture",
+      "lat": 47.3698,
+      "lng": 8.543,
+      "duration_mins": 35,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.77,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Late-Gothic island church overlooking the Limmat with Giacometti stained glass and a vaulted stone crypt.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 1650,
+        "similarity": 0.885
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.885,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-prime-tower",
+      "city": "Zurich",
+      "name": "Prime Tower District",
+      "category": "attraction",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3861,
+      "lng": 8.5172,
+      "duration_mins": 40,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.77,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Zurich West",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Faceted glass skyscraper anchoring the post-industrial Maag and Zurich West architecture quarter.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.4,
+        "reviews": 1500,
+        "similarity": 0.882
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.882,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-im-viadukt",
+      "city": "Zurich",
+      "name": "Im Viadukt",
+      "category": "attraction",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3863,
+      "lng": 8.5227,
+      "duration_mins": 60,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.76,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Zurich West",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "36 vaulted sandstone arches beneath an 1894 railway viaduct converted into independent workshops, galleries, and a food hall.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 5600,
+        "similarity": 0.879
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.879,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-schiffbau",
+      "city": "Zurich",
+      "name": "Schiffbau",
+      "category": "attraction",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3887,
+      "lng": 8.5192,
+      "duration_mins": 50,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.75,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Zurich West",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Converted 19th-century steamship factory now housing Schauspielhaus theater stages, Moods jazz club, and industrial brick courtyards.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 2400,
+        "similarity": 0.876
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.876,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-cabaret-voltaire",
+      "city": "Zurich",
+      "name": "Cabaret Voltaire",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3716,
+      "lng": 8.5453,
+      "duration_mins": 55,
+      "cost_eur": 8.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.75,
+      "sitelinks_count": 15,
+      "pageviews_30d": 12000,
+      "neighborhood": "Niederdorf",
+      "wikidata_id": null,
+      "wikipedia_title": "Cabaret Voltaire (Zurich)",
+      "website": null,
+      "description": "1916 birthplace of the Dada avant-garde movement on Spiegelgasse, featuring archival salons and artist-curated rooms.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.5,
+        "reviews": 1340,
+        "similarity": 0.873
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.873,
+      "photo_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/1916_Marcel_S%C5%82odki_Cabaret-Voltaire.jpg/330px-1916_Marcel_S%C5%82odki_Cabaret-Voltaire.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "thumbnail_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/1916_Marcel_S%C5%82odki_Cabaret-Voltaire.jpg/330px-1916_Marcel_S%C5%82odki_Cabaret-Voltaire.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    },
+    {
+      "id": "zurich-poi-fifa-museum",
+      "city": "Zurich",
+      "name": "FIFA Museum",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3627,
+      "lng": 8.5313,
+      "duration_mins": 85,
+      "cost_eur": 24.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.74,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Enge",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Interactive football heritage museum beside Bahnhof Enge showcasing historic World Cup trophies and cinema archives.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 6200,
+        "similarity": 0.87
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.87,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-zoo",
+      "city": "Zurich",
+      "name": "Zoo Zürich",
+      "category": "attraction",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3875,
+      "lng": 8.5742,
+      "duration_mins": 120,
+      "cost_eur": 29.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.73,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Zürichberg",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Hillside conservation park famous for the misty Masoala Rainforest dome and Lewa Savanna.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 14200,
+        "similarity": 0.867
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.867,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-lindt",
+      "city": "Zurich",
+      "name": "Lindt Home of Chocolate",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.313,
+      "lng": 8.5542,
+      "duration_mins": 90,
+      "cost_eur": 17.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.73,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Kilchberg",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Christ & Gantenbein-designed circular atrium housing a nine-meter chocolate fountain and interactive Swiss cacao museum.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 12800,
+        "similarity": 0.864
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.864,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-rote-fabrik",
+      "city": "Zurich",
+      "name": "Rote Fabrik",
+      "category": "attraction",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3446,
+      "lng": 8.5364,
+      "duration_mins": 55,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.72,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Wollishofen",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Historic red-brick silk factory turned lakeside cultural complex with experimental studios and waterfront terraces.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 1780,
+        "similarity": 0.861
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.861,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-foc",
+      "city": "Zurich",
+      "name": "FocusTerra ETH",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3782,
+      "lng": 8.5476,
+      "duration_mins": 60,
+      "cost_eur": 0.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.71,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Hochschulquartier",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Earth science and mineral treasury at ETH Zurich with Alpine tectonic models and luminous crystal vaults.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 940,
+        "similarity": 0.858
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.858,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-nonam",
+      "city": "Zurich",
+      "name": "NONAM North America Native Museum",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3587,
+      "lng": 8.5559,
+      "duration_mins": 65,
+      "cost_eur": 12.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.7,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Seefeld",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Intimate ethnographic museum highlighting Indigenous art, textiles, and architecture of North America.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 520,
+        "similarity": 0.855
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.855,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-strickhof",
+      "city": "Zurich",
+      "name": "Mühlerama Mill Museum",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3597,
+      "lng": 8.5535,
+      "duration_mins": 55,
+      "cost_eur": 11.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.7,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Seefeld",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Working 1897 historic grain mill celebrating bread craft and industrial timber machinery.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 610,
+        "similarity": 0.852
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.852,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-haus-konstruktiv",
+      "city": "Zurich",
+      "name": "Museum Haus Konstruktiv",
+      "category": "museum",
+      "taxonomy_category": "art_culture",
+      "lat": 47.3728,
+      "lng": 8.5327,
+      "duration_mins": 70,
+      "cost_eur": 18.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.69,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Sihlporte",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Leading Swiss institution for concrete, constructive, and geometric conceptual art inside the historic EwZ power substation.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 1150,
+        "similarity": 0.849
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.849,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-cafe-schober",
+      "city": "Zurich",
+      "name": "Café Schober",
+      "category": "cafe",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3717,
+      "lng": 8.5441,
+      "duration_mins": 45,
+      "cost_eur": 14.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 07:30-18:00",
+      "tier": 2,
+      "iconicity_score": 0.68,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Niederdorf",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "1875 patisserie and hot-chocolate salon inside the historic Péclard townhouse on Napfgasse with painted ceilings and marble tables.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 3100,
+        "similarity": 0.846
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.846,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-babus",
+      "city": "Zurich",
+      "name": "Babu's Bakery & Coffeehouse",
+      "category": "cafe",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3736,
+      "lng": 8.5356,
+      "duration_mins": 45,
+      "cost_eur": 16.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 07:30-18:00",
+      "tier": 2,
+      "iconicity_score": 0.68,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "City",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Light-filled all-day bakery near Bahnhofstrasse serving homemade birchermüesli, brioche, and specialty filter roasts.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 2200,
+        "similarity": 0.843
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.843,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-mame-seefeld",
+      "city": "Zurich",
+      "name": "MAME Seefeld",
+      "category": "cafe",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3627,
+      "lng": 8.5523,
+      "duration_mins": 40,
+      "cost_eur": 8.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 07:30-18:00",
+      "tier": 2,
+      "iconicity_score": 0.67,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Seefeld",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Swiss Barista Champion specialty espresso and pour-over bar with minimalist timber counters.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.9,
+        "reviews": 1450,
+        "similarity": 0.84
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.84,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-cafe-henrici",
+      "city": "Zurich",
+      "name": "Café Henrici",
+      "category": "cafe",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.373,
+      "lng": 8.544,
+      "duration_mins": 45,
+      "cost_eur": 11.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 07:30-18:00",
+      "tier": 2,
+      "iconicity_score": 0.66,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Niederdorf",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Bohemian Niederdorf specialty coffee corner serving single-origin flat whites and warm morning croissants.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 1680,
+        "similarity": 0.837
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.837,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-sprungli",
+      "city": "Zurich",
+      "name": "Confiserie Sprüngli Paradeplatz",
+      "category": "cafe",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3697,
+      "lng": 8.539,
+      "duration_mins": 45,
+      "cost_eur": 18.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 07:30-18:00",
+      "tier": 2,
+      "iconicity_score": 0.66,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Paradeplatz",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Iconic 1859 Swiss chocolatier and grand café famous for Luxemburgerli macarons and grand cru truffles.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 6900,
+        "similarity": 0.834
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.834,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-cafe-odeon",
+      "city": "Zurich",
+      "name": "Café Odeon",
+      "category": "cafe",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3672,
+      "lng": 8.5453,
+      "duration_mins": 50,
+      "cost_eur": 16.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 07:30-18:00",
+      "tier": 2,
+      "iconicity_score": 0.65,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Bellevue",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "1911 Art Nouveau grand café overlooking Bellevue where Einstein, Joyce, and Dadaists once gathered.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.5,
+        "reviews": 2700,
+        "similarity": 0.831
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.831,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-vicafe",
+      "city": "Zurich",
+      "name": "ViCAFE Münsterhof",
+      "category": "cafe",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3702,
+      "lng": 8.5408,
+      "duration_mins": 30,
+      "cost_eur": 6.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 07:30-18:00",
+      "tier": 2,
+      "iconicity_score": 0.64,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Compact Swiss roastery espresso window set in an 18th-century stone archway beside Fraumünster.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 920,
+        "similarity": 0.828
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.828,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-buerkli-market",
+      "city": "Zurich",
+      "name": "Bürkliplatz Market",
+      "category": "market",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3669,
+      "lng": 8.5404,
+      "duration_mins": 45,
+      "cost_eur": 10.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.64,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Lakefront",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Lively lakeside open-air farmers and alpine cheese market along the chestnut avenues of Bürkliplatz.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 1840,
+        "similarity": 0.825
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.825,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-viadukt-market",
+      "city": "Zurich",
+      "name": "Markthalle Im Viadukt",
+      "category": "market",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3862,
+      "lng": 8.5231,
+      "duration_mins": 60,
+      "cost_eur": 22.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Tu-Su 10:00-18:00",
+      "tier": 2,
+      "iconicity_score": 0.63,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Zurich West",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Covered local produce, alpine cheese, artisan bakery, and street-food hall inside Zurich's historic railway viaduct.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 4100,
+        "similarity": 0.822
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.822,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-st-jakob",
+      "city": "Zurich",
+      "name": "Bäckerei St. Jakob",
+      "category": "cafe",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3765,
+      "lng": 8.5269,
+      "duration_mins": 40,
+      "cost_eur": 12.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 07:30-18:00",
+      "tier": 2,
+      "iconicity_score": 0.62,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Langstrasse",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Social-enterprise craft bakery known for crusty wood-fired sourdough and classic Swiss Gipfeli.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080,
+        1080
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 1180,
+        "similarity": 0.819
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.819,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-zeughauskeller",
+      "city": "Zurich",
+      "name": "Zeughauskeller",
+      "category": "restaurant",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3712,
+      "lng": 8.5397,
+      "duration_mins": 75,
+      "cost_eur": 36.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.61,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Paradeplatz",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Atmospheric 1487 vaulted medieval armory serving classic Zürcher Geschnetzeltes with crispy golden Rösti.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.5,
+        "reviews": 11400,
+        "similarity": 0.816
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.816,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-kronenhalle",
+      "city": "Zurich",
+      "name": "Kronenhalle",
+      "category": "restaurant",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3674,
+      "lng": 8.5466,
+      "duration_mins": 85,
+      "cost_eur": 58.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.61,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Bellevue",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Storied 1924 brasserie dining room hung with original Miró, Chagall, and Matisse paintings on wood-paneled walls.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 3600,
+        "similarity": 0.813
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.813,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-haus-hiltl",
+      "city": "Zurich",
+      "name": "Haus Hiltl",
+      "category": "restaurant",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3732,
+      "lng": 8.5367,
+      "duration_mins": 70,
+      "cost_eur": 28.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.6,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Sihlstrasse",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Founded in 1898 and recognized as the world's oldest continuously open vegetarian restaurant, offering inventive Swiss and global dishes.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 5800,
+        "similarity": 0.81
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.81,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-fischerstube",
+      "city": "Zurich",
+      "name": "Fischerstube Zürichhorn",
+      "category": "restaurant",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3532,
+      "lng": 8.5504,
+      "duration_mins": 75,
+      "cost_eur": 42.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.59,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Seefeld",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Timber lakeside pavilion built on pilings over Lake Zurich serving fresh local perch fillets and alpine wines.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.5,
+        "reviews": 1950,
+        "similarity": 0.807
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.807,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-zunfthaus-waag",
+      "city": "Zurich",
+      "name": "Zunfthaus zur Waag",
+      "category": "restaurant",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3703,
+      "lng": 8.5406,
+      "duration_mins": 80,
+      "cost_eur": 48.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.59,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Münsterhof",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "17th-century weavers' guildhouse on cobblestone Münsterhof specializing in regional Swiss gastronomy.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 1420,
+        "similarity": 0.804
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.804,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-frau-gerolds",
+      "city": "Zurich",
+      "name": "Frau Gerolds Garten",
+      "category": "restaurant",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3856,
+      "lng": 8.5186,
+      "duration_mins": 70,
+      "cost_eur": 26.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.58,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Zurich West",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Urban container garden beneath the train tracks with seasonal kitchen huts, herb beds, and open-air wooden benches.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 6300,
+        "similarity": 0.801
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.801,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-sternen-grill",
+      "city": "Zurich",
+      "name": "Sternen Grill",
+      "category": "restaurant",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3666,
+      "lng": 8.5458,
+      "duration_mins": 45,
+      "cost_eur": 14.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.57,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Bellevue",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Bellevue landmark counter famous since 1963 for crisp St. Galler Bratwurst with Bürli bread and spicy mustard.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.5,
+        "reviews": 4700,
+        "similarity": 0.798
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.798,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-kindli",
+      "city": "Zurich",
+      "name": "Restaurant Kindli",
+      "category": "restaurant",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3724,
+      "lng": 8.5404,
+      "duration_mins": 85,
+      "cost_eur": 52.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.56,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Intimate 15th-century Altstadt dining room tucked in a cobbled alley beside Lindenhof serving refined Swiss classics.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 980,
+        "similarity": 0.795
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.795,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-raclette-factory",
+      "city": "Zurich",
+      "name": "Raclette Factory",
+      "category": "restaurant",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3712,
+      "lng": 8.5446,
+      "duration_mins": 65,
+      "cost_eur": 29.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.56,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Niederdorf",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Cozy Altstadt bistro devoted to melted Valais AOP mountain cheeses served over baby potatoes and pickled onions.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.6,
+        "reviews": 2100,
+        "similarity": 0.792
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.792,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-chuchi",
+      "city": "Zurich",
+      "name": "Swiss Chuchi",
+      "category": "restaurant",
+      "taxonomy_category": "food_culinary",
+      "lat": 47.3723,
+      "lng": 8.5439,
+      "duration_mins": 75,
+      "cost_eur": 34.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.55,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Niederdorf",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Long-running timber-clad Niederdorf fondue parlor inside Hotel Adler.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.4,
+        "reviews": 3400,
+        "similarity": 0.789
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.789,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-widder-bar",
+      "city": "Zurich",
+      "name": "Widder Bar",
+      "category": "bar",
+      "taxonomy_category": "nightlife",
+      "lat": 47.3721,
+      "lng": 8.5401,
+      "duration_mins": 65,
+      "cost_eur": 22.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.54,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Renowned cocktail sanctuary set within Tilla Theus's medieval-meets-modernist townhouse, celebrated for rare spirits and live jazz nights.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 1350,
+        "similarity": 0.786
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.786,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-old-crow",
+      "city": "Zurich",
+      "name": "Old Crow",
+      "category": "bar",
+      "taxonomy_category": "nightlife",
+      "lat": 47.3724,
+      "lng": 8.5407,
+      "duration_mins": 65,
+      "cost_eur": 20.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.54,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Altstadt",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Tucked-away craft cocktail parlor boasting over 1,600 vintage spirits and meticulous apothecary glassware.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.8,
+        "reviews": 1120,
+        "similarity": 0.783
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.783,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-oepfelchammer",
+      "city": "Zurich",
+      "name": "Oepfelchammer",
+      "category": "bar",
+      "taxonomy_category": "nightlife",
+      "lat": 47.3715,
+      "lng": 8.5444,
+      "duration_mins": 65,
+      "cost_eur": 18.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.53,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Niederdorf",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "1801 historic wine tavern once frequented by Gottfried Keller, featuring carved oak booths and antique Swiss vintages.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 1540,
+        "similarity": 0.78
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.78,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-jules-verne",
+      "city": "Zurich",
+      "name": "Jules Verne Panorama Bar",
+      "category": "bar",
+      "taxonomy_category": "nightlife",
+      "lat": 47.3746,
+      "lng": 8.5407,
+      "duration_mins": 60,
+      "cost_eur": 21.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.52,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Urania",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Glass-ringed rooftop observatory lounge atop the Urania tower offering 360-degree views over the Limmat and lake.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.5,
+        "reviews": 2400,
+        "similarity": 0.777
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.777,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-rimini",
+      "city": "Zurich",
+      "name": "Rimini Bar",
+      "category": "bar",
+      "taxonomy_category": "nightlife",
+      "lat": 47.3738,
+      "lng": 8.5335,
+      "duration_mins": 65,
+      "cost_eur": 16.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.52,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Schanzengraben",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Open-air wooden canal bathhouse transformed at dusk into a lantern-lit waterside aperitivo bar.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 1620,
+        "similarity": 0.774
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.774,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-kronenhalle-bar",
+      "city": "Zurich",
+      "name": "Kronenhalle Bar",
+      "category": "bar",
+      "taxonomy_category": "nightlife",
+      "lat": 47.3673,
+      "lng": 8.5467,
+      "duration_mins": 60,
+      "cost_eur": 22.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.51,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Bellevue",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Mahogany-and-brass classic bar by Diego Giacometti where tuxedoed bartenders pour dry martinis beneath original artworks.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 1290,
+        "similarity": 0.771
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.771,
+      "photo_url": null,
+      "thumbnail_url": null
+    },
+    {
+      "id": "zurich-poi-dante",
+      "city": "Zurich",
+      "name": "Bar Dante",
+      "category": "bar",
+      "taxonomy_category": "nightlife",
+      "lat": 47.3722,
+      "lng": 8.5262,
+      "duration_mins": 60,
+      "cost_eur": 18.0,
+      "cost_is_estimated": false,
+      "cost_source": "curated_zurich_catalog",
+      "osm_opening_hours": "Mo-Su 10:00-22:00",
+      "tier": 2,
+      "iconicity_score": 0.5,
+      "sitelinks_count": 2,
+      "pageviews_30d": 1500,
+      "neighborhood": "Kreis 4",
+      "wikidata_id": null,
+      "wikipedia_title": null,
+      "website": null,
+      "description": "Intimate neighborhood aperitivo bar known for vermouths, natural Swiss wines, and warm terrazzo counters.",
+      "description_source": "curated_demo",
+      "description_lang": "en",
+      "doc_quality": "A",
+      "hours_known": true,
+      "daily_windows": [],
+      "open_time_mins_by_day": [
+        540,
+        540,
+        540,
+        540,
+        540,
+        540,
+        540
+      ],
+      "close_time_mins_by_day": [
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320,
+        1320
+      ],
+      "scoring": {
+        "rating": 4.7,
+        "reviews": 860,
+        "similarity": 0.768
+      },
+      "facets": {
+        "curated_zurich": true
+      },
+      "similarity": 0.768,
+      "photo_url": null,
+      "thumbnail_url": null
+    }
+  ],
+  "gtfs": {
+    "city": "zurich",
+    "agencies": [
+      {
+        "agency_id": "VBZ",
+        "name": "Verkehrsbetriebe Zürich (VBZ / ZVV)",
+        "url": "https://www.vbz.ch",
+        "timezone": "Europe/Zurich",
+        "fare_url": null
+      },
+      {
+        "agency_id": "SBB",
+        "name": "SBB CFF FFS (ZVV S-Bahn)",
+        "url": "https://www.sbb.ch",
+        "timezone": "Europe/Zurich",
+        "fare_url": null
+      }
+    ],
+    "lines": [
+      {
+        "id": "VBZ:2",
+        "short_name": "2",
+        "long_name": "Tram 2 · Klusplatz ↔ Schlieren",
+        "mode": "Tram",
+        "color": "#D42A2F",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "VBZ:4",
+        "short_name": "4",
+        "long_name": "Tram 4 · Tiefenbrunnen ↔ Altstetten",
+        "mode": "Tram",
+        "color": "#0F4C5C",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "VBZ:6",
+        "short_name": "6",
+        "long_name": "Tram 6 · Bahnhof Enge ↔ Zoo",
+        "mode": "Tram",
+        "color": "#8C5A2B",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "VBZ:7",
+        "short_name": "7",
+        "long_name": "Tram 7 · Wollishofen ↔ Bahnhof Stettbach",
+        "mode": "Tram",
+        "color": "#1E293B",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "VBZ:8",
+        "short_name": "8",
+        "long_name": "Tram 8 · Klusplatz ↔ Hardturm",
+        "mode": "Tram",
+        "color": "#7C9E2D",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "VBZ:10",
+        "short_name": "10",
+        "long_name": "Tram 10 · Bahnhofplatz/HB ↔ Flughafen",
+        "mode": "Tram",
+        "color": "#D9468F",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "VBZ:11",
+        "short_name": "11",
+        "long_name": "Tram 11 · Rehalp ↔ Auzelg",
+        "mode": "Tram",
+        "color": "#16803C",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "VBZ:13",
+        "short_name": "13",
+        "long_name": "Tram 13 · Albisgütli ↔ Frankental",
+        "mode": "Tram",
+        "color": "#EAB308",
+        "text_color": "#111827"
+      },
+      {
+        "id": "VBZ:15",
+        "short_name": "15",
+        "long_name": "Tram 15 · Bucheggplatz ↔ Klusplatz",
+        "mode": "Tram",
+        "color": "#EA580C",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "VBZ:24",
+        "short_name": "24",
+        "long_name": "Polybahn · Central ↔ ETH Polyterrasse",
+        "mode": "Funicular",
+        "color": "#DC2626",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "SBB:S2",
+        "short_name": "S2",
+        "long_name": "S2 · Zürich Flughafen ↔ HB ↔ Ziegelbrücke",
+        "mode": "Rail",
+        "color": "#2563EB",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "SBB:S6",
+        "short_name": "S6",
+        "long_name": "S6 · Baden ↔ HB ↔ Stadelhofen ↔ Uetikon",
+        "mode": "Rail",
+        "color": "#4F46E5",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "SBB:S7",
+        "short_name": "S7",
+        "long_name": "S7 · Winterthur ↔ HB ↔ Stadelhofen ↔ Rapperswil",
+        "mode": "Rail",
+        "color": "#0284C7",
+        "text_color": "#FFFFFF"
+      },
+      {
+        "id": "SBB:S10",
+        "short_name": "S10",
+        "long_name": "S10 · Zürich HB ↔ Selnau ↔ Uetliberg",
+        "mode": "Rail",
+        "color": "#059669",
+        "text_color": "#FFFFFF"
+      }
+    ],
+    "stations": [
+      {
+        "id": "zrh-st-hb",
+        "name": "Zürich HB",
+        "original_name": "Zürich HB",
+        "lat": 47.3782,
+        "lon": 8.5402,
+        "wheelchair_boarding": 1,
+        "stop_count": 10,
+        "lines": [
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:6",
+            "short_name": "6",
+            "mode": "Tram",
+            "color": "#8C5A2B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:7",
+            "short_name": "7",
+            "mode": "Tram",
+            "color": "#1E293B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:10",
+            "short_name": "10",
+            "mode": "Tram",
+            "color": "#D9468F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:11",
+            "short_name": "11",
+            "mode": "Tram",
+            "color": "#16803C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:13",
+            "short_name": "13",
+            "mode": "Tram",
+            "color": "#EAB308",
+            "text_color": "#111827"
+          },
+          {
+            "line_id": "SBB:S2",
+            "short_name": "S2",
+            "mode": "Rail",
+            "color": "#2563EB",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S6",
+            "short_name": "S6",
+            "mode": "Rail",
+            "color": "#4F46E5",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S7",
+            "short_name": "S7",
+            "mode": "Rail",
+            "color": "#0284C7",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S10",
+            "short_name": "S10",
+            "mode": "Rail",
+            "color": "#059669",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-bahnhofquai",
+        "name": "Zürich, Bahnhofquai/HB",
+        "original_name": "Zürich, Bahnhofquai/HB",
+        "lat": 47.3776,
+        "lon": 8.5417,
+        "wheelchair_boarding": 1,
+        "stop_count": 3,
+        "lines": [
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:11",
+            "short_name": "11",
+            "mode": "Tram",
+            "color": "#16803C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:13",
+            "short_name": "13",
+            "mode": "Tram",
+            "color": "#EAB308",
+            "text_color": "#111827"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-bahnhofstr",
+        "name": "Zürich, Bahnhofstrasse/HB",
+        "original_name": "Zürich, Bahnhofstrasse/HB",
+        "lat": 47.3762,
+        "lon": 8.5395,
+        "wheelchair_boarding": 1,
+        "stop_count": 5,
+        "lines": [
+          {
+            "line_id": "VBZ:6",
+            "short_name": "6",
+            "mode": "Tram",
+            "color": "#8C5A2B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:7",
+            "short_name": "7",
+            "mode": "Tram",
+            "color": "#1E293B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:10",
+            "short_name": "10",
+            "mode": "Tram",
+            "color": "#D9468F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:11",
+            "short_name": "11",
+            "mode": "Tram",
+            "color": "#16803C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:13",
+            "short_name": "13",
+            "mode": "Tram",
+            "color": "#EAB308",
+            "text_color": "#111827"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-central",
+        "name": "Zürich, Central",
+        "original_name": "Zürich, Central",
+        "lat": 47.3768,
+        "lon": 8.5439,
+        "wheelchair_boarding": 1,
+        "stop_count": 6,
+        "lines": [
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:6",
+            "short_name": "6",
+            "mode": "Tram",
+            "color": "#8C5A2B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:7",
+            "short_name": "7",
+            "mode": "Tram",
+            "color": "#1E293B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:10",
+            "short_name": "10",
+            "mode": "Tram",
+            "color": "#D9468F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:15",
+            "short_name": "15",
+            "mode": "Tram",
+            "color": "#EA580C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:24",
+            "short_name": "24",
+            "mode": "Funicular",
+            "color": "#DC2626",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-eth",
+        "name": "Zürich, ETH/Universitätsspital",
+        "original_name": "Zürich, ETH/Universitätsspital",
+        "lat": 47.3773,
+        "lon": 8.5482,
+        "wheelchair_boarding": 1,
+        "stop_count": 3,
+        "lines": [
+          {
+            "line_id": "VBZ:6",
+            "short_name": "6",
+            "mode": "Tram",
+            "color": "#8C5A2B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:10",
+            "short_name": "10",
+            "mode": "Tram",
+            "color": "#D9468F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:24",
+            "short_name": "24",
+            "mode": "Funicular",
+            "color": "#DC2626",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-limmatquai",
+        "name": "Zürich, Rudolf-Brun-Brücke",
+        "original_name": "Zürich, Rudolf-Brun-Brücke",
+        "lat": 47.3739,
+        "lon": 8.5429,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:15",
+            "short_name": "15",
+            "mode": "Tram",
+            "color": "#EA580C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-rathaus",
+        "name": "Zürich, Rathaus",
+        "original_name": "Zürich, Rathaus",
+        "lat": 47.3717,
+        "lon": 8.5429,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:15",
+            "short_name": "15",
+            "mode": "Tram",
+            "color": "#EA580C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-helmhaus",
+        "name": "Zürich, Helmhaus",
+        "original_name": "Zürich, Helmhaus",
+        "lat": 47.3701,
+        "lon": 8.5433,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:15",
+            "short_name": "15",
+            "mode": "Tram",
+            "color": "#EA580C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-bellevue",
+        "name": "Zürich, Bellevue",
+        "original_name": "Zürich, Bellevue",
+        "lat": 47.3671,
+        "lon": 8.5451,
+        "wheelchair_boarding": 1,
+        "stop_count": 5,
+        "lines": [
+          {
+            "line_id": "VBZ:2",
+            "short_name": "2",
+            "mode": "Tram",
+            "color": "#D42A2F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:11",
+            "short_name": "11",
+            "mode": "Tram",
+            "color": "#16803C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:15",
+            "short_name": "15",
+            "mode": "Tram",
+            "color": "#EA580C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-stadelhofen",
+        "name": "Zürich Stadelhofen",
+        "original_name": "Zürich Stadelhofen",
+        "lat": 47.3666,
+        "lon": 8.5485,
+        "wheelchair_boarding": 1,
+        "stop_count": 5,
+        "lines": [
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:11",
+            "short_name": "11",
+            "mode": "Tram",
+            "color": "#16803C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:15",
+            "short_name": "15",
+            "mode": "Tram",
+            "color": "#EA580C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S6",
+            "short_name": "S6",
+            "mode": "Rail",
+            "color": "#4F46E5",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S7",
+            "short_name": "S7",
+            "mode": "Rail",
+            "color": "#0284C7",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-kunsthaus",
+        "name": "Zürich, Kunsthaus",
+        "original_name": "Zürich, Kunsthaus",
+        "lat": 47.3702,
+        "lon": 8.5481,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-rennweg",
+        "name": "Zürich, Rennweg",
+        "original_name": "Zürich, Rennweg",
+        "lat": 47.3728,
+        "lon": 8.5385,
+        "wheelchair_boarding": 1,
+        "stop_count": 4,
+        "lines": [
+          {
+            "line_id": "VBZ:6",
+            "short_name": "6",
+            "mode": "Tram",
+            "color": "#8C5A2B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:7",
+            "short_name": "7",
+            "mode": "Tram",
+            "color": "#1E293B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:11",
+            "short_name": "11",
+            "mode": "Tram",
+            "color": "#16803C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:13",
+            "short_name": "13",
+            "mode": "Tram",
+            "color": "#EAB308",
+            "text_color": "#111827"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-paradeplatz",
+        "name": "Zürich, Paradeplatz",
+        "original_name": "Zürich, Paradeplatz",
+        "lat": 47.3697,
+        "lon": 8.5389,
+        "wheelchair_boarding": 1,
+        "stop_count": 6,
+        "lines": [
+          {
+            "line_id": "VBZ:2",
+            "short_name": "2",
+            "mode": "Tram",
+            "color": "#D42A2F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:6",
+            "short_name": "6",
+            "mode": "Tram",
+            "color": "#8C5A2B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:7",
+            "short_name": "7",
+            "mode": "Tram",
+            "color": "#1E293B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:11",
+            "short_name": "11",
+            "mode": "Tram",
+            "color": "#16803C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:13",
+            "short_name": "13",
+            "mode": "Tram",
+            "color": "#EAB308",
+            "text_color": "#111827"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-burkliplatz",
+        "name": "Zürich, Bürkliplatz",
+        "original_name": "Zürich, Bürkliplatz",
+        "lat": 47.3667,
+        "lon": 8.5409,
+        "wheelchair_boarding": 1,
+        "stop_count": 3,
+        "lines": [
+          {
+            "line_id": "VBZ:2",
+            "short_name": "2",
+            "mode": "Tram",
+            "color": "#D42A2F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:11",
+            "short_name": "11",
+            "mode": "Tram",
+            "color": "#16803C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-stockerstr",
+        "name": "Zürich, Stockerstrasse",
+        "original_name": "Zürich, Stockerstrasse",
+        "lat": 47.3688,
+        "lon": 8.5349,
+        "wheelchair_boarding": 1,
+        "stop_count": 4,
+        "lines": [
+          {
+            "line_id": "VBZ:6",
+            "short_name": "6",
+            "mode": "Tram",
+            "color": "#8C5A2B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:7",
+            "short_name": "7",
+            "mode": "Tram",
+            "color": "#1E293B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:13",
+            "short_name": "13",
+            "mode": "Tram",
+            "color": "#EAB308",
+            "text_color": "#111827"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-enge",
+        "name": "Zürich Enge",
+        "original_name": "Zürich Enge",
+        "lat": 47.3641,
+        "lon": 8.5313,
+        "wheelchair_boarding": 1,
+        "stop_count": 4,
+        "lines": [
+          {
+            "line_id": "VBZ:6",
+            "short_name": "6",
+            "mode": "Tram",
+            "color": "#8C5A2B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:7",
+            "short_name": "7",
+            "mode": "Tram",
+            "color": "#1E293B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:13",
+            "short_name": "13",
+            "mode": "Tram",
+            "color": "#EAB308",
+            "text_color": "#111827"
+          },
+          {
+            "line_id": "SBB:S2",
+            "short_name": "S2",
+            "mode": "Rail",
+            "color": "#2563EB",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-rietberg",
+        "name": "Zürich, Museum Rietberg",
+        "original_name": "Zürich, Museum Rietberg",
+        "lat": 47.3591,
+        "lon": 8.5318,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:7",
+            "short_name": "7",
+            "mode": "Tram",
+            "color": "#1E293B",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-wollishofen",
+        "name": "Zürich Wollishofen",
+        "original_name": "Zürich Wollishofen",
+        "lat": 47.3474,
+        "lon": 8.5335,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:7",
+            "short_name": "7",
+            "mode": "Tram",
+            "color": "#1E293B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S2",
+            "short_name": "S2",
+            "mode": "Rail",
+            "color": "#2563EB",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-oper",
+        "name": "Zürich, Opernhaus",
+        "original_name": "Zürich, Opernhaus",
+        "lat": 47.3646,
+        "lon": 8.5471,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:2",
+            "short_name": "2",
+            "mode": "Tram",
+            "color": "#D42A2F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-kreuzplatz",
+        "name": "Zürich, Kreuzplatz",
+        "original_name": "Zürich, Kreuzplatz",
+        "lat": 47.3646,
+        "lon": 8.5542,
+        "wheelchair_boarding": 1,
+        "stop_count": 3,
+        "lines": [
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:11",
+            "short_name": "11",
+            "mode": "Tram",
+            "color": "#16803C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:15",
+            "short_name": "15",
+            "mode": "Tram",
+            "color": "#EA580C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-feldegg",
+        "name": "Zürich, Feldeggstrasse",
+        "original_name": "Zürich, Feldeggstrasse",
+        "lat": 47.3607,
+        "lon": 8.5504,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:2",
+            "short_name": "2",
+            "mode": "Tram",
+            "color": "#D42A2F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-frohlich",
+        "name": "Zürich, Fröhlichstrasse",
+        "original_name": "Zürich, Fröhlichstrasse",
+        "lat": 47.3563,
+        "lon": 8.5533,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:2",
+            "short_name": "2",
+            "mode": "Tram",
+            "color": "#D42A2F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-tiefenbrunnen",
+        "name": "Zürich Tiefenbrunnen",
+        "original_name": "Zürich Tiefenbrunnen",
+        "lat": 47.3504,
+        "lon": 8.5612,
+        "wheelchair_boarding": 1,
+        "stop_count": 4,
+        "lines": [
+          {
+            "line_id": "VBZ:2",
+            "short_name": "2",
+            "mode": "Tram",
+            "color": "#D42A2F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S6",
+            "short_name": "S6",
+            "mode": "Rail",
+            "color": "#4F46E5",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S7",
+            "short_name": "S7",
+            "mode": "Rail",
+            "color": "#0284C7",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-horg",
+        "name": "Zürich, Chinagarten",
+        "original_name": "Zürich, Chinagarten",
+        "lat": 47.3551,
+        "lon": 8.554,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:2",
+            "short_name": "2",
+            "mode": "Tram",
+            "color": "#D42A2F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-klusplatz",
+        "name": "Zürich, Klusplatz",
+        "original_name": "Zürich, Klusplatz",
+        "lat": 47.3648,
+        "lon": 8.5656,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:15",
+            "short_name": "15",
+            "mode": "Tram",
+            "color": "#EA580C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-zoo",
+        "name": "Zürich, Zoo",
+        "original_name": "Zürich, Zoo",
+        "lat": 47.3863,
+        "lon": 8.5736,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:6",
+            "short_name": "6",
+            "mode": "Tram",
+            "color": "#8C5A2B",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-sihlpost",
+        "name": "Zürich, Sihlpost/HB",
+        "original_name": "Zürich, Sihlpost/HB",
+        "lat": 47.3761,
+        "lon": 8.5342,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-selnau",
+        "name": "Zürich Selnau",
+        "original_name": "Zürich Selnau",
+        "lat": 47.3724,
+        "lon": 8.5318,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "SBB:S10",
+            "short_name": "S10",
+            "mode": "Rail",
+            "color": "#059669",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-binz",
+        "name": "Zürich Binz",
+        "original_name": "Zürich Binz",
+        "lat": 47.3627,
+        "lon": 8.518,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "SBB:S10",
+            "short_name": "S10",
+            "mode": "Rail",
+            "color": "#059669",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-uetliberg",
+        "name": "Uetliberg",
+        "original_name": "Uetliberg",
+        "lat": 47.3514,
+        "lon": 8.49,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "SBB:S10",
+            "short_name": "S10",
+            "mode": "Rail",
+            "color": "#059669",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-escher",
+        "name": "Zürich, Escher-Wyss-Platz",
+        "original_name": "Zürich, Escher-Wyss-Platz",
+        "lat": 47.3909,
+        "lon": 8.5227,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:13",
+            "short_name": "13",
+            "mode": "Tram",
+            "color": "#EAB308",
+            "text_color": "#111827"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-technopark",
+        "name": "Zürich, Technopark",
+        "original_name": "Zürich, Technopark",
+        "lat": 47.3895,
+        "lon": 8.5177,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-toni",
+        "name": "Zürich, Toni-Areal",
+        "original_name": "Zürich, Toni-Areal",
+        "lat": 47.3908,
+        "lon": 8.5105,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-dammweg",
+        "name": "Zürich, Dammweg",
+        "original_name": "Zürich, Dammweg",
+        "lat": 47.3869,
+        "lon": 8.5262,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-limmatplatz",
+        "name": "Zürich, Limmatplatz",
+        "original_name": "Zürich, Limmatplatz",
+        "lat": 47.3842,
+        "lon": 8.5313,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:4",
+            "short_name": "4",
+            "mode": "Tram",
+            "color": "#0F4C5C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:13",
+            "short_name": "13",
+            "mode": "Tram",
+            "color": "#EAB308",
+            "text_color": "#111827"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-hardbrucke",
+        "name": "Zürich Hardbrücke",
+        "original_name": "Zürich Hardbrücke",
+        "lat": 47.3852,
+        "lon": 8.5177,
+        "wheelchair_boarding": 1,
+        "stop_count": 3,
+        "lines": [
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S6",
+            "short_name": "S6",
+            "mode": "Rail",
+            "color": "#4F46E5",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S7",
+            "short_name": "S7",
+            "mode": "Rail",
+            "color": "#0284C7",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-schiffbau",
+        "name": "Zürich, Schiffbau",
+        "original_name": "Zürich, Schiffbau",
+        "lat": 47.3886,
+        "lon": 8.5194,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-bahnhof-oerlikon",
+        "name": "Zürich Oerlikon",
+        "original_name": "Zürich Oerlikon",
+        "lat": 47.4116,
+        "lon": 8.5441,
+        "wheelchair_boarding": 1,
+        "stop_count": 5,
+        "lines": [
+          {
+            "line_id": "VBZ:10",
+            "short_name": "10",
+            "mode": "Tram",
+            "color": "#D9468F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:11",
+            "short_name": "11",
+            "mode": "Tram",
+            "color": "#16803C",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S2",
+            "short_name": "S2",
+            "mode": "Rail",
+            "color": "#2563EB",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S6",
+            "short_name": "S6",
+            "mode": "Rail",
+            "color": "#4F46E5",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S7",
+            "short_name": "S7",
+            "mode": "Rail",
+            "color": "#0284C7",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-flughafen",
+        "name": "Zürich Flughafen",
+        "original_name": "Zürich Flughafen",
+        "lat": 47.4504,
+        "lon": 8.5623,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:10",
+            "short_name": "10",
+            "mode": "Tram",
+            "color": "#D9468F",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "SBB:S2",
+            "short_name": "S2",
+            "mode": "Rail",
+            "color": "#2563EB",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-kantonsspital",
+        "name": "Zürich, Kantonsschule",
+        "original_name": "Zürich, Kantonsschule",
+        "lat": 47.3712,
+        "lon": 8.5503,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-heimplatz",
+        "name": "Zürich, Heimplatz",
+        "original_name": "Zürich, Heimplatz",
+        "lat": 47.3702,
+        "lon": 8.5477,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:8",
+            "short_name": "8",
+            "mode": "Tram",
+            "color": "#7C9E2D",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-haldenbach",
+        "name": "Zürich, Haldenbach",
+        "original_name": "Zürich, Haldenbach",
+        "lat": 47.3806,
+        "lon": 8.5476,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:10",
+            "short_name": "10",
+            "mode": "Tram",
+            "color": "#D9468F",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-haldenegg",
+        "name": "Zürich, Haldenegg",
+        "original_name": "Zürich, Haldenegg",
+        "lat": 47.3812,
+        "lon": 8.5446,
+        "wheelchair_boarding": 1,
+        "stop_count": 2,
+        "lines": [
+          {
+            "line_id": "VBZ:7",
+            "short_name": "7",
+            "mode": "Tram",
+            "color": "#1E293B",
+            "text_color": "#FFFFFF"
+          },
+          {
+            "line_id": "VBZ:15",
+            "short_name": "15",
+            "mode": "Tram",
+            "color": "#EA580C",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-seilbahn",
+        "name": "Zürich, Seilbahn Rigiblick",
+        "original_name": "Zürich, Seilbahn Rigiblick",
+        "lat": 47.3852,
+        "lon": 8.548,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "VBZ:10",
+            "short_name": "10",
+            "mode": "Tram",
+            "color": "#D9468F",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      },
+      {
+        "id": "zrh-st-kilchberg",
+        "name": "Kilchberg ZH",
+        "original_name": "Kilchberg ZH",
+        "lat": 47.3237,
+        "lon": 8.5491,
+        "wheelchair_boarding": 1,
+        "stop_count": 1,
+        "lines": [
+          {
+            "line_id": "SBB:S2",
+            "short_name": "S2",
+            "mode": "Rail",
+            "color": "#2563EB",
+            "text_color": "#FFFFFF"
+          }
+        ]
+      }
+    ],
+    "patterns_by_line": {
+      "VBZ:2": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich, Paradeplatz",
+          "polyline": [
+            [
+              47.3504,
+              8.5612
+            ],
+            [
+              47.3551,
+              8.554
+            ],
+            [
+              47.3563,
+              8.5533
+            ],
+            [
+              47.3607,
+              8.5504
+            ],
+            [
+              47.3646,
+              8.5471
+            ],
+            [
+              47.3667,
+              8.5409
+            ],
+            [
+              47.3671,
+              8.5451
+            ],
+            [
+              47.3697,
+              8.5389
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-tiefenbrunnen",
+              "name": "Zürich Tiefenbrunnen",
+              "lat": 47.3504,
+              "lon": 8.5612
+            },
+            {
+              "id": "zrh-st-horg",
+              "name": "Zürich, Chinagarten",
+              "lat": 47.3551,
+              "lon": 8.554
+            },
+            {
+              "id": "zrh-st-frohlich",
+              "name": "Zürich, Fröhlichstrasse",
+              "lat": 47.3563,
+              "lon": 8.5533
+            },
+            {
+              "id": "zrh-st-feldegg",
+              "name": "Zürich, Feldeggstrasse",
+              "lat": 47.3607,
+              "lon": 8.5504
+            },
+            {
+              "id": "zrh-st-oper",
+              "name": "Zürich, Opernhaus",
+              "lat": 47.3646,
+              "lon": 8.5471
+            },
+            {
+              "id": "zrh-st-burkliplatz",
+              "name": "Zürich, Bürkliplatz",
+              "lat": 47.3667,
+              "lon": 8.5409
+            },
+            {
+              "id": "zrh-st-bellevue",
+              "name": "Zürich, Bellevue",
+              "lat": 47.3671,
+              "lon": 8.5451
+            },
+            {
+              "id": "zrh-st-paradeplatz",
+              "name": "Zürich, Paradeplatz",
+              "lat": 47.3697,
+              "lon": 8.5389
+            }
+          ]
+        }
+      ],
+      "VBZ:4": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich, Escher-Wyss-Platz",
+          "polyline": [
+            [
+              47.3504,
+              8.5612
+            ],
+            [
+              47.3551,
+              8.554
+            ],
+            [
+              47.3563,
+              8.5533
+            ],
+            [
+              47.3607,
+              8.5504
+            ],
+            [
+              47.3646,
+              8.5471
+            ],
+            [
+              47.3671,
+              8.5451
+            ],
+            [
+              47.3701,
+              8.5433
+            ],
+            [
+              47.3717,
+              8.5429
+            ],
+            [
+              47.3739,
+              8.5429
+            ],
+            [
+              47.3768,
+              8.5439
+            ],
+            [
+              47.3776,
+              8.5417
+            ],
+            [
+              47.3782,
+              8.5402
+            ],
+            [
+              47.3842,
+              8.5313
+            ],
+            [
+              47.3869,
+              8.5262
+            ],
+            [
+              47.3895,
+              8.5177
+            ],
+            [
+              47.3908,
+              8.5105
+            ],
+            [
+              47.3909,
+              8.5227
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-tiefenbrunnen",
+              "name": "Zürich Tiefenbrunnen",
+              "lat": 47.3504,
+              "lon": 8.5612
+            },
+            {
+              "id": "zrh-st-horg",
+              "name": "Zürich, Chinagarten",
+              "lat": 47.3551,
+              "lon": 8.554
+            },
+            {
+              "id": "zrh-st-frohlich",
+              "name": "Zürich, Fröhlichstrasse",
+              "lat": 47.3563,
+              "lon": 8.5533
+            },
+            {
+              "id": "zrh-st-feldegg",
+              "name": "Zürich, Feldeggstrasse",
+              "lat": 47.3607,
+              "lon": 8.5504
+            },
+            {
+              "id": "zrh-st-oper",
+              "name": "Zürich, Opernhaus",
+              "lat": 47.3646,
+              "lon": 8.5471
+            },
+            {
+              "id": "zrh-st-bellevue",
+              "name": "Zürich, Bellevue",
+              "lat": 47.3671,
+              "lon": 8.5451
+            },
+            {
+              "id": "zrh-st-helmhaus",
+              "name": "Zürich, Helmhaus",
+              "lat": 47.3701,
+              "lon": 8.5433
+            },
+            {
+              "id": "zrh-st-rathaus",
+              "name": "Zürich, Rathaus",
+              "lat": 47.3717,
+              "lon": 8.5429
+            },
+            {
+              "id": "zrh-st-limmatquai",
+              "name": "Zürich, Rudolf-Brun-Brücke",
+              "lat": 47.3739,
+              "lon": 8.5429
+            },
+            {
+              "id": "zrh-st-central",
+              "name": "Zürich, Central",
+              "lat": 47.3768,
+              "lon": 8.5439
+            },
+            {
+              "id": "zrh-st-bahnhofquai",
+              "name": "Zürich, Bahnhofquai/HB",
+              "lat": 47.3776,
+              "lon": 8.5417
+            },
+            {
+              "id": "zrh-st-hb",
+              "name": "Zürich HB",
+              "lat": 47.3782,
+              "lon": 8.5402
+            },
+            {
+              "id": "zrh-st-limmatplatz",
+              "name": "Zürich, Limmatplatz",
+              "lat": 47.3842,
+              "lon": 8.5313
+            },
+            {
+              "id": "zrh-st-dammweg",
+              "name": "Zürich, Dammweg",
+              "lat": 47.3869,
+              "lon": 8.5262
+            },
+            {
+              "id": "zrh-st-technopark",
+              "name": "Zürich, Technopark",
+              "lat": 47.3895,
+              "lon": 8.5177
+            },
+            {
+              "id": "zrh-st-toni",
+              "name": "Zürich, Toni-Areal",
+              "lat": 47.3908,
+              "lon": 8.5105
+            },
+            {
+              "id": "zrh-st-escher",
+              "name": "Zürich, Escher-Wyss-Platz",
+              "lat": 47.3909,
+              "lon": 8.5227
+            }
+          ]
+        }
+      ],
+      "VBZ:6": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich, Zoo",
+          "polyline": [
+            [
+              47.3641,
+              8.5313
+            ],
+            [
+              47.3688,
+              8.5349
+            ],
+            [
+              47.3697,
+              8.5389
+            ],
+            [
+              47.3728,
+              8.5385
+            ],
+            [
+              47.3762,
+              8.5395
+            ],
+            [
+              47.3768,
+              8.5439
+            ],
+            [
+              47.3773,
+              8.5482
+            ],
+            [
+              47.3782,
+              8.5402
+            ],
+            [
+              47.3863,
+              8.5736
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-enge",
+              "name": "Zürich Enge",
+              "lat": 47.3641,
+              "lon": 8.5313
+            },
+            {
+              "id": "zrh-st-stockerstr",
+              "name": "Zürich, Stockerstrasse",
+              "lat": 47.3688,
+              "lon": 8.5349
+            },
+            {
+              "id": "zrh-st-paradeplatz",
+              "name": "Zürich, Paradeplatz",
+              "lat": 47.3697,
+              "lon": 8.5389
+            },
+            {
+              "id": "zrh-st-rennweg",
+              "name": "Zürich, Rennweg",
+              "lat": 47.3728,
+              "lon": 8.5385
+            },
+            {
+              "id": "zrh-st-bahnhofstr",
+              "name": "Zürich, Bahnhofstrasse/HB",
+              "lat": 47.3762,
+              "lon": 8.5395
+            },
+            {
+              "id": "zrh-st-central",
+              "name": "Zürich, Central",
+              "lat": 47.3768,
+              "lon": 8.5439
+            },
+            {
+              "id": "zrh-st-eth",
+              "name": "Zürich, ETH/Universitätsspital",
+              "lat": 47.3773,
+              "lon": 8.5482
+            },
+            {
+              "id": "zrh-st-hb",
+              "name": "Zürich HB",
+              "lat": 47.3782,
+              "lon": 8.5402
+            },
+            {
+              "id": "zrh-st-zoo",
+              "name": "Zürich, Zoo",
+              "lat": 47.3863,
+              "lon": 8.5736
+            }
+          ]
+        }
+      ],
+      "VBZ:7": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich, Haldenegg",
+          "polyline": [
+            [
+              47.3474,
+              8.5335
+            ],
+            [
+              47.3591,
+              8.5318
+            ],
+            [
+              47.3641,
+              8.5313
+            ],
+            [
+              47.3688,
+              8.5349
+            ],
+            [
+              47.3697,
+              8.5389
+            ],
+            [
+              47.3728,
+              8.5385
+            ],
+            [
+              47.3762,
+              8.5395
+            ],
+            [
+              47.3768,
+              8.5439
+            ],
+            [
+              47.3782,
+              8.5402
+            ],
+            [
+              47.3812,
+              8.5446
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-wollishofen",
+              "name": "Zürich Wollishofen",
+              "lat": 47.3474,
+              "lon": 8.5335
+            },
+            {
+              "id": "zrh-st-rietberg",
+              "name": "Zürich, Museum Rietberg",
+              "lat": 47.3591,
+              "lon": 8.5318
+            },
+            {
+              "id": "zrh-st-enge",
+              "name": "Zürich Enge",
+              "lat": 47.3641,
+              "lon": 8.5313
+            },
+            {
+              "id": "zrh-st-stockerstr",
+              "name": "Zürich, Stockerstrasse",
+              "lat": 47.3688,
+              "lon": 8.5349
+            },
+            {
+              "id": "zrh-st-paradeplatz",
+              "name": "Zürich, Paradeplatz",
+              "lat": 47.3697,
+              "lon": 8.5389
+            },
+            {
+              "id": "zrh-st-rennweg",
+              "name": "Zürich, Rennweg",
+              "lat": 47.3728,
+              "lon": 8.5385
+            },
+            {
+              "id": "zrh-st-bahnhofstr",
+              "name": "Zürich, Bahnhofstrasse/HB",
+              "lat": 47.3762,
+              "lon": 8.5395
+            },
+            {
+              "id": "zrh-st-central",
+              "name": "Zürich, Central",
+              "lat": 47.3768,
+              "lon": 8.5439
+            },
+            {
+              "id": "zrh-st-hb",
+              "name": "Zürich HB",
+              "lat": 47.3782,
+              "lon": 8.5402
+            },
+            {
+              "id": "zrh-st-haldenegg",
+              "name": "Zürich, Haldenegg",
+              "lat": 47.3812,
+              "lon": 8.5446
+            }
+          ]
+        }
+      ],
+      "VBZ:8": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich, Schiffbau",
+          "polyline": [
+            [
+              47.3646,
+              8.5542
+            ],
+            [
+              47.3648,
+              8.5656
+            ],
+            [
+              47.3666,
+              8.5485
+            ],
+            [
+              47.3667,
+              8.5409
+            ],
+            [
+              47.3671,
+              8.5451
+            ],
+            [
+              47.3688,
+              8.5349
+            ],
+            [
+              47.3697,
+              8.5389
+            ],
+            [
+              47.3702,
+              8.5477
+            ],
+            [
+              47.3702,
+              8.5481
+            ],
+            [
+              47.3712,
+              8.5503
+            ],
+            [
+              47.3761,
+              8.5342
+            ],
+            [
+              47.3852,
+              8.5177
+            ],
+            [
+              47.3886,
+              8.5194
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-kreuzplatz",
+              "name": "Zürich, Kreuzplatz",
+              "lat": 47.3646,
+              "lon": 8.5542
+            },
+            {
+              "id": "zrh-st-klusplatz",
+              "name": "Zürich, Klusplatz",
+              "lat": 47.3648,
+              "lon": 8.5656
+            },
+            {
+              "id": "zrh-st-stadelhofen",
+              "name": "Zürich Stadelhofen",
+              "lat": 47.3666,
+              "lon": 8.5485
+            },
+            {
+              "id": "zrh-st-burkliplatz",
+              "name": "Zürich, Bürkliplatz",
+              "lat": 47.3667,
+              "lon": 8.5409
+            },
+            {
+              "id": "zrh-st-bellevue",
+              "name": "Zürich, Bellevue",
+              "lat": 47.3671,
+              "lon": 8.5451
+            },
+            {
+              "id": "zrh-st-stockerstr",
+              "name": "Zürich, Stockerstrasse",
+              "lat": 47.3688,
+              "lon": 8.5349
+            },
+            {
+              "id": "zrh-st-paradeplatz",
+              "name": "Zürich, Paradeplatz",
+              "lat": 47.3697,
+              "lon": 8.5389
+            },
+            {
+              "id": "zrh-st-heimplatz",
+              "name": "Zürich, Heimplatz",
+              "lat": 47.3702,
+              "lon": 8.5477
+            },
+            {
+              "id": "zrh-st-kunsthaus",
+              "name": "Zürich, Kunsthaus",
+              "lat": 47.3702,
+              "lon": 8.5481
+            },
+            {
+              "id": "zrh-st-kantonsspital",
+              "name": "Zürich, Kantonsschule",
+              "lat": 47.3712,
+              "lon": 8.5503
+            },
+            {
+              "id": "zrh-st-sihlpost",
+              "name": "Zürich, Sihlpost/HB",
+              "lat": 47.3761,
+              "lon": 8.5342
+            },
+            {
+              "id": "zrh-st-hardbrucke",
+              "name": "Zürich Hardbrücke",
+              "lat": 47.3852,
+              "lon": 8.5177
+            },
+            {
+              "id": "zrh-st-schiffbau",
+              "name": "Zürich, Schiffbau",
+              "lat": 47.3886,
+              "lon": 8.5194
+            }
+          ]
+        }
+      ],
+      "VBZ:10": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich Flughafen",
+          "polyline": [
+            [
+              47.3762,
+              8.5395
+            ],
+            [
+              47.3768,
+              8.5439
+            ],
+            [
+              47.3773,
+              8.5482
+            ],
+            [
+              47.3782,
+              8.5402
+            ],
+            [
+              47.3806,
+              8.5476
+            ],
+            [
+              47.3852,
+              8.548
+            ],
+            [
+              47.4116,
+              8.5441
+            ],
+            [
+              47.4504,
+              8.5623
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-bahnhofstr",
+              "name": "Zürich, Bahnhofstrasse/HB",
+              "lat": 47.3762,
+              "lon": 8.5395
+            },
+            {
+              "id": "zrh-st-central",
+              "name": "Zürich, Central",
+              "lat": 47.3768,
+              "lon": 8.5439
+            },
+            {
+              "id": "zrh-st-eth",
+              "name": "Zürich, ETH/Universitätsspital",
+              "lat": 47.3773,
+              "lon": 8.5482
+            },
+            {
+              "id": "zrh-st-hb",
+              "name": "Zürich HB",
+              "lat": 47.3782,
+              "lon": 8.5402
+            },
+            {
+              "id": "zrh-st-haldenbach",
+              "name": "Zürich, Haldenbach",
+              "lat": 47.3806,
+              "lon": 8.5476
+            },
+            {
+              "id": "zrh-st-seilbahn",
+              "name": "Zürich, Seilbahn Rigiblick",
+              "lat": 47.3852,
+              "lon": 8.548
+            },
+            {
+              "id": "zrh-st-bahnhof-oerlikon",
+              "name": "Zürich Oerlikon",
+              "lat": 47.4116,
+              "lon": 8.5441
+            },
+            {
+              "id": "zrh-st-flughafen",
+              "name": "Zürich Flughafen",
+              "lat": 47.4504,
+              "lon": 8.5623
+            }
+          ]
+        }
+      ],
+      "VBZ:11": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich Oerlikon",
+          "polyline": [
+            [
+              47.3646,
+              8.5542
+            ],
+            [
+              47.3666,
+              8.5485
+            ],
+            [
+              47.3667,
+              8.5409
+            ],
+            [
+              47.3671,
+              8.5451
+            ],
+            [
+              47.3697,
+              8.5389
+            ],
+            [
+              47.3728,
+              8.5385
+            ],
+            [
+              47.3762,
+              8.5395
+            ],
+            [
+              47.3776,
+              8.5417
+            ],
+            [
+              47.3782,
+              8.5402
+            ],
+            [
+              47.4116,
+              8.5441
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-kreuzplatz",
+              "name": "Zürich, Kreuzplatz",
+              "lat": 47.3646,
+              "lon": 8.5542
+            },
+            {
+              "id": "zrh-st-stadelhofen",
+              "name": "Zürich Stadelhofen",
+              "lat": 47.3666,
+              "lon": 8.5485
+            },
+            {
+              "id": "zrh-st-burkliplatz",
+              "name": "Zürich, Bürkliplatz",
+              "lat": 47.3667,
+              "lon": 8.5409
+            },
+            {
+              "id": "zrh-st-bellevue",
+              "name": "Zürich, Bellevue",
+              "lat": 47.3671,
+              "lon": 8.5451
+            },
+            {
+              "id": "zrh-st-paradeplatz",
+              "name": "Zürich, Paradeplatz",
+              "lat": 47.3697,
+              "lon": 8.5389
+            },
+            {
+              "id": "zrh-st-rennweg",
+              "name": "Zürich, Rennweg",
+              "lat": 47.3728,
+              "lon": 8.5385
+            },
+            {
+              "id": "zrh-st-bahnhofstr",
+              "name": "Zürich, Bahnhofstrasse/HB",
+              "lat": 47.3762,
+              "lon": 8.5395
+            },
+            {
+              "id": "zrh-st-bahnhofquai",
+              "name": "Zürich, Bahnhofquai/HB",
+              "lat": 47.3776,
+              "lon": 8.5417
+            },
+            {
+              "id": "zrh-st-hb",
+              "name": "Zürich HB",
+              "lat": 47.3782,
+              "lon": 8.5402
+            },
+            {
+              "id": "zrh-st-bahnhof-oerlikon",
+              "name": "Zürich Oerlikon",
+              "lat": 47.4116,
+              "lon": 8.5441
+            }
+          ]
+        }
+      ],
+      "VBZ:13": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich, Escher-Wyss-Platz",
+          "polyline": [
+            [
+              47.3641,
+              8.5313
+            ],
+            [
+              47.3688,
+              8.5349
+            ],
+            [
+              47.3697,
+              8.5389
+            ],
+            [
+              47.3728,
+              8.5385
+            ],
+            [
+              47.3762,
+              8.5395
+            ],
+            [
+              47.3776,
+              8.5417
+            ],
+            [
+              47.3782,
+              8.5402
+            ],
+            [
+              47.3842,
+              8.5313
+            ],
+            [
+              47.3909,
+              8.5227
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-enge",
+              "name": "Zürich Enge",
+              "lat": 47.3641,
+              "lon": 8.5313
+            },
+            {
+              "id": "zrh-st-stockerstr",
+              "name": "Zürich, Stockerstrasse",
+              "lat": 47.3688,
+              "lon": 8.5349
+            },
+            {
+              "id": "zrh-st-paradeplatz",
+              "name": "Zürich, Paradeplatz",
+              "lat": 47.3697,
+              "lon": 8.5389
+            },
+            {
+              "id": "zrh-st-rennweg",
+              "name": "Zürich, Rennweg",
+              "lat": 47.3728,
+              "lon": 8.5385
+            },
+            {
+              "id": "zrh-st-bahnhofstr",
+              "name": "Zürich, Bahnhofstrasse/HB",
+              "lat": 47.3762,
+              "lon": 8.5395
+            },
+            {
+              "id": "zrh-st-bahnhofquai",
+              "name": "Zürich, Bahnhofquai/HB",
+              "lat": 47.3776,
+              "lon": 8.5417
+            },
+            {
+              "id": "zrh-st-hb",
+              "name": "Zürich HB",
+              "lat": 47.3782,
+              "lon": 8.5402
+            },
+            {
+              "id": "zrh-st-limmatplatz",
+              "name": "Zürich, Limmatplatz",
+              "lat": 47.3842,
+              "lon": 8.5313
+            },
+            {
+              "id": "zrh-st-escher",
+              "name": "Zürich, Escher-Wyss-Platz",
+              "lat": 47.3909,
+              "lon": 8.5227
+            }
+          ]
+        }
+      ],
+      "VBZ:15": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich, Haldenegg",
+          "polyline": [
+            [
+              47.3646,
+              8.5542
+            ],
+            [
+              47.3648,
+              8.5656
+            ],
+            [
+              47.3666,
+              8.5485
+            ],
+            [
+              47.3671,
+              8.5451
+            ],
+            [
+              47.3701,
+              8.5433
+            ],
+            [
+              47.3717,
+              8.5429
+            ],
+            [
+              47.3739,
+              8.5429
+            ],
+            [
+              47.3768,
+              8.5439
+            ],
+            [
+              47.3812,
+              8.5446
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-kreuzplatz",
+              "name": "Zürich, Kreuzplatz",
+              "lat": 47.3646,
+              "lon": 8.5542
+            },
+            {
+              "id": "zrh-st-klusplatz",
+              "name": "Zürich, Klusplatz",
+              "lat": 47.3648,
+              "lon": 8.5656
+            },
+            {
+              "id": "zrh-st-stadelhofen",
+              "name": "Zürich Stadelhofen",
+              "lat": 47.3666,
+              "lon": 8.5485
+            },
+            {
+              "id": "zrh-st-bellevue",
+              "name": "Zürich, Bellevue",
+              "lat": 47.3671,
+              "lon": 8.5451
+            },
+            {
+              "id": "zrh-st-helmhaus",
+              "name": "Zürich, Helmhaus",
+              "lat": 47.3701,
+              "lon": 8.5433
+            },
+            {
+              "id": "zrh-st-rathaus",
+              "name": "Zürich, Rathaus",
+              "lat": 47.3717,
+              "lon": 8.5429
+            },
+            {
+              "id": "zrh-st-limmatquai",
+              "name": "Zürich, Rudolf-Brun-Brücke",
+              "lat": 47.3739,
+              "lon": 8.5429
+            },
+            {
+              "id": "zrh-st-central",
+              "name": "Zürich, Central",
+              "lat": 47.3768,
+              "lon": 8.5439
+            },
+            {
+              "id": "zrh-st-haldenegg",
+              "name": "Zürich, Haldenegg",
+              "lat": 47.3812,
+              "lon": 8.5446
+            }
+          ]
+        }
+      ],
+      "VBZ:24": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich, ETH/Universitätsspital",
+          "polyline": [
+            [
+              47.3768,
+              8.5439
+            ],
+            [
+              47.3773,
+              8.5482
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-central",
+              "name": "Zürich, Central",
+              "lat": 47.3768,
+              "lon": 8.5439
+            },
+            {
+              "id": "zrh-st-eth",
+              "name": "Zürich, ETH/Universitätsspital",
+              "lat": 47.3773,
+              "lon": 8.5482
+            }
+          ]
+        }
+      ],
+      "SBB:S2": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich Flughafen",
+          "polyline": [
+            [
+              47.3237,
+              8.5491
+            ],
+            [
+              47.3474,
+              8.5335
+            ],
+            [
+              47.3641,
+              8.5313
+            ],
+            [
+              47.3782,
+              8.5402
+            ],
+            [
+              47.4116,
+              8.5441
+            ],
+            [
+              47.4504,
+              8.5623
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-kilchberg",
+              "name": "Kilchberg ZH",
+              "lat": 47.3237,
+              "lon": 8.5491
+            },
+            {
+              "id": "zrh-st-wollishofen",
+              "name": "Zürich Wollishofen",
+              "lat": 47.3474,
+              "lon": 8.5335
+            },
+            {
+              "id": "zrh-st-enge",
+              "name": "Zürich Enge",
+              "lat": 47.3641,
+              "lon": 8.5313
+            },
+            {
+              "id": "zrh-st-hb",
+              "name": "Zürich HB",
+              "lat": 47.3782,
+              "lon": 8.5402
+            },
+            {
+              "id": "zrh-st-bahnhof-oerlikon",
+              "name": "Zürich Oerlikon",
+              "lat": 47.4116,
+              "lon": 8.5441
+            },
+            {
+              "id": "zrh-st-flughafen",
+              "name": "Zürich Flughafen",
+              "lat": 47.4504,
+              "lon": 8.5623
+            }
+          ]
+        }
+      ],
+      "SBB:S6": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich Oerlikon",
+          "polyline": [
+            [
+              47.3504,
+              8.5612
+            ],
+            [
+              47.3666,
+              8.5485
+            ],
+            [
+              47.3782,
+              8.5402
+            ],
+            [
+              47.3852,
+              8.5177
+            ],
+            [
+              47.4116,
+              8.5441
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-tiefenbrunnen",
+              "name": "Zürich Tiefenbrunnen",
+              "lat": 47.3504,
+              "lon": 8.5612
+            },
+            {
+              "id": "zrh-st-stadelhofen",
+              "name": "Zürich Stadelhofen",
+              "lat": 47.3666,
+              "lon": 8.5485
+            },
+            {
+              "id": "zrh-st-hb",
+              "name": "Zürich HB",
+              "lat": 47.3782,
+              "lon": 8.5402
+            },
+            {
+              "id": "zrh-st-hardbrucke",
+              "name": "Zürich Hardbrücke",
+              "lat": 47.3852,
+              "lon": 8.5177
+            },
+            {
+              "id": "zrh-st-bahnhof-oerlikon",
+              "name": "Zürich Oerlikon",
+              "lat": 47.4116,
+              "lon": 8.5441
+            }
+          ]
+        }
+      ],
+      "SBB:S7": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich Oerlikon",
+          "polyline": [
+            [
+              47.3504,
+              8.5612
+            ],
+            [
+              47.3666,
+              8.5485
+            ],
+            [
+              47.3782,
+              8.5402
+            ],
+            [
+              47.3852,
+              8.5177
+            ],
+            [
+              47.4116,
+              8.5441
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-tiefenbrunnen",
+              "name": "Zürich Tiefenbrunnen",
+              "lat": 47.3504,
+              "lon": 8.5612
+            },
+            {
+              "id": "zrh-st-stadelhofen",
+              "name": "Zürich Stadelhofen",
+              "lat": 47.3666,
+              "lon": 8.5485
+            },
+            {
+              "id": "zrh-st-hb",
+              "name": "Zürich HB",
+              "lat": 47.3782,
+              "lon": 8.5402
+            },
+            {
+              "id": "zrh-st-hardbrucke",
+              "name": "Zürich Hardbrücke",
+              "lat": 47.3852,
+              "lon": 8.5177
+            },
+            {
+              "id": "zrh-st-bahnhof-oerlikon",
+              "name": "Zürich Oerlikon",
+              "lat": 47.4116,
+              "lon": 8.5441
+            }
+          ]
+        }
+      ],
+      "SBB:S10": [
+        {
+          "direction_id": 0,
+          "headsign": "Zürich HB",
+          "polyline": [
+            [
+              47.3514,
+              8.49
+            ],
+            [
+              47.3627,
+              8.518
+            ],
+            [
+              47.3724,
+              8.5318
+            ],
+            [
+              47.3782,
+              8.5402
+            ]
+          ],
+          "stops": [
+            {
+              "id": "zrh-st-uetliberg",
+              "name": "Uetliberg",
+              "lat": 47.3514,
+              "lon": 8.49
+            },
+            {
+              "id": "zrh-st-binz",
+              "name": "Zürich Binz",
+              "lat": 47.3627,
+              "lon": 8.518
+            },
+            {
+              "id": "zrh-st-selnau",
+              "name": "Zürich Selnau",
+              "lat": 47.3724,
+              "lon": 8.5318
+            },
+            {
+              "id": "zrh-st-hb",
+              "name": "Zürich HB",
+              "lat": 47.3782,
+              "lon": 8.5402
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -803,6 +803,10 @@ a {
 }
 
 /* Zoom Controls */
+.leaflet-bottom.leaflet-right .leaflet-control-zoom {
+  margin-bottom: 54px !important;
+}
+
 .leaflet-control-zoom {
   border: 1px solid var(--color-border-subtle) !important;
   border-radius: var(--border-radius-md, 8px) !important;
@@ -1138,6 +1142,18 @@ a {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
+}
+
+/* Demo Reset Timer: Always bottom-right without status dot */
+[data-testid="demo-reset-timer"] {
+  position: fixed !important;
+  top: auto !important;
+  bottom: 16px !important;
+  right: 16px !important;
+}
+
+[data-testid="demo-reset-timer"] > span[aria-hidden="true"]:first-child {
+  display: none !important;
 }
 
 

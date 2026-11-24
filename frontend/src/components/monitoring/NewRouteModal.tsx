@@ -11,7 +11,7 @@ import { ParticipantsManager, SelectedParticipant } from '@/components/trip-crea
 import { PaladioSingleDatePicker } from '@/components/trip-creation/PaladioSingleDatePicker';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
-import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
+import { DemoLockedButton } from '@/components/common/DemoFeatureGate';
 import styles from './NewRouteModal.module.css';
 
 interface NewRouteModalProps {
@@ -31,6 +31,7 @@ interface NewRouteModalProps {
     max_budget_eur: number;
     currency?: string;
   }) => Promise<unknown>;
+  demoLockedSubmit?: boolean;
 }
 
 const DURATION_PRESETS = [
@@ -55,7 +56,7 @@ function formatDisplayDate(dateStr: string, locale: string = 'en'): string {
   return `${monthStr} ${d}, ${parts[0]}`;
 }
 
-export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRoutes, onSubmit }: NewRouteModalProps) {
+export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRoutes, onSubmit, demoLockedSubmit = true }: NewRouteModalProps) {
   const { t, locale } = useTranslation();
   const { user } = useAuth();
   const initialCurrency = userDefaultCurrency || (user?.preferences?.default_currency as string) || 'EUR';
@@ -145,6 +146,7 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (demoLockedSubmit) return;
     setError(null);
 
     const origCode = (originIata || originCity).trim().toUpperCase();
@@ -236,10 +238,6 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
           </button>
         </div>
 
-        <DemoFeatureGate
-          message={t('demo.locked_monitoring_new_route')}
-          borderRadius="14px"
-        >
         <form onSubmit={handleSubmit} noValidate className={styles.form}>
           {error && (
             <div className={styles.errorMessage} role="alert" aria-live="assertive">
@@ -628,25 +626,14 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
                 >
                   {t('common.cancel')}
                 </button>
-                <button
-                  type="submit"
-                  className={styles.submitBtn}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Spinner size={14} />
-                      <span>{t('monitoring.configuring_target')}</span>
-                    </>
-                  ) : (
-                    <span>{t('monitoring.activate_route_monitor')}</span>
-                  )}
-                </button>
+                <DemoLockedButton
+                  label={t('demo.btn_create_route_locked')}
+                  tooltip={t('demo.locked_monitoring_new_route')}
+                />
               </>
             )}
           </div>
         </form>
-        </DemoFeatureGate>
 
         {/* Currency Wheel Picker Modal from Trip Workspace */}
         <CurrencyWheelPicker

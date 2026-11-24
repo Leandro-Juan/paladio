@@ -142,6 +142,7 @@
 .monthColumn {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   background: var(--color-surface-card, #FFFFFF);
   border: 1px solid var(--color-border, #E2E8F0);
   border-radius: 10px;
@@ -172,7 +173,7 @@
 
 .weekdayRow {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 2px;
   margin-bottom: 4px;
 }
@@ -188,17 +189,20 @@
 
 .daysGrid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 3px;
 }
 
 .emptyDayCell {
   aspect-ratio: 1;
+  min-width: 0;
 }
 
 .dayCell {
   position: relative;
   aspect-ratio: 1;
+  min-width: 0;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -351,10 +355,15 @@
 
 .dayPrice {
   font-family: var(--font-mono, monospace);
-  font-size: 0.6875rem;
+  font-size: clamp(0.55rem, 0.62vw, 0.6875rem);
   font-weight: 700;
   line-height: 1.1;
   margin-top: 1px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
 }
 
 /* Color Tiers */

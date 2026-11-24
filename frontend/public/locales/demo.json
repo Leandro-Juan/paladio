@@ -7,6 +7,8 @@
     "demo": {
       "badge_label": "DEMO MODE",
       "badge_short": "DEMO",
+      "btn_create_route_locked": "Route Monitoring Disabled",
+      "btn_create_trip_locked": "Trip Creation Disabled",
       "gate_aria": "Demo Mode: {message}",
       "hourly_reset_title": "Hourly Demo Reset",
       "locked_account_profile": "Account profile, language, currency, and unit settings are locked in Demo Mode. The demo always runs in English.",
@@ -46,6 +48,8 @@
     "demo": {
       "badge_label": "MODO DEMO",
       "badge_short": "DEMO",
+      "btn_create_route_locked": "Monitoreo de Rutas Desactivado",
+      "btn_create_trip_locked": "Creación de Viajes Desactivada",
       "gate_aria": "Modo Demo: {message}",
       "hourly_reset_title": "Reinicio Horario de Demo",
       "locked_account_profile": "Los ajustes de perfil de cuenta, idioma, moneda y unidades están bloqueados en el Modo Demo. La demo siempre se ejecuta en inglés.",
@@ -85,6 +89,8 @@
     "demo": {
       "badge_label": "DEMO-MODUS",
       "badge_short": "DEMO",
+      "btn_create_route_locked": "Routenüberwachung deaktiviert",
+      "btn_create_trip_locked": "Reiseerstellung deaktiviert",
       "gate_aria": "Demo-Modus: {message}",
       "hourly_reset_title": "Stündlicher Demo-Reset",
       "locked_account_profile": "Kontoprofil-, Sprach-, Währungs- und Einheiteneinstellungen sind im Demo-Modus gesperrt. Die Demo läuft immer auf Englisch.",
@@ -124,6 +130,8 @@
     "demo": {
       "badge_label": "MODE DÉMO",
       "badge_short": "DÉMO",
+      "btn_create_route_locked": "Surveillance d'itinéraire désactivée",
+      "btn_create_trip_locked": "Création de voyage désactivée",
       "gate_aria": "Mode Démo : {message}",
       "hourly_reset_title": "Réinitialisation Horaire de la Démo",
       "locked_account_profile": "Les paramètres du profil de compte, de langue, de devise et d'unités sont verrouillés en Mode Démo. La démo s'exécute toujours en anglais.",
@@ -163,6 +171,8 @@
     "demo": {
       "badge_label": "MODALITÀ DEMO",
       "badge_short": "DEMO",
+      "btn_create_route_locked": "Monitoraggio rotte disabilitato",
+      "btn_create_trip_locked": "Creazione viaggio disabilitata",
       "gate_aria": "Modalità Demo: {message}",
       "hourly_reset_title": "Ripristino orario della demo",
       "locked_account_profile": "Le impostazioni di profilo account, lingua, valuta e unità sono bloccate in Modalità Demo. La demo viene sempre eseguita in inglese.",
@@ -202,6 +212,8 @@
     "demo": {
       "badge_label": "MODO DEMO",
       "badge_short": "DEMO",
+      "btn_create_route_locked": "Monitoramento de rotas desativado",
+      "btn_create_trip_locked": "Criação de viagem desativada",
       "gate_aria": "Modo Demo: {message}",
       "hourly_reset_title": "Reinício por Hora da Demo",
       "locked_account_profile": "As configurações de perfil da conta, idioma, moeda e unidades estão bloqueadas no Modo Demo. A demo sempre é executada em inglês.",
@@ -241,6 +253,8 @@
     "demo": {
       "badge_label": "デモモード",
       "badge_short": "デモ",
+      "btn_create_route_locked": "ルート監視は無効です",
+      "btn_create_trip_locked": "旅行の作成は無効です",
       "gate_aria": "デモモード: {message}",
       "hourly_reset_title": "1時間ごとのデモリセット",
       "locked_account_profile": "アカウントプロフィール、言語、通貨、単位の設定はデモモードではロックされています。デモは常に英語で動作します。",
@@ -280,6 +294,8 @@
     "demo": {
       "badge_label": "演示模式",
       "badge_short": "演示",
+      "btn_create_route_locked": "已禁用路线监控",
+      "btn_create_trip_locked": "已禁用创建行程",
       "gate_aria": "演示模式：{message}",
       "hourly_reset_title": "每小时演示重置",
       "locked_account_profile": "演示模式下已锁定账户资料、语言、货币和单位设置。演示环境始终以英语运行。",
@@ -319,6 +335,8 @@
     "demo": {
       "badge_label": "데모 모드",
       "badge_short": "데모",
+      "btn_create_route_locked": "경로 모니터링 비활성화됨",
+      "btn_create_trip_locked": "새 여행 만들기 비활성화됨",
       "gate_aria": "데모 모드: {message}",
       "hourly_reset_title": "매시간 데모 초기화",
       "locked_account_profile": "데모 모드에서는 계정 프로필, 언어, 통화 및 단위 설정이 잠겨 있습니다. 데모는 항상 영어로 실행됩니다.",
@@ -358,6 +376,8 @@
     "demo": {
       "badge_label": "وضع العرض التجريبي",
       "badge_short": "تجريبي",
+      "btn_create_route_locked": "مراقبة المسارات معطّلة",
+      "btn_create_trip_locked": "إنشاء الرحلات معطّل",
       "gate_aria": "وضع العرض التجريبي: {message}",
       "hourly_reset_title": "إعادة التعيين الساعية للعرض التجريبي",
       "locked_account_profile": "إعدادات الملف الشخصي واللغة والعملة والوحدات مقفلة في وضع العرض التجريبي. يعمل العرض التجريبي دائمًا باللغة الإنجليزية.",

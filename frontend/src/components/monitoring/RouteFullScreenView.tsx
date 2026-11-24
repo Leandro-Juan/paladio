@@ -172,6 +172,7 @@ export function RouteFullScreenView({
         <div className={styles.sectionBlock}>
           <PriceTrendGraph
             forwardCurve={history?.forward_curve}
+            lodgingCurve={history?.lodging_curve}
             p10Deal={history?.p10_deal_eur ?? null}
             p50Median={history?.p50_median_eur ?? null}
             p90Peak={history?.p90_peak_eur ?? null}

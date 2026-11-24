@@ -295,7 +295,7 @@ export function TripWeatherTab({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOutOfRange, setIsOutOfRange] = useState(false);
-  const [currentPreview, setCurrentPreview] = useState<{
+  const [currentPreview] = useState<{
     temp_c: number;
     condition: string;
     icon_type: string;
@@ -362,176 +362,10 @@ export function TripWeatherTab({
       setIsLoading(false);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : translate('weather.telemetry_request_failed');
-      console.warn('Backend weather route failed, attempting direct Open-Meteo fallback:', errMsg);
-      const isDateOutOfRange =
-        errMsg.toLowerCase().includes('out of') ||
-        errMsg.toLowerCase().includes('range') ||
-        errMsg.toLowerCase().includes('16 days') ||
-        errMsg.toLowerCase().includes('14') ||
-        (daysUntilTrip !== null && daysUntilTrip > 16);
-      if (isDateOutOfRange) {
-        setIsOutOfRange(true);
-      }
-
-      try {
-        let lat = coordinates?.lat;
-        let lon = coordinates?.lng;
-
-        if ((lat == null || lon == null) && destinationCity) {
-          const geoRes = await fetch(
-            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destinationCity)}&count=1&language=en&format=json`
-          );
-          if (geoRes.ok) {
-            const geoJson = await geoRes.json();
-            if (geoJson.results?.[0]) {
-              lat = geoJson.results[0].latitude;
-              lon = geoJson.results[0].longitude;
-            }
-          }
-        }
-
-        if (lat == null || lon == null) {
-          throw new Error(
-            destinationCity
-              ? translate('weather.resolve_coords_failed', { city: destinationCity })
-              : translate('weather.coords_unavailable')
-          );
-        }
-
-        const dateRangeParams =
-          effectiveStartDate && effectiveEndDate
-            ? `&start_date=${effectiveStartDate}&end_date=${effectiveEndDate}`
-            : `&forecast_days=7`;
-
-        const fRes = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,visibility&hourly=relative_humidity_2m,visibility,uv_index&timezone=auto${dateRangeParams}`
-        );
-        const fJson = await fRes.json().catch(() => ({}));
-
-        if (!fRes.ok || fJson.error) {
-          const reason = fJson.reason || fJson.error || translate('weather.api_status_error', { status: fRes.status });
-          if (
-            String(reason).toLowerCase().includes('out of allowed range') ||
-            String(reason).toLowerCase().includes('out of range')
-          ) {
-            setIsOutOfRange(true);
-          }
-          throw new Error(String(reason));
-        }
-
-        const dayNames = [
-          translate('weather.weekday_mon'),
-          translate('weather.weekday_tue'),
-          translate('weather.weekday_wed'),
-          translate('weather.weekday_thu'),
-          translate('weather.weekday_fri'),
-          translate('weather.weekday_sat'),
-          translate('weather.weekday_sun'),
-        ];
-        const times = fJson.daily?.time || [];
-        if (times.length === 0) {
-          throw new Error(translate('weather.empty_daily_forecast'));
-        }
-
-        const formatSunTime = (isoStr: string | undefined, fallbackLabel: string): string => {
-          if (!isoStr || !isoStr.includes('T')) return fallbackLabel;
-          const timePart = isoStr.split('T')[1];
-          const [hStr, mStr] = (timePart || '').split(':');
-          const hour = Number(hStr);
-          if (Number.isNaN(hour) || !mStr) return fallbackLabel;
-          const amPm = hour < 12 ? translate('weather.am') : translate('weather.pm');
-          const h12 = hour % 12 || 12;
-          return `${h12}:${mStr.slice(0, 2)} ${amPm}`;
-        };
-
-        const days: WeatherDayForecast[] = times.map((timeStr: string, i: number) => {
-          const code = fJson.daily?.weather_code?.[i] || 0;
-          const dObj = new Date(timeStr);
-          const dName = dayNames[dObj.getDay() === 0 ? 6 : dObj.getDay() - 1] || translate('weather.day_fallback');
-          return {
-            date: timeStr,
-            day_name: dName,
-            weather_code: code,
-            condition:
-              code === 0
-                ? translate('weather.cond_clear_sky')
-                : code < 3
-                ? translate('weather.cond_partly_cloudy')
-                : translate('weather.cond_cloudy'),
-            icon_type: code === 0 ? 'clear' : code < 3 ? 'partly-cloudy' : code > 50 ? 'rain' : 'cloudy',
-            temp_max_c: Math.round(fJson.daily?.temperature_2m_max?.[i] || 20),
-            temp_min_c: Math.round(fJson.daily?.temperature_2m_min?.[i] || 12),
-            highlights: {
-              uv_index: fJson.daily?.uv_index_max?.[i] || 5,
-              uv_status: translate('weather.status_moderate'),
-              wind_speed_kmh: Math.round(fJson.daily?.wind_speed_10m_max?.[i] || 8),
-              wind_direction_deg: fJson.daily?.wind_direction_10m_dominant?.[i] || 240,
-              wind_direction_cardinal: 'WSW',
-              sunrise: formatSunTime(fJson.daily?.sunrise?.[i], `06:30 ${translate('weather.am')}`),
-              sunset: formatSunTime(fJson.daily?.sunset?.[i], `06:30 ${translate('weather.pm')}`),
-              humidity_pct: Math.round(fJson.current?.relative_humidity_2m ?? 58),
-              humidity_status: translate('weather.status_normal'),
-              visibility_km: Number(((fJson.current?.visibility ?? 10000) / 1000).toFixed(1)),
-              visibility_status: translate('weather.status_clear'),
-              aqi: 42,
-              aqi_status: translate('weather.status_good'),
-            },
-          };
-        });
-
-        setData({
-          city: destinationCity || translate('weather.trip_destination_fallback'),
-          latitude: lat,
-          longitude: lon,
-          timezone: fJson.timezone || 'UTC',
-          current_temp_c: Math.round(fJson.current?.temperature_2m || 18),
-          current_condition: translate('weather.live_telemetry'),
-          current_weather_code: fJson.current?.weather_code || 0,
-          current_icon_type: 'partly-cloudy',
-          forecast_days: days,
-          travel_advisory: translate('weather.optimal_conditions_advisory'),
-        });
-        setIsLoading(false);
-      } catch (fallbackErr: unknown) {
-        const finalMsg = fallbackErr instanceof Error ? fallbackErr.message : errMsg;
-        setError(finalMsg);
-        setIsLoading(false);
-
-        // Fetch optional live conditions preview for today if destination coords available
-        const previewLat = coordinates?.lat;
-        const previewLon = coordinates?.lng;
-        if (previewLat != null && previewLon != null) {
-          try {
-            const curRes = await fetch(
-              `https://api.open-meteo.com/v1/forecast?latitude=${previewLat}&longitude=${previewLon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&forecast_days=1`
-            );
-            if (curRes.ok) {
-              const curJson = await curRes.json();
-              if (curJson.current) {
-                const code = curJson.current.weather_code || 0;
-                setCurrentPreview({
-                  temp_c: Math.round(curJson.current.temperature_2m),
-                  condition:
-                    code === 0
-                      ? translate('weather.cond_clear_sky')
-                      : code < 3
-                      ? translate('weather.cond_partly_cloudy')
-                      : code > 50
-                      ? translate('weather.cond_rain')
-                      : translate('weather.cond_cloudy'),
-                  icon_type: code === 0 ? 'clear' : code < 3 ? 'partly-cloudy' : code > 50 ? 'rain' : 'cloudy',
-                  humidity: curJson.current.relative_humidity_2m ?? 50,
-                  wind_kmh: Math.round(curJson.current.wind_speed_10m ?? 10),
-                });
-              }
-            }
-          } catch {
-            // Optional preview - non-blocking
-          }
-        }
-      }
+      setError(errMsg);
+      setIsLoading(false);
     }
-  }, [destinationCity, coordinates, effectiveStartDate, effectiveEndDate, daysUntilTrip]);
+  }, [destinationCity, coordinates, effectiveStartDate, effectiveEndDate]);
 
   useEffect(() => {
     let cancelled = false;
