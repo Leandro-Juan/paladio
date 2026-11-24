@@ -115,6 +115,50 @@ async function loadEncryptedBase64(): Promise<string> {
     if (blobToken) {
       headers['Authorization'] = `Bearer ${blobToken}`;
     }
+
+    if (remoteUrl.startsWith('https://api.github.com/')) {
+      headers['User-Agent'] = 'paladio-demo';
+      let assetUrl = remoteUrl;
+      if (assetUrl.includes('/releases/tags/')) {
+        const metaRes = await fetch(assetUrl, {
+          cache: 'no-store',
+          headers: { ...headers, Accept: 'application/vnd.github+json' },
+        });
+        if (!metaRes.ok) {
+          throw new Error(`Failed to resolve GitHub release metadata (${metaRes.status})`);
+        }
+        const release = (await metaRes.json()) as {
+          assets?: Array<{ name?: string; url?: string }>;
+        };
+        const asset = release.assets?.find((a) => a.name === 'demo-snapshot.enc' && a.url);
+        if (!asset?.url) {
+          throw new Error('GitHub release does not contain a demo-snapshot.enc asset.');
+        }
+        assetUrl = asset.url;
+      }
+
+      const redirectRes = await fetch(assetUrl, {
+        cache: 'no-store',
+        headers: { ...headers, Accept: 'application/octet-stream' },
+        redirect: 'manual',
+      });
+      if (redirectRes.status >= 300 && redirectRes.status < 400) {
+        const signedUrl = redirectRes.headers.get('location');
+        if (!signedUrl) {
+          throw new Error(`GitHub asset redirect missing Location header (${redirectRes.status})`);
+        }
+        const assetRes = await fetch(signedUrl, { cache: 'no-store' });
+        if (!assetRes.ok) {
+          throw new Error(`Failed to download redirected demo snapshot (${assetRes.status})`);
+        }
+        return (await assetRes.text()).trim();
+      }
+      if (!redirectRes.ok) {
+        throw new Error(`Failed to load DEMO_SNAPSHOT_URL (${redirectRes.status})`);
+      }
+      return (await redirectRes.text()).trim();
+    }
+
     const res = await fetch(remoteUrl, { cache: 'no-store', headers });
     if (!res.ok) {
       throw new Error(`Failed to load DEMO_SNAPSHOT_URL (${res.status})`);
