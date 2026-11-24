@@ -225,3 +225,7 @@ export function translate(
   const targetLocale = localeOverride ? getLocaleInfo(localeOverride).code : state.currentLocale;
   return translateFromDictionaries(state.dictionaries, targetLocale, key, params);
 }
+
+if (typeof window !== 'undefined') {
+  (window as unknown as { __PALADIO_LOCALE_STORE__?: typeof useLocaleStore }).__PALADIO_LOCALE_STORE__ = useLocaleStore;
+}

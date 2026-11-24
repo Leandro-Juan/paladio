@@ -4,7 +4,8 @@ import React, { useState, useRef } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { BoardingPassTacticalIllustration } from '@/components/illustrations';
 import { Spinner, CheckIcon, ChevronRightIcon } from '@/components/icons';
-import { getApiBaseUrl } from '@/utils/api';
+import { getApiBaseUrl, getAuthToken } from '@/utils/api';
+import { formatLocalDateOffset } from '@/stores/tripDraftStore';
 
 export interface BoardingPassExtractedData {
   origin_city?: string | null;
@@ -57,8 +58,10 @@ export function BoardingPassUploadIntake({
         throw new Error(t('engine.boarding_pass_empty_error'));
       }
 
+      const token = getAuthToken();
       const res = await fetch(`${baseUrl}/trips/scan-boarding-pass`, {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       });
 
@@ -75,11 +78,17 @@ export function BoardingPassUploadIntake({
 
       const data: BoardingPassExtractedData = await res.json();
 
-      if (!data.origin_city && !data.destination_city && (!data.drafts || data.drafts.length === 0)) {
+      if (
+        !data.origin_city &&
+        !data.destination_city &&
+        !data.origin_iata &&
+        !data.destination_iata &&
+        (!data.drafts || data.drafts.length === 0)
+      ) {
         throw new Error(t('engine.boarding_pass_no_telemetry'));
       }
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatLocalDateOffset(0);
       if (data.departure_date && data.departure_date < today) {
         throw new Error(
           t('engine.boarding_pass_past_departure', { date: data.departure_date, today })
@@ -146,14 +155,23 @@ export function BoardingPassUploadIntake({
         }}
         onDragLeave={(e) => {
           e.preventDefault();
-          setIsDragOver(false);
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setIsDragOver(false);
+          }
         }}
         onDragOver={(e) => {
           e.preventDefault();
+          setIsDragOver(true);
         }}
         onDrop={handleDrop}
         onClick={() => {
           if (!isScanning && !disabled) fileInputRef.current?.click();
+        }}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && !isScanning && !disabled) {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
         }}
         role="button"
         tabIndex={0}

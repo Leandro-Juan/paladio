@@ -73,6 +73,40 @@ def extract_itinerary_seeds(
     raw_days = itin.get("days")
     days = raw_days if isinstance(raw_days, list) else []
 
+    scanned_docs = (
+        itin.get("scanned_documents")
+        or itin.get("wallet_documents")
+        or itin.get("documents")
+        or []
+    )
+    scanned_list = scanned_docs if isinstance(scanned_docs, list) else []
+    scanned_flight_keys: set[tuple[str, str]] = set()
+    scanned_flight_numbers: set[str] = set()
+    has_scanned_hotel = False
+    for doc in scanned_list:
+        if not isinstance(doc, dict):
+            continue
+        dt = doc.get("ticket_type") or doc.get("document_type") or "other"
+        dmeta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+        if dt == "flight":
+            d_orig = str(
+                dmeta.get("origin_iata") or doc.get("origin_iata") or ""
+            ).upper()
+            d_dest = str(
+                dmeta.get("destination_iata") or doc.get("destination_iata") or ""
+            ).upper()
+            d_num = (
+                str(dmeta.get("flight_number") or doc.get("flight_number") or "")
+                .strip()
+                .upper()
+            )
+            if d_orig and d_dest:
+                scanned_flight_keys.add((d_orig, d_dest))
+            if d_num:
+                scanned_flight_numbers.add(d_num)
+        elif dt == "hotel":
+            has_scanned_hotel = True
+
     # 1. Flights Extraction
     flight_records: list[dict[str, Any]] = []
 
@@ -117,6 +151,12 @@ def extract_itinerary_seeds(
         airline_name = f.get("airline") or (
             f"Airline {flight_num}" if flight_num else None
         )
+
+        norm_num = str(flight_num).strip().upper()
+        if (str(orig).upper(), str(dest).upper()) in scanned_flight_keys or (
+            norm_num and norm_num in scanned_flight_numbers
+        ):
+            continue
 
         key = f"{orig}-{dest}-{dep_str}"
         if key in seen_flights:
@@ -190,7 +230,7 @@ def extract_itinerary_seeds(
             if hotel_name:
                 break
 
-    if hotel_name:
+    if hotel_name and not has_scanned_hotel:
         dest_city = trip.destination or "Destination"
         h_dict = hotel_info if isinstance(hotel_info, dict) else {}
         cin_date = str(h_dict.get("check_in_date") or trip.start_date or "")[:10]
@@ -364,7 +404,7 @@ async def sync_trip_tickets(trip: TripModel, session: AsyncSession) -> dict[str,
 
     stmt = select(TripTicketModel).where(
         TripTicketModel.trip_id == trip.id,
-        TripTicketModel.source == "itinerary",
+        TripTicketModel.source.in_(["itinerary", "scan"]),
     )
     existing_tickets = (await session.execute(stmt)).scalars().all()
     existing_by_ref = {t.source_ref: t for t in existing_tickets if t.source_ref}
@@ -439,6 +479,10 @@ async def sync_trip_tickets(trip: TripModel, session: AsyncSession) -> dict[str,
     for ref, existing in existing_by_ref.items():
         if (
             ref not in active_refs
+            and (
+                existing.source == "itinerary"
+                or (existing.source_ref or "").startswith("scanned:")
+            )
             and not existing.user_modified
             and not existing.attachments
         ):

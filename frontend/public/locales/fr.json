@@ -19,7 +19,71 @@
     "title": "Activité",
     "version_current": "v{revision} • ACTUELLE",
     "version_tag": "v{revision}",
-    "yesterday": "Hier"
+    "yesterday": "Hier",
+    "actors": {
+      "system": "Système",
+      "agent": "Agent Paladio",
+      "traveler": "Voyageur"
+    },
+    "verbs": {
+      "updated_transit_corridor_to": "a mis à jour le couloir de transit vers",
+      "moved_expedition_dates_to": "a déplacé les dates de l'expédition au",
+      "updated_cover_media_for": "a mis à jour la photo de couverture de",
+      "reordered_stops_in": "a réorganisé les étapes dans",
+      "edited_schedule_in": "a modifié le programme dans",
+      "changed_status_from": "a changé le statut de",
+      "changed_the_title_to": "a changé le titre en",
+      "changed_destination_from": "a changé la destination de",
+      "updated_lodging_anchor_to": "a mis à jour l'hébergement pour",
+      "cleared_lodging_anchor": "a supprimé l'hébergement",
+      "changed_target_budget_from": "a modifié le budget cible de",
+      "set_target_budget_to": "a fixé le budget cible à",
+      "cleared_target_budget": "a supprimé le budget cible",
+      "changed_base_currency_from": "a modifié la devise de référence de",
+      "changed_exploration_pace_from": "a modifié le rythme d'exploration de",
+      "edited_field_briefing_for": "a modifié le briefing de",
+      "edited_internal_notes_for": "a modifié les notes internes de",
+      "added": "a ajouté",
+      "removed": "a retiré",
+      "edited_the": "a modifié",
+      "edited": "a modifié",
+      "created_the": "a créé",
+      "reverted": "a annulé",
+      "restored": "a restauré",
+      "optimized_the_route_for": "a optimisé l'itinéraire pour",
+      "updated": "a mis à jour"
+    },
+    "connectors": {
+      "to": "à",
+      "in": "dans",
+      "from": "de",
+      "for": "pour"
+    },
+    "labels": {
+      "day_number": "Jour {number}",
+      "version_number": "Version v{number}",
+      "unset": "Non défini",
+      "lodging": "Hébergement",
+      "draft": "Brouillon",
+      "planned": "Planifié",
+      "confirmed": "Confirmé",
+      "active": "Actif",
+      "completed": "Terminé",
+      "archived": "Archivé",
+      "cancelled": "Annulé",
+      "relaxed": "Détendu",
+      "balanced": "Équilibré",
+      "fast_paced": "Rythmé",
+      "intense": "Intense"
+    },
+    "summaries": {
+      "created": "A créé {title}",
+      "edited": "A modifié {title}",
+      "reverted_revision": "A rétabli la révision v{revision}",
+      "restored_version": "A restauré la version v{revision}",
+      "updated_via_api": "Voyage mis à jour via l'API",
+      "more_count": "+{count} de plus"
+    }
   },
   "add_poi": {
     "add_place_btn": "Ajouter le Lieu",
@@ -1821,7 +1885,7 @@
     "stay_at_destination": "Séjour à {destination}",
     "swap_route_aria": "Inverser origine et destination",
     "swap_route_title": "Inverser l'itinéraire",
-    "swarm_inferencing_optimizing": "Inférence de l'essaim & optimisation de l'itinéraire en C++20...",
+    "swarm_inferencing_optimizing": "Inférence de l'essaim & optimisation de l'itinéraire...",
     "thinking_analyzing": "Analyse de vos préférences et de votre rythme de voyage...",
     "thinking_booking_anchors": "Traitement des ancrages de réservation...",
     "thinking_constraints": "Préparation des contraintes d'optimisation...",
@@ -1831,12 +1895,12 @@
     "thinking_guardrails": "Évaluation des garde-fous horaires et de la faisabilité...",
     "thinking_guardrails_passed": "Programme vérifié. Préparation du solveur d'itinéraire...",
     "thinking_initializing": "Initialisation de l'essaim solveur IA...",
-    "thinking_optimizing": "Optimisation des parcours quotidiens et des transports avec le solveur C++...",
+    "thinking_optimizing": "Optimisation des parcours quotidiens et des transports...",
     "thinking_reviewing": "Synthèse des ancrages de voyage et des dates...",
     "thinking_routing": "Acheminement de l'intention de voyage via l'essaim d'agents...",
     "thinking_saving": "Enregistrement du voyage dans votre espace de travail...",
     "thinking_scraping": "Découverte des attractions, tables locales et lignes de transport...",
-    "thinking_submessage": "{destination} • OPTIMISEUR SOUVERAIN CONTINU",
+    "thinking_submessage": "{destination} • CELA PEUT PRENDRE QUELQUES INSTANTS",
     "thinking_validating": "Validation des contraintes horaires...",
     "travel_destination_alt": "Destination de voyage",
     "travel_window_calendar": "Période de Voyage & Calendrier",
@@ -1860,7 +1924,8 @@
     "verification_title": "[VÉRIFICATION DES CONTRAINTES] EXAMINER LES PARAMÈTRES DU VOYAGE",
     "verified_hotel_location": "Emplacement d'Hôtel Vérifié",
     "view_map": "Voir la Carte",
-    "you_badge": "Vous"
+    "you_badge": "Vous",
+    "manual_time_input_aria": "Saisir l’heure manuellement (HH:MM)"
   },
   "errors": {
     "action_failed": "L'action demandée n'a pas pu être effectuée.",
@@ -3456,7 +3521,9 @@
     "waypoint_unlocked_desc": "« {name} » est maintenant flexible.",
     "waypoint_unlocked_title": "Étape Déverrouillée",
     "your_trip": "votre voyage",
-    "zero_places_upper": "0 LIEU"
+    "zero_places_upper": "0 LIEU",
+    "day_name_placeholder": "Thème ou nom du jour...",
+    "edit_day_name": "Modifier le nom du jour"
   },
   "taste_calibration": {
     "already_active_desc": "Le calibrage initial des goûts n'est disponible que lorsque votre Radar Harmonique à 8 points est à sa référence neutre 0.50. Vous pouvez affiner vos préférences à tout moment dans les Paramètres.",

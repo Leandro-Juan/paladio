@@ -45,6 +45,7 @@ export default function EnginePage() {
   const {
     status,
     itinerary,
+    clearItinerary,
     verificationPayload,
     clearVerification,
     overlapWarning,
@@ -63,13 +64,17 @@ export default function EnginePage() {
   const queryDestIata = searchParams.get('dest_iata') || undefined;
   const queryStart = searchParams.get('start_date') || undefined;
   const queryEnd = searchParams.get('end_date') || undefined;
-  const queryBudget = searchParams.get('budget') ? Math.round(Number(searchParams.get('budget'))) : undefined;
+  const rawBudgetParam = searchParams.get('budget');
+  const parsedQueryBudget = rawBudgetParam !== null && rawBudgetParam !== '' ? Number(rawBudgetParam) : NaN;
+  const queryBudget = Number.isFinite(parsedQueryBudget) && parsedQueryBudget >= 0 ? Math.round(parsedQueryBudget) : undefined;
   const queryCurrency = searchParams.get('currency') || undefined;
   const queryDepartureHour = searchParams.get('departure_hour') || undefined;
   const queryArrivalHour = searchParams.get('arrival_hour') || undefined;
   const queryHotelName = searchParams.get('hotel_name') || undefined;
   const queryHotelAddress = searchParams.get('hotel_address') || undefined;
-  const queryTravelers = searchParams.get('travelers') ? Math.max(1, Math.round(Number(searchParams.get('travelers')))) : undefined;
+  const rawTravelersParam = searchParams.get('travelers');
+  const parsedQueryTravelers = rawTravelersParam !== null && rawTravelersParam !== '' ? Number(rawTravelersParam) : NaN;
+  const queryTravelers = Number.isFinite(parsedQueryTravelers) ? Math.max(1, Math.round(parsedQueryTravelers)) : undefined;
   const querySource = searchParams.get('source') || undefined;
   const hasQueryPrefill = Boolean(
     queryDest ||
@@ -78,15 +83,20 @@ export default function EnginePage() {
       queryDestIata ||
       queryStart ||
       queryEnd ||
-      queryBudget ||
+      queryBudget !== undefined ||
       queryCurrency ||
+      queryDepartureHour ||
+      queryArrivalHour ||
       queryHotelName ||
+      queryHotelAddress ||
+      queryTravelers !== undefined ||
       querySource
   );
   const queryPrefillKey = searchParams.toString();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [blankCreationStatus, setBlankCreationStatus] = useState<string | null>(null);
+  const [blankCreationError, setBlankCreationError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const logs = useLogStore((state) => state.logs);
   const draft = useTripDraftStore();
@@ -96,7 +106,13 @@ export default function EnginePage() {
   const lastExtrasRef = useRef<Record<string, unknown>>({});
 
   const handlePrepSubmit = (prompt: string, extras: Record<string, unknown>) => {
+    savedTripIdRef.current = null;
+    isSavingRef.current = false;
+    setIsSaving(false);
+    setBlankCreationError(null);
     setIsSubmitting(true);
+    clearItinerary();
+    useLogStore.getState().clearLogs();
     lastExtrasRef.current = extras;
     const newThreadId = 'paladio_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
     sendMessage(prompt, { ...extras, auto_verify: true, thread_id: newThreadId });
@@ -107,8 +123,12 @@ export default function EnginePage() {
     if (!itinerary || isSavingRef.current || savedTripIdRef.current) return;
     isSavingRef.current = true;
     setIsSaving(true);
-    
-    const destination = extractDestination(itinerary);
+
+    const extras = lastExtrasRef.current;
+    const extraDest = typeof extras.destination_city === 'string' && extras.destination_city.trim()
+      ? extras.destination_city.trim()
+      : '';
+    const destination = extraDest || extractDestination(itinerary);
     let startDate = new Date();
     if (itinerary?.travel_constraints?.start_date) {
       const parsed = new Date(itinerary.travel_constraints.start_date);
@@ -135,10 +155,40 @@ export default function EnginePage() {
       endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + Math.max(0, daysLength - 1));
     }
-    
+
+    const existingConstraints = (itinerary.travel_constraints || {}) as Record<string, unknown>;
+    const mergedConstraints: Record<string, unknown> = {
+      ...existingConstraints,
+      ...(extras.title ? { title: extras.title } : {}),
+      ...(extras.description ? { description: extras.description } : {}),
+      ...(extras.currency ? { currency: extras.currency } : {}),
+      ...(extras.budget !== undefined ? { budget: extras.budget } : {}),
+      ...(extras.budget_usd !== undefined ? { budget_usd: extras.budget_usd } : {}),
+      ...(extras.travelers !== undefined ? { travelers: extras.travelers } : {}),
+      ...(extras.origin_city ? { origin_city: extras.origin_city } : {}),
+      ...(extras.origin_iata ? { origin_iata: extras.origin_iata } : {}),
+      ...(extras.destination_city ? { destination_city: extras.destination_city } : {}),
+      ...(extras.destination_iata ? { destination_iata: extras.destination_iata } : {}),
+      ...(extras.departure_hour ? { departure_hour: extras.departure_hour } : {}),
+      ...(extras.arrival_hour ? { arrival_hour: extras.arrival_hour } : {}),
+      ...(extras.accommodation ? { accommodation: extras.accommodation } : {}),
+      ...(extras.hotel ? { hotel: extras.hotel } : {}),
+      ...(extras.participants ? { participants: extras.participants } : {}),
+    };
+
+    const rawItin = itinerary as unknown as Record<string, unknown>;
     const itineraryPayload = {
       ...itinerary,
-      ...(lastExtrasRef.current.scanned_documents ? { scanned_documents: lastExtrasRef.current.scanned_documents } : {}),
+      ...(extras.title && !rawItin.title ? { title: extras.title } : {}),
+      ...(extras.description && !rawItin.description ? { description: extras.description } : {}),
+      ...(extras.cover_photo && !rawItin.cover_photo ? { cover_photo: extras.cover_photo } : {}),
+      ...(extras.origin_city && !rawItin.origin ? { origin: extras.origin_city } : {}),
+      ...(extras.departure_hour && !rawItin.departure_hour ? { departure_hour: extras.departure_hour } : {}),
+      ...(extras.arrival_hour && !rawItin.arrival_hour ? { arrival_hour: extras.arrival_hour } : {}),
+      ...(extras.hotel && !rawItin.hotel ? { hotel: extras.hotel } : {}),
+      ...(extras.participants && !rawItin.participants ? { participants: extras.participants } : {}),
+      ...(extras.scanned_documents ? { scanned_documents: extras.scanned_documents } : {}),
+      travel_constraints: mergedConstraints,
     };
 
     const saved = await saveTrip({
@@ -150,13 +200,25 @@ export default function EnginePage() {
     if (saved?.id) {
       useTripDraftStore.getState().resetDraft();
       savedTripIdRef.current = saved.id;
+      clearItinerary();
+      useLogStore.getState().clearLogs();
+      setIsSaving(false);
+      setIsSubmitting(false);
       router.push(`/trips/${saved.id}`);
     } else {
       isSavingRef.current = false;
       setIsSaving(false);
       setIsSubmitting(false);
     }
-  }, [itinerary, saveTrip, router]);
+  }, [itinerary, saveTrip, router, clearItinerary]);
+
+  // Clean up any stale itinerary or logs when mounting fresh
+  useEffect(() => {
+    clearItinerary();
+    useLogStore.getState().clearLogs();
+    savedTripIdRef.current = null;
+    isSavingRef.current = false;
+  }, [clearItinerary]);
 
   // Ensure WebSocket uplink is connected when entering Engine cockpit
   useEffect(() => {
@@ -167,10 +229,10 @@ export default function EnginePage() {
 
   // When personalized optimization finishes, auto-save and redirect to trip workspace
   useEffect(() => {
-    if (itinerary && !isSavingRef.current && !savedTripIdRef.current) {
+    if (isSubmitting && itinerary && !isSavingRef.current && !savedTripIdRef.current) {
       void handleSaveTrip();
     }
-  }, [itinerary, handleSaveTrip]);
+  }, [isSubmitting, itinerary, handleSaveTrip]);
 
   const isCreatingTrip = isSubmitting || status === 'inferencing' || isSaving || Boolean(blankCreationStatus);
 
@@ -203,6 +265,8 @@ export default function EnginePage() {
             setIsSubmitting(false);
             setBlankCreationStatus(null);
             clearVerification();
+            clearItinerary();
+            useLogStore.getState().clearLogs();
           }}
         />
 
@@ -277,6 +341,43 @@ export default function EnginePage() {
             </div>
           )}
         </Modal>
+
+        <Modal 
+          isOpen={Boolean(verificationPayload)}
+          variant="warning"
+          title={t('engine.verification_title')}
+          message={verificationPayload?.message || t('engine.verification_default_message')}
+          confirmText={t('engine.confirm_and_optimize')}
+          cancelText={t('engine.cancel_upper')}
+          onConfirm={() => {
+            sendResume({
+              approved: true,
+              proceed: true,
+              ...(verificationPayload?.constraints || {}),
+            });
+            clearVerification();
+          }}
+          onCancel={() => {
+            setIsSubmitting(false);
+            clearVerification();
+          }}
+        >
+          {verificationPayload?.fields && verificationPayload.fields.length > 0 && (
+            <div style={{
+              background: 'var(--color-accent-gold-soft)',
+              border: '1px solid var(--color-border-subtle)',
+              borderRadius: '4px',
+              padding: '0.75rem',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.85rem'
+            }}>
+              <div style={{ fontWeight: 600, color: 'var(--color-accent-gold)', marginBottom: '0.25rem' }}>
+                {t('engine.flagged_fields')}
+              </div>
+              <div>{verificationPayload.fields.join(', ')}</div>
+            </div>
+          )}
+        </Modal>
       </div>
     );
   }
@@ -292,28 +393,42 @@ export default function EnginePage() {
       <TripCreationBoxes
         key={queryPrefillKey || 'default'}
         onPersonalizedSubmit={handlePrepSubmit}
-        onBlankSubmitStart={(msg) => setBlankCreationStatus(msg || t('engine.creating_blank_workspace'))}
+        onBlankSubmitStart={(msg) => {
+          savedTripIdRef.current = null;
+          isSavingRef.current = false;
+          setIsSaving(false);
+          setBlankCreationError(null);
+          clearItinerary();
+          useLogStore.getState().clearLogs();
+          setBlankCreationStatus(msg || t('engine.creating_blank_workspace'));
+        }}
+        onBlankSubmitError={(err) => {
+          setBlankCreationStatus(null);
+          setBlankCreationError(err);
+        }}
+        externalError={blankCreationError}
+        onClearExternalError={() => setBlankCreationError(null)}
         disabled={false}
         demoLockedSubmit={true}
-          initialDestination={queryDest || 'Paris'}
-          initialOrigin={queryOrigin || 'Madrid'}
-          initialOriginIata={queryOriginIata}
-          initialDestIata={queryDestIata}
-          initialStartDate={queryStart}
-          initialEndDate={queryEnd}
-          initialBudget={queryBudget ? Number(queryBudget) : 1500}
-          initialCurrency={queryCurrency}
-          initialDepartureHour={queryDepartureHour}
-          initialArrivalHour={queryArrivalHour}
-          initialHotelArea={queryHotelName}
-          initialHotelAddress={queryHotelAddress}
-          initialTravelers={queryTravelers}
-          hasQueryPrefill={hasQueryPrefill}
-          querySource={querySource}
-          queryPrefillKey={queryPrefillKey}
-          status={status}
-          onReconnect={connect}
-        />
+        initialDestination={queryDest || 'Paris'}
+        initialOrigin={queryOrigin || 'Madrid'}
+        initialOriginIata={queryOriginIata}
+        initialDestIata={queryDestIata}
+        initialStartDate={queryStart}
+        initialEndDate={queryEnd}
+        initialBudget={queryBudget !== undefined ? Number(queryBudget) : 1500}
+        initialCurrency={queryCurrency}
+        initialDepartureHour={queryDepartureHour}
+        initialArrivalHour={queryArrivalHour}
+        initialHotelArea={queryHotelName}
+        initialHotelAddress={queryHotelAddress}
+        initialTravelers={queryTravelers}
+        hasQueryPrefill={hasQueryPrefill}
+        querySource={querySource}
+        queryPrefillKey={queryPrefillKey}
+        status={status}
+        onReconnect={connect}
+      />
 
       <Modal 
         isOpen={Boolean(verificationPayload)}

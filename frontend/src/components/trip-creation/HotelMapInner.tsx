@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { LeafletMouseEvent } from 'leaflet';
@@ -25,9 +25,14 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
 
 function RecenterController({ targetCenter, targetZoom }: { targetCenter: [number, number]; targetZoom?: number }) {
   const map = useMap();
+  const zoomRef = useRef(targetZoom);
   useEffect(() => {
-    map.flyTo(targetCenter, targetZoom ?? map.getZoom(), { animate: true, duration: 0.6 });
-  }, [map, targetCenter, targetZoom]);
+    zoomRef.current = targetZoom;
+  }, [targetZoom]);
+  const [lat, lng] = targetCenter;
+  useEffect(() => {
+    map.flyTo([lat, lng], zoomRef.current ?? map.getZoom(), { animate: true, duration: 0.6 });
+  }, [map, lat, lng]);
   return null;
 }
 
@@ -63,7 +68,7 @@ export default function HotelMapInner({
         maxZoom={MAP_TILE_CONFIG.maxZoom}
       />
       <MapClickHandler onMapClick={onMapClick} />
-      <RecenterController targetCenter={center} />
+      <RecenterController targetCenter={center} targetZoom={zoom} />
       {pinPos && <Marker position={pinPos} icon={hotelIcon} />}
     </MapContainer>
   );

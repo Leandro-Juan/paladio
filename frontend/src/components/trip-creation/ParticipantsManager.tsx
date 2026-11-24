@@ -73,31 +73,48 @@ export function ParticipantsManager({
     };
   }, [isOpen]);
 
+  const isOrganizerParticipant = (p: SelectedParticipant) =>
+    Boolean(p.is_organizer || p.id === 'creator' || (currentUserId && p.user_id === currentUserId));
+
   // Toggle registered user selection via checkbox
   const handleToggleUser = (user: CollaboratorOption) => {
+    const isSelf = Boolean(currentUserId && user.id === currentUserId);
     const isSelected = participants.some((p) => p.user_id === user.id || p.id === user.id);
     if (isSelected) {
-      // Always ensure at least 1 participant remains
-      if (participants.length <= 1) return;
-      onChange(participants.filter((p) => p.user_id !== user.id && p.id !== user.id));
+      // Never remove the organizer/creator or the last remaining participant
+      if (isSelf || participants.length <= 1) return;
+      onChange(
+        participants.filter((p) => (p.user_id !== user.id && p.id !== user.id) || isOrganizerParticipant(p))
+      );
     } else {
+      const baseParticipants = isSelf
+        ? participants.filter((p) => p.id !== 'creator')
+        : participants;
       const newParticipant: SelectedParticipant = {
         id: user.id,
         name: user.username,
         email: user.email,
         user_id: user.id,
         is_guest: false,
-        is_organizer: user.id === currentUserId,
+        is_organizer: isSelf,
       };
-      onChange([...participants, newParticipant]);
+      onChange([...baseParticipants, newParticipant]);
     }
   };
 
   // Add custom guest traveler by name
-  const handleAddGuest = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleAddGuest = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const trimmed = guestName.trim();
     if (!trimmed) return;
+
+    const isDuplicate = participants.some(
+      (p) => p.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (isDuplicate) return;
 
     const guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const newGuest: SelectedParticipant = {
@@ -116,8 +133,10 @@ export function ParticipantsManager({
   // Remove participant by ID
   const handleRemoveParticipant = (id: string) => {
     if (disabled) return;
-    // Keep at least one participant
+    // Keep at least one participant and never remove the organizer/creator
     if (participants.length <= 1) return;
+    const target = participants.find((p) => p.id === id);
+    if (target && isOrganizerParticipant(target)) return;
     onChange(participants.filter((p) => p.id !== id));
   };
 
@@ -170,8 +189,9 @@ export function ParticipantsManager({
         }}
       >
         {participants.map((p) => {
-          const isCreator = p.user_id === currentUserId || p.is_organizer;
-          const initial = (p.name || 'T').charAt(0).toUpperCase();
+          const isCreator = isOrganizerParticipant(p);
+          const displayName = p.id === 'creator' && p.name === 'You' ? t('engine.you_badge') : p.name;
+          const initial = (displayName || 'T').charAt(0).toUpperCase();
           return (
             <div
               key={p.id}
@@ -210,7 +230,7 @@ export function ParticipantsManager({
                 {initial}
               </div>
 
-              <span>{p.name}</span>
+              <span>{displayName}</span>
 
               {p.is_guest && (
                 <span
@@ -245,12 +265,12 @@ export function ParticipantsManager({
                 </span>
               )}
 
-              {/* Remove button (if more than 1 participant) */}
-              {!disabled && participants.length > 1 && (
+              {/* Remove button (if more than 1 participant and not organizer) */}
+              {!disabled && participants.length > 1 && !isCreator && (
                 <button
                   type="button"
                   onClick={() => handleRemoveParticipant(p.id)}
-                  title={t('engine.remove_participant_title', { name: p.name })}
+                  title={t('engine.remove_participant_title', { name: displayName })}
                   style={{
                     border: 'none',
                     background: 'transparent',
@@ -412,8 +432,8 @@ export function ParticipantsManager({
                   {t('engine.add_guest_section_title')}
                 </span>
               </div>
-              <form
-                onSubmit={handleAddGuest}
+              <div
+                role="group"
                 style={{
                   display: 'flex',
                   gap: '8px',
@@ -424,6 +444,13 @@ export function ParticipantsManager({
                   type="text"
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleAddGuest(e);
+                    }
+                  }}
                   placeholder={t('engine.guest_name_placeholder')}
                   style={{
                     flex: 1,
@@ -438,13 +465,21 @@ export function ParticipantsManager({
                   }}
                 />
                 <button
-                  type="submit"
-                  disabled={!guestName.trim()}
+                  type="button"
+                  onClick={(e) => handleAddGuest(e)}
+                  disabled={
+                    !guestName.trim() ||
+                    participants.some((p) => p.name.trim().toLowerCase() === guestName.trim().toLowerCase())
+                  }
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '5px',
-                    background: guestName.trim() ? '#2563EB' : 'var(--color-border)',
+                    background:
+                      guestName.trim() &&
+                      !participants.some((p) => p.name.trim().toLowerCase() === guestName.trim().toLowerCase())
+                        ? '#2563EB'
+                        : 'var(--color-border)',
                     color: '#FFFFFF',
                     border: 'none',
                     borderRadius: '9999px',
@@ -452,14 +487,18 @@ export function ParticipantsManager({
                     fontSize: '12px',
                     fontWeight: 600,
                     fontFamily: 'var(--font-sans)',
-                    cursor: guestName.trim() ? 'pointer' : 'not-allowed',
+                    cursor:
+                      guestName.trim() &&
+                      !participants.some((p) => p.name.trim().toLowerCase() === guestName.trim().toLowerCase())
+                        ? 'pointer'
+                        : 'not-allowed',
                     transition: 'all 0.15s ease',
                   }}
                 >
                   <PlusIcon size={12} color="#FFFFFF" />
                   <span>{t('engine.add_guest_btn')}</span>
                 </button>
-              </form>
+              </div>
             </div>
 
             {/* Section 2: Registered App Users List with Checkboxes */}
@@ -658,7 +697,10 @@ export function ParticipantsManager({
                 </span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {participants.map((p) => (
+                {participants.map((p) => {
+                  const isCreator = isOrganizerParticipant(p);
+                  const displayName = p.id === 'creator' && p.name === 'You' ? t('engine.you_badge') : p.name;
+                  return (
                   <div
                     key={p.id}
                     style={{
@@ -673,8 +715,8 @@ export function ParticipantsManager({
                       color: 'var(--color-text-primary)',
                     }}
                   >
-                    <span>{p.name}</span>
-                    {participants.length > 1 && (
+                    <span>{displayName}</span>
+                    {participants.length > 1 && !isCreator && (
                       <button
                         type="button"
                         onClick={() => handleRemoveParticipant(p.id)}
@@ -694,7 +736,8 @@ export function ParticipantsManager({
                       </button>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

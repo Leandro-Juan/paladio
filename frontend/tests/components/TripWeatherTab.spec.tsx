@@ -108,17 +108,91 @@ test.describe('TripWeatherTab', () => {
     // Verify Travel Advisory banner
     await expect(component.getByTestId('weather-travel-advisory')).toBeVisible();
 
-    // Verify unit toggle (°C / °F)
-    const fToggle = component.getByRole('button', { name: '°F' });
-    await expect(fToggle).toBeVisible();
-    await fToggle.click();
+    // Verify unit toggle (°C / °F) and header refresh button are removed
+    await expect(component.getByRole('button', { name: '°C' })).toHaveCount(0);
+    await expect(component.getByRole('button', { name: '°F' })).toHaveCount(0);
+    await expect(component.getByRole('button', { name: 'Refresh weather telemetry' })).toHaveCount(0);
 
-    // After clicking °F, 15°C becomes 59°F
-    await expect(component.getByText('59°')).toBeVisible();
+    // Verify forecast strip supports horizontal overflow scrolling
+    const forecastStrip = component.getByTestId('weather-forecast-strip');
+    await expect(forecastStrip).toBeVisible();
+    await expect(forecastStrip).toHaveCSS('overflow-x', 'auto');
 
     // Verify day selection interaction
     await day1.click();
     await expect(component.getByText("Mon's Highlights")).toBeVisible();
+  });
+
+  test('supports horizontal wheel scrolling across day forecast strip when overflowing', async ({ mount, page }) => {
+    const forecastDays = Array.from({ length: 8 }, (_, idx) => ({
+      date: `2026-11-0${idx + 1}`,
+      day_name: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][idx],
+      weather_code: 0,
+      condition: 'Clear Sky',
+      icon_type: 'clear',
+      temp_max_c: 15 + idx,
+      temp_min_c: 5 + idx,
+      highlights: {
+        uv_index: 3,
+        uv_status: 'Low',
+        wind_speed_kmh: 6,
+        wind_direction_deg: 180,
+        wind_direction_cardinal: 'S',
+        sunrise: '7:00 AM',
+        sunset: '5:30 PM',
+        humidity_pct: 60,
+        humidity_status: 'Normal',
+        visibility_km: 10,
+        visibility_status: 'Clear',
+        aqi: 40,
+        aqi_status: 'Good',
+      },
+    }));
+
+    await page.route('**/api/weather/forecast*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          city: 'Madrid',
+          latitude: 40.42,
+          longitude: -3.69,
+          timezone: 'Europe/Madrid',
+          current_temp_c: 9,
+          current_condition: 'Clear Sky',
+          current_weather_code: 0,
+          current_icon_type: 'clear',
+          travel_advisory: 'Optimal meteorological conditions for pedestrian urban exploration.',
+          forecast_days: forecastDays,
+        }),
+      });
+    });
+
+    const component = await mount(
+      <div style={{ width: '320px' }}>
+        <TripWeatherTab
+          destinationCity="Madrid"
+          tripStartDate="2026-11-01"
+          tripEndDate="2026-11-08"
+          coordinates={{ lat: 40.42, lng: -3.69 }}
+        />
+      </div>
+    );
+
+    const forecastStrip = component.getByTestId('weather-forecast-strip');
+    await expect(forecastStrip).toBeVisible();
+
+    const initialOverflow = await forecastStrip.evaluate((el) => ({
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      scrollLeft: el.scrollLeft,
+    }));
+    expect(initialOverflow.scrollWidth).toBeGreaterThan(initialOverflow.clientWidth);
+    expect(initialOverflow.scrollLeft).toBe(0);
+
+    await forecastStrip.dispatchEvent('wheel', { deltaY: 120, deltaX: 0 });
+    const afterWheelScrollLeft = await forecastStrip.evaluate((el) => el.scrollLeft);
+    expect(afterWheelScrollLeft).toBeGreaterThan(0);
   });
 
   test('fetches weather strictly for explicit trip date range', async ({ mount, page }) => {

@@ -1,132 +1,50 @@
-# Reference: Paladio Trip MCP Server
+# MCP server reference
 
-## Overview
+Paladio's FastMCP server (`backend/app/mcp/server.py`, name `"paladio"`) registers **82 tools** across 11 categories, **6 resources**, and **6 prompts**, serving both Streamable HTTP at `/mcp` and `stdio` via `python -m app.mcp`.
 
-Paladio exposes an in-process and network-accessible FastMCP server providing **77 deterministic tools**, resources, and prompt templates for conversational trip planning and itinerary manipulation.
+## Transport endpoints and authentication
 
-The server adheres to Paladio's strict sovereign architecture:
-- **100% Air-Gapped & Self-Hosted**: Operates entirely with local Ollama (`qwen2.5:latest` 7.6B) or in-memory FastMCP runners.
-- **Zero Legacy Compatibility**: Modern unified API, clean models, strictly dynamic data.
-- **Auditable Reversibility**: All mutations yield undo tokens and CAS optimistic concurrency checks.
+Every external MCP tool call resolves an authenticated `UserModel` and checks trip access via `assert_trip_access` before querying or modifying PostgreSQL.
 
----
+| Transport | Entrypoint | Authentication & origin rules |
+| :--- | :--- | :--- |
+| **Streamable HTTP** | `POST/GET /mcp` (`mount_mcp_app` in FastAPI) | Requires `Authorization: Bearer your_jwt_here` plus `verify_origin_and_host` (`Host`/`Origin` restricted to `localhost`, `127.0.0.1`, `0.0.0.0`) |
+| **`stdio`** | `python -m app.mcp` (`backend/app/mcp/__main__.py`) | Authenticates against `PALADIO_API_TOKEN` (resolving the earliest active account) or decodes a JWT fallback |
+| **In-process** | `TripAgentRunner` (`with_user_context`) | Shares the active WebSocket user and SQLAlchemy session directly without HTTP overhead |
 
-## Architecture & Transports
+## Complete catalog of 82 MCP tools
 
-The MCP server is defined in `backend/app/mcp/` and supports two transports:
-1. **HTTP/SSE Transport**: Mounted directly onto the FastAPI application at `/mcp` via `FastMCP.mount()`.
-2. **Standard I/O (stdio) Transport**: Executable entrypoint for desktop clients (Claude Desktop, cursor, CLI):
-   ```bash
-   python -m app.mcp.server
-   ```
+Tools marked `(Read)` never mutate data, `(Tier W)` write immediately with a revision snapshot, and `(Tier C)` return a confirmation proposal (`600s` TTL) unless `confirmed=true`.
 
----
+| Category | Count | Registered tools |
+| :--- | :---: | :--- |
+| **1. Trip & Context** | 12 | `get_trip_overview` (Read), `get_itinerary` (Read), `get_stop` (Read), `resolve_stop` (Read), `get_trip_issues` (Read), `update_trip_details` (Tier W; Tier C for dates/destination), `export_trip_package` (Read / Tier C for `community_shareable`), `shift_trip_dates` (Tier W), `duplicate_trip` (Tier W), `record_taste_preference` (Tier W), `forget_taste_preference` (Tier W), `describe_taste_profile` (Read) |
+| **2. POIs & Discovery** | 6 | `search_pois` (Read, capped at 50), `get_poi_details` (Read), `search_places` (Read), `find_nearby` (Read), `suggest_additions` (Read), `create_custom_stop` (Tier W, trip-scoped) |
+| **3. Itinerary Editing** | 18 | `add_stop` (Tier W), `remove_stop` (Tier W; Tier C on locked/flight/hotel stops), `move_stop` (Tier W), `reorder_day` (Tier W), `swap_days` (Tier C), `set_stop_time` (Tier W), `set_stop_duration` (Tier W), `lock_stop` (Tier W), `unlock_stop` (Tier W), `add_meal` (Tier W), `add_free_time` (Tier W), `set_stop_notes` (Tier W), `add_day` (Tier W), `remove_day` (Tier C), `set_day_bounds` (Tier W), `set_pace` (Tier W), `undo_last_change` (Tier W), `undo_to` (Tier W) |
+| **4. Engine & Optimization** | 8 | `optimize_day` (Tier W), `optimize_trip` (Tier C), `what_if` (Read simulation), `rebalance_days` (Tier C), `fit_to_budget` (Tier C), `fill_gaps` (Tier W), `explain_schedule` (Read), `compare_metrics` (Read) |
+| **5. Transit & Mobility** | 8 | `get_transit_status` (Read), `request_transit_build` (Tier J async job), `upgrade_trip_transit` (Tier W), `get_directions` (Read), `get_leg_options` (Read), `set_leg_mode` (Tier W), `nearby_stations` (Read), `get_transit_pass_advice` (Read) |
+| **6. Tickets & Wallet** | 8 | `list_tickets` (Read, secrets masked), `get_ticket` (Read, secrets masked), `create_ticket` (Tier W), `update_ticket` (Tier W), `delete_ticket` (Tier C), `parse_booking_text` (Read), `confirm_ticket_drafts` (Tier W), `sync_anchors_from_tickets` (Tier W) |
+| **7. Expenses & Budget** | 7 | `list_expenses` (Read), `add_expense` (Tier W), `update_expense` (Tier W), `delete_expense` (Tier C), `get_budget_breakdown` (Read), `get_settlement` (Read), `convert_currency` (Read) |
+| **8. Collaboration** | 3 | `list_participants` (Read), `add_participant` (Tier W), `remove_participant` (Tier C, blocks removing last participant) |
+| **9. Collections & Photos** | 5 | `list_collections` (Read), `create_collection` (Tier W), `add_to_collection` (Tier W), `remove_from_collection` (Tier W), `list_photos` (Read metadata only) |
+| **10. Market & Weather** | 4 | `get_weather_forecast` (Read), `suggest_weather_swaps` (Read), `get_route_price_history` (Read), `change_hotel_anchor` (Tier C) |
+| **11. Toolset & Jobs** | 3 | `load_toolset` (Read), `get_job_status` (Read), `cancel_job` (Tier W) |
 
-## Security & Permission Tiers
+## Registered MCP resources (6) and prompts (6)
 
-Every tool is assigned to an authorization tier:
+MCP clients can read structured JSON documents directly via resource URIs or launch pre-built multi-step agent workflows via prompts.
 
-| Tier | Name | Mutation Behavior | Confirmation Requirement | Examples |
-|---|---|---|---|---|
-| **Tier A** | Read / Query | Pure read, zero side effects | Executed immediately | `get_trip_overview`, `get_itinerary`, `search_pois`, `list_expenses` |
-| **Tier B** | Direct Reversible | Modifies route with instant rollback token | Executed immediately, emits `trip_updated` with `undo_token` | `add_stop`, `remove_stop`, `move_stop`, `optimize_day`, `swap_days` |
-| **Tier C** | Destructive / Cost | Irreversible, high-cost, or multi-day deletions | Intercepted into a `ProposalData` with TTL; awaits user confirmation | `rebalance_days`, `clear_day`, `delete_expense`, `confirm_ticket_drafts` |
-
----
-
-## Tool Catalog by Domain
-
-### 1. Trip & Context (`app.mcp.tools.trip`)
-- `get_trip_overview(trip_id)`: High-level overview, date ranges, participant count, and budget.
-- `get_itinerary(trip_id, detail='compact')`: Complete multi-day route and stop sequence.
-- `get_stop(trip_id, stop_id)`: Precise stop details and scheduling metadata.
-- `resolve_stop(trip_id, query, day)`: Fuzzy search resolving text into existing stops.
-- `get_trip_issues(trip_id)`: Validates hours, lunch windows, and ping-pong routing.
-- `export_trip(trip_id, format='json')`: Generates self-contained sovereign trip bundle.
-
-### 2. Itinerary Mutation (`app.mcp.tools.itinerary`)
-- `add_stop(trip_id, day, poi_id, after_stop_id, duration_mins)`: Adds a waypoint.
-- `remove_stop(trip_id, stop_id)`: Deletes a waypoint and reflows times.
-- `move_stop(trip_id, stop_id, to_day, after_stop_id)`: Transfers stop across days.
-- `reorder_stops(trip_id, day, stop_ids)`: Re-sequences stops in a specific day.
-- `lock_stop(trip_id, stop_id)`: Locks stop time window against optimizer changes.
-- `unlock_stop(trip_id, stop_id)`: Unlocks stop for flexible TSPTW sequencing.
-- `swap_days(trip_id, day_a, day_b)`: Swaps activities between two days.
-- `clear_day(trip_id, day, confirmed)`: Clears all stops on a day (Tier C).
-- `undo_last_change(trip_id)`: Restores the preceding revision.
-- `undo_to(trip_id, revision)`: Reverts itinerary to a historical revision.
-
-### 3. Optimization & Engine (`app.mcp.tools.engine`)
-- `optimize_day(trip_id, day)`: Solves TSPTW combinatorial order using C++20 `paladio_core`.
-- `optimize_trip(trip_id)`: Re-optimizes all itinerary days in sequence.
-- `rebalance_days(trip_id, confirmed)`: Re-clusters stops across days based on geographic density.
-- `what_if(trip_id, action, params)`: Simulates edits and returns quality score deltas without saving.
-
-### 4. POI Discovery (`app.mcp.tools.pois`)
-- `search_pois(trip_id, query, category, limit)`: Semantic RAG search via pgvector.
-- `get_poi_details(trip_id, poi_id)`: Opening hours, tickets, coordinates, and notes.
-- `recommend_pois(trip_id, day, category, limit)`: Context-aware recommendations for itinerary gaps.
-- `add_custom_poi(trip_id, name, lat, lon, category)`: Creates user-defined waypoint.
-
-### 5. Transit & Mobility (`app.mcp.tools.transit`)
-- `get_transit_route(trip_id, from_stop_id, to_stop_id)`: Live GTFS multimodal routing.
-- `get_transit_matrix(trip_id, day)`: Full travel duration and distance matrix.
-- `compute_transfer(trip_id, origin, destination)`: Airport / station transfer recommendations.
-- `list_transit_lines(trip_id, latitude, longitude)`: Nearby transit lines and frequencies.
-
-### 6. Expenses & Budget (`app.mcp.tools.expenses`)
-- `list_expenses(trip_id)`: Recorded costs and participant shares.
-- `add_expense(trip_id, payer_id, amount, description, split_type, excluded_participant_ids)`: Splits costs.
-- `update_expense(trip_id, expense_id, amount, description)`: Modifies recorded expense.
-- `delete_expense(trip_id, expense_id, confirmed)`: Removes expense (Tier C).
-- `get_budget_summary(trip_id)`: Total budget, expenditure, and category breakdowns.
-- `convert_currency(amount, from_curr, to_curr)`: Currency conversion using live rates.
-- `get_settlement(trip_id)`: Minimized pairwise payment plan among participants.
-
-### 7. Wallet & Bookings (`app.mcp.tools.tickets`)
-- `list_tickets(trip_id)`: Boarding passes, hotel vouchers, and attraction bookings with redacted secrets.
-- `get_ticket(trip_id, ticket_id)`: Full ticket metadata with redacted access PIN.
-- `create_ticket(trip_id, ticket_data)`: Manually adds confirmation record.
-- `parse_booking_text(text_content)`: AI extraction of booking confirmations into drafts.
-- `sync_anchors_from_tickets(trip_id)`: Automatically updates flight/hotel anchors in itinerary.
-
-### 8. Collaboration & Roles (`app.mcp.tools.collab`)
-- `list_participants(trip_id)`: Viewers, editors, and trip owner.
-- `add_participant(trip_id, email, role)`: Invites traveler to trip.
-- `update_participant_role(trip_id, participant_id, role)`: Modifies editor/viewer permission.
-- `remove_participant(trip_id, participant_id)`: Revokes trip access.
-- `get_access_level(trip_id)`: Inspects active user's permissions.
-
-### 9. Saved Collections (`app.mcp.tools.collections`)
-- `list_collections(trip_id)`: Trip collections and saved POI categories.
-- `create_collection(trip_id, name, description)`: Creates custom POI wishlist.
-- `add_to_collection(trip_id, collection_id, poi_id)`: Bookmarks POI.
-- `remove_from_collection(trip_id, collection_id, poi_id)`: Removes bookmark.
-- `list_saved_pois(trip_id, collection_id)`: Lists bookmarks in collection.
-
-### 10. Market & Scraper (`app.mcp.tools.market`)
-- `scan_flight_deals(origin, destination, date)`: Airfare deals via sovereign scraping engine.
-- `scan_hotel_deals(destination, check_in, check_out)`: Hotel offers.
-- `get_price_trends(origin, destination)`: Historical price distributions and volatility.
-
-### 11. Async Jobs (`app.mcp.tools.jobs`)
-- `get_job_status(job_id)`: Queries progress of background Celery tasks.
-- `cancel_job(job_id)`: Terminates background job.
-
----
-
-## Tool Return Contract
-
-All tools return a `ToolResult` model:
-```json
-{
-  "ok": true,
-  "summary": "Added Colosseum to Day 1 (14:30 - 15:30).",
-  "change_set": {
-    "revision": 3,
-    "undo_token": "rev_3_uuid",
-    "changes": [{"day": 1, "stop_id": "poi_123", "kind": "added"}]
-  },
-  "data": { ... }
-}
-```
+| Type | Identifier | Description |
+| :--- | :--- | :--- |
+| **Resource** | `trip://{trip_id}/overview` | High-level trip JSON (destination, title, dates, day count, revision) |
+| **Resource** | `trip://{trip_id}/day/{day_number}` | Single day schedule JSON for `day_number` |
+| **Resource** | `trip://{trip_id}/expenses` | Recorded trip expenses and computed debt settlement |
+| **Resource** | `trip://{trip_id}/wallet` | Trip tickets JSON with all sensitive secrets redacted |
+| **Resource** | `paladio://taxonomy` | Static JSON listing valid POI categories, meal types, and transport modes |
+| **Resource** | `paladio://itinerary-schema` | Full Pydantic JSON Schema for `ItineraryDocument` |
+| **Prompt** | `review_my_trip(trip_id)` | Inspects day pacing, meal slots, opening hours, and transfer issues |
+| **Prompt** | `fix_all_issues(trip_id)` | Resolves schedule collisions and tight legs with `set_stop_time` and `optimize_day` |
+| **Prompt** | `rainy_day_plan(trip_id, day)` | Simulates indoor museum/gallery swaps for bad weather using `what_if` |
+| **Prompt** | `split_the_bill(trip_id)` | Computes expenses and minimum debt-settlement transfers |
+| **Prompt** | `make_day_relaxed(trip_id, day)` | Caps stops, adds a 90-minute meal and 60-minute free-time break, and re-optimizes |
+| **Prompt** | `add_dinner_near(trip_id, day)` | Finds nearby restaurants within `1,000 m` of the last stop and schedules dinner |

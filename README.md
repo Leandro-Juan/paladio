@@ -1,267 +1,188 @@
 <div align="center">
 
-<img src="docs/assets/logo_horizontal_dark.png" width="380" alt="Paladio">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-horizontal-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-horizontal.png">
+  <img alt="Paladio" src="docs/assets/logo-horizontal.png" width="300">
+</picture>
 
-### Continuous & Sovereign Autonomous Travel Optimization Engine
+### A trip agency at home.
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](./LICENSE)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![Next.js 15](https://img.shields.io/badge/Frontend-Next.js%2015-black?logo=next.js&logoColor=white)](https://nextjs.org/)
-[![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange?logo=langchain&logoColor=white)](https://langchain-ai.github.io/langgraph/)
-[![Pydantic AI](https://img.shields.io/badge/Guardrails-Pydantic%20AI-e92063?logo=pydantic&logoColor=white)](https://ai.pydantic.dev/)
-[![C++20 Engine](https://img.shields.io/badge/Core%20Solver-C%2B%2B20-00599C?logo=c%2B%2B&logoColor=white)](https://github.com/Leandro-Juan/paladio-core)
-[![Database](https://img.shields.io/badge/Storage-TimescaleDB%20%2B%20pgvector-336791?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
-[![Sovereignty](https://img.shields.io/badge/Sovereignty-100%25%20Air--Gapped-success)](#sovereign-mandate)
-[![Docker](https://img.shields.io/badge/Deployment-Docker%20Compose-2496ED?logo=docker&logoColor=white)](./docker-compose.yml)
+Plan realistic trips tailored to your tastes, catch genuine flight and hotel deals, and keep every ticket private on your own server.
 
-**A 100% self-hosted, air-gappable travel intelligence platform bridging stochastic agentic swarms, continuous differentiable machine learning, and sub-millisecond C++20 combinatorial routing.**
-
-[Documentation Portal](https://leandro-juan.github.io/paladio/) • [Architecture](#-macro-system-architecture) • [LangGraph Swarm](#-spotlight-1-langgraph-multi-agent-swarm) • [ML Taste Learning](#-spotlight-2-continuous-machine-learning--semantic-taste-learning) • [Knowledge Vault](#-spotlight-3-poi-knowledge-vault--transit-database) • [Frontend UI](#-spotlight-4-reactive-nextjs-15-frontend) • [Roadmap](#-strategic-product--technical-roadmap) • [Quickstart](#-3-step-quickstart)
-
----
+[![CI](https://github.com/Leandro-Juan/paladio/actions/workflows/ci.yml/badge.svg)](https://github.com/Leandro-Juan/paladio/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Leandro-Juan/paladio)](https://github.com/Leandro-Juan/paladio/releases)
+[![License: AGPLv3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](./LICENSE)
+[![Docs](https://img.shields.io/badge/Docs-MkDocs-teal.svg)](https://leandro-juan.github.io/paladio/)
 
 </div>
 
-## 💡 Executive Summary
+<!-- Demo visual (GIF / video) will be added here -->
 
-Modern AI applications suffer from an architectural tension: **Large Language Models (LLMs) are expressive and conversational, but notoriously unreliable at arithmetic, constraint satisfaction, and combinatorial optimization.** When applied to complex scheduling (e.g., flight connections, opening hours, walking fatigue, and strict financial budgets), purely probabilistic agents hallucinate infeasible paths.
+## Your Private Travel Agency
 
-**Paladio solves this through a hybrid, multi-paradigm architecture:**
-1. **Stochastic Reasoning & NLP Extraction:** Configurable LLM models (OpenAI, Claude, Gemini, DeepSeek, Groq, Mistral, OpenRouter, or local Ollama/vLLM) parse unstructured tickets and user prompts into structured models under strict **Pydantic AI guardrails**.
-2. **Deterministic Combinatorial Optimization:** An ultra-fast, compiled **C++20 branch-and-bound engine** (`paladio-core`) solves the NP-hard Time-Constrained Orienteering Problem with Time Windows (**TCOPTW**) in micro-to-milliseconds with zero dynamic heap allocations in hot loops.
-3. **Continuous Taste Learning:** A **768-D semantic hypersphere** backed by `pgvector` that updates permanent user preferences via Exponential Moving Average (EMA) and projects them into **8-D harmonic affinity radars**.
-4. **Absolute Data Sovereignty & Portability:** Self-hosted by default with zero mandatory cloud dependencies. Users can run completely local inference or connect any cloud LLM API via user-managed keys.
+Planning a great trip usually means juggling messy spreadsheets, cloud travel apps that lock in your data, and AI chats that suggest closed museums, skip lunch, or send you zigzagging across town. **Paladio** works like a personal travel agency running at home: it learns what you enjoy, reads your booking confirmations, watches flight and hotel prices for real drops, and mathematically arranges each day around real opening hours, transit, meals, and your budget — with no AI subscription required.
 
----
+## What you get
 
-## 🏛️ Macro System Architecture
+<p align="center">
+  <a href="./docs/user-guide/control-center-and-taste.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/card-taste-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/assets/readme/card-taste-light.svg"><img alt="TASTE — Learns your travel style and plans every trip around you" src="docs/assets/readme/card-taste-light.svg" width="268"></picture></a>&nbsp;&nbsp;<a href="./docs/user-guide/bookings-wallet.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/card-bookings-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/assets/readme/card-bookings-light.svg"><img alt="BOOKINGS — Drop boarding passes or emails to import trip details locally" src="docs/assets/readme/card-bookings-light.svg" width="268"></picture></a>&nbsp;&nbsp;<a href="./docs/user-guide/route-monitoring-and-deals.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/card-deals-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/assets/readme/card-deals-light.svg"><img alt="DEALS — Watches flights and hotels and alerts you on real drops" src="docs/assets/readme/card-deals-light.svg" width="268"></picture></a>
+</p>
 
-```mermaid
-graph TD
-    Client["Next.js 15 Frontend<br/>Interactive Timeline / Map / Radar"] <-->|"WebSocket /ws/stream"| Gateway["FastAPI Semantic Gateway"]
-    Gateway <--> Session["SwarmSessionManager"]
-    Session <--> Graph["LangGraph StateGraph Engine"]
-    
-    subgraph Swarm["LangGraph Multi-Agent Swarm"]
-        TP["Ticket Parser Agent<br/>Pydantic AI + Multi-Provider LLM"] --> AC["Constraint Builder Node<br/>Deterministic Assembly"]
-        AC --> VC["Verify Constraints Node<br/>Stage 1 HITL interrupt()"]
-        VC --> GR{"Guardrails Node<br/>Deterministic & DB Clash Check"}
-        GR -->|"Proceed"| PA["Prompt Analyzer Agent<br/>Pydantic AI + Multi-Provider LLM"]
-        PA --> PS["Planner Scrape Node<br/>Context Ingestion & MLScorer"]
-        PS --> PO["Planner Optimize Node<br/>Bridge to C++ Solver"]
-    end
-    
-    Graph --> Swarm
-    GR <-->|"Trip Overlap Query"| PG[("PostgreSQL 16<br/>TimescaleDB + pgvector Vault")]
-    PS <--> ML["MLScorer & SemanticLearningEngine"]
-    ML <--> PG
-    PO <--> Engine["paladio-core C++20<br/>Branch & Bound TCOPTW"]
-```
+<p align="center">
+  <a href="./docs/user-guide/trip-workspace.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/card-discover-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/assets/readme/card-discover-light.svg"><img alt="DISCOVER — Finds sights, food, and hidden gems matched to your taste" src="docs/assets/readme/card-discover-light.svg" width="268"></picture></a>&nbsp;&nbsp;<a href="./docs/architecture/deterministic-trip-engine.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/card-routes-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/assets/readme/card-routes-light.svg"><img alt="ROUTES — Mathematically builds the best daily route for hours and pace" src="docs/assets/readme/card-routes-light.svg" width="268"></picture></a>&nbsp;&nbsp;<a href="./docs/self-hosting/integrations-and-vault.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/card-connected-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/assets/readme/card-connected-light.svg"><img alt="CONNECTED — Transit, weather, your own AI, Immich, and offline maps" src="docs/assets/readme/card-connected-light.svg" width="268"></picture></a>
+</p>
 
----
+<details>
+<summary><strong>Explore everything Paladio includes</strong></summary>
 
-## 🤖 Spotlight 1: LangGraph Multi-Agent Swarm
+### <img src="docs/assets/readme/icon-planning.svg" width="18" height="18" alt=""> Planning
+- **Automatic or blank trips**: Describe the kind of trip you want and let Paladio build every day automatically, or start from a blank canvas and craft it by hand.
+- **Built around real logistics**: Respects your flight arrival and departure windows, hotel location, opening hours, meal times, walking pace, and daily budget — solving a typical city day in ~1.3 ms ([benchmarks](./cpp_core/docs/benchmarks.md)).
+- **Built-in sanity checks**: Warns you if dates overlap an existing trip, spots overly packed or zigzagging days, and explains why any omitted place didn't fit.
+- **Interactive editing**: Drag to reorder stops, lock fixed reservations (like timed museum tickets or dinner bookings), and hit **Solve** to re-optimize the rest of the day around them — with full revision history to undo anytime.
 
-The conversational intelligence in Paladio is orchestrated using **LangGraph** (`StateGraph`), enforcing a deterministic finite state machine over conversational LLM interactions.
+### <img src="docs/assets/readme/icon-discovery.svg" width="18" height="18" alt=""> Discovery
+- **Your 8-axis Taste Star**: Answer a quick visual calibration when you start, then let Paladio adapt naturally from your trips, bookmarks, and preferences (you can export or reset your taste profile anytime).
+- **Group taste blending**: Traveling with friends or family? Paladio blends everyone's preferences so the trip works for the whole group.
+- **Places you'll actually enjoy**: Smart search across sights, museums, food spots, and hidden gems ranked by how well they match your style.
+- **Saved collections & imports**: Keep reusable place wishlists, drop custom pins on the map, or import your existing Google Maps, GPX, KML, and KMZ lists.
 
-```mermaid
-graph TD
-    START([START]) --> TP["ticket_parser<br/><i>Pydantic AI + Ollama</i>"]
-    TP --> AC["assemble_constraints<br/><i>Deterministic Assembly</i>"]
-    AC --> VC["verify_constraints<br/><i>Stage 1 HITL</i>"]
-    
-    VC -.->|"Missing Fields / Review"| INT1["interrupt(VERIFICATION_REQUIRED)<br/><i>WebSocket Verification Cockpit</i>"]
-    INT1 -.->|"User Input & Confirmation"| GR
-    VC -->|"Valid & Auto-Approved"| GR["guardrails<br/><i>Deterministic Firewall & DB Check</i>"]
-    
-    DB_TRIPS[("PostgreSQL 16<br/><i>trips table (TripModel)</i>")] <-->|"Check Schedule Collision"| GR
-    
-    GR -->|"Hard Violation (e.g. Past Date)"| END_FAIL([END / Aborted])
-    GR -.->|"Schedule Collision Detected"| INT2["interrupt(TRIP_OVERLAP_WARNING)<br/><i>Amber Warning Modal</i>"]
-    INT2 -.->|"User Decision: ABORT"| END_FAIL
-    INT2 -.->|"User Decision: PROCEED ANYWAY"| PA
-    GR -->|"Guardrails Passed (Clear)"| PA["prompt_analyzer<br/><i>Pydantic AI RAG Agent</i>"]
-    
-    PA --> PS["planner_scrape<br/><i>Context Ingestion & MLScorer</i>"]
-    DB_POIS[("PostgreSQL 16<br/><i>pgvector attractions & user tastes</i>")] <-->|"HNSW Vector Cosine Retrieval"| PS
-    
-    PS --> PO["planner_optimize<br/><i>paladio-core C++20 Solver</i>"]
-    PO --> FINISH([END / Final Itinerary])
-```
+### <img src="docs/assets/readme/icon-maps.svg" width="18" height="18" alt=""> Maps
+- **Clean architectural maps**: Switch between clutter-free vector maps, standard street maps, dark mode, and satellite imagery.
+- **Neighborhood exploration**: Drop a pin and radius circle anywhere on the map to browse nearby sights, restaurants, and transit stops.
+- **Weather & climate**: Check daily forecasts and air quality for upcoming trips, or typical seasonal weather when planning months ahead.
+- **One-tap navigation**: Send any stop straight to Google Maps, Apple Maps, Organic Maps / CoMaps, OsmAnd, Waze, or Citymapper, with photos and optional on-demand place translation.
 
-### 1. Cyclical Self-Correction & Pydantic AI Firewall
-- LLMs frequently hallucinate invalid JSON structures. Instead of exposing downstream systems to raw text, Paladio fences all agents (`ticket_parser`, `prompt_analyzer`) with **Pydantic AI**.
-- If a model outputs an invalid response, LangGraph cycles back with error feedback, allowing the model to repair its schema automatically without user disruption.
-- Output models like `BookingAnchors` and `TravelConstraints` enforce strict physical limits (positive budgets, validated ISO-8601 timestamps, IATA codes).
+### <img src="docs/assets/readme/icon-transit.svg" width="18" height="18" alt=""> Transit
+- **Local walking & road routing**: Realistic door-to-door walking, cycling, and driving times calculated privately on your own server.
+- **Public transit & departures**: Step-by-step metro, rail, tram, and bus directions, interactive transit line overlays, and nearby station departure boards.
+- **Fare & pass advice**: Estimates trip transit costs and tells you when a daily pass beats buying single tickets.
 
-### 2. Two-Stage Human-In-The-Loop & Deterministic Guardrails
-- **Stage 1 (`verify_constraints`)**: Surfaces parsed ticket anchors (cities, dates, flights, hotel) and constraints for human inspection via LangGraph's native `interrupt()`, eliminating LLM hallucinations and gathering missing fields.
-- **Stage 2 (`guardrails`)**: Validates hard rules (past dates, inverted spans, identical cities, duration > 30 days) and evaluates database trip collisions. If a schedule clash is detected in PostgreSQL, an amber warning modal is surfaced over WebSockets allowing the user to **PROCEED ANYWAY** or **ABORT** before expensive scraping or solver operations run.
-- Persistent checkpointers (`MemorySaver` / Redis) guarantee zero state loss during pauses.
+### <img src="docs/assets/readme/icon-wallet.svg" width="18" height="18" alt=""> Wallet
+- **Smart local import**: Drop in flight boarding passes, hotel confirmations, screenshots, PDFs, Apple Wallet `.pkpass` files, or paste confirmation emails — Paladio extracts flight numbers, dates, seats, and hotels privately on your own machine.
+- **Dedicated pass cards**: Clean cards for flights, stays, attractions, and transit, with an "Up Next" countdown for your next travel step.
+- **Private access codes**: Keeps hotel door PINs and Wi-Fi passwords encrypted at rest behind masked one-click copy fields.
+- **Gate-ready & synced**: Pop open crisp fullscreen barcodes at airport security or museum gates, and sync your wallet bookings straight into your itinerary.
 
----
+### <img src="docs/assets/readme/icon-deals.svg" width="18" height="18" alt=""> Deals
+- **24/7 price watching**: Track your favorite flight and hotel routes automatically in the background.
+- **Only real price drops**: Compares fares against long-term historical prices and filters out awkward overnight flights, short ground stays, and poorly rated hotels so you only hear about genuine bargains.
+- **Visual fare calendars**: Browse multi-month outbound, inbound, and round-trip calendars and pair deals with your country's public holidays.
+- **Deal to trip in one click**: Turn a verified flight + hotel deal straight into a full day-by-day trip plan.
 
-## 🧠 Spotlight 2: Continuous Machine Learning & Semantic Taste Learning
+### <img src="docs/assets/readme/icon-budget.svg" width="18" height="18" alt=""> Budget
+- **Live currency conversion**: Preview your trip spending in any currency using live exchange rates without altering original receipts.
+- **Effortless expense tracking**: Turn planned ticket estimates into real expenses in one click, scan receipts from photos or PDFs, or export everything to CSV.
+- **Group bill splitting**: Split costs equally or custom across your travel crew and see the fewest transfers needed for everyone to settle up.
 
-Recommendation in Paladio is neither static nor reliant on heavy external fine-tuning. It utilizes a continuous vector-space model operating directly on local hardware.
+### <img src="docs/assets/readme/icon-assistant.svg" width="18" height="18" alt=""> Assistant
+- **100% optional AI chat**: Paladio plans trips without any AI key, or you can connect your favorite provider from 13 options (OpenAI, Claude, Gemini, local Ollama, and more).
+- **Aware of what you're viewing**: Understands the day, stop, and map area you have open so you can ask natural questions like *"find a quiet lunch spot nearby"*.
+- **Safe by design**: Dry-run ideas (like a rainy-day museum swap) before saving, review clear approval cards before big edits, and undo any change in one click.
+- **Connect your own AI tools**: Includes an 82-tool MCP server so external assistants like Claude Desktop can read, check, and help refine your trips.
 
-### 1. 768-D Semantic Hypersphere & pgvector RAG
-- Unstructured user requests and POI descriptions are mapped into a dense 768-dimensional space in-process on CPU via `fastembed` (`nomic-ai/nomic-embed-text-v1.5-Q` ONNX).
-- Attractions are indexed using `pgvector` with HNSW/IVFFlat cosine indexing (`<=>`), enabling sub-millisecond semantic retrieval across thousands of venues.
+### <img src="docs/assets/readme/icon-archive.svg" width="18" height="18" alt=""> Archive
+- **Your travel world map**: Completed trips move to an interactive world map tracking countries visited, total days traveled, and distance compared to circling the Earth.
+- **Trip recaps & photo sync**: Keep trip journals and photo galleries locally, or sync albums automatically with your own **Immich** or **Synology Photos** server.
+- **Portable exports**: Share or back up trips as self-contained `.trip` files (choose a complete private backup or a privacy-scrubbed shareable copy), printable PDFs, calendar `.ics` files, GPS `.gpx` tracks, or JSON.
 
-### 2. Online Exponential Moving Average (EMA) Taste Learning
-User taste is not static. Every interaction dynamically adapts the user's permanent 768-D latent vector $\mathbf{v}_{\text{user}}$ using an Exponential Moving Average:
+### <img src="docs/assets/readme/icon-hosting.svg" width="18" height="18" alt=""> Hosting
+- **Offline ready**: Pin an entire trip — itinerary, map tiles, tickets, and expenses — to your browser before boarding so everything works in airplane mode.
+- **Holiday & PTO calendar**: Plan your year on an overview calendar combining public holidays, personal vacation days, active trips, and deal windows.
+- **Your notifications, your way**: Send deal alerts and trip updates to Pushify, Pushover, Ntfy, or custom webhooks.
+- **Private & multi-user**: Runs at home via Docker with private accounts, view/edit sharing per trip, 3 visual themes, a built-in Help Center, and 10 full languages including right-to-left Arabic.
 
-$$\mathbf{v}_{\text{new}} = \text{Normalize}\Big((1 - \gamma)\,\mathbf{v}_{\text{hist}} + \gamma\,\mathbf{v}_{\text{prompt}}\Big) \quad \text{with } \gamma = 0.20$$
+</details>
 
-This allows the platform to organically adapt to shifting user preferences (e.g., transitioning from active sightseeing to culinary relaxation) across multiple sessions.
+## Quick Start
 
-### 3. Continuous-to-Discrete Harmonic Radar Projection
-High-dimensional latent embeddings are impossible for users to interpret directly. Paladio projects the continuous 768-D semantic vector onto 8 canonical category anchors:
+All you need is [Docker and Docker Compose](https://docs.docker.com/engine/install/) (8 GB RAM minimum, 12–16 GB recommended).
 
-$$\mathbf{a}_k = \frac{\mathbf{v} \cdot \mathbf{u}_k + 1}{2} \quad \text{for } k \in [1, \dots, 8]$$
-
-```text
-       Art & Culture
-             ▲
-   Nightlife │   History & Heritage
-        ╲    │    ╱
-         ╲   │   ╱
-          ╲  │  ╱
-Scenic ────┼──── Architecture
-Views     ╱  │  ╲
-         ╱   │   ╲
-        ╱    │    ╲
-   Shopping  │   Nature & Outdoors
-             ▼
-       Food & Culinary
-```
-
-These 8 harmonic affinities (`art_culture`, `history_heritage`, `nature_outdoors`, `architecture`, `food_culinary`, `nightlife`, `shopping`, `scenic_views`) feed directly into real-time SVG Radar telemetry on the frontend.
-
-### 4. Deterministic 16-D `PoiEncoder` & Bayesian Scoring
-Each venue is encoded into an interpretable 16-dimensional feature vector via pure NumPy:
-- **Indices `[0..7]`:** Normalized cost, duration, outdoor flags, and Bayesian smoothed rating:
-  $$S_{\text{qual}} = \frac{R \cdot v + C \cdot m}{v + m} \quad (m = 50 \text{ reviews}, C = 4.0 \text{ prior})$$
-- **Indices `[8..15]`:** Multi-hot categorical activations parsed via pre-compiled regular expressions.
-- **`HybridSovereignScorer`:** Synthesizes quality, tag affinity dot-products, pacing curves, and budget efficiency into a final calibrated score in $[0.0, 100.0]$.
-
----
-
-## 🗄️ Spotlight 3: POI Knowledge Vault & Transit Database
-
-The foundation of Paladio's offline capabilities is its self-contained PostgreSQL 16 database equipped with `TimescaleDB` and `pgvector`:
-
-```sql
--- attractions table core layout
-CREATE TABLE attractions (
-    id VARCHAR PRIMARY KEY,
-    city VARCHAR NOT NULL,
-    name VARCHAR NOT NULL,
-    category VARCHAR NOT NULL,
-    embedding vector(768),                         -- Local semantic embedding
-    open_time_mins_by_day INTEGER[] NOT NULL,     -- 7-day opening times (e.g. 480 = 08:00)
-    close_time_mins_by_day INTEGER[] NOT NULL,    -- 7-day closing times (e.g. 1320 = 22:00)
-    duration_mins INTEGER NOT NULL DEFAULT 60,
-    cost_eur DOUBLE PRECISION NOT NULL DEFAULT 0.0,
-    cost_is_estimated BOOLEAN NOT NULL DEFAULT true,
-    location JSONB NOT NULL,                      -- {lat, lon, address}
-    scoring JSONB NOT NULL,                       -- {google_rating, reviews}
-    metadata JSONB NOT NULL                       -- {description, tags, website}
-);
-CREATE INDEX idx_city_category ON attractions(city, category);
-```
-
-- **Automated Embedding Hydration:** The CLI tool `python -m app.cli.hydrate_pois` runs `PoiNaturalLanguageSynthesizer` to automatically generate descriptive texts and embed unindexed POIs in batches.
-- **Multimodal Transit Engine:** Local Valhalla routing coupled with `transit_cache` (OSM and GTFS feed status) and `city_transit_fares` (single tickets, 24h passes, airport surcharges) computes realistic door-to-door transit times without external mapping APIs.
-
----
-
-## 💻 Spotlight 4: Reactive Next.js 15 Frontend
-
-Paladio features a modern, responsive UI built with **Next.js 15 (App Router)**, **React**, and **Tailwind CSS**:
-
-- **`TripTimeline`:** Dynamic schedule cards detailing visit windows, buffer times, meal pacing, and financial tallies.
-- **`PreferenceRadar`:** Interactive SVG 8-axis radar chart reflecting real-time ML taste evolution as the user chats with the swarm.
-- **`VaultMap`:** Geospatial map (Leaflet/MapLibre) displaying POI clusters, visit sequences, and walking corridors.
-- **`TransitLegView`:** Step-by-step public transit directions (metro lines, platform transfers, walking paths).
-- **Persistent WebSocket Streaming:** `/ws/stream` receives fine-grained lifecycle telemetry (`EXTRACTING_CONSTRAINTS`, `SCORING_POIS`, `SOLVING_TSPTW`), providing immediate feedback during heavy computations.
-
----
-
-## ⚡ Combinatorial Solver Submodule (`paladio-core`)
-
-The combinatorial heavy lifting is offloaded to [`paladio-core`](https://github.com/Leandro-Juan/paladio-core), located in `cpp_core/` and automatically synchronized via GitHub Actions (`.github/workflows/sync_core.yml`).
-
-- **Mathematical Problem:** Time-Constrained Orienteering Problem with Time Windows (**TCOPTW**), strongly NP-hard ($O(N!)$ naive search space).
-- **Algorithmic Engine:**
-  1. *Continuous Fractional Knapsack Upper Bounding:* Admissible linear relaxation pruning unpromising branches in $O(N)$ time.
-  2. *64-Bit Bitmask State Encoding:* Sub-nanosecond node visitation tests using CPU hardware intrinsics (`std::countr_zero`).
-  3. *Pareto Dominance Pruning:* Eliminating trajectories arriving later at higher cost with inferior scores.
-  4. *Zero-Allocation Recursion:* Static memory layouts guaranteeing sub-millisecond execution times.
-- **Integration:** Python interfaces directly with the compiled binary via `pybind11`, releasing the GIL (`pybind11::gil_scoped_release`) during intensive branch-and-bound searches.
-
----
-
-## 🗺️ Strategic Product & Technical Roadmap
-
-Paladio follows a phased engineering roadmap balancing foundational algorithms, distributed infrastructure, and intuitive user experiences:
-
-| Horizon | Milestone | Status | Key Deliverables & Architectural Focus |
-| :--- | :--- | :---: | :--- |
-| **Phase 1** | **Deterministic Combinatorial Core** | **Completed** | C++20 TCOPTW Branch & Bound solver, continuous knapsack upper bounding, bitmasks, `pybind11` zero-copy bindings ([`paladio-core`](https://github.com/Leandro-Juan/paladio-core)). |
-| **Phase 2** | **Reactive Semantic Gateway & Swarm** | **Completed** | FastAPI WebSocket streaming, LangGraph StateGraph, Pydantic AI local Ollama agents, `interrupt()` human-in-the-loop. |
-| **Phase 3** | **Continuous ML & Knowledge Vault** | **Completed** | 768-D `pgvector` RAG, online EMA taste evolution, 8-D harmonic projection radar, 16-D `PoiEncoder`, POI batch hydration. |
-| **Phase 4** | **Reactive UI & Interactive Experience** | **Active / In Progress** | Elite Next.js 15 frontend: dynamic `TripTimeline` pacing, real-time WebSocket state streaming, interactive SVG `PreferenceRadar`, geospatial `VaultMap`, and multimodal `TransitLegView`. |
-| **Phase 5** | **Distributed Ingestion & Anti-Ban Scraping** | **Upcoming** | Celery Beat cron cluster, Playwright stealth scrapers, residential proxy rotation, exponential backoff with jitter. |
-| **Phase 6** | **In-Memory Matching & Anomaly Detection** | **Upcoming** | C++ RAM 2D Interval Tree daemon ($O(\log N + K)$ alert matching without disk I/O), TimescaleDB empirical price CDFs, 1-Wasserstein regime shift detection. |
-| **Phase 7** | **Interactive Re-Planning & MCP Server** | **Planned** | Conversational post-plan re-routing (swapping POIs, adjusting pace dynamically), native Paladio Model Context Protocol (MCP) Server for external AI agent integration. |
-| **Phase 8** | **Environmental Routing & Sovereign Sync** | **Future** | Micro-climate sun/shade street routing via solar azimuth models, self-hosted Immich/Syncthing photo vault sync, multi-city GTFS global feeds. |
-
----
-
-## 🚀 3-Step Quickstart
-
-### Prerequisites
-- Docker Engine 24.0+ & Docker Compose v2+
-- 16 GB RAM recommended (for local LLM inference)
-
-### 1. Clone the Repository
 ```bash
-git clone https://github.com/Leandro-Juan/Paladio.git
-cd Paladio
+git clone https://github.com/Leandro-Juan/paladio.git
+cd paladio
+./install.sh   # Windows PowerShell: .\install.ps1
 ```
 
-### 2. Configure Environment
+The installer checks Docker, creates secure random credentials, starts Paladio, and waits until the app is ready. On a fresh install, initialize the database and transit fare catalog:
+
 ```bash
-cp .env.example .env
-# Paladio works out-of-the-box with default local settings!
+docker compose exec api alembic upgrade head
+docker compose exec api python scripts/migrate_verified_fares_to_quotes.py
 ```
 
-### 3. Launch the Sovereign Stack
-```bash
-docker compose up -d
+Open **[`http://localhost:3000`](http://localhost:3000)**, create your account, and start planning your first trip — no API keys required.
+
+<details>
+<summary><strong>System requirements, manual setup & local development</strong></summary>
+
+- **Recommended hardware**: 8 GB RAM / 4 CPU cores / 20 GB disk minimum; 12–16 GB RAM / 6+ cores / 50 GB+ disk recommended for local maps, transit schedules, and search models.
+- **Manual setup**: Copy `.env.example` to `.env`, set random secrets for `POSTGRES_PASSWORD` and `JWT_SECRET_KEY` (`openssl rand -hex 32`), and run `docker compose up -d --build`.
+- **What runs inside Docker**: Web app (`:3000`), API server (`:8000`), PostgreSQL database, Redis, local Valhalla map router, and background workers for price alerts, maps, and transit.
+- **Developing locally**: See [Install with Docker](./docs/getting-started/installation.md) and [Local Development](./docs/getting-started/local-development.md) to build the C++ route solver and run services natively.
+
+</details>
+
+## Usage Examples
+
+### 1. Turn a flight confirmation into a ready-to-go trip
+
+1. Open **New Trip (`/engine`)** and drop in a flight or hotel confirmation (`PDF`, screenshot, or Apple Wallet `.pkpass`) — or simply pick your destination, dates, hotel, and budget.
+2. Tell Paladio your vibe (for example, `Quiet museums, historic neighborhoods, specialty coffee, and late tapas`) and click **Generate Sovereign Trip Plan**.
+3. Review the extracted trip details once, and Paladio builds your full day-by-day schedule and opens it on the interactive map.
+4. Tap the bottom-left **`+`** button to enter **Edit Route**, lock any timed museum or dinner reservation, drag stops around, and click **Solve** to re-fit the day seamlessly.
+
+### 2. Connect Claude Desktop (or any MCP assistant) to your trips
+
+Add a `PALADIO_API_TOKEN` to `.env`, restart the `api` container, and add Paladio to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "paladio": {
+      "command": "docker",
+      "args": [
+        "compose",
+        "-f",
+        "/path/to/paladio/docker-compose.yml",
+        "exec",
+        "-T",
+        "-e",
+        "PALADIO_API_TOKEN=your_paladio_api_token_here",
+        "api",
+        "python",
+        "-m",
+        "app.mcp"
+      ]
+    }
+  }
+}
 ```
 
-Once running:
-- **Next.js Web Interface:** [`http://localhost:3000`](http://localhost:3000)
-- **FastAPI Documentation:** [`http://localhost:8000/docs`](http://localhost:8000/docs)
-- **WebSocket Gateway:** `ws://localhost:8000/ws/stream`
-- **Documentation Portal:** [`https://leandro-juan.github.io/paladio/`](https://leandro-juan.github.io/paladio/)
+Then ask things like *"Check my Kyoto trip for tight transfers or missing meals"* or *"What if it rains on Day 2 — preview indoor swaps without saving yet"*. See [LLM Providers & MCP Clients](./docs/self-hosting/llm-providers-and-mcp.md) for HTTP setup too.
 
----
+## How It Compares
 
-## 📜 Authorship & Legal Licensing
+| | Paladio | Cloud Trip Apps | AI Chatbots |
+| :--- | :---: | :---: | :---: |
+| **Runs privately at home (you own your data)** | Yes | No | Usually no |
+| **Fits real opening hours, flights & budgets** | Yes (mathematically solved) | Manual | Prone to mistakes |
+| **Works offline with maps, transit & tickets** | Yes | Paid tiers / limited | No |
+| **Scans boarding passes & encrypts door PINs locally** | Yes | Cloud upload / email forward | Manual paste |
+| **Watches flight & hotel prices for real drops** | Built-in | Separate apps | No |
+| **Needs a paid AI subscription to plan trips** | No (AI chat is optional) | No | Yes |
 
-**Paladio** is designed, architected, and maintained by **[Leandro Juan](https://github.com/Leandro-Juan)**.
+## Documentation
 
-This software is released under the **[GNU Affero General Public License v3.0 (AGPLv3)](./LICENSE)**:
-- **Maximum Copyleft Protection:** Anyone offering modified versions of Paladio across a network or as a cloud service must make their complete source code publicly available under AGPLv3.
-- **Authorship Preservation:** Consistent with standard AGPLv3 Section 4 & 7 legal notice preservation practices, original copyright notices and interactive user interface attributions (*"Powered by Paladio | Created by Leandro Juan"*) must be preserved.
-- **Contributions:** Contributions are welcomed under our [Contributing Guidelines](./CONTRIBUTING.md) and Developer Certificate of Origin (DCO 1.1).
+- **Documentation Portal:** [leandro-juan.github.io/paladio](https://leandro-juan.github.io/paladio/) (source in [`docs/`](./docs/))
+  - [Installation](./docs/getting-started/installation.md) · [Quickstart](./docs/getting-started/quickstart.md) · [User Guide](./docs/user-guide/trip-workspace.md) · [Self-Hosting](./docs/self-hosting/configuration.md) · [Architecture](./docs/architecture/system-overview.md) · [REST API](./docs/reference/rest-api.md) · [MCP Server (82 Tools)](./docs/reference/mcp-server.md)
+- **GitHub Wiki:** [github.com/Leandro-Juan/paladio/wiki](https://github.com/Leandro-Juan/paladio/wiki)
+- **In-App Help Center:** Available at `/help` inside any running instance (22 guides across 10 languages)
+- **Standalone Route Solver:** [`Leandro-Juan/paladio-core`](https://github.com/Leandro-Juan/paladio-core) (mirrored from [`cpp_core/`](./cpp_core/))
 
----
+## Contributing, License & Contact
 
-<div align="center">
-  <sub>Engineered with mathematical rigor and sovereignty by Leandro Juan • Murcia, Spain</sub>
-</div>
+- **Contributing:** Pull requests and bug reports are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) (commits require DCO sign-off via `git commit -s`), [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md), and the [Developer Guide](./docs/contributing/developer-guide.md).
+- **License:** Released under the [GNU Affero General Public License v3.0 (AGPLv3)](./LICENSE). Created and maintained by [Leandro Juan](https://github.com/Leandro-Juan); original copyright and UI attribution notices must remain intact per AGPLv3 Sections 4 & 7.
+- **Contact & Security:** Ask questions in [GitHub Discussions](https://github.com/Leandro-Juan/paladio/discussions), file bugs in [GitHub Issues](https://github.com/Leandro-Juan/paladio/issues), and report security issues privately via [`SECURITY.md`](./SECURITY.md).

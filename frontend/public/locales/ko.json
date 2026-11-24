@@ -19,7 +19,71 @@
     "title": "활동",
     "version_current": "v{revision} • 현재 버전",
     "version_tag": "v{revision}",
-    "yesterday": "어제"
+    "yesterday": "어제",
+    "actors": {
+      "system": "시스템",
+      "agent": "Paladio 에이전트",
+      "traveler": "여행자"
+    },
+    "verbs": {
+      "updated_transit_corridor_to": "이동 구간을 다음으로 변경함:",
+      "moved_expedition_dates_to": "여행 일정을 다음으로 변경함:",
+      "updated_cover_media_for": "대표 사진을 업데이트함:",
+      "reordered_stops_in": "방문지 순서를 재정렬함:",
+      "edited_schedule_in": "일정을 편집함:",
+      "changed_status_from": "상태를 변경함:",
+      "changed_the_title_to": "제목을 다음으로 변경함:",
+      "changed_destination_from": "목적지를 변경함:",
+      "updated_lodging_anchor_to": "숙소를 다음으로 업데이트함:",
+      "cleared_lodging_anchor": "숙소 설정을 삭제함",
+      "changed_target_budget_from": "예산을 변경함:",
+      "set_target_budget_to": "예산을 다음으로 설정함:",
+      "cleared_target_budget": "예산 설정을 삭제함",
+      "changed_base_currency_from": "기준 통화를 변경함:",
+      "changed_exploration_pace_from": "여행 속도를 변경함:",
+      "edited_field_briefing_for": "현장 브리핑을 편집함:",
+      "edited_internal_notes_for": "내부 메모를 편집함:",
+      "added": "추가함:",
+      "removed": "삭제함:",
+      "edited_the": "편집함:",
+      "edited": "편집함:",
+      "created_the": "생성함:",
+      "reverted": "되돌림:",
+      "restored": "복원함:",
+      "optimized_the_route_for": "경로를 최적화함:",
+      "updated": "업데이트함:"
+    },
+    "connectors": {
+      "to": "->",
+      "in": "in",
+      "from": "from",
+      "for": "for"
+    },
+    "labels": {
+      "day_number": "{number}일차",
+      "version_number": "버전 v{number}",
+      "unset": "미설정",
+      "lodging": "숙소",
+      "draft": "초안",
+      "planned": "계획됨",
+      "confirmed": "확정됨",
+      "active": "진행 중",
+      "completed": "완료됨",
+      "archived": "보관됨",
+      "cancelled": "취소됨",
+      "relaxed": "여유로움",
+      "balanced": "균형",
+      "fast_paced": "빠른 일정",
+      "intense": "집중"
+    },
+    "summaries": {
+      "created": "{title} 생성됨",
+      "edited": "{title} 편집됨",
+      "reverted_revision": "리비전 v{revision}으로 되돌림",
+      "restored_version": "버전 v{revision}으로 복원됨",
+      "updated_via_api": "API를 통해 여행이 업데이트됨",
+      "more_count": "+{count}개 더보기"
+    }
   },
   "add_poi": {
     "add_place_btn": "장소 추가",
@@ -1821,7 +1885,7 @@
     "stay_at_destination": "{destination} 숙박",
     "swap_route_aria": "출발지와 도착지 바꾸기",
     "swap_route_title": "노선 바꾸기",
-    "swarm_inferencing_optimizing": "스웜 추론 및 C++20 경로 최적화 중...",
+    "swarm_inferencing_optimizing": "스웜 추론 및 경로 최적화 중...",
     "thinking_analyzing": "여행 선호도와 일정 속도를 분석하는 중...",
     "thinking_booking_anchors": "예약 거점 정보를 처리하는 중...",
     "thinking_constraints": "최적화 제약 조건을 준비하는 중...",
@@ -1831,12 +1895,12 @@
     "thinking_guardrails": "일정 안전장치 및 실행 가능성을 평가하는 중...",
     "thinking_guardrails_passed": "일정 검증 완료. 경로 솔버를 준비하는 중...",
     "thinking_initializing": "AI 솔버 스웜 초기화 중...",
-    "thinking_optimizing": "C++ 솔버로 일일 경로 및 대중교통을 최적화하는 중...",
+    "thinking_optimizing": "일일 경로 및 대중교통 최적화 중...",
     "thinking_reviewing": "여행 거점과 날짜를 종합하는 중...",
     "thinking_routing": "에이전트 스웜을 통해 여행 의도를 라우팅하는 중...",
     "thinking_saving": "워크스페이스에 여행을 저장하는 중...",
     "thinking_scraping": "명소, 현지 맛집 및 대중교통 경로를 탐색하는 중...",
-    "thinking_submessage": "{destination} • 연속형 독립 최적화 엔진",
+    "thinking_submessage": "{destination} • 잠시 시간이 걸릴 수 있습니다",
     "thinking_validating": "일정 제약 조건 검증 중...",
     "travel_destination_alt": "여행 목적지",
     "travel_window_calendar": "여행 기간 및 캘린더",
@@ -1860,7 +1924,8 @@
     "verification_title": "[제약 조건 검증] 여행 매개변수 검토",
     "verified_hotel_location": "검증된 호텔 위치",
     "view_map": "지도 보기",
-    "you_badge": "나"
+    "you_badge": "나",
+    "manual_time_input_aria": "시간 직접 입력 (HH:MM)"
   },
   "errors": {
     "action_failed": "요청한 작업을 완료하지 못했습니다.",
@@ -3456,7 +3521,9 @@
     "waypoint_unlocked_desc": "\"{name}\"의 고정이 해제되어 유연하게 조정됩니다.",
     "waypoint_unlocked_title": "경유지 고정 해제됨",
     "your_trip": "내 여행",
-    "zero_places_upper": "0개 장소"
+    "zero_places_upper": "0개 장소",
+    "day_name_placeholder": "일정 테마 또는 이름...",
+    "edit_day_name": "일차 이름 수정"
   },
   "taste_calibration": {
     "already_active_desc": "초기 취향 보정은 8포인트 하모닉 레이더가 0.50 중립 기준 상태일 때만 사용할 수 있습니다. 설정에서 언제든 선호도를 미세 조정할 수 있습니다.",

@@ -11,7 +11,7 @@ export interface TripDraftData {
   endDate: string;
   departureHour: string;
   arrivalHour: string;
-  budgetUsd: number;
+  budgetUsd: number | '';
   currency: string;
   tripTitle: string;
   tripDescription: string;
@@ -35,7 +35,7 @@ export interface TripDraftData {
 }
 
 export interface TripDraftStore extends TripDraftData {
-  updateDraft: (updates: Partial<TripDraftData>) => void;
+  updateDraft: (updates: Partial<TripDraftData>, options?: { markModified?: boolean }) => void;
   resetDraft: () => void;
   initializeWithUser: (
     user: { id?: string | null; username?: string | null; email?: string | null } | null
@@ -44,10 +44,10 @@ export interface TripDraftStore extends TripDraftData {
 
 const STORAGE_KEY = 'paladio-trip-creation-draft';
 
-const formatDateOffset = (offsetDays: number): string => {
+export const formatLocalDateOffset = (offsetDays: number): string => {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const DEFAULT_DRAFT: TripDraftData = {
@@ -55,8 +55,8 @@ const DEFAULT_DRAFT: TripDraftData = {
   origin: '',
   originIata: '',
   destIata: '',
-  startDate: formatDateOffset(7),
-  endDate: formatDateOffset(12),
+  startDate: formatLocalDateOffset(7),
+  endDate: formatLocalDateOffset(12),
   departureHour: '09:00',
   arrivalHour: '20:00',
   budgetUsd: 1500,
@@ -67,8 +67,8 @@ const DEFAULT_DRAFT: TripDraftData = {
   hotelAddress: '',
   hotelLat: undefined,
   hotelLng: undefined,
-  hotelCheckInDate: formatDateOffset(7),
-  hotelCheckOutDate: formatDateOffset(12),
+  hotelCheckInDate: formatLocalDateOffset(7),
+  hotelCheckOutDate: formatLocalDateOffset(12),
   hotelCheckInHour: '15:00',
   hotelCheckOutHour: '11:00',
   participants: [
@@ -102,6 +102,12 @@ function getInitialDraft(): TripDraftData {
         return {
           ...DEFAULT_DRAFT,
           ...parsed,
+          budgetUsd:
+            typeof parsed.budgetUsd === 'number' && !Number.isNaN(parsed.budgetUsd)
+              ? Math.max(0, parsed.budgetUsd)
+              : parsed.budgetUsd === ''
+                ? ''
+                : DEFAULT_DRAFT.budgetUsd,
           participants: Array.isArray(parsed.participants) && parsed.participants.length > 0
             ? parsed.participants
             : DEFAULT_DRAFT.participants,
@@ -122,19 +128,23 @@ function persistDraft(state: TripDraftData) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
-    console.warn('Could not persist trip draft to localStorage:', e);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, customPhotoUrl: '' }));
+    } catch {
+      console.warn('Could not persist trip draft to localStorage:', e);
+    }
   }
 }
 
 export const useTripDraftStore = create<TripDraftStore>((set) => ({
   ...getInitialDraft(),
 
-  updateDraft: (updates: Partial<TripDraftData>) => {
+  updateDraft: (updates: Partial<TripDraftData>, options?: { markModified?: boolean }) => {
     set((state) => {
       const nextState: TripDraftData = {
         ...state,
         ...updates,
-        hasUserModified: true,
+        hasUserModified: options?.markModified ?? true,
       };
       persistDraft(nextState);
       return nextState;
@@ -151,6 +161,10 @@ export const useTripDraftStore = create<TripDraftStore>((set) => ({
     }
     set({
       ...DEFAULT_DRAFT,
+      startDate: formatLocalDateOffset(7),
+      endDate: formatLocalDateOffset(12),
+      hotelCheckInDate: formatLocalDateOffset(7),
+      hotelCheckOutDate: formatLocalDateOffset(12),
       hasUserModified: false,
     });
   },

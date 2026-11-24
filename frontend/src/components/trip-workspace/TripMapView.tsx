@@ -132,8 +132,28 @@ export interface SpatialCircleFilter {
   radiusMeters: number;
 }
 
+const divIconCache = new Map<string, L.DivIcon>();
+
+function getCachedDivIcon(options: L.DivIconOptions): L.DivIcon {
+  const sizeKey = Array.isArray(options.iconSize) ? options.iconSize.join(',') : String(options.iconSize ?? '');
+  const anchorKey = Array.isArray(options.iconAnchor) ? options.iconAnchor.join(',') : String(options.iconAnchor ?? '');
+  const popupKey = Array.isArray(options.popupAnchor) ? options.popupAnchor.join(',') : String(options.popupAnchor ?? '');
+  const htmlStr = typeof options.html === 'string' ? options.html : '';
+  const cacheKey = `${options.className || ''}|${sizeKey}|${anchorKey}|${popupKey}|${htmlStr}`;
+  const cached = divIconCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  if (divIconCache.size >= 2000) {
+    divIconCache.clear();
+  }
+  const icon = L.divIcon(options);
+  divIconCache.set(cacheKey, icon);
+  return icon;
+}
+
 function createDirectionsTacticalPinIcon(label: 'A' | 'B', color: string): L.DivIcon {
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-directions-pin',
     html: `
       <div style="
@@ -161,7 +181,7 @@ function createDirectionsTacticalPinIcon(label: 'A' | 'B', color: string): L.Div
 
 function createDirectionsStationIcon(role: 'board' | 'transfer' | 'alight'): L.DivIcon {
   const bg = role === 'transfer' ? '#D97706' : role === 'alight' ? '#059669' : '#0F4C5C';
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-directions-station-node',
     html: `
       <div style="
@@ -189,7 +209,7 @@ function createDirectionsStationIcon(role: 'board' | 'transfer' | 'alight'): L.D
 }
 
 function createIntermediateStopIcon(color: string): L.DivIcon {
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-intermediate-stop-node',
     html: `
       <div style="
@@ -442,26 +462,37 @@ function InteractiveSpatialCircleLayer({
     if (handleMarkerRef.current) {
       const dLng = spatialCircle.radiusMeters / (111320.0 * Math.max(0.0001, Math.cos((spatialCircle.lat * Math.PI) / 180.0)));
       handleMarkerRef.current.setLatLng([spatialCircle.lat, spatialCircle.lng + dLng]);
-      handleMarkerRef.current.setTooltipContent(`${spatialCircle.radiusMeters}m`);
+      if (handleMarkerRef.current.getTooltip()) {
+        handleMarkerRef.current.setTooltipContent(`${spatialCircle.radiusMeters}m`);
+      }
     }
     if (centerMarkerRef.current) {
       centerMarkerRef.current.setLatLng([spatialCircle.lat, spatialCircle.lng]);
     }
   }, [spatialCircle.lat, spatialCircle.lng, spatialCircle.radiusMeters]);
 
-  // Safely close popups and tooltips on unmount only if marker is still attached to a map
+  // Native Leaflet tooltip binding on handle marker to prevent React VDOM removeChild reconciliation conflicts
+  useEffect(() => {
+    const marker = handleMarkerRef.current;
+    if (!marker) return;
+    marker.bindTooltip(`${spatialCircle.radiusMeters}m`, {
+      direction: 'right',
+      offset: [12, 0],
+      opacity: 0.95,
+    });
+    return () => {
+      marker.unbindTooltip();
+    };
+  }, []);
+
+  // Safely close popups on unmount only if marker is still attached to a map
   useEffect(() => {
     const centerRef = centerMarkerRef;
-    const handleRef = handleMarkerRef;
     return () => {
       try {
         const cm = centerRef.current as (L.Marker & { _map?: unknown }) | null;
         if (cm && cm._map && cm.isPopupOpen()) {
           cm.closePopup();
-        }
-        const hm = handleRef.current as (L.Marker & { _map?: unknown }) | null;
-        if (hm && hm._map && hm.isTooltipOpen()) {
-          hm.closeTooltip();
         }
       } catch {
         // ignore unmount cleanup errors
@@ -484,8 +515,10 @@ function InteractiveSpatialCircleLayer({
       if (circleRef.current) {
         circleRef.current.setRadius(clampedDist);
       }
-      marker.setTooltipContent(`${clampedDist}m`);
-      marker.openTooltip();
+      if (marker.getTooltip()) {
+        marker.setTooltipContent(`${clampedDist}m`);
+        marker.openTooltip();
+      }
     },
     dragend: (e: L.LeafletEvent) => {
       const marker = e.target as L.Marker;
@@ -496,7 +529,9 @@ function InteractiveSpatialCircleLayer({
       // Snap handle back to the East perimeter of the circle
       const dLng = clampedDist / (111320.0 * Math.max(0.0001, Math.cos((spatialCircle.lat * Math.PI) / 180.0)));
       marker.setLatLng([spatialCircle.lat, spatialCircle.lng + dLng]);
-      marker.setTooltipContent(`${clampedDist}m`);
+      if (marker.getTooltip()) {
+        marker.setTooltipContent(`${clampedDist}m`);
+      }
 
       isDraggingRef.current = false;
 
@@ -607,13 +642,7 @@ function InteractiveSpatialCircleLayer({
         icon={handleIcon}
         zIndexOffset={5000}
         eventHandlers={handleEventHandlers}
-      >
-        <Tooltip direction="right" offset={[12, 0]} opacity={0.95}>
-          <div style={{ fontSize: '11px', fontWeight: 600 }}>
-            {spatialCircle.radiusMeters}m
-          </div>
-        </Tooltip>
-      </Marker>
+      />
     </>
   );
 }
@@ -762,13 +791,15 @@ function renderTeardropPinHtml({
     ? `<div style="position:absolute;top:0;left:0;width:34px;height:34px;border-radius:50%;background:rgba(20, 120, 141, 0.35);animation:pinGlow 1.8s ease-in-out infinite;pointer-events:none;z-index:0;"></div>`
     : '';
 
-  const animStyle = typeof animationDelayMs === 'number' ? `animation-delay: ${animationDelayMs}ms;` : '';
+  const effectiveDelayMs = isFocused ? undefined : animationDelayMs;
+  const animStyle = typeof effectiveDelayMs === 'number' ? `animation-delay: ${effectiveDelayMs}ms;` : '';
   const canDrag = !readOnly && Boolean(poiPayload);
 
   return `
     <div 
       ${canDrag ? `draggable="true" data-paladio-draggable-poi="${poiPayload}"` : 'draggable="false"'}
       class="${animationClass}"
+      onanimationend="this.classList.remove('paladio-waypoint-pin-pop-in');this.style.animationDelay='';"
       style="position:relative;width:34px;height:44px;display:flex;align-items:flex-start;justify-content:center;cursor:${canDrag ? 'grab' : 'pointer'};user-select:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.32));${animStyle}"
     >
       ${focusGlow}
@@ -829,7 +860,7 @@ function createWaypointIcon(
       }).replace(/"/g, '&quot;')
     : '';
 
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-waypoint-icon',
     html: renderTeardropPinHtml({
       categoryType,
@@ -925,7 +956,7 @@ function createHotelIcon(
       }).replace(/"/g, '&quot;')
     : '';
 
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-hotel-icon',
     html: renderTeardropPinHtml({
       categoryType: 'hotel',
@@ -966,7 +997,7 @@ function createAirportIcon(
       }).replace(/"/g, '&quot;')
     : '';
 
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-airport-icon',
     html: renderTeardropPinHtml({
       categoryType: 'airport',
@@ -999,7 +1030,7 @@ function createFocusedWaypointIcon(place: FocusedWaypointPlace, photoUrl?: strin
     location: { latitude: place.lat, longitude: place.lng },
   }).replace(/"/g, '&quot;');
 
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-focused-waypoint-icon',
     html: renderTeardropPinHtml({
       categoryType: cat,
@@ -1035,7 +1066,7 @@ function createCategoryPoiIcon(
       }).replace(/"/g, '&quot;')
     : '';
 
-  return L.divIcon({
+  return getCachedDivIcon({
     className: 'paladio-category-poi-icon',
     html: renderTeardropPinHtml({
       categoryType,
@@ -1300,7 +1331,7 @@ function MapViewportController({
       if (map && !map.dragging.enabled()) {
         map.dragging.enable();
       }
-      cleanupCustomDragPreview();
+      cleanupCustomDragPreview(false);
       window.setTimeout(() => {
         if (typeof window !== 'undefined') {
           (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
@@ -1310,15 +1341,43 @@ function MapViewportController({
       }, 50);
     };
 
+    const mapContainer = map.getContainer();
+    const handleMapDragOver = (e: DragEvent) => {
+      const win = typeof window !== 'undefined' ? (window as unknown as { __paladioActivePoi?: unknown }) : null;
+      if (win?.__paladioActivePoi || e.dataTransfer?.types.includes('application/paladio-poi')) {
+        e.preventDefault();
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = 'none';
+        }
+      }
+    };
+    const handleMapDrop = (e: DragEvent) => {
+      e.preventDefault();
+      handleMouseUp();
+    };
+
+    const handlePaladioDragEnded = () => {
+      if (map && !map.dragging.enabled()) {
+        map.dragging.enable();
+      }
+    };
+
+    mapContainer.addEventListener('dragover', handleMapDragOver);
+    mapContainer.addEventListener('drop', handleMapDrop);
+
     document.addEventListener('dragstart', handleDragStart);
     document.addEventListener('dragend', handleMouseUp, true);
     document.addEventListener('mousedown', handleMouseDown, true);
     document.addEventListener('mouseup', handleMouseUp, true);
+    window.addEventListener('paladio:drag-ended', handlePaladioDragEnded);
     return () => {
       document.removeEventListener('dragstart', handleDragStart);
       document.removeEventListener('dragend', handleMouseUp, true);
       document.removeEventListener('mousedown', handleMouseDown, true);
       document.removeEventListener('mouseup', handleMouseUp, true);
+      window.removeEventListener('paladio:drag-ended', handlePaladioDragEnded);
+      mapContainer.removeEventListener('dragover', handleMapDragOver);
+      mapContainer.removeEventListener('drop', handleMapDrop);
     };
   }, [map, readOnly]);
 
@@ -1617,6 +1676,9 @@ export default function TripMapView({
   const activeCategory = categoryFilter !== undefined ? categoryFilter : internalCatFilter;
   const [mapStations, setMapStations] = useState<StationBboxItem[]>([]);
   const [mapZoom, setMapZoom] = useState<number>(13);
+  const handleZoomThresholdChange = useCallback((z: number) => {
+    setMapZoom((prev) => ((prev >= 14) === (z >= 14) ? prev : z));
+  }, []);
   const [transitSubView, setTransitSubView] = useState<'directions' | 'lines' | 'nearby'>('directions');
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
 
@@ -2289,7 +2351,7 @@ export default function TripMapView({
           enabled={sidebarTab === 'transit' && transitSubView === 'nearby'}
           city={destinationCity}
           onStationsLoaded={setMapStations}
-          onZoomChange={setMapZoom}
+          onZoomChange={handleZoomThresholdChange}
         />
 
         {focusedPlace &&
@@ -2907,7 +2969,7 @@ export default function TripMapView({
 
               return (
                 <Marker
-                  key={`marker-active-${activeDay}-d${dayData.dayNumber}-${poi.name}-${poi.lat}-${poi.lng}-${stopCounter}-${idx}`}
+                  key={`marker-d${dayData.dayNumber}-${poi.id || poi.name}-${poi.lat}-${poi.lng}-${stopCounter}-${idx}`}
                   position={[poi.lat, poi.lng]}
                   icon={markerIcon}
                   zIndexOffset={isPoiFocused ? 2500 : isCurrentDayHovered ? 800 : 500}

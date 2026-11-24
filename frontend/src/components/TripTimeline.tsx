@@ -131,15 +131,6 @@ export function TripTimeline({
       if (destinationCity && sessionStorage.getItem(`paladio_trip_upgraded_${destinationCity.toLowerCase()}`) === 'true') {
         return true;
       }
-      try {
-        const cached = sessionStorage.getItem('paladio_itinerary');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed?.is_upgraded || parsed?.metadata?.transit_upgraded) return true;
-        }
-      } catch {
-        // ignore
-      }
     }
     return false;
   }, [upgraded, currentItinerary, tripId, destinationCity]);
@@ -174,7 +165,6 @@ export function TripTimeline({
           setUpgradedItinerary(data.itinerary_data);
           if (typeof window !== 'undefined') {
             try {
-              sessionStorage.setItem('paladio_itinerary', JSON.stringify(data.itinerary_data));
               sessionStorage.setItem(`paladio_trip_upgraded_${tripId}`, 'true');
               if (destinationCity) {
                 sessionStorage.setItem(`paladio_trip_upgraded_${destinationCity.toLowerCase()}`, 'true');
@@ -203,7 +193,6 @@ export function TripTimeline({
         setUpgradedItinerary(updated);
         if (typeof window !== 'undefined') {
           try {
-            sessionStorage.setItem('paladio_itinerary', JSON.stringify(updated));
             if (destinationCity) {
               sessionStorage.setItem(`paladio_trip_upgraded_${destinationCity.toLowerCase()}`, 'true');
             }

@@ -1283,7 +1283,7 @@ async def scan_new_trip_boarding_pass(
             departure_hour = check_in_hour
             arrival_hour = check_out_hour
 
-    today = datetime.now(timezone.utc).date()
+    today = (datetime.now(timezone.utc) - timedelta(hours=14)).date()
 
     # Validate departure date
     if departure_date:

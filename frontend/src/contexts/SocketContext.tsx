@@ -35,8 +35,8 @@ export const useLogStore = create<LogStore>((set) => ({
   logs: ['> SYSTEM READY. AWAITING INITIALIZATION.'],
   addLog: (msg) => set((state) => {
     const replayable = [
-      '> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING C++ SOLVER.',
-      '> [PLANNER] OPTIMIZING ROUTES & TRANSIT WITH C++ SOLVER...',
+      '> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING ROUTE SOLVER.',
+      '> [PLANNER] OPTIMIZING ROUTES & TRANSIT...',
       '> [PLANNER] ITINERARY GENERATED.',
       '> [ENGINE] INFERENCE CYCLE COMPLETE. IDLE.'
     ];
@@ -98,6 +98,7 @@ export interface GuardrailAbortPayload {
 export interface SocketContextProps {
   status: SocketStatus;
   itinerary: OptimizationResult | null;
+  clearItinerary: () => void;
   missingFields: string[];
   verificationPayload: VerificationPayload | null;
   clearVerification: () => void;
@@ -115,33 +116,20 @@ export interface SocketContextProps {
 export const SocketContext = createContext<SocketContextProps | null>(null);
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<SocketStatus>(() => {
-    if (typeof window !== 'undefined') {
-      const savedStatus = sessionStorage.getItem('paladio_status');
-      if (savedStatus === 'connected' || savedStatus === 'error') return 'disconnected';
-      if (savedStatus) return savedStatus as SocketStatus;
-    }
-    return 'disconnected';
-  });
+  const [status, setStatus] = useState<SocketStatus>('disconnected');
 
   const { addLog } = useLogStore.getState();
   useEffect(() => { useLogStore.getState().initLogs(); }, []);
 
-  const [itinerary, setItinerary] = useState<OptimizationResult | null>(() => {
+  const [itinerary, setItinerary] = useState<OptimizationResult | null>(null);
+
+  const clearItinerary = useCallback(() => {
+    setItinerary(null);
     if (typeof window !== 'undefined') {
-      const savedStatus = sessionStorage.getItem('paladio_status');
-      if (savedStatus === 'error') return null;
-      const saved = sessionStorage.getItem('paladio_itinerary');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          // ignore
-        }
-      }
+      sessionStorage.removeItem('paladio_itinerary');
+      sessionStorage.removeItem('paladio_status');
     }
-    return null;
-  });
+  }, []);
 
   const [missingFields, setMissingFields] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -198,14 +186,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-            sessionStorage.setItem('paladio_status', status);
-      if (itinerary) sessionStorage.setItem('paladio_itinerary', JSON.stringify(itinerary));
-      else sessionStorage.removeItem('paladio_itinerary');
-      
       if (missingFields.length > 0) sessionStorage.setItem('paladio_missing', JSON.stringify(missingFields));
       else sessionStorage.removeItem('paladio_missing');
     }
-  }, [status, itinerary, missingFields]);
+  }, [missingFields]);
 
   
   
@@ -304,30 +288,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         }
         break;
       case 'EXTRACTING_CONSTRAINTS':
-        addLog(`> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING C++ SOLVER.`);
+        addLog(`> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING ROUTE SOLVER.`);
         break;
       case 'EVALUATING_ROUTES':
         if ((payload.status === 'completed' || payload.status === 'recovered') && payload.data) {
           addLog(`> [PLANNER] ITINERARY GENERATED.`);
-          let incoming = payload.data as unknown as OptimizationResult;
-          if (typeof window !== 'undefined') {
-            try {
-              const cached = sessionStorage.getItem('paladio_itinerary');
-              if (cached) {
-                const parsed = JSON.parse(cached);
-                if (parsed?.is_upgraded) {
-                  incoming = {
-                    ...incoming,
-                    is_upgraded: true,
-                    metadata: { ...incoming.metadata, transit_upgraded: true }
-                  };
-                }
-              }
-            } catch {
-              // ignore
-            }
-          }
+          const incoming = payload.data as unknown as OptimizationResult;
           setItinerary(incoming);
+          setStatus('connected');
           if (!hasNotifiedItineraryRef.current) {
             hasNotifiedItineraryRef.current = true;
             notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
@@ -336,28 +304,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             });
           }
         } else if (payload.status === 'running') {
-          addLog(`> [PLANNER] OPTIMIZING ROUTES & TRANSIT WITH C++ SOLVER...`);
+          addLog(`> [PLANNER] OPTIMIZING ROUTES & TRANSIT...`);
         } else if (payload.data) {
           addLog(`> [PLANNER] ITINERARY GENERATED.`);
-          let incoming = payload.data as unknown as OptimizationResult;
-          if (typeof window !== 'undefined') {
-            try {
-              const cached = sessionStorage.getItem('paladio_itinerary');
-              if (cached) {
-                const parsed = JSON.parse(cached);
-                if (parsed?.is_upgraded) {
-                  incoming = {
-                    ...incoming,
-                    is_upgraded: true,
-                    metadata: { ...incoming.metadata, transit_upgraded: true }
-                  };
-                }
-              }
-            } catch {
-              // ignore
-            }
-          }
+          const incoming = payload.data as unknown as OptimizationResult;
           setItinerary(incoming);
+          setStatus('connected');
           if (!hasNotifiedItineraryRef.current) {
             hasNotifiedItineraryRef.current = true;
             notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
@@ -679,6 +631,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     <SocketContext.Provider value={{
       status,
       itinerary,
+      clearItinerary,
       missingFields,
       verificationPayload,
       clearVerification,

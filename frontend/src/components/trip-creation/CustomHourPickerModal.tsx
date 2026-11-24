@@ -25,18 +25,58 @@ export function CustomHourPickerModal({
   const resolvedAnchorLabel = anchorLabel ?? t('engine.select_time');
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Parse hour and minute
+  // Parse and clamp hour (0..23) and minute (0..59)
+  const clampHour = (h: number) => ((h % 24) + 24) % 24;
+  const clampMinute = (m: number) => ((m % 60) + 60) % 60;
+
   const [selectedHour, setSelectedHour] = React.useState(() => {
     const parts = (value || '09:00').split(':');
     const parsed = parseInt(parts[0], 10);
-    return Number.isNaN(parsed) ? 9 : parsed;
+    return Number.isNaN(parsed) ? 9 : clampHour(parsed);
   });
 
   const [selectedMinute, setSelectedMinute] = React.useState(() => {
     const parts = (value || '09:00').split(':');
     const parsed = parseInt(parts[1], 10);
-    return Number.isNaN(parsed) ? 0 : parsed;
+    return Number.isNaN(parsed) ? 0 : clampMinute(parsed);
   });
+
+  const formatTime = (h: number, m: number) =>
+    `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+  const parseManualTime = (raw: string, allowHourOnly = false): { h: number; m: number } | null => {
+    const trimmed = raw.trim();
+    const colonMatch = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+    if (colonMatch) {
+      const h = parseInt(colonMatch[1], 10);
+      const m = parseInt(colonMatch[2], 10);
+      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) return { h, m };
+      return null;
+    }
+    const fourDigitMatch = trimmed.match(/^(\d{2})(\d{2})$/);
+    if (fourDigitMatch) {
+      const h = parseInt(fourDigitMatch[1], 10);
+      const m = parseInt(fourDigitMatch[2], 10);
+      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) return { h, m };
+      return null;
+    }
+    if (allowHourOnly) {
+      const threeDigitMatch = trimmed.match(/^(\d)(\d{2})$/);
+      if (threeDigitMatch) {
+        const h = parseInt(threeDigitMatch[1], 10);
+        const m = parseInt(threeDigitMatch[2], 10);
+        if (h >= 0 && h <= 23 && m >= 0 && m <= 59) return { h, m };
+      }
+      const hourOnlyMatch = trimmed.match(/^(\d{1,2})$/);
+      if (hourOnlyMatch) {
+        const h = parseInt(hourOnlyMatch[1], 10);
+        if (h >= 0 && h <= 23) return { h, m: 0 };
+      }
+    }
+    return null;
+  };
+
+  const [manualInput, setManualInput] = React.useState(() => formatTime(selectedHour, selectedMinute));
 
   const [prevValue, setPrevValue] = React.useState(value);
   if (value !== prevValue) {
@@ -44,38 +84,53 @@ export function CustomHourPickerModal({
     const parts = (value || '09:00').split(':');
     const parsedH = parseInt(parts[0], 10);
     const parsedM = parseInt(parts[1], 10);
-    setSelectedHour(Number.isNaN(parsedH) ? 9 : parsedH);
-    setSelectedMinute(Number.isNaN(parsedM) ? 0 : parsedM);
+    const nextH = Number.isNaN(parsedH) ? 9 : clampHour(parsedH);
+    const nextM = Number.isNaN(parsedM) ? 0 : clampMinute(parsedM);
+    setSelectedHour(nextH);
+    setSelectedMinute(nextM);
+    setManualInput(formatTime(nextH, nextM));
   }
 
-  // Click outside to close
+  // Close on Escape key
   useEffect(() => {
     if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   const handleHourChange = (newH: number) => {
-    const normalizedH = (newH + 24) % 24;
+    const normalizedH = clampHour(newH);
+    const formatted = formatTime(normalizedH, selectedMinute);
     setSelectedHour(normalizedH);
-    const hStr = String(normalizedH).padStart(2, '0');
-    const mStr = String(selectedMinute).padStart(2, '0');
-    onChange(`${hStr}:${mStr}`);
+    setManualInput(formatted);
+    onChange(formatted);
   };
 
   const handleMinuteChange = (newM: number) => {
-    const normalizedM = (newM + 60) % 60;
+    const normalizedM = clampMinute(newM);
+    const formatted = formatTime(selectedHour, normalizedM);
     setSelectedMinute(normalizedM);
-    const hStr = String(selectedHour).padStart(2, '0');
-    const mStr = String(normalizedM).padStart(2, '0');
-    onChange(`${hStr}:${mStr}`);
+    setManualInput(formatted);
+    onChange(formatted);
+  };
+
+  const handleMinuteStep = (delta: -5 | 5) => {
+    if (selectedMinute % 5 === 0) {
+      handleMinuteChange(selectedMinute + delta);
+      return;
+    }
+    const snapped =
+      delta < 0
+        ? Math.floor(selectedMinute / 5) * 5
+        : Math.ceil(selectedMinute / 5) * 5;
+    handleMinuteChange(snapped);
   };
 
   // Visible window: -2, -1, current, +1, +2
@@ -121,6 +176,71 @@ export function CustomHourPickerModal({
             {resolvedAnchorLabel}
           </span>
         </div>
+
+        {/* Manual HH:MM Entry */}
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={5}
+          placeholder="00:00"
+          aria-label={t('engine.manual_time_input_aria')}
+          data-testid="manual-time-input"
+          value={manualInput}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/[^\d:]/g, '');
+            setManualInput(raw);
+            const parsed = parseManualTime(raw, false);
+            if (parsed) {
+              setSelectedHour(parsed.h);
+              setSelectedMinute(parsed.m);
+              onChange(formatTime(parsed.h, parsed.m));
+            }
+          }}
+          onBlur={() => {
+            const parsed = parseManualTime(manualInput, true);
+            if (parsed) {
+              const formatted = formatTime(parsed.h, parsed.m);
+              setSelectedHour(parsed.h);
+              setSelectedMinute(parsed.m);
+              setManualInput(formatted);
+              onChange(formatted);
+            } else {
+              setManualInput(formatTime(selectedHour, selectedMinute));
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const parsed = parseManualTime(manualInput, true);
+              if (parsed) {
+                const formatted = formatTime(parsed.h, parsed.m);
+                setSelectedHour(parsed.h);
+                setSelectedMinute(parsed.m);
+                setManualInput(formatted);
+                onChange(formatted);
+              } else {
+                onChange(formatTime(selectedHour, selectedMinute));
+              }
+              onClose();
+            }
+          }}
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            textAlign: 'center',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '16px',
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            color: 'var(--color-text-primary, #1A1A1A)',
+            background: 'var(--color-bg-main, #FAF8F5)',
+            border: '1px solid var(--color-border, #E2D9CC)',
+            borderRadius: '12px',
+            padding: '7px 12px',
+            outline: 'none',
+          }}
+        />
 
         {/* Two-Column Cylinder Dial */}
         <div
@@ -228,7 +348,7 @@ export function CustomHourPickerModal({
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
             <button
               type="button"
-              onClick={() => handleMinuteChange(selectedMinute - 5)}
+              onClick={() => handleMinuteStep(-5)}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -246,7 +366,13 @@ export function CustomHourPickerModal({
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', margin: '4px 0' }}>
               {minuteOffsets.map((offset) => {
-                const mVal = (selectedMinute + offset * 5 + 60) % 60;
+                const baseGrid =
+                  offset === 0 || selectedMinute % 5 === 0
+                    ? selectedMinute
+                    : offset < 0
+                      ? Math.ceil(selectedMinute / 5) * 5
+                      : Math.floor(selectedMinute / 5) * 5;
+                const mVal = offset === 0 ? selectedMinute : clampMinute(baseGrid + offset * 5);
                 const isSelected = offset === 0;
                 return (
                   <button
@@ -280,7 +406,7 @@ export function CustomHourPickerModal({
 
             <button
               type="button"
-              onClick={() => handleMinuteChange(selectedMinute + 5)}
+              onClick={() => handleMinuteStep(5)}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -301,7 +427,12 @@ export function CustomHourPickerModal({
         {/* Done / Confirm Button */}
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => {
+            onChange(
+              `${String(selectedHour).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`
+            );
+            onClose();
+          }}
           style={{
             width: '100%',
             padding: '8px 16px',

@@ -255,6 +255,21 @@ def _diff_itinerary_days(
                         "field": "itinerary",
                     }
                 )
+
+        b_theme = (b_day.get("theme") or "").strip()
+        a_theme = (a_day.get("theme") or "").strip()
+        if b_theme != a_theme:
+            changes.append(
+                {
+                    "kind": "itinerary",
+                    "verb": "renamed",
+                    "before_label": b_theme or f"Day {day_num}",
+                    "after_label": a_theme or f"Day {day_num}",
+                    "connector": "for",
+                    "target_label": f"Day {day_num}",
+                    "field": "theme",
+                }
+            )
     return changes
 
 

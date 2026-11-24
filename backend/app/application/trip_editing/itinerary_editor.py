@@ -410,6 +410,23 @@ class ItineraryEditor:
         return ChangeSet(ok=True, summary=summary, changes=changes)
 
     @classmethod
+    def rename_day(cls, doc: ItineraryDocument, day: int, theme: str) -> ChangeSet:
+        _, day_plan = cls._find_day(doc, day)
+        before_theme = getattr(day_plan, "theme", None)
+        new_theme = theme.strip() if theme else None
+        day_plan.theme = new_theme
+        summary = f"Renamed Day {day} to '{new_theme or ''}'."
+        changes = [
+            Change(
+                kind="rename_day",
+                day=day,
+                before={"theme": before_theme},
+                after={"theme": new_theme},
+            )
+        ]
+        return ChangeSet(ok=True, summary=summary, changes=changes)
+
+    @classmethod
     def set_day_bounds(
         cls,
         doc: ItineraryDocument,

@@ -1,80 +1,92 @@
-# Paladio Documentation Portal
+# Paladio documentation
 
-Welcome to the technical documentation portal for **Paladio**, a 100% sovereign, air-gappable travel intelligence and combinatorial optimization platform.
-
-Paladio bridges the gap between **conversational generative AI** and **provable mathematical optimization**, orchestrating multi-agent state machines, continuous semantic taste learning, and sub-millisecond C++ combinatorial routing on local hardware.
-
----
-
-## 🏛️ The Three Architectural Tenets
-
-```mermaid
-graph LR
-    subgraph Tenet1 [1. Total Sovereignty]
-        A[Zero Cloud APIs]
-        B[Local Quantized LLMs]
-        C[Air-Gap Ready]
-    end
-    subgraph Tenet2 [2. Mathematical Rigor]
-        D[Compiled C++20 Solver]
-        E[TCOPTW Formulation]
-        F[Branch-and-Bound]
-    end
-    subgraph Tenet3 [3. Adaptive Learning]
-        G[768-D Semantic Hypersphere]
-        H[Permanent EMA Taste Vectors]
-        I[8-D Harmonic Projections]
-    end
-```
-
-1. **Absolute Data Sovereignty:** Zero cloud dependencies. No OpenAI, Anthropic, or proprietary mapping API subscriptions. The entire stack (language models, vector databases, routing engines) runs locally inside standard Docker containers.
-2. **Deterministic Mathematical Rigor:** Large Language Models are never trusted with arithmetic, routing, or combinatorial search. LLMs perform NLP extraction; all mathematical optimization is solved by a dedicated, compiled C++20 engine ([`paladio-core`](https://github.com/Leandro-Juan/paladio-core)).
-3. **Continuous Taste Adaptation:** A 768-dimensional latent vector space continuously adapts to shifting user tastes using Exponential Moving Averages (EMA), projecting latent embeddings into 8 human-interpretable categories for live frontend telemetry.
-
----
-
-## 🧭 Diátaxis Navigation Structure
-
-This documentation is organized according to the **Diátaxis framework**, dividing knowledge into four distinct quadrants:
+Paladio is a self-hosted travel planning, route optimization, and fare telemetry platform built with FastAPI, Next.js 16, PostgreSQL 16 (with TimescaleDB and pgvector), Redis, Celery, Valhalla, and a C++20 combinatorial core (`paladio_core`). Trip generation, booking parsing, and 768-dimensional semantic search run deterministically on local infrastructure without external generative Large Language Model (LLM) APIs, while an optional interactive assistant supports 13 LLM providers and an 82-tool Model Context Protocol (MCP) server.
 
 <div class="grid cards" markdown>
 
--   :material-school:{ .lg .middle } **[Tutorials](tutorials/quickstart-docker.md)**
+-   :material-rocket-launch:{ .lg .middle } **Getting started**
 
-    ---
+    Deploy the 7-container Docker stack, run first-time provisioning at `/setup`, calibrate your 8-axis Taste Star, and compile `paladio_core` locally.
 
-    Step-by-step learning paths for getting started with containerized deployments and generating your first autonomous swarm itinerary.
+    [:octicons-arrow-right-24: Start with installation](getting-started/installation.md)
 
-    [:octicons-arrow-right-24: Start Learning](tutorials/quickstart-docker.md)
+-   :material-compass-outline:{ .lg .middle } **User guide**
 
--   :material-wrench:{ .lg .middle } **[How-To Guides](how-to/add-custom-langgraph-agent.md)**
+    Explore Control Center, New Trip creation, the Trip Workspace map and Speed Dial, public transit GTFS, the Bookings Wallet, Route Monitoring, Costs, Trip Archive, and the optional AI assistant.
 
-    ---
+    [:octicons-arrow-right-24: Explore the user guide](user-guide/control-center-and-taste.md)
 
-    Task-oriented practical recipes for adding LangGraph agents, authoring [MCP tools](how-to/add-an-mcp-tool.md), connecting [Claude Desktop/Cursor](how-to/connect-claude-desktop-to-paladio.md), tuning EMA learning rates, and hydrating vector embeddings.
+-   :material-server-security:{ .lg .middle } **Self-hosting and operations**
 
-    [:octicons-arrow-right-24: View Guides](how-to/add-custom-langgraph-agent.md)
+    Configure `.env` bootstrap keys and `/config` dynamic settings, manage city POI and GTFS storage, set up reverse proxies, integrate Immich or Synology, and maintain backups.
 
--   :material-book-open-page-variant:{ .lg .middle } **[Technical Reference](reference/langgraph-swarm-architecture.md)**
+    [:octicons-arrow-right-24: Read operator runbooks](self-hosting/configuration.md)
 
-    ---
+-   :material-sitemap-outline:{ .lg .middle } **System architecture**
 
-    Rigorous technical specifications covering the [77-Tool MCP Server](reference/mcp-server.md), the [Trip Agent WebSocket Protocol](reference/trip-agent-websocket.md), state schemas, PostgreSQL tables, and C++ interfaces.
+    Inspect the 8-stage deterministic Itinerary v2 pipeline, 9-node LangGraph swarm, C++20 TCOPTW branch-and-bound solver, CPU ONNX retrieval, and Deal Engine architecture.
 
-    [:octicons-arrow-right-24: Inspect Reference](reference/mcp-server.md)
+    [:octicons-arrow-right-24: Study the architecture](architecture/system-overview.md)
 
--   :material-lightbulb:{ .lg .middle } **[Architectural Explanation](explanation/system-architecture.md)**
+-   :material-book-open-page-variant-outline:{ .lg .middle } **Technical reference**
 
-    ---
+    Look up exact REST endpoints, WebSocket message schemas, all 82 MCP tools, 54 database tables, 18 Celery tasks, C++20/Python signatures, and the `.trip` archive schema.
 
-    Deep-dive essays explaining *why* Paladio is designed this way: the [Agent Safety Model](explanation/agent-safety-model.md), LangGraph vs. linear chains, sovereign RAG, continuous-to-discrete harmonics, and future roadmaps.
+    [:octicons-arrow-right-24: Browse technical reference](reference/rest-api.md)
 
-    [:octicons-arrow-right-24: Understand Architecture](explanation/agent-safety-model.md)
+-   :material-code-braces:{ .lg .middle } **Contributing**
+
+    Follow Paladio's dynamic-data and zero-legacy engineering rules, 10-locale translation parity checks, pre-commit hooks, and GitHub Wiki sync workflow.
+
+    [:octicons-arrow-right-24: Read the developer guide](contributing/developer-guide.md)
 
 </div>
 
----
+## Platform architecture at a glance
 
-## 📜 Authorship & Licensing
+Paladio separates probabilistic language interfaces from deterministic route scheduling so travel times, opening hours, meal spacing, and budget limits remain provably valid across every edit.
 
-Paladio is designed, architected, and maintained by **[Leandro Juan](https://github.com/Leandro-Juan)** and released under the **GNU Affero General Public License v3.0 (AGPLv3)**. See the [License Specification](https://github.com/Leandro-Juan/Paladio/blob/main/LICENSE) and [Contributing Guidelines](https://github.com/Leandro-Juan/Paladio/blob/main/CONTRIBUTING.md) for full terms.
+```mermaid
+flowchart LR
+    Client["Next.js 16 + React 19 UI"] <-->|"REST & WebSockets"| API["FastAPI Gateway"]
+    MCPClient["External MCP Clients"] <-->|"Streamable HTTP / stdio"| MCP["FastMCP Server (82 tools)"]
+
+    subgraph Core["Deterministic Trip Engine (Zero LLM)"]
+        Swarm["9-Node LangGraph Swarm"] --> Pipe["8-Stage Itinerary v2 Pipeline"]
+        Pipe --> RAG["CPU ONNX fastembed + Hybrid RRF"]
+        Pipe --> CPP["C++20 paladio_core (TCOPTW / TSPTW)"]
+    end
+
+    subgraph OptionalAI["Optional Chat Assistant"]
+        Agent["TripAgentRunner (13 LLM Providers)"] --> MCP
+    end
+
+    API <--> Core
+    API <--> OptionalAI
+    API <--> Storage["PostgreSQL 16 + TimescaleDB + pgvector"]
+    API <--> Redis["Redis 7 Broker & Pub/Sub"]
+    Worker["Celery Worker & Beat"] <--> Storage
+    Worker <--> Redis
+    API <--> Valhalla["Valhalla Street & Transit Router"]
+    Worker <--> Valhalla
+```
+
+## Core capabilities
+
+| Capability | Runtime engine | Key implementation detail |
+| :--- | :--- | :--- |
+| **Deterministic trip generation** | LangGraph Swarm + Itinerary v2 + `paladio_core` | 9 LLM-free swarm nodes, 2 human-in-the-loop checkpoints, C++20 branch-and-bound TCOPTW solver (`N <= 64`) |
+| **Semantic POI search and taste learning** | `fastembed` CPU ONNX + `HybridSovereignScorer` | `nomic-ai/nomic-embed-text-v1.5-Q` (768-D) + pgvector HNSW + SQL RRF + online SGD ranker |
+| **Multi-modal street and transit routing** | Self-hosted Valhalla + Transitous + local GTFS | Compiled OSM road graphs, 14-table derived PostgreSQL GTFS schedules, 5-tier fare resolution |
+| **Bookings Wallet and document scanning** | `zxing-cpp` + Tesseract OCR + Fernet | Parses PDFs, images, `.pkpass` bundles, and IATA BCBP barcodes locally with encrypted ticket secrets |
+| **Route price and hotel telemetry** | TimescaleDB + Celery Beat + `ProviderRouter` | Sweeps Aviasales, Ryanair, Booking, Google Travel, Agoda, and Trip.com against P10 quantile baselines |
+| **Interactive AI assistant and MCP** | `pydantic-ai` (`TripAgentRunner`) + FastMCP | Optional across 13 LLM providers; 82 tools, 6 resources, 6 prompts, Tier C confirmation proposals, and revision undo |
+| **Portability, offline PWA, and sync** | `.trip` ZIP archives + IndexedDB + Vault Sync | `Full Vault` or sanitized `Shareable` `.trip` packages, `.pdf`/`.ics`/`.gpx`/`.json` exports, Immich and Synology sync |
+
+## Documentation portals
+
+Paladio ships three synchronized documentation surfaces so end users, homelab operators, and contributors can each reach verified answers without leaving their environment:
+
+- **Documentation site**: Built with Material for MkDocs from `docs/` and published to [leandro-juan.github.io/paladio](https://leandro-juan.github.io/paladio/).
+- **GitHub Wiki**: Generated directly from `mkdocs.yml` via `scripts/sync_wiki.py` at [github.com/Leandro-Juan/paladio/wiki](https://github.com/Leandro-Juan/paladio/wiki).
+- **In-app Help Center**: Embedded inside the web UI at `/help` with 10 categories, 22 articles, screenshots, and interactive mockups translated across all 10 shipped locales.

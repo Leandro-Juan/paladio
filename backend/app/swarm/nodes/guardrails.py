@@ -20,8 +20,10 @@ async def _find_overlapping_trip(
     # 1. Check existing trips passed via state (e.g., testing or pre-loaded trips)
     if existing_trips:
         for t in existing_trips:
-            t_start = t.get("start_date")
-            t_end = t.get("end_date")
+            if t.get("status") in ("deal_proposal", "superseded", "discarded"):
+                continue
+            t_start = str(t.get("start_date") or "")[:10]
+            t_end = str(t.get("end_date") or "")[:10]
             if (
                 t_start
                 and t_end
@@ -34,12 +36,14 @@ async def _find_overlapping_trip(
     try:
         from app.db.models import TripModel
         from app.db.session import async_session
+        from sqlalchemy import func
         from sqlalchemy.future import select
 
         async with async_session() as session:
             stmt = select(TripModel).where(
-                TripModel.start_date <= end_date_str,
-                TripModel.end_date >= start_date_str,
+                func.substr(TripModel.start_date, 1, 10) <= end_date_str,
+                func.substr(TripModel.end_date, 1, 10) >= start_date_str,
+                TripModel.status.not_in(["deal_proposal", "superseded", "discarded"]),
             )
             if user_id and user_id != "default_user":
                 stmt = stmt.where(TripModel.user_id == user_id)

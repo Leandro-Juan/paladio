@@ -60,8 +60,6 @@ interface HotelStayAnchorBarProps {
   checkOutHour?: string;
   tripStartDate?: string;
   tripEndDate?: string;
-  onCheckInDateChange?: (val: string) => void;
-  onCheckOutDateChange?: (val: string) => void;
   onCheckInHourChange?: (val: string) => void;
   onCheckOutHourChange?: (val: string) => void;
   onChange: (
@@ -83,8 +81,6 @@ export function HotelStayAnchorBar({
   checkOutHour = '11:00',
   tripStartDate,
   tripEndDate,
-  onCheckInDateChange,
-  onCheckOutDateChange,
   onCheckInHourChange,
   onCheckOutHourChange,
   onChange,
@@ -99,6 +95,14 @@ export function HotelStayAnchorBar({
   const [activeHourPicker, setActiveHourPicker] = useState<'checkin' | 'checkout' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
 
   // Synchronize when external prop changes
   const [prevHotelArea, setPrevHotelArea] = useState(hotelArea);
@@ -125,14 +129,14 @@ export function HotelStayAnchorBar({
 
   // Fetch hotels dynamically
   const fetchHotels = useCallback(
-    async (q: string): Promise<HotelSearchResult[]> => {
+    async (q: string, signal?: AbortSignal): Promise<HotelSearchResult[]> => {
       if (!q || q.trim().length < 1) return [];
       try {
         const baseUrl = getApiBaseUrl();
         const url = `${baseUrl}/locations/hotels?city=${encodeURIComponent(
           destination || ''
         )}&q=${encodeURIComponent(q.trim())}&limit=8`;
-        const res = await fetch(url);
+        const res = await fetch(url, { signal });
         if (!res.ok) return [];
         const data = await res.json();
         return Array.isArray(data) ? data : [];
@@ -148,27 +152,31 @@ export function HotelStayAnchorBar({
     const val = e.target.value;
     setQuery(val);
     onChange(val);
+    setResults([]);
     setIsMenuOpen(true);
 
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (abortControllerRef.current) abortControllerRef.current.abort();
     if (!val.trim()) {
-      setResults([]);
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     searchTimerRef.current = setTimeout(async () => {
-      const items = await fetchHotels(val);
+      const items = await fetchHotels(val, controller.signal);
+      if (controller.signal.aborted) return;
       setResults(items);
       setIsLoading(false);
 
-      // Auto-bind coordinates if top item strongly matches query
+      // Auto-bind coordinates only on an exact normalized name match
       if (items.length > 0) {
         const top = items[0];
         const normVal = val.toLowerCase().trim();
         const normTop = top.name.toLowerCase().trim();
-        if (normTop === normVal || normTop.includes(normVal) || normVal.includes(normTop)) {
+        if (normTop === normVal) {
           onChange(val, {
             address: top.address,
             lat: top.lat,
@@ -203,7 +211,11 @@ export function HotelStayAnchorBar({
     });
   };
 
-  const isPinned = typeof hotelLat === 'number' && typeof hotelLng === 'number';
+  const isPinned =
+    typeof hotelLat === 'number' &&
+    typeof hotelLng === 'number' &&
+    Number.isFinite(hotelLat) &&
+    Number.isFinite(hotelLng);
 
   return (
     <div
@@ -266,20 +278,28 @@ export function HotelStayAnchorBar({
             onChange={handleInputChange}
             onFocus={() => {
               setIsMenuOpen(true);
-              if (results.length === 0 && (query || hotelArea)) {
+              const focusQuery = (query || hotelArea).trim();
+              if (results.length === 0 && focusQuery) {
+                if (abortControllerRef.current) abortControllerRef.current.abort();
+                const controller = new AbortController();
+                abortControllerRef.current = controller;
                 setIsLoading(true);
-                void fetchHotels(query || hotelArea).then((items) => {
-                  setResults(items);
-                  setIsLoading(false);
+                void fetchHotels(focusQuery, controller.signal).then((items) => {
+                  if (!controller.signal.aborted) {
+                    setResults(items);
+                    setIsLoading(false);
+                  }
                 });
               }
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Escape') {
+                setIsMenuOpen(false);
+              } else if (e.key === 'Enter') {
                 e.preventDefault();
-                if (results.length > 0) {
+                if (!isLoading && results.length > 0) {
                   handleSelectHotel(results[0]);
-                } else if (query.trim()) {
+                } else if (!isLoading && query.trim()) {
                   setIsMenuOpen(false);
                   setIsMapModalOpen(true);
                 }
@@ -371,7 +391,7 @@ export function HotelStayAnchorBar({
       </div>
 
       {/* Hotel Check-In & Check-Out Schedule Controls */}
-      {(onCheckInHourChange || onCheckOutHourChange || onCheckInDateChange || onCheckOutDateChange) && (
+      {(onCheckInHourChange || onCheckOutHourChange || tripStartDate || tripEndDate || checkInDate || checkOutDate) && (
         <div
           style={{
             display: 'grid',
@@ -405,33 +425,17 @@ export function HotelStayAnchorBar({
               >
                 {t('engine.check_in_label')}
               </span>
-              {onCheckInDateChange ? (
-                <input
-                  type="date"
-                  aria-label={t('engine.hotel_checkin_date_aria')}
-                  disabled={disabled}
-                  value={checkInDate || tripStartDate || ''}
-                  min={tripStartDate || undefined}
-                  max={tripEndDate || undefined}
-                  onChange={(e) => onCheckInDateChange(e.target.value)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    color: 'var(--color-text-primary, #1A1A1A)',
-                    padding: 0,
-                    width: '100%',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                  }}
-                />
-              ) : (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11.5px', fontWeight: 600 }}>
-                  {checkInDate || tripStartDate || t('engine.arrival_fallback')}
-                </span>
-              )}
+              <span
+                data-testid="hotel-checkin-date-text"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  color: 'var(--color-text-primary, #1A1A1A)',
+                }}
+              >
+                {tripStartDate || checkInDate || t('engine.arrival_fallback')}
+              </span>
             </div>
             {onCheckInHourChange && (
               <button
@@ -488,33 +492,17 @@ export function HotelStayAnchorBar({
               >
                 {t('engine.check_out_label')}
               </span>
-              {onCheckOutDateChange ? (
-                <input
-                  type="date"
-                  aria-label={t('engine.hotel_checkout_date_aria')}
-                  disabled={disabled}
-                  value={checkOutDate || tripEndDate || ''}
-                  min={checkInDate || tripStartDate || undefined}
-                  max={tripEndDate || undefined}
-                  onChange={(e) => onCheckOutDateChange(e.target.value)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    color: 'var(--color-text-primary, #1A1A1A)',
-                    padding: 0,
-                    width: '100%',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                  }}
-                />
-              ) : (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11.5px', fontWeight: 600 }}>
-                  {checkOutDate || tripEndDate || t('engine.departure_fallback')}
-                </span>
-              )}
+              <span
+                data-testid="hotel-checkout-date-text"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  color: 'var(--color-text-primary, #1A1A1A)',
+                }}
+              >
+                {tripEndDate || checkOutDate || t('engine.departure_fallback')}
+              </span>
             </div>
             {onCheckOutHourChange && (
               <button
@@ -650,7 +638,10 @@ export function HotelStayAnchorBar({
                       >
                         {item.name}
                       </span>
-                      {typeof item.lat === 'number' && typeof item.lng === 'number' && (
+                      {typeof item.lat === 'number' &&
+                        typeof item.lng === 'number' &&
+                        Number.isFinite(item.lat) &&
+                        Number.isFinite(item.lng) && (
                         <span
                           title={t('engine.verified_hotel_location')}
                           style={{

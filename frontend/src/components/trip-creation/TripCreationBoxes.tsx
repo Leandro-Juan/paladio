@@ -27,6 +27,7 @@ import { PaladioDateRangePicker } from './PaladioDateRangePicker';
 import { DocumentUploadModal, ExtractedTravelDocData } from './DocumentUploadModal';
 import { TravelDocumentDraft } from '@/hooks/useTripTickets';
 import { useTripDraftStore } from '@/stores/tripDraftStore';
+import { useLogStore } from '@/contexts/SocketContext';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, CurrencyInfo } from '@/utils/currencyResolver';
@@ -39,6 +40,9 @@ import { DemoLockedButton } from '@/components/common/DemoFeatureGate';
 interface TripCreationBoxesProps {
   onPersonalizedSubmit: (prompt: string, extras: Record<string, unknown>) => void;
   onBlankSubmitStart?: (msg?: string) => void;
+  onBlankSubmitError?: (err: string) => void;
+  externalError?: string | null;
+  onClearExternalError?: () => void;
   disabled?: boolean;
   demoLockedSubmit?: boolean;
   initialDestination?: string;
@@ -64,6 +68,9 @@ interface TripCreationBoxesProps {
 export function TripCreationBoxes({
   onPersonalizedSubmit,
   onBlankSubmitStart,
+  onBlankSubmitError,
+  externalError = null,
+  onClearExternalError,
   disabled = false,
   demoLockedSubmit = false,
   initialDestination = '',
@@ -130,10 +137,10 @@ export function TripCreationBoxes({
 
   // Initialize organizer from logged-in user
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && (!currentUser.id || participants.some((p) => p.id === 'creator'))) {
       initializeWithUser(currentUser);
     }
-  }, [currentUser, initializeWithUser]);
+  }, [currentUser, participants, initializeWithUser]);
 
   const lastAppliedPrefillRef = useRef<string | null>(null);
 
@@ -154,31 +161,53 @@ export function TripCreationBoxes({
       if (initialOrigin) updates.origin = initialOrigin;
       if (initialOriginIata !== undefined) updates.originIata = initialOriginIata;
       if (initialDestIata !== undefined) updates.destIata = initialDestIata;
-      if (initialStartDate) updates.startDate = initialStartDate;
-      if (initialEndDate) updates.endDate = initialEndDate;
-      if (initialBudget) updates.budgetUsd = initialBudget;
+      if (initialStartDate) {
+        updates.startDate = initialStartDate;
+        updates.hotelCheckInDate = initialStartDate;
+      }
+      if (initialEndDate) {
+        updates.endDate = initialEndDate;
+        updates.hotelCheckOutDate = initialEndDate;
+      }
+      if (initialBudget !== undefined) updates.budgetUsd = initialBudget;
       if (initialCurrency) updates.currency = initialCurrency;
       if (initialDepartureHour) updates.departureHour = initialDepartureHour;
       if (initialArrivalHour) updates.arrivalHour = initialArrivalHour;
+
+      if (initialTravelers !== undefined && initialTravelers >= 1) {
+        let nextParticipants = [...participants];
+        if (nextParticipants.length < initialTravelers) {
+          let idxCounter = nextParticipants.length + 1;
+          while (nextParticipants.length < initialTravelers) {
+            const candidateId = `deal-guest-${idxCounter}`;
+            if (!nextParticipants.some((p) => p.id === candidateId)) {
+              nextParticipants.push({
+                id: candidateId,
+                name: t('engine.deal_guest_name', { index: idxCounter }),
+                is_guest: true,
+                is_organizer: false,
+              });
+            }
+            idxCounter++;
+          }
+        } else if (nextParticipants.length > initialTravelers) {
+          // Shrink trailing non-organizer deal guests to match requested traveler count
+          for (let i = nextParticipants.length - 1; i >= 0 && nextParticipants.length > initialTravelers; i--) {
+            const p = nextParticipants[i];
+            if (!p.is_organizer && p.id.startsWith('deal-guest-')) {
+              nextParticipants.splice(i, 1);
+            }
+          }
+          nextParticipants = nextParticipants.slice(0, Math.max(1, initialTravelers));
+        }
+        updates.participants = nextParticipants;
+      }
 
       if (querySource === 'deal') {
         updates.hotelArea = initialHotelArea || '';
         updates.hotelAddress = initialHotelAddress || '';
         updates.hotelLat = undefined;
         updates.hotelLng = undefined;
-        if (initialTravelers && initialTravelers > 1 && participants.length < initialTravelers) {
-          const nextParticipants = [...participants];
-          while (nextParticipants.length < initialTravelers) {
-            const idx = nextParticipants.length + 1;
-            nextParticipants.push({
-              id: `deal-guest-${idx}`,
-              name: t('engine.deal_guest_name', { index: idx }),
-              is_guest: true,
-              is_organizer: false,
-            });
-          }
-          updates.participants = nextParticipants;
-        }
       } else {
         if (initialHotelArea !== undefined) updates.hotelArea = initialHotelArea;
         if (initialHotelAddress !== undefined) updates.hotelAddress = initialHotelAddress;
@@ -196,9 +225,9 @@ export function TripCreationBoxes({
       if (initialOrigin && initialOrigin !== origin) updates.origin = initialOrigin;
       if (initialStartDate && initialStartDate !== startDate) updates.startDate = initialStartDate;
       if (initialEndDate && initialEndDate !== endDate) updates.endDate = initialEndDate;
-      if (initialBudget && initialBudget !== budgetUsd) updates.budgetUsd = initialBudget;
+      if (initialBudget !== undefined && initialBudget !== budgetUsd) updates.budgetUsd = initialBudget;
       if (Object.keys(updates).length > 0) {
-        updateDraft(updates);
+        updateDraft(updates, { markModified: false });
       }
     }
   }, [
@@ -229,6 +258,12 @@ export function TripCreationBoxes({
   const [blankError, setBlankError] = useState<string | null>(null);
   const [blankSuccess, setBlankSuccess] = useState<string | null>(null);
 
+  const clearErrors = () => {
+    setBlankError(null);
+    onClearExternalError?.();
+  };
+  const activeError = blankError || externalError;
+
   // Setters delegating to persistent draft store
   const setSelectedMode = (mode: 'personalized' | 'blank') => updateDraft({ selectedMode: mode });
   const setDestination = (val: string) => {
@@ -252,7 +287,7 @@ export function TripCreationBoxes({
   const setEndDate = (val: string) => updateDraft({ endDate: val });
   const setDepartureHour = (val: string) => updateDraft({ departureHour: val });
   const setArrivalHour = (val: string) => updateDraft({ arrivalHour: val });
-  const setBudgetUsd = (val: number) => updateDraft({ budgetUsd: val });
+  const setBudgetUsd = (val: number | '') => updateDraft({ budgetUsd: val });
   const setCurrency = (val: string) => updateDraft({ currency: val });
   const setTripTitle = (val: string) => updateDraft({ tripTitle: val });
   const setTripDescription = (val: string) => updateDraft({ tripDescription: val });
@@ -261,15 +296,22 @@ export function TripCreationBoxes({
     name: string,
     extra?: { address?: string; lat?: number; lng?: number }
   ) => {
+    if (extra === undefined) {
+      updateDraft({
+        hotelArea: name,
+        hotelAddress: '',
+        hotelLat: undefined,
+        hotelLng: undefined,
+      });
+      return;
+    }
     updateDraft({
       hotelArea: name,
-      hotelAddress: extra?.address !== undefined ? extra.address : draft.hotelAddress,
-      hotelLat: extra?.lat !== undefined ? extra.lat : draft.hotelLat,
-      hotelLng: extra?.lng !== undefined ? extra.lng : draft.hotelLng,
+      hotelAddress: extra.address ?? '',
+      hotelLat: extra.lat,
+      hotelLng: extra.lng,
     });
   };
-  const setHotelCheckInDate = (val: string) => updateDraft({ hotelCheckInDate: val });
-  const setHotelCheckOutDate = (val: string) => updateDraft({ hotelCheckOutDate: val });
   const setHotelCheckInHour = (val: string) => updateDraft({ hotelCheckInHour: val });
   const setHotelCheckOutHour = (val: string) => updateDraft({ hotelCheckOutHour: val });
   const setParticipants = (val: SelectedParticipant[]) => updateDraft({ participants: val });
@@ -341,7 +383,7 @@ export function TripCreationBoxes({
   const currentPhoto = !isPhotoRemoved ? (customPhotoUrl || getDestinationPhotoUrl(destination)) : '';
 
   const handleExtracted = (data: ExtractedTravelDocData) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatLocalIsoDate(new Date());
     if (data.departure_date && data.departure_date < today) {
       setBlankError(
         t('engine.doc_apply_past_departure_short', { date: data.departure_date, today })
@@ -354,79 +396,118 @@ export function TripCreationBoxes({
       );
       return;
     }
-    setBlankError(null);
+    clearErrors();
 
-    if (data.origin_city) setOrigin(data.origin_city);
-    else if (data.origin_iata) setOrigin(data.origin_iata);
-    if (data.origin_iata) setOriginIata(data.origin_iata);
-
-    if (data.destination_city) setDestination(data.destination_city);
-    else if (data.destination_iata) setDestination(data.destination_iata);
-    if (data.destination_iata) setDestIata(data.destination_iata);
-
+    const updates: Partial<typeof draft> = {};
     const hasScannedFlight = scannedDocuments.some((d) => d.ticket_type === 'flight');
     const isHotelOnly = data.document_type === 'hotel';
+    const isReturnFlight =
+      !isHotelOnly &&
+      hasScannedFlight &&
+      Boolean(data.departure_date) &&
+      Boolean(startDate) &&
+      data.departure_date! >= startDate &&
+      Boolean(
+        (data.origin_iata && destIata && data.origin_iata.toUpperCase() === destIata.toUpperCase()) ||
+          (data.destination_iata && originIata && data.destination_iata.toUpperCase() === originIata.toUpperCase())
+      );
 
-    if (data.departure_date && (!isHotelOnly || !hasScannedFlight)) {
-      const start = data.departure_date;
-      let end = data.return_date;
-      if (!end) {
-        const sDate = parseLocalIsoDate(start);
-        sDate.setDate(sDate.getDate() + 5);
-        end = formatLocalIsoDate(sDate);
+    if (isReturnFlight) {
+      updates.endDate = data.departure_date!;
+      if (!hotelCheckOutDate || hotelCheckOutDate === endDate) {
+        updates.hotelCheckOutDate = data.departure_date!;
       }
-      setStartDate(start);
-      setEndDate(end);
-      if (!data.check_in_date && (!hotelCheckInDate || hotelCheckInDate === startDate)) {
-        setHotelCheckInDate(start);
+      const returnDepHour = data.flight_departure_hour || data.departure_hour;
+      if (returnDepHour) {
+        updates.arrivalHour = returnDepHour;
       }
-      if (!data.check_out_date && (!hotelCheckOutDate || hotelCheckOutDate === endDate)) {
-        setHotelCheckOutDate(end);
-      }
-    }
+    } else {
+      if (data.origin_city) updates.origin = data.origin_city;
+      else if (data.origin_iata) updates.origin = data.origin_iata;
+      if (data.origin_iata) updates.originIata = data.origin_iata;
 
-    // Only flight / trip_package docs update flight arrival/departure hours
-    if (!isHotelOnly) {
-      // Departure flight arrival time in destination sets trip start hour
-      if (data.flight_arrival_hour) {
-        setDepartureHour(data.flight_arrival_hour);
-      } else if (data.departure_hour) {
-        setDepartureHour(data.departure_hour);
+      const nextDest = data.destination_city || data.destination_iata;
+      if (nextDest) {
+        const isNewDest = destination.trim() && nextDest.trim().toLowerCase() !== destination.trim().toLowerCase();
+        updates.destination = nextDest;
+        if (isNewDest && !data.hotel_name && !data.hotel_address) {
+          updates.hotelArea = '';
+          updates.hotelAddress = '';
+          updates.hotelLat = undefined;
+          updates.hotelLng = undefined;
+        }
+      }
+      if (data.destination_iata) updates.destIata = data.destination_iata;
+
+      if (data.departure_date && (!isHotelOnly || !hasScannedFlight)) {
+        const start = data.departure_date;
+        let end = data.return_date;
+        if (!end) {
+          if (endDate && endDate >= start) {
+            end = endDate;
+          } else {
+            const sDate = parseLocalIsoDate(start);
+            sDate.setDate(sDate.getDate() + 5);
+            end = formatLocalIsoDate(sDate);
+          }
+        }
+        updates.startDate = start;
+        updates.endDate = end;
+        if (!data.check_in_date && (!hotelCheckInDate || hotelCheckInDate === startDate || hotelCheckInDate < start)) {
+          updates.hotelCheckInDate = start;
+        }
+        if (!data.check_out_date && (!hotelCheckOutDate || hotelCheckOutDate === endDate || hotelCheckOutDate < start)) {
+          updates.hotelCheckOutDate = end;
+        }
       }
 
-      // Return flight departure time in destination sets trip end hour
-      if (data.return_departure_hour) {
-        setArrivalHour(data.return_departure_hour);
-      } else if (data.arrival_hour) {
-        setArrivalHour(data.arrival_hour);
+      // Only flight / trip_package docs update flight arrival/departure hours
+      if (!isHotelOnly) {
+        if (data.flight_arrival_hour) {
+          updates.departureHour = data.flight_arrival_hour;
+        } else if (data.departure_hour) {
+          updates.departureHour = data.departure_hour;
+        }
+
+        if (data.return_departure_hour) {
+          updates.arrivalHour = data.return_departure_hour;
+        } else if (data.arrival_hour) {
+          updates.arrivalHour = data.arrival_hour;
+        }
       }
     }
 
     // Hotel details and check-in / check-out constraints
     if (data.hotel_name || data.hotel_address) {
-      setHotelInfo(data.hotel_name || hotelArea, {
-        address: data.hotel_address || undefined,
-      });
+      const nextHotelName = data.hotel_name || hotelArea;
+      const isDifferentHotel = nextHotelName.trim().toLowerCase() !== hotelArea.trim().toLowerCase();
+      updates.hotelArea = nextHotelName;
+      updates.hotelAddress = data.hotel_address || (isDifferentHotel ? '' : hotelAddress);
+      if (isDifferentHotel) {
+        updates.hotelLat = undefined;
+        updates.hotelLng = undefined;
+      }
     }
     if (data.check_in_date) {
-      setHotelCheckInDate(data.check_in_date);
+      updates.hotelCheckInDate = data.check_in_date;
     }
     if (data.check_out_date) {
-      setHotelCheckOutDate(data.check_out_date);
+      updates.hotelCheckOutDate = data.check_out_date;
     }
     if (data.check_in_hour) {
-      setHotelCheckInHour(data.check_in_hour);
+      updates.hotelCheckInHour = data.check_in_hour;
     }
     if (data.check_out_hour) {
-      setHotelCheckOutHour(data.check_out_hour);
+      updates.hotelCheckOutHour = data.check_out_hour;
     }
 
     // Save full document draft(s) into state for later wallet persistence
     if (data.drafts && data.drafts.length > 0) {
-      setScannedDocuments((prev) => [...prev, ...data.drafts!]);
+      updates.scannedDocuments = [...scannedDocuments, ...data.drafts];
     } else if (data.document_type === 'flight' || data.flight_number || data.carrier) {
+      const flightDepHour = data.flight_departure_hour || data.departure_hour;
       const depTime = data.departure_date
-        ? `${data.departure_date}T${data.flight_departure_hour || data.departure_hour || '12:00'}:00`
+        ? `${data.departure_date}T${flightDepHour || '12:00'}:00`
         : undefined;
       const synthesized: TravelDocumentDraft = {
         ticket_type: 'flight',
@@ -446,12 +527,15 @@ export function TripCreationBoxes({
           destination_city: data.destination_city,
           seat: data.seat,
           departure_date: data.departure_date,
-          departure_hour: data.flight_departure_hour || data.departure_hour,
+          departure_hour: flightDepHour,
+          flight_departure_hour: flightDepHour,
+          arrival_hour: data.flight_arrival_hour || data.arrival_hour,
+          is_return_leg: isReturnFlight,
         },
         field_confidence: {},
         warnings: [],
       };
-      setScannedDocuments((prev) => [...prev, synthesized]);
+      updates.scannedDocuments = [...scannedDocuments, synthesized];
     } else if (data.hotel_name) {
       const checkInTime = data.check_in_date
         ? `${data.check_in_date}T${data.check_in_hour || '15:00'}:00`
@@ -478,8 +562,10 @@ export function TripCreationBoxes({
         field_confidence: {},
         warnings: [],
       };
-      setScannedDocuments((prev) => [...prev, synthesized]);
+      updates.scannedDocuments = [...scannedDocuments, synthesized];
     }
+
+    updateDraft(updates);
   };
 
   // Handle Blank Trip Submission
@@ -494,7 +580,7 @@ export function TripCreationBoxes({
       setBlankError(t('engine.err_dates_required'));
       return;
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatLocalIsoDate(new Date());
     if (startDate < today) {
       setBlankError(t('engine.err_start_before_today', { startDate, today }));
       return;
@@ -503,17 +589,19 @@ export function TripCreationBoxes({
       setBlankError(t('engine.err_end_before_start'));
       return;
     }
-    const effectiveCheckInDate = hotelCheckInDate || startDate;
-    const effectiveCheckOutDate = hotelCheckOutDate || endDate;
-    if (effectiveCheckOutDate < effectiveCheckInDate) {
+    const rawCheckIn = hotelCheckInDate || startDate;
+    const rawCheckOut = hotelCheckOutDate || endDate;
+    if (rawCheckOut < rawCheckIn) {
       setBlankError(t('engine.err_checkout_before_checkin'));
       return;
     }
+    const effectiveCheckInDate = rawCheckIn < startDate ? startDate : (rawCheckIn > endDate ? endDate : rawCheckIn);
+    const effectiveCheckOutDate = rawCheckOut > endDate ? endDate : (rawCheckOut < effectiveCheckInDate ? effectiveCheckInDate : rawCheckOut);
     if (!participants || participants.length === 0) {
       setBlankError(t('engine.err_participant_required'));
       return;
     }
-    setBlankError(null);
+    clearErrors();
     setIsCreatingBlank(true);
     onBlankSubmitStart?.(t('engine.creating_blank_workspace'));
 
@@ -541,10 +629,8 @@ export function TripCreationBoxes({
 
       // Dynamically resolve destination airport anchor
       let airportPoi: { id: string; name: string; city: string; category: string; duration_mins: number; cost_eur: number; location: { latitude: number; longitude: number } } | null = null;
-      let effectiveIata = destIata.trim().toUpperCase();
-      if (!effectiveIata) {
-        effectiveIata = (await resolveAirportIata(destination.trim())) || '';
-      }
+      const userSpecifiedIata = destIata.trim().toUpperCase();
+      let effectiveIata = userSpecifiedIata;
       const baseUrl = getApiBaseUrl();
       let cityFallbackLat = 0;
       let cityFallbackLng = 0;
@@ -556,8 +642,10 @@ export function TripCreationBoxes({
             cityFallbackLat = apData.latitude;
             cityFallbackLng = apData.longitude;
           }
-          if (apData?.iata) {
+          if (!effectiveIata && apData?.iata) {
             effectiveIata = apData.iata;
+          }
+          if (apData?.iata && (!userSpecifiedIata || userSpecifiedIata === String(apData.iata).toUpperCase())) {
             airportPoi = {
               id: `airport-${String(apData.iata).toLowerCase()}`,
               name: apData.name || t('engine.airport_suffix_name', { name: apData.iata }),
@@ -574,6 +662,9 @@ export function TripCreationBoxes({
         }
       } catch {
         // fallback
+      }
+      if (!airportPoi && !effectiveIata) {
+        effectiveIata = (await resolveAirportIata(destination.trim())) || '';
       }
       if (!airportPoi) {
         airportPoi = {
@@ -706,12 +797,19 @@ export function TripCreationBoxes({
         });
       }
 
-      const outboundFlightDoc = scannedDocuments.find((d) => d.ticket_type === 'flight');
+      const outboundFlightDoc = scannedDocuments.find((d) => d.ticket_type === 'flight' && !d.metadata?.is_return_leg);
+      const returnFlightDoc = scannedDocuments.find((d) => d.ticket_type === 'flight' && Boolean(d.metadata?.is_return_leg));
+      const numericBudget =
+        budgetUsd !== '' && Number.isFinite(Number(budgetUsd))
+          ? Math.max(0, Number(budgetUsd))
+          : 1500;
+      const coverPhotoPayload = !isPhotoRemoved && customPhotoUrl ? customPhotoUrl : undefined;
       const blankItineraryData = {
         title: tripTitle.trim() || t('engine.trip_to_destination', { destination: destination.trim() }),
         destination: destination.trim(),
         origin: origin.trim() || undefined,
         description: tripDescription.trim() || undefined,
+        ...(coverPhotoPayload ? { cover_photo: coverPhotoPayload } : {}),
         departure_hour: departureHour || '09:00',
         arrival_hour: arrivalHour || '20:00',
         participants: participants.map((p) => ({
@@ -727,10 +825,25 @@ export function TripCreationBoxes({
           origin_iata: (outboundFlightDoc.metadata?.origin_iata as string) || originIata || undefined,
           destination_iata: (outboundFlightDoc.metadata?.destination_iata as string) || destIata || undefined,
           departure_time: outboundFlightDoc.start_time || `${startDate}T${departureHour || '09:00'}:00`,
-          arrival_time: `${startDate}T${departureHour || '09:00'}:00`,
+          arrival_time: outboundFlightDoc.metadata?.arrival_hour
+            ? `${startDate}T${outboundFlightDoc.metadata.arrival_hour}:00`
+            : `${startDate}T${departureHour || '09:00'}:00`,
           seat: outboundFlightDoc.seat_or_room || undefined,
           pnr: outboundFlightDoc.reference_code || undefined,
           holder_name: outboundFlightDoc.holder_name || undefined,
+        } : undefined,
+        return_flight: returnFlightDoc ? {
+          airline: returnFlightDoc.provider || undefined,
+          flight_number: (returnFlightDoc.metadata?.flight_number as string) || undefined,
+          origin_iata: (returnFlightDoc.metadata?.origin_iata as string) || destIata || undefined,
+          destination_iata: (returnFlightDoc.metadata?.destination_iata as string) || originIata || undefined,
+          departure_time: returnFlightDoc.start_time || `${endDate}T${arrivalHour || '20:00'}:00`,
+          arrival_time: returnFlightDoc.metadata?.arrival_hour
+            ? `${endDate}T${returnFlightDoc.metadata.arrival_hour}:00`
+            : `${endDate}T${arrivalHour || '20:00'}:00`,
+          seat: returnFlightDoc.seat_or_room || undefined,
+          pnr: returnFlightDoc.reference_code || undefined,
+          holder_name: returnFlightDoc.holder_name || undefined,
         } : undefined,
         scanned_documents: scannedDocuments,
         hotel: {
@@ -757,8 +870,8 @@ export function TripCreationBoxes({
           end_date: endDate,
           departure_hour: departureHour || '09:00',
           arrival_hour: arrivalHour || '20:00',
-          budget: Number(budgetUsd) || 1500,
-          budget_usd: Number(budgetUsd) || 1500,
+          budget: numericBudget,
+          budget_usd: numericBudget,
           currency: currency,
           travelers: travelersCount,
           participants: participants.map((p) => ({
@@ -796,6 +909,7 @@ export function TripCreationBoxes({
 
       if (createdTrip?.id) {
         resetDraft();
+        useLogStore.getState().clearLogs();
         setBlankSuccess(t('engine.blank_trip_created_msg'));
         setTimeout(() => {
           router.push(`/trips/${createdTrip.id}`);
@@ -807,6 +921,7 @@ export function TripCreationBoxes({
       const msg = err instanceof Error ? err.message : t('engine.err_creating_blank_trip');
       setBlankError(msg);
       setIsCreatingBlank(false);
+      onBlankSubmitError?.(msg);
     }
   };
 
@@ -814,12 +929,19 @@ export function TripCreationBoxes({
   const handlePersonalizedSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (demoLockedSubmit) return;
-    if (!personalizedPrompt.trim()) return;
+    if (!destination.trim()) {
+      setBlankError(t('engine.err_destination_required'));
+      return;
+    }
+    if (!personalizedPrompt.trim()) {
+      setBlankError(t('engine.personalized_prompt_placeholder'));
+      return;
+    }
     if (!startDate || !endDate) {
       setBlankError(t('engine.err_dates_required'));
       return;
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatLocalIsoDate(new Date());
     if (startDate < today) {
       setBlankError(t('engine.err_start_before_today', { startDate, today }));
       return;
@@ -828,17 +950,44 @@ export function TripCreationBoxes({
       setBlankError(t('engine.err_end_before_start'));
       return;
     }
-    const effectiveCheckInDate = hotelCheckInDate || startDate;
-    const effectiveCheckOutDate = hotelCheckOutDate || endDate;
-    if (effectiveCheckOutDate < effectiveCheckInDate) {
+    const rawCheckIn = hotelCheckInDate || startDate;
+    const rawCheckOut = hotelCheckOutDate || endDate;
+    if (rawCheckOut < rawCheckIn) {
       setBlankError(t('engine.err_checkout_before_checkin'));
       return;
     }
+    const effectiveCheckInDate = rawCheckIn < startDate ? startDate : (rawCheckIn > endDate ? endDate : rawCheckIn);
+    const effectiveCheckOutDate = rawCheckOut > endDate ? endDate : (rawCheckOut < effectiveCheckInDate ? effectiveCheckInDate : rawCheckOut);
     if (!participants || participants.length === 0) {
       setBlankError(t('engine.err_participant_required'));
       return;
     }
-    setBlankError(null);
+    clearErrors();
+
+    const numericBudget =
+      budgetUsd !== '' && Number.isFinite(Number(budgetUsd))
+        ? Math.max(0, Number(budgetUsd))
+        : 1500;
+    const coverPhotoPayload = !isPhotoRemoved && customPhotoUrl ? customPhotoUrl : undefined;
+    const hasCustomHotelAnchor = Boolean(
+      hotelArea.trim() ||
+        (hotelCheckInDate && hotelCheckInDate !== startDate) ||
+        (hotelCheckOutDate && hotelCheckOutDate !== endDate) ||
+        (hotelCheckInHour && hotelCheckInHour !== '15:00') ||
+        (hotelCheckOutHour && hotelCheckOutHour !== '11:00')
+    );
+    const hotelPayload = hasCustomHotelAnchor
+      ? {
+          name: hotelArea.trim() || t('engine.accommodation_hotel_fallback'),
+          address: hotelAddress || undefined,
+          lat: hotelLat,
+          lng: hotelLng,
+          check_in_date: effectiveCheckInDate,
+          check_in_time: hotelCheckInHour || '15:00',
+          check_out_date: effectiveCheckOutDate,
+          check_out_time: hotelCheckOutHour || '11:00',
+        }
+      : undefined;
 
     const extras: Record<string, unknown> = {
       auto_verify: true,
@@ -846,6 +995,7 @@ export function TripCreationBoxes({
       plan_mode: 'estimated',
       title: tripTitle.trim() || t('engine.trip_to_destination', { destination: destination.trim() }),
       description: tripDescription.trim() || undefined,
+      ...(coverPhotoPayload ? { cover_photo: coverPhotoPayload } : {}),
       booking_text: anchorMode === 'direct' ? rawBookingText : undefined,
       scanned_documents: scannedDocuments,
       origin_city: origin.trim() || undefined,
@@ -856,8 +1006,8 @@ export function TripCreationBoxes({
       end_date: endDate,
       departure_hour: departureHour,
       arrival_hour: arrivalHour,
-      budget: Number(budgetUsd) || 1500,
-      budget_usd: Number(budgetUsd) || 1500,
+      budget: numericBudget,
+      budget_usd: numericBudget,
       currency: currency,
       travelers: travelersCount,
       participants: participants.map((p) => ({
@@ -869,16 +1019,7 @@ export function TripCreationBoxes({
       })),
       meals,
       accommodation: hotelArea.trim() || undefined,
-      hotel: hotelArea.trim() ? {
-        name: hotelArea.trim(),
-        address: hotelAddress || undefined,
-        lat: hotelLat,
-        lng: hotelLng,
-        check_in_date: effectiveCheckInDate,
-        check_in_time: hotelCheckInHour || '15:00',
-        check_out_date: effectiveCheckOutDate,
-        check_out_time: hotelCheckOutHour || '11:00',
-      } : undefined,
+      hotel: hotelPayload,
       manual_constraints: {
         plan_mode: 'estimated',
         title: tripTitle.trim() || t('engine.trip_to_destination', { destination: destination.trim() }),
@@ -887,8 +1028,8 @@ export function TripCreationBoxes({
         origin_iata: originIata.trim().toUpperCase() || undefined,
         destination_city: destination.trim(),
         destination_iata: destIata.trim().toUpperCase() || undefined,
-        budget: Number(budgetUsd) || 1500,
-        budget_usd: Number(budgetUsd) || 1500,
+        budget: numericBudget,
+        budget_usd: numericBudget,
         currency: currency,
         travelers: travelersCount,
         participants: participants.map((p) => ({
@@ -901,16 +1042,7 @@ export function TripCreationBoxes({
         departure_hour: departureHour,
         arrival_hour: arrivalHour,
         accommodation: hotelArea.trim() || undefined,
-        hotel: hotelArea.trim() ? {
-          name: hotelArea.trim(),
-          address: hotelAddress || undefined,
-          lat: hotelLat,
-          lng: hotelLng,
-          check_in_date: effectiveCheckInDate,
-          check_in_time: hotelCheckInHour || '15:00',
-          check_out_date: effectiveCheckOutDate,
-          check_out_time: hotelCheckOutHour || '11:00',
-        } : undefined,
+        hotel: hotelPayload,
         meals,
       },
     };
@@ -1337,14 +1469,12 @@ export function TripCreationBoxes({
               hotelLat={hotelLat}
               hotelLng={hotelLng}
               destination={destination}
-              checkInDate={hotelCheckInDate || startDate}
-              checkOutDate={hotelCheckOutDate || endDate}
+              checkInDate={startDate}
+              checkOutDate={endDate}
               checkInHour={hotelCheckInHour}
               checkOutHour={hotelCheckOutHour}
               tripStartDate={startDate}
               tripEndDate={endDate}
-              onCheckInDateChange={setHotelCheckInDate}
-              onCheckOutDateChange={setHotelCheckOutDate}
               onCheckInHourChange={setHotelCheckInHour}
               onCheckOutHourChange={setHotelCheckOutHour}
               onChange={setHotelInfo}
@@ -1384,7 +1514,16 @@ export function TripCreationBoxes({
                     min={0}
                     step={50}
                     value={budgetUsd}
-                    onChange={(e) => setBudgetUsd(Number(e.target.value))}
+                    onChange={(e) => {
+                      if (e.target.value === '') {
+                        setBudgetUsd('');
+                        return;
+                      }
+                      const num = Number(e.target.value);
+                      if (Number.isFinite(num)) {
+                        setBudgetUsd(Math.max(0, num));
+                      }
+                    }}
                     placeholder="1500"
                     style={{
                       background: 'transparent',
@@ -1461,22 +1600,21 @@ export function TripCreationBoxes({
               startDate={startDate}
               endDate={endDate}
               onChange={(start, end) => {
-                const updates: Partial<typeof draft> = { startDate: start, endDate: end };
-                if (!hotelCheckInDate || hotelCheckInDate === startDate || hotelCheckInDate < start || hotelCheckInDate > end) {
-                  updates.hotelCheckInDate = start;
-                }
-                if (!hotelCheckOutDate || hotelCheckOutDate === endDate || hotelCheckOutDate > end || hotelCheckOutDate < start) {
-                  updates.hotelCheckOutDate = end;
-                }
-                updateDraft(updates);
+                updateDraft({
+                  startDate: start,
+                  endDate: end,
+                  hotelCheckInDate: start,
+                  hotelCheckOutDate: end,
+                });
               }}
               disabled={disabled}
               inline={true}
             />
 
             {/* Feedback / Error Notifications */}
-            {blankError && (
+            {activeError && (
               <div
+                role="alert"
                 style={{
                   background: 'rgba(179, 38, 30, 0.08)',
                   border: '1px solid rgba(179, 38, 30, 0.2)',
@@ -1487,7 +1625,7 @@ export function TripCreationBoxes({
                   color: 'var(--color-danger, #B3261E)',
                 }}
               >
-                {blankError}
+                {activeError}
               </div>
             )}
             {blankSuccess && (

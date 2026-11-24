@@ -9,7 +9,8 @@ import {
   VaultSecurityIllustration,
 } from '@/components/illustrations';
 import { CloseIcon, PlusIcon, Spinner, CheckIcon, PlaneIcon, ChevronRightIcon } from '@/components/icons';
-import { getApiBaseUrl } from '@/utils/api';
+import { getApiBaseUrl, getAuthToken } from '@/utils/api';
+import { formatLocalDateOffset } from '@/stores/tripDraftStore';
 import { TravelDocumentDraft } from '@/hooks/useTripTickets';
 import { DemoFeatureGate } from '@/components/common/DemoFeatureGate';
 
@@ -83,6 +84,24 @@ export function DocumentUploadModal({
 
   const modalRef = useRef<HTMLDivElement>(null);
 
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (!isOpen) {
+      setScanError(null);
+      setScanMessage(null);
+      setExtractedResult(null);
+      setImportedTrip(null);
+      setShowFlightPaste(false);
+      setFlightPastedText('');
+      setShowHotelPaste(false);
+      setHotelPastedText('');
+      setFlightDragOver(false);
+      setHotelDragOver(false);
+      setTripDragOver(false);
+    }
+  }
+
   // Close on Escape key
   useEffect(() => {
     if (!isOpen) return;
@@ -118,11 +137,13 @@ export function DocumentUploadModal({
 
     try {
       const baseUrl = getApiBaseUrl();
+      const token = getAuthToken();
       const formData = new FormData();
       formData.append('file', file);
 
       const res = await fetch(`${baseUrl}/trips/import`, {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       });
 
@@ -176,9 +197,11 @@ export function DocumentUploadModal({
         throw new Error(t('engine.doc_empty_error'));
       }
       formData.append('document_hint', targetType);
+      const token = getAuthToken();
 
       const res = await fetch(`${baseUrl}/trips/scan-boarding-pass`, {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       });
 
@@ -205,7 +228,7 @@ export function DocumentUploadModal({
         throw new Error(t('engine.doc_no_details'));
       }
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatLocalDateOffset(0);
       if (data.departure_date && data.departure_date < today) {
         throw new Error(t('engine.doc_past_departure', { date: data.departure_date, today }));
       }
@@ -283,7 +306,7 @@ export function DocumentUploadModal({
 
   const handleApplyExtracted = () => {
     if (extractedResult) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatLocalDateOffset(0);
       if (extractedResult.departure_date && extractedResult.departure_date < today) {
         setScanError(
           t('engine.doc_apply_past_departure', { date: extractedResult.departure_date, today })
@@ -774,12 +797,23 @@ export function DocumentUploadModal({
                 }}
                 onDragLeave={(e) => {
                   e.preventDefault();
-                  setFlightDragOver(false);
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setFlightDragOver(false);
+                  }
                 }}
-                onDragOver={(e) => e.preventDefault()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setFlightDragOver(true);
+                }}
                 onDrop={handleFlightDrop}
                 onClick={() => {
                   if (!isScanning && !disabled) flightInputRef.current?.click();
+                }}
+                onKeyDown={(e) => {
+                  if ((e.key === 'Enter' || e.key === ' ') && !isScanning && !disabled) {
+                    e.preventDefault();
+                    flightInputRef.current?.click();
+                  }
                 }}
                 role="button"
                 tabIndex={0}
@@ -926,12 +960,23 @@ export function DocumentUploadModal({
                 }}
                 onDragLeave={(e) => {
                   e.preventDefault();
-                  setHotelDragOver(false);
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setHotelDragOver(false);
+                  }
                 }}
-                onDragOver={(e) => e.preventDefault()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setHotelDragOver(true);
+                }}
                 onDrop={handleHotelDrop}
                 onClick={() => {
                   if (!isScanning && !disabled) hotelInputRef.current?.click();
+                }}
+                onKeyDown={(e) => {
+                  if ((e.key === 'Enter' || e.key === ' ') && !isScanning && !disabled) {
+                    e.preventDefault();
+                    hotelInputRef.current?.click();
+                  }
                 }}
                 role="button"
                 tabIndex={0}
@@ -1093,12 +1138,23 @@ export function DocumentUploadModal({
                 }}
                 onDragLeave={(e) => {
                   e.preventDefault();
-                  setTripDragOver(false);
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setTripDragOver(false);
+                  }
                 }}
-                onDragOver={(e) => e.preventDefault()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setTripDragOver(true);
+                }}
                 onDrop={handleTripDrop}
                 onClick={() => {
                   if (!isScanning && !disabled) tripPkgInputRef.current?.click();
+                }}
+                onKeyDown={(e) => {
+                  if ((e.key === 'Enter' || e.key === ' ') && !isScanning && !disabled) {
+                    e.preventDefault();
+                    tripPkgInputRef.current?.click();
+                  }
                 }}
                 role="button"
                 tabIndex={0}

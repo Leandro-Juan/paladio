@@ -90,9 +90,10 @@ Use the **live variable names**. Never hardcode hex in components. If a token is
 5. **Styles:** a CSS Module using only tokens. No inline hex. Both themes.
 6. **Accessibility:** roles, names, focus order, live regions, `Esc` and focus-return for overlays, and a keyboard alternative to any drag or pointer-only interaction.
 7. **Fail fast:** on failure, show a visible, specific error and stop the flow. Do not substitute fake data and do not swallow errors.
-8. **Verify** with the checklist in §8, using pinpoint tests (`playwright test <spec>`, or `vitest <file>`), never the whole suite.
+8. **Internationalization (i18n) Mandate**: All user-facing text (labels, headers, buttons, descriptions, placeholders, error/success toasts, summaries, and activity sentences) must use `useTranslation()` and `t(...)`. Raw hardcoded text in UI components is strictly prohibited. Whenever new text or translation keys are introduced, add them to `public/locales/en.json` AND provide accurate translations in all 10 shipped locale files (`ar.json`, `de.json`, `en.json`, `es.json`, `fr.json`, `it.json`, `ja.json`, `ko.json`, `pt.json`, `zh-CN.json`).
+9. **Verify** with the checklist in §8, using pinpoint tests (`playwright test <spec>`, or `vitest <file>`), never the whole suite.
 
-## 8. Mandatory Pre-Commit UI Verification Checklist (self-audit; all 15)
+## 8. Mandatory Pre-Commit UI Verification Checklist (self-audit; all 16)
 
 1. [ ] No hardcoded colours: everything uses tokens, and both themes are covered.
 2. [ ] Every text/background pair is ≥ 4.5:1 (3:1 for large text and UI boundaries), and was checked.
@@ -108,4 +109,12 @@ Use the **live variable names**. Never hardcode hex in components. If a token is
 12. [ ] Motion: ≤ 200 ms, no animation of `width/height/top/left`, uses the named spring or CSS curve, and `prefers-reduced-motion` is honoured.
 13. [ ] No mock/fallback data in production code. Errors are surfaced and stop the flow. No client-side arithmetic for money, routes or schedules, and no cloud API calls.
 14. [ ] Destructive actions have a real, working Undo (or a confirmation), and idempotent mutations are protected against double-submit.
-15. [ ] Verified at 375 px, 768 px and 1280 px in light and dark. Pinpoint tests pass, and no unrelated files changed.
+15. [ ] All text uses the translation system (`t(...)`). Zero hardcoded English/raw strings. All new keys are translated across all 10 shipped languages in `public/locales/*.json`.
+16. [ ] Verified at 375 px, 768 px and 1280 px in light and dark. Pinpoint tests pass, and no unrelated files changed.
+
+## 9. Internationalization (i18n) & Translation Laws (zero tolerance)
+
+1. **Zero Hardcoded Text**: No user-facing text may be written bare in TSX/JSX. Every label, button text, dialog message, toast, badge, activity/history entry, or tooltip must be rendered via `t(...)` from `useTranslation()`.
+2. **All 10 Core Shipped Languages Must Be Updated**: When introducing or editing text, the change is incomplete until all 10 dictionaries in `frontend/public/locales/` are updated (`ar`, `de`, `en`, `es`, `fr`, `it`, `ja`, `ko`, `pt`, `zh-CN`).
+3. **Dynamic Logs & Sentences**: Machine-generated or backend event sentences (e.g. trip history revisions, diffs, status updates) must be broken into localized semantic parts (verbs, connectors, formatted dates, localized labels) so they render naturally in the active language.
+4. **Locale-Aware Formatting**: Dates, times, currencies, and numbers must be formatted via `Intl.DateTimeFormat(locale, ...)`, `Intl.NumberFormat(locale, ...)`, or the context helpers `formatDate`, `formatNumber`, `formatCurrency` respecting the selected locale.

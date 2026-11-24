@@ -1,5 +1,5 @@
 site_name: "Paladio"
-site_description: "100% Sovereign Travel Intelligence, LangGraph Multi-Agent Swarms, Continuous ML Taste Learning, and Deterministic C++ Routing."
+site_description: "Self-hosted travel intelligence: deterministic C++20 routing, LangGraph swarm, CPU ONNX semantic RAG, Deal Engine, and optional 13-provider AI assistant."
 site_author: "Leandro Juan"
 site_url: "https://leandro-juan.github.io/paladio/"
 repo_name: "Leandro-Juan/Paladio"
@@ -8,10 +8,13 @@ edit_uri: "edit/main/docs/"
 
 copyright: "Copyright &copy; 2026 Leandro Juan. Released under the GNU AGPLv3."
 
+exclude_docs: |
+  explanation/UI_UX_ARCHITECTURE_BIBLE.md
+
 theme:
   name: material
   logo: assets/logo.png
-  favicon: assets/logo.png
+  favicon: assets/logo-white.png
   language: en
   palette:
     - scheme: slate
@@ -78,31 +81,42 @@ extra_css:
 
 nav:
   - Home: index.md
-  - Tutorials:
-      - "Quickstart with Docker": tutorials/quickstart-docker.md
-      - "First Autonomous Swarm Trip": tutorials/first-autonomous-swarm-trip.md
-  - How-To Guides:
-      - "Run Offline Swarm": how-to/run-offline-swarm.md
-      - "Add Custom LangGraph Agent": how-to/add-custom-langgraph-agent.md
-      - "Modify Engine Constraints": how-to/modify-engine-constraints.md
-      - "Tune ML Taste Learning": how-to/tune-ml-taste-learning.md
-      - "Configure Hybrid Scoring Weights": how-to/configure-hybrid-scoring-weights.md
-      - "Handle Human-in-the-Loop": how-to/handle-human-in-the-loop.md
-      - "Hydrate POI Embeddings": how-to/hydrate-poi-embeddings.md
-  - Technical Reference:
-      - "LangGraph Swarm Architecture": reference/langgraph-swarm-architecture.md
-      - "16-D Feature Tensor (PoiEncoder)": reference/ml-feature-tensor-16d.md
-      - "Semantic Learning Engine": reference/semantic-learning-engine.md
-      - "POI Database & Vault Schema": reference/poi-database-schema.md
-      - "Next.js Frontend Architecture": reference/frontend-architecture.md
-      - "WebSocket Gateway Telemetry": reference/websocket-gateway-telemetry.md
-      - "FastAPI Gateway": reference/fastapi-gateway.md
-      - "Scraper JSON Formats": reference/scraper_json_formats.md
-      - "C++ Combinatorial Core (paladio-core)": reference/core-engine.md
-  - Architectural Explanation:
-      - "Macro System Architecture": explanation/system-architecture.md
-      - "LangGraph Swarm vs Linear Chains": explanation/langgraph-vs-chains.md
-      - "Sovereign ML & Dense Semantic RAG": explanation/sovereign-ml-and-semantic-rag.md
-      - "Continuous-to-Discrete Harmonics": explanation/continuous-to-discrete-harmonics.md
-      - "Resilient Scraping Architecture": explanation/resilient-scraping-architecture.md
-      - "Strategic Roadmap & Future Horizons": explanation/roadmap-and-future-horizons.md
+  - Getting Started:
+      - "Install with Docker": getting-started/installation.md
+      - "Quickstart: First Trip": getting-started/quickstart.md
+      - "Local Development": getting-started/local-development.md
+  - User Guide:
+      - "Control Center & Taste Star": user-guide/control-center-and-taste.md
+      - "Creating Trips (/engine)": user-guide/trip-creation.md
+      - "Trip Workspace & Speed Dial": user-guide/trip-workspace.md
+      - "Public Transit & Valhalla": user-guide/public-transit-and-routing.md
+      - "Bookings Wallet & Passes": user-guide/bookings-wallet.md
+      - "Route Monitoring & Deals": user-guide/route-monitoring-and-deals.md
+      - "Costs & Group Splitting": user-guide/costs-and-group-splitting.md
+      - "Trip Archive, Photos & Sharing": user-guide/vault-photos-and-sharing.md
+      - "AI Travel Assistant": user-guide/ai-travel-assistant.md
+  - Self-Hosting:
+      - "Configuration & Env Vars": self-hosting/configuration.md
+      - "City POIs, Maps & GTFS": self-hosting/city-data-and-gtfs.md
+      - "LLM Providers & MCP Clients": self-hosting/llm-providers-and-mcp.md
+      - "Photo Sync, Relays & Secrets": self-hosting/integrations-and-vault.md
+      - "Reverse Proxy & Security": self-hosting/reverse-proxy-and-security.md
+      - "Backups, Updates & Troubleshooting": self-hosting/backups-updates-and-troubleshooting.md
+  - Architecture:
+      - "System Overview": architecture/system-overview.md
+      - "Deterministic Trip Engine": architecture/deterministic-trip-engine.md
+      - "C++20 Combinatorial Core": architecture/cpp-combinatorial-core.md
+      - "Semantic RAG & Taste Learning": architecture/semantic-rag-and-taste-learning.md
+      - "Deal Engine & Multi-Modal Transit": architecture/deal-engine-and-transit.md
+      - "Agent & MCP Safety Model": architecture/agent-and-mcp-safety.md
+      - "Frontend, PWA & Demo Mode": architecture/frontend-and-demo-mode.md
+  - Reference:
+      - "REST API (FastAPI)": reference/rest-api.md
+      - "WebSocket Protocols": reference/websockets.md
+      - "MCP Server (82 Tools)": reference/mcp-server.md
+      - "Database, Redis & Celery": reference/database-schema.md
+      - "C++20 & Python API": reference/cpp-python-api.md
+      - ".trip Package Format": reference/trip-file-format.md
+      - "Glossary": reference/glossary.md
+  - Contributing:
+      - "Developer Guide": contributing/developer-guide.md

@@ -54,6 +54,10 @@ test.describe('Spatial Circle Radius Dragging E2E', () => {
       });
     });
 
+    page.on('pageerror', (err) => {
+      console.log('CAUGHT PAGEERROR:', err.message);
+    });
+
     await page.goto(`/trips/${mockTripId}`);
     await page.waitForLoadState('domcontentloaded');
 
@@ -125,6 +129,72 @@ test.describe('Spatial Circle Radius Dragging E2E', () => {
 
     // Circle and handle should disappear cleanly without navigation or error
     await expect(handle).toHaveCount(0, { timeout: 5000 });
+    await expect(page.getByText('TELEMETRY FAULT DETECTED')).toHaveCount(0);
+    expect(page.url()).toContain(`/trips/${mockTripId}`);
+  });
+
+  test('clears waypoint area filter from speed dial menu without crashing or telemetry fault', async ({ page }) => {
+    await mockAuthenticatedUser(page);
+
+    const mockTripId = 'test-trip-spatial-speed-dial';
+    const mockTrip = {
+      id: mockTripId,
+      destination: 'Tokyo',
+      start_date: '2027-05-10',
+      end_date: '2027-05-14',
+      budget_eur: 1500,
+      itinerary_data: { days: [] },
+    };
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockTrip),
+      });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/pois\/search.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ results: [], total: 0 }),
+      });
+    });
+
+    await page.goto(`/trips/${mockTripId}`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const map = page.locator('.leaflet-container');
+    await expect(map).toBeVisible({ timeout: 15000 });
+
+    const trigger = page.locator('[data-testid="speed-dial-trigger"]');
+    await expect(trigger).toBeVisible({ timeout: 10000 });
+    await trigger.click();
+
+    const waypointBtn = page.locator('[data-testid="speed-dial-waypoint"]');
+    await expect(waypointBtn).toBeVisible({ timeout: 10000 });
+    await waypointBtn.click();
+
+    const mapBox = await map.boundingBox();
+    expect(mapBox).not.toBeNull();
+    if (mapBox) {
+      await page.mouse.click(mapBox.x + mapBox.width / 2, mapBox.y + mapBox.height / 2);
+    }
+
+    const handle = page.locator('.paladio-radius-handle');
+    await expect(handle).toBeVisible({ timeout: 10000 });
+
+    // Open speed dial menu again while waypoint is active
+    await trigger.click();
+
+    // Click the clear area button on speed dial
+    await expect(waypointBtn).toBeVisible({ timeout: 10000 });
+    await waypointBtn.click();
+
+    // Circle and handle should disappear cleanly
+    await expect(handle).toHaveCount(0, { timeout: 5000 });
+    await expect(page.getByText('TELEMETRY FAULT DETECTED')).toHaveCount(0);
     expect(page.url()).toContain(`/trips/${mockTripId}`);
   });
 });

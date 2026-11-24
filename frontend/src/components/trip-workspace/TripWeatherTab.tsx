@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { translate } from '@/stores/localeStore';
 import { apiFetch } from '@/utils/api';
@@ -305,6 +305,37 @@ export function TripWeatherTab({
   const [unit, setUnit] = useState<'C' | 'F'>('C');
   const [selectedDayOverride, setSelectedDayOverride] = useState<number | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [isDraggingStrip, setIsDraggingStrip] = useState(false);
+
+  const forecastStripRef = useRef<HTMLDivElement>(null);
+  const scrollRafRef = useRef<number | null>(null);
+  const scrollVelocityRef = useRef<number>(0);
+  const dragScrollStateRef = useRef<{
+    isPointerDown: boolean;
+    startX: number;
+    startScrollLeft: number;
+    hasDragged: boolean;
+  }>({
+    isPointerDown: false,
+    startX: 0,
+    startScrollLeft: 0,
+    hasDragged: false,
+  });
+  const suppressNextClickRef = useRef(false);
+
+  useEffect(() => {
+    const syncUnit = () => {
+      if (typeof window === 'undefined') return;
+      setUnit(localStorage.getItem('paladio_unit_temperature') === 'F' ? 'F' : 'C');
+    };
+    syncUnit();
+    window.addEventListener('paladio_units_changed', syncUnit);
+    window.addEventListener('storage', syncUnit);
+    return () => {
+      window.removeEventListener('paladio_units_changed', syncUnit);
+      window.removeEventListener('storage', syncUnit);
+    };
+  }, []);
 
   const { effectiveStartDate, effectiveEndDate } = useMemo(() => {
     const start = tripStartDate ? tripStartDate.split('T')[0].trim() : '';
@@ -383,6 +414,135 @@ export function TripWeatherTab({
     setReloadToken((prev) => prev + 1);
   };
 
+  const stopStripHoverScroll = useCallback(() => {
+    if (scrollRafRef.current !== null) {
+      cancelAnimationFrame(scrollRafRef.current);
+      scrollRafRef.current = null;
+    }
+    scrollVelocityRef.current = 0;
+  }, []);
+
+  const startStripHoverScroll = useCallback(() => {
+    if (scrollRafRef.current !== null) return;
+    const loop = () => {
+      const el = forecastStripRef.current;
+      if (!el || scrollVelocityRef.current === 0) {
+        scrollRafRef.current = null;
+        return;
+      }
+      el.scrollLeft += scrollVelocityRef.current;
+      scrollRafRef.current = requestAnimationFrame(loop);
+    };
+    scrollRafRef.current = requestAnimationFrame(loop);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopStripHoverScroll();
+    };
+  }, [stopStripHoverScroll]);
+
+  useEffect(() => {
+    const el = forecastStripRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return;
+      if (e.deltaY !== 0 && Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+        const maxScroll = el.scrollWidth - el.clientWidth;
+        const atStart = el.scrollLeft <= 0 && e.deltaY < 0;
+        const atEnd = el.scrollLeft >= maxScroll - 1 && e.deltaY > 0;
+        if (!atStart && !atEnd) {
+          e.preventDefault();
+          el.scrollLeft += e.deltaY;
+        }
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, [data, isLoading]);
+
+  useEffect(() => {
+    const handleWindowMouseUp = () => {
+      if (!dragScrollStateRef.current.isPointerDown) return;
+      const didDrag = dragScrollStateRef.current.hasDragged;
+      dragScrollStateRef.current.isPointerDown = false;
+      dragScrollStateRef.current.hasDragged = false;
+      setIsDraggingStrip(false);
+      if (didDrag) {
+        window.setTimeout(() => {
+          suppressNextClickRef.current = false;
+        }, 0);
+      }
+    };
+
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, []);
+
+  const handleStripMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const el = forecastStripRef.current;
+    if (!el) return;
+    stopStripHoverScroll();
+    dragScrollStateRef.current = {
+      isPointerDown: true,
+      startX: e.clientX,
+      startScrollLeft: el.scrollLeft,
+      hasDragged: false,
+    };
+  };
+
+  const handleStripMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = forecastStripRef.current;
+    if (!el) return;
+
+    if (dragScrollStateRef.current.isPointerDown) {
+      stopStripHoverScroll();
+      const deltaX = e.clientX - dragScrollStateRef.current.startX;
+      if (Math.abs(deltaX) > 5) {
+        if (!dragScrollStateRef.current.hasDragged) {
+          dragScrollStateRef.current.hasDragged = true;
+          suppressNextClickRef.current = true;
+          setIsDraggingStrip(true);
+        }
+        el.scrollLeft = dragScrollStateRef.current.startScrollLeft - deltaX;
+      }
+      return;
+    }
+
+    if (el.scrollWidth <= el.clientWidth) {
+      stopStripHoverScroll();
+      return;
+    }
+
+    const rect = el.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const edgeThreshold = 48;
+    const maxSpeed = 9;
+
+    if (mouseX < edgeThreshold && el.scrollLeft > 0) {
+      const intensity = (edgeThreshold - mouseX) / edgeThreshold;
+      scrollVelocityRef.current = -Math.max(1, intensity * maxSpeed);
+      startStripHoverScroll();
+    } else if (mouseX > rect.width - edgeThreshold && el.scrollLeft + el.clientWidth < el.scrollWidth - 1) {
+      const intensity = (mouseX - (rect.width - edgeThreshold)) / edgeThreshold;
+      scrollVelocityRef.current = Math.max(1, intensity * maxSpeed);
+      startStripHoverScroll();
+    } else {
+      stopStripHoverScroll();
+    }
+  };
+
+  const handleStripMouseLeave = () => {
+    stopStripHoverScroll();
+  };
+
   const convertTemp = useCallback(
     (tempC: number) => {
       if (unit === 'F') {
@@ -399,6 +559,7 @@ export function TripWeatherTab({
   }, [data, activeDayIndex]);
 
   const handleCardClick = (idx: number) => {
+    if (suppressNextClickRef.current) return;
     setSelectedDayOverride(idx);
     if (onSelectDay) {
       onSelectDay(idx + 1);
@@ -744,14 +905,17 @@ export function TripWeatherTab({
         flexDirection: 'column',
         gap: '16px',
         color: 'var(--color-text-primary)',
+        minWidth: 0,
+        width: '100%',
+        boxSizing: 'border-box',
       }}
     >
       {/* -------------------------------------------------------------------- */}
-      {/* Header bar: City, Coordinates, Unit Toggle, Refresh                  */}
+      {/* Header bar: City, Coordinates                                        */}
       {/* -------------------------------------------------------------------- */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: 0 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '-0.01em' }}>
               {data.city}
             </span>
@@ -778,87 +942,32 @@ export function TripWeatherTab({
             {data.timezone} • {data.current_condition} ({convertTemp(data.current_temp_c)}°{unit})
           </div>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Unit Toggle */}
-          <div
-            style={{
-              display: 'inline-flex',
-              padding: '2px',
-              borderRadius: '6px',
-              background: 'var(--color-surface-muted, rgba(0,0,0,0.05))',
-              border: '1px solid var(--color-border)',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setUnit('C')}
-              style={{
-                padding: '3px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                background: unit === 'C' ? 'var(--color-accent-primary)' : 'transparent',
-                color: unit === 'C' ? '#FFFFFF' : 'var(--color-text-muted)',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              °C
-            </button>
-            <button
-              type="button"
-              onClick={() => setUnit('F')}
-              style={{
-                padding: '3px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                background: unit === 'F' ? 'var(--color-accent-primary)' : 'transparent',
-                color: unit === 'F' ? '#FFFFFF' : 'var(--color-text-muted)',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              °F
-            </button>
-          </div>
-
-          {/* Refresh button */}
-          <button
-            type="button"
-            title={t('weather.refresh_title')}
-            onClick={handleManualRefresh}
-            style={{
-              padding: '6px',
-              borderRadius: '6px',
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-surface-card)',
-              color: 'var(--color-text-muted)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <RefreshIcon size={13} />
-          </button>
-        </div>
       </div>
 
       {/* -------------------------------------------------------------------- */}
       {/* 1. Day Forecast Strip (Matching Image 2 Top Section)                 */}
       {/* -------------------------------------------------------------------- */}
-      <div>
+      <div style={{ minWidth: 0, width: '100%' }}>
         <div
+          ref={forecastStripRef}
+          data-testid="weather-forecast-strip"
+          className="no-scrollbar"
+          onMouseDown={handleStripMouseDown}
+          onMouseMove={handleStripMouseMove}
+          onMouseLeave={handleStripMouseLeave}
           style={{
             display: 'flex',
             gap: '8px',
             overflowX: 'auto',
+            overflowY: 'hidden',
             paddingBottom: '4px',
             scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            minWidth: 0,
+            width: '100%',
+            userSelect: 'none',
+            WebkitOverflowScrolling: 'touch',
+            cursor: isDraggingStrip ? 'grabbing' : 'default',
           }}
         >
           {data.forecast_days.map((day, idx) => {
