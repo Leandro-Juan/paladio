@@ -579,7 +579,6 @@ test.describe('Trip Workspace Renovated Components', () => {
               },
               arrival_time: '09:00',
               departure_time: '10:00',
-              visit_duration_minutes: 60,
             },
           ],
         },
@@ -692,6 +691,174 @@ test.describe('Trip Workspace Renovated Components', () => {
     expect(isFading.fadingAttr).toBe('true');
     expect(isFading.opacity).toBe('0');
     expect(isFading.transition).toContain('opacity 220ms');
+  });
+
+  test('custom drag preview card remains solid and tracks cursor during real mouse drag', async ({ mount, page }) => {
+    const mockDays: DayOutput[] = [
+      {
+        day: 1,
+        theme: 'Historical Shrines',
+        itinerary: {
+          path: [
+            {
+              poi: {
+                id: 'poi-meiji',
+                name: 'Meiji Jingu Shrine',
+                city: 'Tokyo',
+                category: 'shrine',
+                location: { latitude: 35.6764, longitude: 139.6993 },
+                duration_mins: 60,
+                cost_eur: 0,
+              },
+              arrival_time: '09:00',
+              departure_time: '10:00',
+            },
+          ],
+        },
+      },
+    ];
+
+    const component = await mount(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Tokyo"
+        days={mockDays}
+        selectedDay={1}
+        onSelectDay={() => {}}
+        isEditMode={false}
+      />
+    );
+
+    const card = component.locator('[data-testid^="poi-stop-card-"]').first();
+    await expect(card).toBeVisible();
+    const box = await card.boundingBox();
+    expect(box).not.toBeNull();
+
+    const startX = box!.x + box!.width / 2;
+    const startY = box!.y + box!.height / 2;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 40, startY + 30, { steps: 5 });
+    await page.mouse.move(startX + 120, startY + 80, { steps: 8 });
+    await page.waitForTimeout(200);
+
+    const midDragState = await page.evaluate(() => {
+      const previews = document.querySelectorAll<HTMLElement>('[data-paladio-custom-drag-preview]');
+      const el = previews[0];
+      return {
+        count: previews.length,
+        opacity: el?.style.opacity,
+        fadingAttr: el?.getAttribute('data-paladio-fading-out'),
+        text: el?.textContent || '',
+        left: el ? parseFloat(el.style.left) : NaN,
+        top: el ? parseFloat(el.style.top) : NaN,
+      };
+    });
+
+    expect(midDragState.count).toBe(1);
+    expect(midDragState.opacity).toBe('1');
+    expect(midDragState.fadingAttr).toBeNull();
+    expect(midDragState.text).toContain('Meiji Jingu Shrine');
+    expect(midDragState.left).toBeGreaterThan(startX + 40);
+    expect(midDragState.top).toBeGreaterThan(startY + 20);
+
+    await page.mouse.up();
+    await expect(page.locator('[data-paladio-custom-drag-preview]')).toHaveCount(0);
+  });
+
+  test('custom drag preview card survives blur/idle mousemove and Search tab switch during real drag', async ({ mount, page }) => {
+    await page.route('**/pois/search*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          city: 'Tokyo',
+          query: '',
+          search_type: 'all',
+          total: 1,
+          city_total_pois: 1,
+          results: [
+            {
+              id: 'poi-gallery',
+              name: 'Meiji Memorial Picture Gallery',
+              category: 'museum',
+              lat: 35.6787,
+              lng: 139.7176,
+              duration_mins: 120,
+              cost_eur: 12,
+            },
+          ],
+        }),
+      });
+    });
+
+    const mockDays: DayOutput[] = [
+      {
+        day: 1,
+        theme: 'Historical Shrines',
+        itinerary: { path: [] },
+      },
+    ];
+
+    const component = await mount(
+      <TripUnifiedSidebar
+        isOpen={true}
+        onToggle={() => {}}
+        destinationCity="Tokyo"
+        days={mockDays}
+        selectedDay={1}
+        onSelectDay={() => {}}
+        isEditMode={false}
+      />
+    );
+
+    // 1. Verify Route card drag survives stray window blur and untrusted/single idle mousemove (buttons=0)
+    await component.getByTestId('tab-search').click();
+    const searchCard = component.getByTestId('poi-card-poi-gallery');
+    await expect(searchCard).toBeVisible();
+
+    const box = await searchCard.boundingBox();
+    expect(box).not.toBeNull();
+    const startX = box!.x + box!.width / 2;
+    const startY = box!.y + box!.height / 2;
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 100, startY - 40, { steps: 10 });
+    await page.waitForTimeout(300);
+
+    // Simulate stray window blur and synthetic mousemove (buttons=0) mid-drag
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event('blur'));
+      document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, buttons: 0, clientX: 120, clientY: 120 }));
+    });
+    await page.waitForTimeout(100);
+
+    const midDragState = await page.evaluate(() => {
+      const previews = document.querySelectorAll<HTMLElement>('[data-paladio-custom-drag-preview]');
+      const el = previews[0];
+      const routeCardsVisible = Boolean(document.querySelector('[data-testid="tab-route"]'));
+      const searchCardBox = document.querySelector('[data-testid="poi-card-poi-gallery"]')?.getBoundingClientRect();
+      return {
+        count: previews.length,
+        opacity: el?.style.opacity,
+        fadingAttr: el?.getAttribute('data-paladio-fading-out'),
+        text: el?.textContent || '',
+        routeCardsVisible,
+        searchCardOffscreen: searchCardBox ? searchCardBox.left < -1000 : true,
+      };
+    });
+
+    expect(midDragState.count).toBe(1);
+    expect(midDragState.opacity).toBe('1');
+    expect(midDragState.fadingAttr).toBeNull();
+    expect(midDragState.text).toContain('Meiji Memorial Picture Gallery');
+    expect(midDragState.routeCardsVisible).toBe(true);
+    expect(midDragState.searchCardOffscreen).toBe(true);
+
+    await page.mouse.up();
+    await expect(page.locator('[data-paladio-custom-drag-preview]')).toHaveCount(0);
   });
 
   test('TripUnifiedSidebar auto-scrolls route content when dragging near top/bottom edges', async ({ mount, page }) => {

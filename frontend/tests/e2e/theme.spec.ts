@@ -22,15 +22,14 @@ test.describe('Theme Engine (Pacific Jazz)', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 
-  test('system dark preference is honored when nothing is stored', async ({ browser }) => {
-    test.skip(!THEME_TOGGLE_ENABLED, 'Theme toggle disabled until Phase 8');
+  test('defaults to Pacific Jazz Light even when system prefers dark and nothing is stored', async ({ browser }) => {
     const context = await browser.newContext({
       colorScheme: 'dark',
     });
     const page = await context.newPage();
     await mockAuthenticatedUser(page);
     await page.goto('/dashboard');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await context.close();
   });
 

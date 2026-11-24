@@ -148,6 +148,7 @@ function CollectionPoiAvatar({
           alt={name}
           width={38}
           height={38}
+          draggable={false}
           unoptimized
           onError={() => setImgError(true)}
           style={{
@@ -1163,8 +1164,13 @@ export function CollectionsTab({
                               e.dataTransfer.setData('text/plain', serialized);
                               e.dataTransfer.effectAllowed = 'copyMove';
 
-                              // Automatically switch sidebar to route tab so user can drop into any day
-                              window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+                              // Defer switching to Route tab by one animation frame so the browser finishes
+                              // initializing the native HTML5 drag session before this container moves offscreen.
+                              window.requestAnimationFrame(() => {
+                                if ((window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi) {
+                                  window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+                                }
+                              });
                             }}
                             onDragEnd={() => {
                               cleanupCustomDragPreview();

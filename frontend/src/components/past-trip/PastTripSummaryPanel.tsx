@@ -5,6 +5,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import type { TripParticipant, TripSettlement } from '@/hooks/useTrips';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
+import { resolveApiMediaUrl } from '@/utils/api';
 
 interface PastTripSummaryPanelProps {
   destination: string;
@@ -39,7 +40,11 @@ export function PastTripSummaryPanel({
   }, [heroPhotoUrl, firstPoiName, destination]);
 
   const { getPhoto } = usePoiPhotos(poisToWatch);
-  const resolvedPhoto = heroPhotoUrl || (firstPoiName ? getPhoto(firstPoiName) : undefined);
+  const resolvedPhoto = heroPhotoUrl
+    ? resolveApiMediaUrl(heroPhotoUrl)
+    : firstPoiName
+    ? getPhoto(firstPoiName)
+    : undefined;
 
   // Formatted start & end dates (e.g. "December 25")
   const formattedStartDate = useMemo(() => {

@@ -59,7 +59,6 @@ function getInitialTheme(): Theme {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (isValidTheme(stored)) return stored;
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
     } catch {
       // ignore
     }

@@ -780,7 +780,7 @@ function renderTeardropPinHtml({
     : 'rgba(255, 255, 255, 0.45)';
 
   const innerContent = photoUrl
-    ? `<img src="${photoUrl}" alt="${nameSafe}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`
+    ? `<img draggable="false" src="${photoUrl}" alt="${nameSafe}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`
     : `<div style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`;
 
   const stopBadge = typeof stopNumber === 'number'
@@ -1285,6 +1285,9 @@ function MapViewportController({
   // Allow dragging any POI marker directly from the map into route day slots
   useEffect(() => {
     if (!map || readOnly) return;
+    let isMapDragActive = false;
+    let cleanupTimer: number | null = null;
+
     const handleDragStart = (e: DragEvent) => {
       const target = (e.target as HTMLElement)?.closest('[data-paladio-draggable-poi]');
       if (!target) return;
@@ -1297,6 +1300,11 @@ function MapViewportController({
         } catch {
           poiData = JSON.parse(decodeURIComponent(raw));
         }
+        if (cleanupTimer !== null) {
+          window.clearTimeout(cleanupTimer);
+          cleanupTimer = null;
+        }
+        isMapDragActive = true;
         startCustomDragPreview(e, {
           name: poiData.name,
           category: poiData.category,
@@ -1314,7 +1322,11 @@ function MapViewportController({
           e.dataTransfer.setData('text/plain', serialized);
           e.dataTransfer.effectAllowed = 'copyMove';
         }
-        window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+        window.requestAnimationFrame(() => {
+          if ((window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi) {
+            window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+          }
+        });
       } catch (err) {
         console.warn('Failed to parse draggable poi payload from map', err);
       }
@@ -1331,8 +1343,24 @@ function MapViewportController({
       if (map && !map.dragging.enabled()) {
         map.dragging.enable();
       }
+      const win =
+        typeof window !== 'undefined'
+          ? (window as unknown as { __paladioActivePoi?: unknown; __paladioActiveSearchPoi?: unknown })
+          : null;
+      const hasActiveDrag =
+        isMapDragActive ||
+        Boolean(document.querySelector('[data-paladio-custom-drag-preview]')) ||
+        Boolean(win?.__paladioActivePoi || win?.__paladioActiveSearchPoi);
+      if (!hasActiveDrag) {
+        return;
+      }
+      isMapDragActive = false;
       cleanupCustomDragPreview(false);
-      window.setTimeout(() => {
+      if (cleanupTimer !== null) {
+        window.clearTimeout(cleanupTimer);
+      }
+      cleanupTimer = window.setTimeout(() => {
+        cleanupTimer = null;
         if (typeof window !== 'undefined') {
           (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
           (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
@@ -1357,6 +1385,7 @@ function MapViewportController({
     };
 
     const handlePaladioDragEnded = () => {
+      isMapDragActive = false;
       if (map && !map.dragging.enabled()) {
         map.dragging.enable();
       }
@@ -1371,6 +1400,10 @@ function MapViewportController({
     document.addEventListener('mouseup', handleMouseUp, true);
     window.addEventListener('paladio:drag-ended', handlePaladioDragEnded);
     return () => {
+      if (cleanupTimer !== null) {
+        window.clearTimeout(cleanupTimer);
+        cleanupTimer = null;
+      }
       document.removeEventListener('dragstart', handleDragStart);
       document.removeEventListener('dragend', handleMouseUp, true);
       document.removeEventListener('mousedown', handleMouseDown, true);
@@ -1701,6 +1734,13 @@ export default function TripMapView({
 
   const handleDayHoverStart = useCallback((dayNumber: number) => {
     if (activeDay !== 'all') return;
+    if (
+      typeof window !== 'undefined' &&
+      ((window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi ||
+        document.querySelector('[data-paladio-custom-drag-preview]'))
+    ) {
+      return;
+    }
     if (hoverEndTimerRef.current) {
       clearTimeout(hoverEndTimerRef.current);
       hoverEndTimerRef.current = null;
@@ -1716,6 +1756,13 @@ export default function TripMapView({
 
   const handleDayHoverEnd = useCallback(() => {
     if (activeDay !== 'all') return;
+    if (
+      typeof window !== 'undefined' &&
+      ((window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi ||
+        document.querySelector('[data-paladio-custom-drag-preview]'))
+    ) {
+      return;
+    }
     if (hoverEndTimerRef.current) clearTimeout(hoverEndTimerRef.current);
     hoverEndTimerRef.current = setTimeout(() => {
       setHoveredDay(null);

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Trip, TripExpense, TripSettlement, useTrips } from '@/hooks/useTrips';
 import { TripTicket } from '@/hooks/useTripTickets';
-import { apiFetch } from '@/utils/api';
+import { apiFetch, resolveApiMediaUrl } from '@/utils/api';
 import { extractTripTitle, countWaypoints, extractTotalCost } from '@/utils/tripParser';
 import { getScheduledPoiTimes } from '@/utils/date';
 import { BarcodeStripe } from '@/components/past-trip/BarcodeStripe';
@@ -117,10 +117,10 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
   const coverPhoto = useMemo(() => {
     if (Array.isArray(itineraryData.photos) && itineraryData.photos.length > 0) {
       const u = extractPhotoUrl(itineraryData.photos[0]);
-      if (u) return u;
+      if (u) return resolveApiMediaUrl(u);
     }
     const cover = extractPhotoUrl(itineraryData.cover_photo) || extractPhotoUrl(itineraryData.photo_url);
-    if (cover) return cover;
+    if (cover) return resolveApiMediaUrl(cover);
 
     // Fallback: check first stop with a photo in any day
     if (Array.isArray(itineraryData.days)) {
@@ -128,7 +128,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
         if (Array.isArray(d?.itinerary?.path)) {
           for (const stop of d.itinerary.path) {
             const stopPhoto = extractPhotoUrl(stop?.poi?.photo_url || stop?.poi?.image_url);
-            if (stopPhoto) return stopPhoto;
+            if (stopPhoto) return resolveApiMediaUrl(stopPhoto);
           }
         }
       }

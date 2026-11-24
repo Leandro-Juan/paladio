@@ -1,3 +1,6 @@
+let activeDragSessionId = 0;
+let activeCleanupListeners: (() => void) | null = null;
+
 /**
  * Removes or smoothly fades out custom drag preview floating cards from the document.
  * When immediate is true, all previews are stripped instantly (e.g. before launching a new drag).
@@ -44,6 +47,10 @@ export function startCustomDragPreview(
     cost_eur?: number;
   }
 ): HTMLElement {
+  const sessionId = ++activeDragSessionId;
+  activeCleanupListeners?.();
+  activeCleanupListeners = null;
+
   // 1. Suppress native browser drag ghost & file icons using a loaded 1x1 transparent image in DOM
   if (e.dataTransfer && typeof document !== 'undefined') {
     try {
@@ -137,15 +144,38 @@ export function startCustomDragPreview(
   }
 
   // 3. Track cursor coordinates smoothly on drag / dragover
+  let lastDragEventAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  let idleMouseMoves = 0;
+
   const handleDragUpdate = (ev: DragEvent | MouseEvent) => {
-    // If mouseup occurred or no buttons are held during non-HTML5 drag events, cleanly abort
-    if ((ev.type === 'mousemove' || ev.type === 'pointermove') && (ev as MouseEvent).buttons === 0) {
-      cleanup();
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (ev.type === 'drag' || ev.type === 'dragover') {
+      lastDragEventAt = now;
+      idleMouseMoves = 0;
+      if (ev.clientX !== 0 || ev.clientY !== 0) {
+        el.style.top = `${ev.clientY - 20}px`;
+        el.style.left = `${ev.clientX - 24}px`;
+      }
       return;
     }
-    if (ev.clientX !== 0 || ev.clientY !== 0) {
-      el.style.top = `${ev.clientY - 20}px`;
-      el.style.left = `${ev.clientX - 24}px`;
+
+    // Fallback cleanup only if dragend was genuinely missed: require trusted mouse/pointer
+    // movement with no buttons held well after the last drag/dragover event.
+    if (ev.type === 'mousemove' || ev.type === 'pointermove') {
+      if ((ev as MouseEvent).buttons === 0) {
+        if (ev.isTrusted && now - lastDragEventAt >= 400) {
+          idleMouseMoves += 1;
+          if (idleMouseMoves >= 3) {
+            cleanup();
+          }
+        }
+        return;
+      }
+      idleMouseMoves = 0;
+      if (ev.clientX !== 0 || ev.clientY !== 0) {
+        el.style.top = `${ev.clientY - 20}px`;
+        el.style.left = `${ev.clientX - 24}px`;
+      }
     }
   };
 
@@ -168,29 +198,28 @@ export function startCustomDragPreview(
     document.removeEventListener('dragend', cleanup, true);
     document.removeEventListener('mouseup', cleanup, true);
     document.removeEventListener('pointerup', cleanup, true);
-    document.removeEventListener('pointercancel', cleanup, true);
     document.removeEventListener('touchend', cleanup, true);
-    document.removeEventListener('touchcancel', cleanup, true);
     document.removeEventListener('drop', cleanup, false);
 
     window.removeEventListener('dragend', cleanup, true);
     window.removeEventListener('mouseup', cleanup, true);
     window.removeEventListener('pointerup', cleanup, true);
-    window.removeEventListener('pointercancel', cleanup, true);
     window.removeEventListener('touchend', cleanup, true);
-    window.removeEventListener('touchcancel', cleanup, true);
     window.removeEventListener('drop', cleanup, false);
-    window.removeEventListener('blur', cleanup);
     window.removeEventListener('keydown', handleKeyDown, true);
   };
 
   const cleanup = () => {
     if (isCleanedUp) return;
     isCleanedUp = true;
+    if (activeCleanupListeners === removeListeners) {
+      activeCleanupListeners = null;
+    }
     removeListeners();
     cleanupCustomDragPreview(false);
     // Defer clearing active POI slightly to allow onDrop handlers in the DOM to consume the payload
     window.setTimeout(() => {
+      if (activeDragSessionId !== sessionId) return;
       if (typeof window !== 'undefined') {
         (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
         (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
@@ -198,6 +227,8 @@ export function startCustomDragPreview(
       }
     }, 50);
   };
+
+  activeCleanupListeners = removeListeners;
 
   sourceTargets.forEach((target) => {
     target.addEventListener('dragend', cleanup, true);
@@ -209,19 +240,14 @@ export function startCustomDragPreview(
   document.addEventListener('dragend', cleanup, true);
   document.addEventListener('mouseup', cleanup, true);
   document.addEventListener('pointerup', cleanup, true);
-  document.addEventListener('pointercancel', cleanup, true);
   document.addEventListener('touchend', cleanup, true);
-  document.addEventListener('touchcancel', cleanup, true);
   document.addEventListener('drop', cleanup, false);
 
   window.addEventListener('dragend', cleanup, true);
   window.addEventListener('mouseup', cleanup, true);
   window.addEventListener('pointerup', cleanup, true);
-  window.addEventListener('pointercancel', cleanup, true);
   window.addEventListener('touchend', cleanup, true);
-  window.addEventListener('touchcancel', cleanup, true);
   window.addEventListener('drop', cleanup, false);
-  window.addEventListener('blur', cleanup);
   window.addEventListener('keydown', handleKeyDown, true);
 
   return el;

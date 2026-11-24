@@ -8,7 +8,7 @@ import { translate } from '@/stores/localeStore';
 import { Trip, TripRevisionItem, useTrips } from '@/hooks/useTrips';
 import type { RouteItineraryData } from '@/types/domain';
 import { extractTripTitle } from '@/utils/tripParser';
-import { apiFetch } from '@/utils/api';
+import { apiFetch, resolveApiMediaUrl } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { useAuth } from '@/contexts/AuthContext';
 import { PaladioDateRangePicker } from '@/components/trip-creation/PaladioDateRangePicker';
@@ -858,7 +858,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             {photoUrl && !photoPreviewError ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={photoUrl}
+                src={resolveApiMediaUrl(photoUrl)}
                 alt={t('workspace.photo_preview')}
                 onError={() => setPhotoPreviewError(true)}
                 style={{
@@ -925,7 +925,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                         height: '54px',
                         borderRadius: '6px',
                         border: photoUrl === url ? '2px solid var(--color-accent-primary)' : '1px solid var(--color-border)',
-                        backgroundImage: `url(${url})`,
+                        backgroundImage: `url(${resolveApiMediaUrl(url)})`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         cursor: 'pointer',

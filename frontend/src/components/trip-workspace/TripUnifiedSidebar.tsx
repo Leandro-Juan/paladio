@@ -110,6 +110,7 @@ function SearchPoiThumbnail({ id, name, category, photoUrl, city = '' }: SearchP
         <img
           src={resolvedPhoto}
           alt={name}
+          draggable={false}
           loading="lazy"
           style={{
             width: '100%',
@@ -1773,12 +1774,37 @@ export function TripUnifiedSidebar({
 
   // Reset active drop target and clean up drag state if dragging ends anywhere without inserting
   useEffect(() => {
-    const handleDragEnded = () => {
+    let dragEndTimer: number | null = null;
+
+    const handleDragStartCancelTimer = () => {
+      if (dragEndTimer !== null) {
+        window.clearTimeout(dragEndTimer);
+        dragEndTimer = null;
+      }
+    };
+
+    const handleDragEnded = (ev?: Event) => {
+      if (ev?.type === 'mouseup') {
+        const win =
+          typeof window !== 'undefined'
+            ? (window as unknown as { __paladioActivePoi?: unknown; __paladioActiveSearchPoi?: unknown })
+            : null;
+        const hasActiveDrag =
+          Boolean(document.querySelector('[data-paladio-custom-drag-preview]')) ||
+          Boolean(win?.__paladioActivePoi || win?.__paladioActiveSearchPoi);
+        if (!hasActiveDrag) {
+          return;
+        }
+      }
       cleanupCustomDragPreview(false);
       clearDayHoverTimer();
       stopVerticalScroll();
       setActiveDropTarget(null);
-      window.setTimeout(() => {
+      if (dragEndTimer !== null) {
+        window.clearTimeout(dragEndTimer);
+      }
+      dragEndTimer = window.setTimeout(() => {
+        dragEndTimer = null;
         setDraggedPoi(null);
         setIsExternalPoiDragging(false);
         if (typeof window !== 'undefined') {
@@ -1788,11 +1814,17 @@ export function TripUnifiedSidebar({
       }, 120);
     };
 
+    window.addEventListener('dragstart', handleDragStartCancelTimer, true);
     window.addEventListener('dragend', handleDragEnded, true);
     window.addEventListener('mouseup', handleDragEnded, true);
     window.addEventListener('drop', handleDragEnded, false);
     window.addEventListener('paladio:drag-ended', handleDragEnded, true);
     return () => {
+      if (dragEndTimer !== null) {
+        window.clearTimeout(dragEndTimer);
+        dragEndTimer = null;
+      }
+      window.removeEventListener('dragstart', handleDragStartCancelTimer, true);
       window.removeEventListener('dragend', handleDragEnded, true);
       window.removeEventListener('mouseup', handleDragEnded, true);
       window.removeEventListener('drop', handleDragEnded, false);
@@ -4375,8 +4407,13 @@ export function TripUnifiedSidebar({
                             e.dataTransfer.setData('text/plain', serialized);
                             e.dataTransfer.effectAllowed = 'copyMove';
 
-                            // Switch to Route tab automatically so user can drop into any day
-                            window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+                            // Defer switching to Route tab by one animation frame so the browser finishes
+                            // initializing the native HTML5 drag session before this container moves offscreen.
+                            window.requestAnimationFrame(() => {
+                              if ((window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi) {
+                                window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+                              }
+                            });
                           }}
                           onDragEnd={() => {
                             cleanupCustomDragPreview();

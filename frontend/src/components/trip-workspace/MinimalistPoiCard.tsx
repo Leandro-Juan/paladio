@@ -520,6 +520,7 @@ export function MinimalistPoiCard({
           <img
             src={resolvedPhoto}
             alt={name}
+            draggable={false}
             loading="lazy"
             style={{
               width: '100%',
