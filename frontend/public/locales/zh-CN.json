@@ -2733,6 +2733,7 @@
     "err_same_corridor": "出发地和目的地不能相同。",
     "est_per_night": "预估 {price} / 晚",
     "est_stay_total": "预估住宿总价：",
+    "experimental_badge": "实验性",
     "fetching_live_rates": "正在获取 {nights} 晚的实时房价",
     "filter_all_routes": "全部航线（{count}）",
     "filter_deals_active": "特价触发中（{count}）",

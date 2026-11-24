@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/Leandro-Juan/paladio/compare/v2.0.0...v3.0.0) (2026-11-24)
+
+### Features
+
+* **frontend:** upgrade to Next.js 16 with PWA Service Worker caching, IndexedDB offline trip pinning, and print PDF trip dossier
+* **i18n:** full 10-locale internationalization (including Arabic RTL layout) and dynamic POI translation
+* **workspace:** trip revision history with revert/restore, date shifting, trip duplication, saved place collections, receipt scanning, and hotel date syncing
+* **monitoring:** bidirectional route & lodging monitoring, city storage vault, holiday preference synchronization, and 8-axis taste calibration
+* **demo:** standalone encrypted `demo` branch with per-user hourly sandboxes, copy-on-write media, and optional Upstash Redis persistence
+* **deploy:** self-hosted installers and automated multi-arch Docker image publishing
+
 ## [2.0.0](https://github.com/Leandro-Juan/paladio/compare/paladio-v1.2.0...v2.0.0) (2026-10-04)
 
 ### Features

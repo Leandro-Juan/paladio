@@ -2733,6 +2733,7 @@
     "err_same_corridor": "Origem e destino não podem ser o mesmo corredor.",
     "est_per_night": "Est. {price} / noite",
     "est_stay_total": "Total Est. da Estadia:",
+    "experimental_badge": "EXPERIMENTAL",
     "fetching_live_rates": "Buscando tarifas ao vivo para {nights} noites",
     "filter_all_routes": "Todas as Rotas ({count})",
     "filter_deals_active": "Ofertas Ativas ({count})",

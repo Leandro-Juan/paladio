@@ -303,7 +303,7 @@ export function HelpSidebar({
         }}
       >
         <span>{t('help.travel_guides_brand')}</span>
-        <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>v2.0.0</span>
+        <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>v3.0.0</span>
       </div>
     </aside>
   );

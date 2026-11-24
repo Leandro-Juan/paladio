@@ -37,57 +37,67 @@ Planning a great trip usually means juggling messy spreadsheets, cloud travel ap
 <summary><strong>Explore everything Paladio includes</strong></summary>
 
 ### <img src="docs/assets/readme/icon-planning.svg" width="18" height="18" alt=""> Planning
+
 - **Automatic or blank trips**: Describe the kind of trip you want and let Paladio build every day automatically, or start from a blank canvas and craft it by hand.
 - **Built around real logistics**: Respects your flight arrival and departure windows, hotel location, opening hours, meal times, walking pace, and daily budget — solving a typical city day in ~1.3 ms ([benchmarks](./cpp_core/docs/benchmarks.md)).
 - **Built-in sanity checks**: Warns you if dates overlap an existing trip, spots overly packed or zigzagging days, and explains why any omitted place didn't fit.
 - **Interactive editing**: Drag to reorder stops, lock fixed reservations (like timed museum tickets or dinner bookings), and hit **Solve** to re-optimize the rest of the day around them — with full revision history to undo anytime.
 
 ### <img src="docs/assets/readme/icon-discovery.svg" width="18" height="18" alt=""> Discovery
+
 - **Your 8-axis Taste Star**: Answer a quick visual calibration when you start, then let Paladio adapt naturally from your trips, bookmarks, and preferences (you can export or reset your taste profile anytime).
 - **Group taste blending**: Traveling with friends or family? Paladio blends everyone's preferences so the trip works for the whole group.
 - **Places you'll actually enjoy**: Smart search across sights, museums, food spots, and hidden gems ranked by how well they match your style.
 - **Saved collections & imports**: Keep reusable place wishlists, drop custom pins on the map, or import your existing Google Maps, GPX, KML, and KMZ lists.
 
 ### <img src="docs/assets/readme/icon-maps.svg" width="18" height="18" alt=""> Maps
+
 - **Clean architectural maps**: Switch between clutter-free vector maps, standard street maps, dark mode, and satellite imagery.
 - **Neighborhood exploration**: Drop a pin and radius circle anywhere on the map to browse nearby sights, restaurants, and transit stops.
 - **Weather & climate**: Check daily forecasts and air quality for upcoming trips, or typical seasonal weather when planning months ahead.
 - **One-tap navigation**: Send any stop straight to Google Maps, Apple Maps, Organic Maps / CoMaps, OsmAnd, Waze, or Citymapper, with photos and optional on-demand place translation.
 
 ### <img src="docs/assets/readme/icon-transit.svg" width="18" height="18" alt=""> Transit
+
 - **Local walking & road routing**: Realistic door-to-door walking, cycling, and driving times calculated privately on your own server.
 - **Public transit & departures**: Step-by-step metro, rail, tram, and bus directions, interactive transit line overlays, and nearby station departure boards.
 - **Fare & pass advice**: Estimates trip transit costs and tells you when a daily pass beats buying single tickets.
 
 ### <img src="docs/assets/readme/icon-wallet.svg" width="18" height="18" alt=""> Wallet
+
 - **Smart local import**: Drop in flight boarding passes, hotel confirmations, screenshots, PDFs, Apple Wallet `.pkpass` files, or paste confirmation emails — Paladio extracts flight numbers, dates, seats, and hotels privately on your own machine.
 - **Dedicated pass cards**: Clean cards for flights, stays, attractions, and transit, with an "Up Next" countdown for your next travel step.
 - **Private access codes**: Keeps hotel door PINs and Wi-Fi passwords encrypted at rest behind masked one-click copy fields.
 - **Gate-ready & synced**: Pop open crisp fullscreen barcodes at airport security or museum gates, and sync your wallet bookings straight into your itinerary.
 
 ### <img src="docs/assets/readme/icon-deals.svg" width="18" height="18" alt=""> Deals
+
 - **24/7 price watching**: Track your favorite flight and hotel routes automatically in the background.
 - **Only real price drops**: Compares fares against long-term historical prices and filters out awkward overnight flights, short ground stays, and poorly rated hotels so you only hear about genuine bargains.
 - **Visual fare calendars**: Browse multi-month outbound, inbound, and round-trip calendars and pair deals with your country's public holidays.
 - **Deal to trip in one click**: Turn a verified flight + hotel deal straight into a full day-by-day trip plan.
 
 ### <img src="docs/assets/readme/icon-budget.svg" width="18" height="18" alt=""> Budget
+
 - **Live currency conversion**: Preview your trip spending in any currency using live exchange rates without altering original receipts.
 - **Effortless expense tracking**: Turn planned ticket estimates into real expenses in one click, scan receipts from photos or PDFs, or export everything to CSV.
 - **Group bill splitting**: Split costs equally or custom across your travel crew and see the fewest transfers needed for everyone to settle up.
 
 ### <img src="docs/assets/readme/icon-assistant.svg" width="18" height="18" alt=""> Assistant
+
 - **100% optional AI chat**: Paladio plans trips without any AI key, or you can connect your favorite provider from 13 options (OpenAI, Claude, Gemini, local Ollama, and more).
-- **Aware of what you're viewing**: Understands the day, stop, and map area you have open so you can ask natural questions like *"find a quiet lunch spot nearby"*.
+- **Aware of what you're viewing**: Understands the day, stop, and map area you have open so you can ask natural questions like _"find a quiet lunch spot nearby"_.
 - **Safe by design**: Dry-run ideas (like a rainy-day museum swap) before saving, review clear approval cards before big edits, and undo any change in one click.
 - **Connect your own AI tools**: Includes an 82-tool MCP server so external assistants like Claude Desktop can read, check, and help refine your trips.
 
 ### <img src="docs/assets/readme/icon-archive.svg" width="18" height="18" alt=""> Archive
+
 - **Your travel world map**: Completed trips move to an interactive world map tracking countries visited, total days traveled, and distance compared to circling the Earth.
 - **Trip recaps & photo sync**: Keep trip journals and photo galleries locally, or sync albums automatically with your own **Immich** or **Synology Photos** server.
 - **Portable exports**: Share or back up trips as self-contained `.trip` files (choose a complete private backup or a privacy-scrubbed shareable copy), printable PDFs, calendar `.ics` files, GPS `.gpx` tracks, or JSON.
 
 ### <img src="docs/assets/readme/icon-hosting.svg" width="18" height="18" alt=""> Hosting
+
 - **Offline ready**: Pin an entire trip — itinerary, map tiles, tickets, and expenses — to your browser before boarding so everything works in airplane mode.
 - **Holiday & PTO calendar**: Plan your year on an overview calendar combining public holidays, personal vacation days, active trips, and deal windows.
 - **Your notifications, your way**: Send deal alerts and trip updates to Pushify, Pushover, Ntfy, or custom webhooks.
@@ -160,18 +170,18 @@ Add a `PALADIO_API_TOKEN` to `.env`, restart the `api` container, and add Paladi
 }
 ```
 
-Then ask things like *"Check my Kyoto trip for tight transfers or missing meals"* or *"What if it rains on Day 2 — preview indoor swaps without saving yet"*. See [LLM Providers & MCP Clients](./docs/self-hosting/llm-providers-and-mcp.md) for HTTP setup too.
+Then ask things like _"Check my Kyoto trip for tight transfers or missing meals"_ or _"What if it rains on Day 2 — preview indoor swaps without saving yet"_. See [LLM Providers & MCP Clients](./docs/self-hosting/llm-providers-and-mcp.md) for HTTP setup too.
 
 ## How It Compares
 
-| | Paladio | Cloud Trip Apps | AI Chatbots |
-| :--- | :---: | :---: | :---: |
-| **Runs privately at home (you own your data)** | Yes | No | Usually no |
-| **Fits real opening hours, flights & budgets** | Yes (mathematically solved) | Manual | Prone to mistakes |
-| **Works offline with maps, transit & tickets** | Yes | Paid tiers / limited | No |
-| **Scans boarding passes & encrypts door PINs locally** | Yes | Cloud upload / email forward | Manual paste |
-| **Watches flight & hotel prices for real drops** | Built-in | Separate apps | No |
-| **Needs a paid AI subscription to plan trips** | No (AI chat is optional) | No | Yes |
+|                                                        |           Paladio           |       Cloud Trip Apps        |    AI Chatbots    |
+| :----------------------------------------------------- | :-------------------------: | :--------------------------: | :---------------: |
+| **Runs privately at home (you own your data)**         |             Yes             |              No              |    Usually no     |
+| **Fits real opening hours, flights & budgets**         | Yes (mathematically solved) |            Manual            | Prone to mistakes |
+| **Works offline with maps, transit & tickets**         |             Yes             |     Paid tiers / limited     |        No         |
+| **Scans boarding passes & encrypts door PINs locally** |             Yes             | Cloud upload / email forward |   Manual paste    |
+| **Watches flight & hotel prices for real drops**       |          Built-in           |        Separate apps         |        No         |
+| **Needs a paid AI subscription to plan trips**         |  No (AI chat is optional)   |              No              |        Yes        |
 
 ## Documentation
 
@@ -186,3 +196,8 @@ Then ask things like *"Check my Kyoto trip for tight transfers or missing meals"
 - **Contributing:** Pull requests and bug reports are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) (commits require DCO sign-off via `git commit -s`), [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md), and the [Developer Guide](./docs/contributing/developer-guide.md).
 - **License:** Released under the [GNU Affero General Public License v3.0 (AGPLv3)](./LICENSE). Created and maintained by [Leandro Juan](https://github.com/Leandro-Juan); original copyright and UI attribution notices must remain intact per AGPLv3 Sections 4 & 7.
 - **Contact & Security:** Ask questions in [GitHub Discussions](https://github.com/Leandro-Juan/paladio/discussions), file bugs in [GitHub Issues](https://github.com/Leandro-Juan/paladio/issues), and report security issues privately via [`SECURITY.md`](./SECURITY.md).
+
+<div align="center">
+    <br/>
+    <sub><b>Special thanks to Irene</b></sub>
+</div>

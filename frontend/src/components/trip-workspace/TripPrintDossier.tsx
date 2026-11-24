@@ -206,9 +206,8 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
       {/* SECTION 1: COVER PAGE & EXPEDITION OVERVIEW                               */}
       {/* ========================================================================= */}
       <section
-        className="print-page-break"
         style={{
-          minHeight: '100vh',
+          minHeight: 'calc(100vh - 4mm)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -501,7 +500,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
       {/* SECTION 2: BUDGET BREAKDOWN & FINANCIAL TELEMETRY ("BUDGET DESGLOSE")      */}
       {/* ========================================================================= */}
       <section
-        className="print-page-break"
+        className="print-page-break-before"
         style={{
           padding: '24px 0',
           boxSizing: 'border-box',
@@ -653,7 +652,6 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
             style={{
               border: '1px solid #E2E8F0',
               borderRadius: '8px',
-              overflow: 'hidden',
             }}
           >
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
@@ -713,7 +711,6 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
             style={{
               border: '1px solid #E2E8F0',
               borderRadius: '8px',
-              overflow: 'hidden',
             }}
           >
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
@@ -779,7 +776,6 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
               style={{
                 border: '1px solid #E2E8F0',
                 borderRadius: '8px',
-                overflow: 'hidden',
               }}
             >
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
@@ -810,7 +806,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
       {/* ========================================================================= */}
       {/* SECTION 3: CHRONOLOGICAL ITINERARY (ALL DAYS)                             */}
       {/* ========================================================================= */}
-      <section style={{ padding: '24px 0', boxSizing: 'border-box' }}>
+      <section className="print-page-break-before" style={{ padding: '24px 0', boxSizing: 'border-box' }}>
         <div
           style={{
             borderBottom: '2px solid #0F172A',
@@ -861,21 +857,22 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
           return (
             <div
               key={dayIdx}
-              className="print-avoid-break"
               style={{
                 marginBottom: '32px',
                 border: '1px solid #CBD5E1',
                 borderRadius: '8px',
-                overflow: 'hidden',
                 backgroundColor: '#FFFFFF',
               }}
             >
               {/* Day Header */}
               <div
+                className="print-keep-with-next"
                 style={{
                   backgroundColor: '#0F172A',
                   color: '#FFFFFF',
                   padding: '12px 16px',
+                  borderTopLeftRadius: '7px',
+                  borderTopRightRadius: '7px',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
@@ -937,6 +934,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                         {/* Transit leg from previous stop */}
                         {stopIdx > 0 && transit && (
                           <div
+                            className="print-keep-with-next"
                             style={{
                               margin: '8px 0 8px 36px',
                               padding: '6px 12px',
@@ -1093,7 +1091,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
       {/* SECTION 4: DIGITAL WALLET TICKETS & RESERVATION VOUCHERS                   */}
       {/* ========================================================================= */}
       <section
-        className="print-page-break"
+        className="print-page-break-before"
         style={{
           padding: '24px 0',
           boxSizing: 'border-box',
@@ -1158,7 +1156,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
             </span>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
             {tickets.map((ticket, idx) => {
               const meta = (ticket.metadata || {}) as Record<string, any>;
               const isFlight = ticket.ticket_type === 'flight';
@@ -1179,6 +1177,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                     overflow: 'hidden',
                     display: 'flex',
                     backgroundColor: '#FFFFFF',
+                    marginBottom: idx < tickets.length - 1 ? '20px' : 0,
                   }}
                 >
                   {/* Left Main Voucher Body */}

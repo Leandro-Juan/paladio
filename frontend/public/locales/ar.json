@@ -2733,6 +2733,7 @@
     "err_same_corridor": "لا يمكن أن تكون نقطة الانطلاق والوجهة نفس المسار.",
     "est_per_night": "تقدير {price} / ليلة",
     "est_stay_total": "إجمالي الإقامة التقديري:",
+    "experimental_badge": "تجريبي",
     "fetching_live_rates": "جارٍ جلب الأسعار المباشرة لـ {nights} ليالٍ",
     "filter_all_routes": "جميع المسارات ({count})",
     "filter_deals_active": "العروض النشطة ({count})",

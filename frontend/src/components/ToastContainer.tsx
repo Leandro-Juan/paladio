@@ -156,6 +156,7 @@ export function ToastContainer() {
 
   return (
     <div
+      className="no-print"
       style={{
         position: 'fixed',
         top: '16px',

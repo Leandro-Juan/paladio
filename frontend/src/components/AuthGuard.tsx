@@ -78,7 +78,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const isStandalonePage = Boolean(pathname && (/^\/(trips|vault)\/[^\/]+/.test(pathname) || pathname.startsWith('/help') || pathname.startsWith('/config')));
   if (isStandalonePage) {
     return (
-      <main className="trip-details-layout" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <main className="trip-details-layout">
         <DemoResetTimer />
         {children}
       </main>

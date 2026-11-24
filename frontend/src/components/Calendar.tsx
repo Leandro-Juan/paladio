@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Trip } from '@/hooks/useTrips';
-import { apiFetch } from '@/utils/api';
+import { apiFetch, updatePreferencesApi } from '@/utils/api';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import type { HolidayMatchedPackage, DealPackage } from '@/hooks/useRouteMonitoring';
@@ -73,16 +73,40 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  // User-selected holiday days (persisted in localStorage)
-  const [holidays, setHolidays] = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') return new Set();
+  // User-selected holiday days (synced with DB user preferences + localStorage)
+  const serverHolidayKey = useMemo(() => {
+    const raw = auth?.user?.preferences?.holiday_dates;
+    return Array.isArray(raw) ? JSON.stringify([...raw.map(String)].sort()) : null;
+  }, [auth?.user?.preferences?.holiday_dates]);
+
+  const [localHolidaysState, setLocalHolidaysState] = useState<{
+    baseServerKey: string | null;
+    holidays: Set<string>;
+  } | null>(() => {
+    if (typeof window === 'undefined') return null;
     try {
       const stored = localStorage.getItem('paladio_user_holidays');
-      return stored ? new Set(JSON.parse(stored)) : new Set();
+      return stored ? { baseServerKey: null, holidays: new Set(JSON.parse(stored)) } : null;
     } catch {
-      return new Set();
+      return null;
     }
   });
+
+  const serverHolidays = useMemo(() => {
+    if (serverHolidayKey === null) return null;
+    try {
+      return new Set(JSON.parse(serverHolidayKey) as string[]);
+    } catch {
+      return null;
+    }
+  }, [serverHolidayKey]);
+
+  const holidays = useMemo(() => {
+    if (localHolidaysState && localHolidaysState.baseServerKey === serverHolidayKey) {
+      return localHolidaysState.holidays;
+    }
+    return serverHolidays ?? localHolidaysState?.holidays ?? new Set<string>();
+  }, [localHolidaysState, serverHolidayKey, serverHolidays]);
 
   // Official statutory public holidays (synced from backend)
   const [publicHolidays, setPublicHolidays] = useState<Map<string, string>>(new Map());
@@ -244,11 +268,21 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
   };
 
   const saveHolidays = (nextHolidays: Set<string>) => {
-    setHolidays(nextHolidays);
+    setLocalHolidaysState({ baseServerKey: serverHolidayKey, holidays: nextHolidays });
+    const arr = Array.from(nextHolidays).sort();
+    const serialized = JSON.stringify(arr);
     try {
-      localStorage.setItem('paladio_user_holidays', JSON.stringify(Array.from(nextHolidays)));
+      localStorage.setItem('paladio_user_holidays', serialized);
     } catch {
       // Ignore storage errors
+    }
+    if (auth?.user) {
+      void updatePreferencesApi({
+        ...(auth.user.preferences || {}),
+        holiday_dates: arr,
+      })
+        .then(() => auth.refreshUser())
+        .catch(() => {});
     }
   };
 

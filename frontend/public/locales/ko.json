@@ -2733,6 +2733,7 @@
     "err_same_corridor": "출발지와 도착지는 같은 구간일 수 없습니다.",
     "est_per_night": "예상 1박 {price}",
     "est_stay_total": "예상 총 숙박비:",
+    "experimental_badge": "실험적",
     "fetching_live_rates": "{nights}박 실시간 요금 조회 중",
     "filter_all_routes": "전체 노선 ({count})",
     "filter_deals_active": "특가 활성 ({count})",
