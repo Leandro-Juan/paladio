@@ -2,7 +2,11 @@ import 'server-only';
 import crypto from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import type { DemoSnapshotRaw } from '../demoSnapshotLoader';
-import { buildCollectionPoiSummary, DemoSessionState } from '../demoStore';
+import {
+  buildCollectionPoiSummary,
+  DemoSessionState,
+  resolveDemoMediaBlob,
+} from '../demoStore';
 import {
   blockedRes,
   computeSettlement,
@@ -626,7 +630,7 @@ export async function handleTripsRoutes(
   if (sub[0] === 'photos') {
     if (sub.length === 2 && method === 'GET') {
       const photoId = decodeURIComponent(sub[1]);
-      const blob = session.mediaBlobs[photoId] || baseline.media_blobs?.[photoId];
+      const blob = resolveDemoMediaBlob(session, baseline, photoId);
       if (!blob) return errRes('Photo not found', 404);
       const bytes = Buffer.from(blob.b64, 'base64');
       return new NextResponse(bytes, {
@@ -640,29 +644,62 @@ export async function handleTripsRoutes(
     if (sub.length === 1 && method === 'POST') {
       const formData = await req.formData().catch(() => null);
       if (!formData) return errRes('No files provided', 400);
+      const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+      const MAX_SESSION_MEDIA_B64 = 4 * 1024 * 1024;
+      let currentB64Bytes = Object.values(session.mediaBlobs).reduce(
+        (sum, item) => sum + item.b64.length,
+        0
+      );
+      const pending: Array<{
+        pid: string;
+        mimeType: string;
+        b64: string;
+        sizeBytes: number;
+        filename: string;
+      }> = [];
+      for (const [, val] of formData.entries()) {
+        if (val instanceof File) {
+          if (val.size > MAX_UPLOAD_BYTES) {
+            return errRes('Demo photo upload limit exceeded (max 2 MB per file, 4 MB per session)', 413);
+          }
+          const buf = Buffer.from(await val.arrayBuffer());
+          if (buf.length > MAX_UPLOAD_BYTES) {
+            return errRes('Demo photo upload limit exceeded (max 2 MB per file, 4 MB per session)', 413);
+          }
+          const b64 = buf.toString('base64');
+          if (currentB64Bytes + b64.length > MAX_SESSION_MEDIA_B64) {
+            return errRes('Demo photo upload limit exceeded (max 2 MB per file, 4 MB per session)', 413);
+          }
+          currentB64Bytes += b64.length;
+          pending.push({
+            pid: `${tripId}-photo-${crypto.randomBytes(4).toString('hex')}`,
+            mimeType: val.type || 'image/jpeg',
+            b64,
+            sizeBytes: buf.length,
+            filename: val.name,
+          });
+        }
+      }
       const itin = (trip.itinerary_data || {}) as Record<string, unknown>;
       const existingPhotos = Array.isArray(itin.photos) ? (itin.photos as Array<Record<string, unknown>>) : [];
       const added: Array<Record<string, unknown>> = [];
-      for (const [, val] of formData.entries()) {
-        if (val instanceof File) {
-          const buf = Buffer.from(await val.arrayBuffer());
-          const pid = `${tripId}-photo-${crypto.randomBytes(4).toString('hex')}`;
-          session.mediaBlobs[pid] = {
-            mime_type: val.type || 'image/jpeg',
-            b64: buf.toString('base64'),
-          };
-          const item = {
-            id: pid,
-            url: `/api/trips/${tripId}/photos/${pid}`,
-            filename: val.name,
-            size_bytes: buf.length,
-            mime_type: val.type || 'image/jpeg',
-            media_type: 'image',
-            created_at: new Date().toISOString(),
-          };
-          added.push(item);
-          existingPhotos.push(item);
-        }
+      for (const file of pending) {
+        session.mediaBlobs[file.pid] = {
+          mime_type: file.mimeType,
+          b64: file.b64,
+        };
+        session.deletedMediaIds.delete(file.pid);
+        const item = {
+          id: file.pid,
+          url: `/api/trips/${tripId}/photos/${file.pid}`,
+          filename: file.filename,
+          size_bytes: file.sizeBytes,
+          mime_type: file.mimeType,
+          media_type: 'image',
+          created_at: new Date().toISOString(),
+        };
+        added.push(item);
+        existingPhotos.push(item);
       }
       itin.photos = existingPhotos;
       trip.itinerary_data = itin;
@@ -677,6 +714,7 @@ export async function handleTripsRoutes(
         );
       }
       delete session.mediaBlobs[photoId];
+      session.deletedMediaIds.add(photoId);
       return jsonRes({ status: 'ok', deleted: photoId });
     }
     return null;

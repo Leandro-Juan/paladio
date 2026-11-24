@@ -424,11 +424,11 @@ export function PersonalAccountSection({
         onBackToOverview={onBackToOverview}
       />
 
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <DemoFeatureGate
         message={t('demo.locked_account_profile')}
         borderRadius="14px"
       >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       {/* 1. Active Account Identity Card */}
       <SettingsCardFrame
         title={t('config.personal_profile_card_title')}
@@ -804,6 +804,7 @@ export function PersonalAccountSection({
           </div>
         </div>
       </SettingsCardFrame>
+      </DemoFeatureGate>
 
       {/* 3. Display Language & Locales Card */}
       <SettingsCardFrame
@@ -1161,7 +1162,6 @@ export function PersonalAccountSection({
         </div>
       </SettingsCardFrame>
       </div>
-      </DemoFeatureGate>
 
       {/* Language Picker Modal */}
       {isLanguagePickerOpen && (

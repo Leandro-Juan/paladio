@@ -1,5 +1,6 @@
 import 'server-only';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import {
   addDaysIso,
   addHoursIso,
@@ -21,10 +22,12 @@ export interface DemoSessionState {
   savedCollections: Array<Record<string, unknown>>;
   customPois: Array<Record<string, unknown>>;
   mediaBlobs: Record<string, { mime_type: string; b64: string }>;
+  deletedMediaIds: Set<string>;
   discardedDeals: Set<string>;
 }
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const SESSION_REDIS_PREFIX = 'paladio:demo:v1:';
 
 // Persist across hot reloads in dev mode via globalThis
 const globalStore = globalThis as typeof globalThis & {
@@ -33,6 +36,122 @@ const globalStore = globalThis as typeof globalThis & {
 const sessionsMap: Map<string, DemoSessionState> =
   globalStore.__paladioDemoSessions ?? new Map<string, DemoSessionState>();
 globalStore.__paladioDemoSessions = sessionsMap;
+
+function getUpstashConfig(): { url: string; token: string } | null {
+  const url = (process.env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/+$/, '');
+  const token = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
+  if (!url || !token) return null;
+  return { url, token };
+}
+
+async function upstashCommand<T>(command: Array<string | number>): Promise<T | null> {
+  const config = getUpstashConfig();
+  if (!config) return null;
+  try {
+    const res = await fetch(config.url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+      body: JSON.stringify(command),
+    });
+    if (!res.ok) {
+      console.warn(`[demoStore] Upstash ${String(command[0])} failed (${res.status})`);
+      return null;
+    }
+    const data = (await res.json()) as { result?: T; error?: string };
+    if (data.error) {
+      console.warn(`[demoStore] Upstash ${String(command[0])} error: ${data.error}`);
+      return null;
+    }
+    return data.result ?? null;
+  } catch (err) {
+    console.warn(`[demoStore] Upstash ${String(command[0])} error:`, err);
+    return null;
+  }
+}
+
+function serializeSession(session: DemoSessionState): string {
+  const payload = {
+    sid: session.sid,
+    createdAt: session.createdAt,
+    nextResetAt: session.nextResetAt,
+    user: session.user,
+    trips: session.trips,
+    revisionsByTrip: session.revisionsByTrip,
+    ticketsByTrip: session.ticketsByTrip,
+    participantsByTrip: session.participantsByTrip,
+    expensesByTrip: session.expensesByTrip,
+    collectionsByTrip: session.collectionsByTrip,
+    savedCollections: session.savedCollections,
+    customPois: session.customPois,
+    mediaBlobs: session.mediaBlobs,
+    deletedMediaIds: Array.from(session.deletedMediaIds),
+    discardedDeals: Array.from(session.discardedDeals),
+  };
+  return zlib.gzipSync(Buffer.from(JSON.stringify(payload), 'utf8')).toString('base64');
+}
+
+function deserializeSession(encoded: string): DemoSessionState | null {
+  try {
+    const gz = Buffer.from(encoded, 'base64');
+    const parsed = JSON.parse(zlib.gunzipSync(gz).toString('utf8')) as Record<string, unknown>;
+    if (
+      !parsed ||
+      typeof parsed.sid !== 'string' ||
+      typeof parsed.nextResetAt !== 'number' ||
+      !Number.isFinite(parsed.nextResetAt)
+    ) {
+      return null;
+    }
+    return {
+      sid: parsed.sid,
+      createdAt: typeof parsed.createdAt === 'number' ? parsed.createdAt : Date.now(),
+      nextResetAt: parsed.nextResetAt,
+      user: (parsed.user as Record<string, unknown>) || {},
+      trips: Array.isArray(parsed.trips) ? (parsed.trips as Array<Record<string, unknown>>) : [],
+      revisionsByTrip:
+        (parsed.revisionsByTrip as Record<string, Array<Record<string, unknown>>>) || {},
+      ticketsByTrip:
+        (parsed.ticketsByTrip as Record<string, Array<Record<string, unknown>>>) || {},
+      participantsByTrip:
+        (parsed.participantsByTrip as Record<string, Array<Record<string, unknown>>>) || {},
+      expensesByTrip:
+        (parsed.expensesByTrip as Record<string, Array<Record<string, unknown>>>) || {},
+      collectionsByTrip:
+        (parsed.collectionsByTrip as Record<string, Array<Record<string, unknown>>>) || {},
+      savedCollections: Array.isArray(parsed.savedCollections)
+        ? (parsed.savedCollections as Array<Record<string, unknown>>)
+        : [],
+      customPois: Array.isArray(parsed.customPois)
+        ? (parsed.customPois as Array<Record<string, unknown>>)
+        : [],
+      mediaBlobs:
+        (parsed.mediaBlobs as Record<string, { mime_type: string; b64: string }>) || {},
+      deletedMediaIds: new Set(
+        Array.isArray(parsed.deletedMediaIds) ? parsed.deletedMediaIds.map(String) : []
+      ),
+      discardedDeals: new Set(
+        Array.isArray(parsed.discardedDeals) ? parsed.discardedDeals.map(String) : []
+      ),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function resolveDemoMediaBlob(
+  session: DemoSessionState,
+  baseline: DemoSnapshotRaw,
+  photoId: string
+): { mime_type: string; b64: string } | undefined {
+  if (session.deletedMediaIds.has(photoId)) {
+    return undefined;
+  }
+  return session.mediaBlobs[photoId] ?? baseline.media_blobs?.[photoId];
+}
 
 function deepClone<T>(val: T): T {
   return JSON.parse(JSON.stringify(val)) as T;
@@ -106,6 +225,12 @@ function buildFreshSession(sid: string, baseline: DemoSnapshotRaw, nextResetAt: 
     tc.start_date = startDate;
     tc.end_date = endDate;
     itin.travel_constraints = tc;
+    if (Array.isArray(itin.days)) {
+      itin.days = (itin.days as Array<Record<string, unknown>>).map((d, idx) => ({
+        ...d,
+        date: addDaysIso(now, startOffset + idx),
+      }));
+    }
 
     const rawRevs = (trip.revisions as Array<Record<string, unknown>>) || [];
     revisionsByTrip[tripId] = rawRevs.map((rev) => {
@@ -286,11 +411,19 @@ function buildFreshSession(sid: string, baseline: DemoSnapshotRaw, nextResetAt: 
   savedCollections[1].items_count = (savedCollections[1].items as unknown[]).length;
   savedCollections[1].item_count = savedCollections[1].items_count;
 
+  const demoUser = deepClone(baseline.demo_user);
+  const prefs = (demoUser.preferences || {}) as Record<string, unknown>;
+  const holidayOffsets = Array.isArray(prefs.holiday_offsets)
+    ? (prefs.holiday_offsets as number[])
+    : [4, 5, 6, 7, 25, 26, 27, 28];
+  prefs.holiday_dates = holidayOffsets.map((off) => addDaysIso(now, Number(off)));
+  demoUser.preferences = prefs;
+
   return {
     sid,
     createdAt: Date.now(),
     nextResetAt,
-    user: deepClone(baseline.demo_user),
+    user: demoUser,
     trips,
     revisionsByTrip,
     ticketsByTrip,
@@ -299,22 +432,39 @@ function buildFreshSession(sid: string, baseline: DemoSnapshotRaw, nextResetAt: 
     collectionsByTrip,
     savedCollections,
     customPois: [],
-    mediaBlobs: deepClone(baseline.media_blobs || {}),
+    mediaBlobs: {},
+    deletedMediaIds: new Set<string>(),
     discardedDeals: new Set<string>(),
   };
 }
 
 export async function getOrCreateDemoSession(
   incomingSid?: string | null,
-  incomingResetAt?: number | null
-): Promise<{ session: DemoSessionState; baseline: DemoSnapshotRaw; wasReset: boolean; isNew: boolean }> {
+  incomingResetAt?: number | null,
+  isDirtyHint = false
+): Promise<{
+  session: DemoSessionState;
+  baseline: DemoSnapshotRaw;
+  wasReset: boolean;
+  isNew: boolean;
+  isDirty: boolean;
+}> {
   const baseline = await getDemoSnapshotBaseline();
   const nowMs = Date.now();
 
-  // Prune expired sessions occasionally to keep server memory bounded
-  if (sessionsMap.size > 500) {
+  // Prune expired sessions and enforce bounded server memory
+  if (sessionsMap.size > 200) {
     for (const [k, s] of sessionsMap.entries()) {
-      if (nowMs - s.createdAt > ONE_HOUR_MS * 3) {
+      if (nowMs >= s.nextResetAt) {
+        sessionsMap.delete(k);
+      }
+    }
+    if (sessionsMap.size > 200) {
+      const byAge = Array.from(sessionsMap.entries()).sort(
+        (a, b) => a[1].createdAt - b[1].createdAt
+      );
+      for (const [k] of byAge) {
+        if (sessionsMap.size <= 150) break;
         sessionsMap.delete(k);
       }
     }
@@ -327,12 +477,37 @@ export async function getOrCreateDemoSession(
     isNew = true;
   }
 
+  const cookieExpired = Boolean(incomingResetAt && nowMs >= incomingResetAt);
+  if (!isNew && cookieExpired) {
+    const nextReset = nowMs + ONE_HOUR_MS;
+    const fresh = buildFreshSession(sid, baseline, nextReset);
+    sessionsMap.set(sid, fresh);
+    if (getUpstashConfig()) {
+      void upstashCommand(['DEL', SESSION_REDIS_PREFIX + sid]);
+    }
+    return { session: fresh, baseline, wasReset: true, isNew: false, isDirty: false };
+  }
+
   let existing = sessionsMap.get(sid);
   if (existing && nowMs >= existing.nextResetAt) {
     const nextReset = nowMs + ONE_HOUR_MS;
     existing = buildFreshSession(sid, baseline, nextReset);
     sessionsMap.set(sid, existing);
-    return { session: existing, baseline, wasReset: true, isNew: false };
+    if (getUpstashConfig()) {
+      void upstashCommand(['DEL', SESSION_REDIS_PREFIX + sid]);
+    }
+    return { session: existing, baseline, wasReset: true, isNew: false, isDirty: false };
+  }
+
+  if (!existing && !isNew && isDirtyHint && getUpstashConfig()) {
+    const raw = await upstashCommand<string>(['GET', SESSION_REDIS_PREFIX + sid]);
+    if (raw) {
+      const loaded = deserializeSession(raw);
+      if (loaded && nowMs < loaded.nextResetAt) {
+        sessionsMap.set(sid, loaded);
+        return { session: loaded, baseline, wasReset: false, isNew: false, isDirty: true };
+      }
+    }
   }
 
   if (!existing) {
@@ -342,10 +517,29 @@ export async function getOrCreateDemoSession(
         : nowMs + ONE_HOUR_MS;
     existing = buildFreshSession(sid, baseline, validResetAt);
     sessionsMap.set(sid, existing);
-    return { session: existing, baseline, wasReset: false, isNew };
+    return { session: existing, baseline, wasReset: false, isNew, isDirty: false };
   }
 
-  return { session: existing, baseline, wasReset: false, isNew: false };
+  return { session: existing, baseline, wasReset: false, isNew: false, isDirty: isDirtyHint };
+}
+
+export async function persistDemoSession(session: DemoSessionState): Promise<boolean> {
+  sessionsMap.set(session.sid, session);
+  if (!getUpstashConfig()) {
+    return false;
+  }
+  const ttlSeconds = Math.max(
+    60,
+    Math.min(3600, Math.ceil((session.nextResetAt - Date.now()) / 1000))
+  );
+  const res = await upstashCommand<string>([
+    'SET',
+    SESSION_REDIS_PREFIX + session.sid,
+    serializeSession(session),
+    'EX',
+    ttlSeconds,
+  ]);
+  return res !== null;
 }
 
 export async function resetDemoSession(sid: string): Promise<DemoSessionState> {
@@ -353,5 +547,8 @@ export async function resetDemoSession(sid: string): Promise<DemoSessionState> {
   const nextReset = Date.now() + ONE_HOUR_MS;
   const fresh = buildFreshSession(sid, baseline, nextReset);
   sessionsMap.set(sid, fresh);
+  if (getUpstashConfig()) {
+    await upstashCommand(['DEL', SESSION_REDIS_PREFIX + sid]);
+  }
   return fresh;
 }

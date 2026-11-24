@@ -2,7 +2,7 @@ import 'server-only';
 import crypto from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import type { DemoSnapshotRaw } from '../demoSnapshotLoader';
-import type { DemoSessionState } from '../demoStore';
+import { DemoSessionState, resolveDemoMediaBlob } from '../demoStore';
 import {
   blockedRes,
   buildQuickLeg,
@@ -59,7 +59,7 @@ export async function handlePoisRoutes(
 
   if (segments[0] === 'photos' && segments[1] && method === 'GET') {
     const photoId = decodeURIComponent(segments[1]);
-    const blob = session.mediaBlobs[photoId] || baseline.media_blobs?.[photoId];
+    const blob = resolveDemoMediaBlob(session, baseline, photoId);
     if (!blob) return errRes('POI photo not found', 404);
     const bytes = Buffer.from(blob.b64, 'base64');
     return new NextResponse(bytes, {

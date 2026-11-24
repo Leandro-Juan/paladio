@@ -1,7 +1,11 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { addDaysIso, addHoursIso, DemoSnapshotRaw } from '../demoSnapshotLoader';
-import { DemoSessionState, resetDemoSession } from '../demoStore';
+import {
+  DemoSessionState,
+  resetDemoSession,
+  resolveDemoMediaBlob,
+} from '../demoStore';
 import { blockedRes, errRes, jsonRes } from './helpers';
 
 const FX_FROM_EUR: Record<string, number> = {
@@ -286,6 +290,7 @@ export async function handleMarketAndSystemRoutes(
     }
     if (sub[0] === 'reset' && method === 'POST') {
       const fresh = await resetDemoSession(session.sid);
+      session.nextResetAt = fresh.nextResetAt;
       return jsonRes({
         status: 'reset',
         next_reset_at: fresh.nextResetAt,
@@ -323,6 +328,35 @@ export async function handleMarketAndSystemRoutes(
     if (sub[0] === 'me' && sub.length === 1 && method === 'GET') {
       return jsonRes(session.user);
     }
+    if (sub[0] === 'me' && sub.length === 1 && (method === 'PUT' || method === 'PATCH')) {
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      if (body.password) {
+        return blockedRes('Password changes');
+      }
+      if (body.preferences && typeof body.preferences === 'object') {
+        const currentPrefs = ((session.user.preferences || {}) as Record<string, unknown>);
+        session.user = {
+          ...session.user,
+          preferences: {
+            ...currentPrefs,
+            ...(body.preferences as Record<string, unknown>),
+          },
+        };
+      }
+      return jsonRes(session.user);
+    }
+    if (sub[0] === 'me' && sub[1] === 'preferences' && (method === 'PUT' || method === 'PATCH')) {
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      const currentPrefs = ((session.user.preferences || {}) as Record<string, unknown>);
+      session.user = {
+        ...session.user,
+        preferences: {
+          ...currentPrefs,
+          ...body,
+        },
+      };
+      return jsonRes(session.user);
+    }
     if (sub[0] === 'me' && sub[1] === 'embedding' && method === 'GET') {
       return jsonRes({
         user_id: session.user.id,
@@ -352,10 +386,8 @@ export async function handleMarketAndSystemRoutes(
     if (sub[0] === 'hotels' && sub[1] === 'photos' && sub[2] && method === 'GET') {
       const photoId = decodeURIComponent(sub[2]);
       const blob =
-        session.mediaBlobs[`hotel-${photoId}`] ||
-        baseline.media_blobs?.[`hotel-${photoId}`] ||
-        session.mediaBlobs[photoId] ||
-        baseline.media_blobs?.[photoId];
+        resolveDemoMediaBlob(session, baseline, `hotel-${photoId}`) ||
+        resolveDemoMediaBlob(session, baseline, photoId);
       if (!blob) return errRes('Hotel photo not found', 404);
       const bytes = Buffer.from(blob.b64, 'base64');
       return new NextResponse(bytes, {
@@ -910,13 +942,80 @@ export async function handleMarketAndSystemRoutes(
     }
     if (sub[0] === 'holidays') {
       const year = Number(url.searchParams.get('year') || now.getUTCFullYear());
+      const country = (url.searchParams.get('country') || 'ES').toUpperCase();
+      const COUNTRY_NAMES: Record<string, string> = {
+        ES: 'Spain',
+        GB: 'United Kingdom',
+        FR: 'France',
+        JP: 'Japan',
+        CH: 'Switzerland',
+        US: 'United States',
+      };
+      const FIXED_HOLIDAYS: Record<string, Array<[string, string]>> = {
+        ES: [
+          ['01-01', 'Año Nuevo'],
+          ['01-06', 'Epifanía del Señor'],
+          ['05-01', 'Fiesta del Trabajo'],
+          ['08-15', 'Asunción de la Virgen'],
+          ['10-12', 'Fiesta Nacional de España'],
+          ['11-01', 'Todos los Santos'],
+          ['12-06', 'Día de la Constitución'],
+          ['12-08', 'Inmaculada Concepción'],
+          ['12-25', 'Navidad'],
+        ],
+        GB: [
+          ['01-01', "New Year's Day"],
+          ['05-04', 'Early May Bank Holiday'],
+          ['05-25', 'Spring Bank Holiday'],
+          ['08-31', 'Summer Bank Holiday'],
+          ['12-25', 'Christmas Day'],
+          ['12-26', 'Boxing Day'],
+        ],
+        FR: [
+          ['01-01', 'Jour de l’an'],
+          ['05-01', 'Fête du Travail'],
+          ['05-08', 'Victoire 1945'],
+          ['07-14', 'Fête nationale'],
+          ['08-15', 'Assomption'],
+          ['11-01', 'Toussaint'],
+          ['11-11', 'Armistice 1918'],
+          ['12-25', 'Noël'],
+        ],
+        JP: [
+          ['01-01', 'New Year’s Day'],
+          ['02-11', 'National Foundation Day'],
+          ['04-29', 'Shōwa Day'],
+          ['05-03', 'Constitution Memorial Day'],
+          ['05-04', 'Greenery Day'],
+          ['05-05', 'Children’s Day'],
+          ['11-03', 'Culture Day'],
+          ['11-23', 'Labor Thanksgiving Day'],
+        ],
+        CH: [
+          ['01-01', 'Neujahr'],
+          ['08-01', 'Bundesfeier'],
+          ['12-25', 'Weihnachten'],
+          ['12-26', 'Stephanstag'],
+        ],
+        US: [
+          ['01-01', "New Year's Day"],
+          ['06-19', 'Juneteenth'],
+          ['07-04', 'Independence Day'],
+          ['11-11', 'Veterans Day'],
+          ['12-25', 'Christmas Day'],
+        ],
+      };
+      const entries = (FIXED_HOLIDAYS[country] || FIXED_HOLIDAYS.ES).map(([mmdd, name]) => ({
+        date: `${year}-${mmdd}`,
+        name,
+      }));
       return jsonRes({
-        country: url.searchParams.get('country') || 'ES',
-        country_name: 'Spain',
+        country,
+        country_name: COUNTRY_NAMES[country] || country,
         year,
         subdivision: null,
-        holidays: [],
-        total: 0,
+        holidays: entries,
+        total: entries.length,
       });
     }
   }
