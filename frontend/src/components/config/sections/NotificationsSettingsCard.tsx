@@ -19,6 +19,61 @@ interface NotificationsSettingsCardProps {
   initialSubTab?: string;
 }
 
+const DEFAULT_NOTIFICATIONS_CONFIG: NotificationsConfigData = {
+  pushify: {
+    enabled: false,
+    endpoint_url: 'https://api.pushify.net/api/v1/send',
+    api_key: '',
+    channel: '',
+  },
+  pushover: {
+    enabled: false,
+    user_key: '',
+    app_token: '',
+    priority: 0,
+  },
+  ntfy: {
+    enabled: false,
+    server_url: 'https://ntfy.sh',
+    topic: '',
+    auth_token: '',
+  },
+  webhook: {
+    enabled: false,
+    url: '',
+    secret_header: '',
+  },
+  notify_on_deal_alert: true,
+  notify_on_trip_update: true,
+  notify_on_ticket_parse: true,
+  notify_on_photo_sync: false,
+};
+
+function mergeNotificationsConfig(
+  incoming?: Partial<NotificationsConfigData> | null
+): NotificationsConfigData {
+  return {
+    ...DEFAULT_NOTIFICATIONS_CONFIG,
+    ...incoming,
+    pushify: {
+      ...DEFAULT_NOTIFICATIONS_CONFIG.pushify,
+      ...(incoming?.pushify ?? {}),
+    },
+    pushover: {
+      ...DEFAULT_NOTIFICATIONS_CONFIG.pushover,
+      ...(incoming?.pushover ?? {}),
+    },
+    ntfy: {
+      ...DEFAULT_NOTIFICATIONS_CONFIG.ntfy,
+      ...(incoming?.ntfy ?? {}),
+    },
+    webhook: {
+      ...DEFAULT_NOTIFICATIONS_CONFIG.webhook,
+      ...(incoming?.webhook ?? {}),
+    },
+  };
+}
+
 export function NotificationsSettingsCard({ isAdmin, initialSubTab }: NotificationsSettingsCardProps) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(isAdmin);
@@ -41,35 +96,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
     }
   }
 
-  const [config, setConfig] = useState<NotificationsConfigData>({
-    pushify: {
-      enabled: false,
-      endpoint_url: 'https://api.pushify.net/api/v1/send',
-      api_key: '',
-      channel: '',
-    },
-    pushover: {
-      enabled: false,
-      user_key: '',
-      app_token: '',
-      priority: 0,
-    },
-    ntfy: {
-      enabled: false,
-      server_url: 'https://ntfy.sh',
-      topic: '',
-      auth_token: '',
-    },
-    webhook: {
-      enabled: false,
-      url: '',
-      secret_header: '',
-    },
-    notify_on_deal_alert: true,
-    notify_on_trip_update: true,
-    notify_on_ticket_parse: true,
-    notify_on_photo_sync: false,
-  });
+  const [config, setConfig] = useState<NotificationsConfigData>(DEFAULT_NOTIFICATIONS_CONFIG);
 
   const [pushifyDraft, setPushifyDraft] = useState(config.pushify);
   const [pushoverDraft, setPushoverDraft] = useState(config.pushover);
@@ -88,11 +115,12 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
     fetchDomainSettingsApi<NotificationsConfigData>('notifications')
       .then((res) => {
         if (mounted && res.config) {
-          setConfig(res.config);
-          setPushifyDraft(res.config.pushify);
-          setPushoverDraft(res.config.pushover);
-          setNtfyDraft(res.config.ntfy);
-          setWebhookDraft(res.config.webhook);
+          const normalized = mergeNotificationsConfig(res.config);
+          setConfig(normalized);
+          setPushifyDraft(normalized.pushify);
+          setPushoverDraft(normalized.pushover);
+          setNtfyDraft(normalized.ntfy);
+          setWebhookDraft(normalized.webhook);
         }
       })
       .catch((err) => {
@@ -107,12 +135,12 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
   }, [isAdmin]);
 
   const handleUpdate = async (patch: Partial<NotificationsConfigData>) => {
-    const updated = { ...config, ...patch };
+    const updated = mergeNotificationsConfig({ ...config, ...patch });
     setConfig(updated);
-    if (patch.pushify) setPushifyDraft(patch.pushify);
-    if (patch.pushover) setPushoverDraft(patch.pushover);
-    if (patch.ntfy) setNtfyDraft(patch.ntfy);
-    if (patch.webhook) setWebhookDraft(patch.webhook);
+    if (patch.pushify) setPushifyDraft(updated.pushify);
+    if (patch.pushover) setPushoverDraft(updated.pushover);
+    if (patch.ntfy) setNtfyDraft(updated.ntfy);
+    if (patch.webhook) setWebhookDraft(updated.webhook);
     try {
       await updateDomainSettingsApi<NotificationsConfigData>('notifications', patch);
       notify.success(t('config.relays_saved_title'), t('config.notif_config_updated_msg'));

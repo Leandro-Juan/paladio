@@ -128,13 +128,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const holidayDatesJson = Array.isArray(user?.preferences?.holiday_dates)
+    ? JSON.stringify(user.preferences.holiday_dates.map(String))
+    : null;
+  const homeCountryPref =
+    typeof user?.preferences?.home_country === 'string' ? user.preferences.home_country : null;
+  const homeCityPref =
+    typeof user?.preferences?.home_city === 'string' ? user.preferences.home_city : '';
+
   useEffect(() => {
     useNotificationStore.getState().initUser(user?.id || null);
     const userLang = user?.preferences?.preferred_language as string | undefined;
     if (userLang) {
       useLocaleStore.getState().setLocale(userLang);
     }
-  }, [user?.id, user?.preferences?.preferred_language]);
+    if (typeof window !== 'undefined' && user) {
+      try {
+        if (holidayDatesJson !== null) {
+          localStorage.setItem('paladio_user_holidays', holidayDatesJson);
+          window.dispatchEvent(new Event('paladio_holidays_synced'));
+        }
+        if (homeCountryPref) {
+          localStorage.setItem('paladio_home_country', homeCountryPref);
+          localStorage.setItem('paladio_home_city', homeCityPref);
+          window.dispatchEvent(new Event('paladio_home_location_changed'));
+        }
+      } catch {
+        // Ignore storage quota errors
+      }
+    }
+  }, [user, user?.id, user?.preferences?.preferred_language, holidayDatesJson, homeCountryPref, homeCityPref]);
 
   return (
     <AuthContext.Provider

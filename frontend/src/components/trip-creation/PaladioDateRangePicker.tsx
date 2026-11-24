@@ -5,6 +5,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { CalendarIcon } from '@/components/icons';
 import { Modal } from '@/components/Modal';
 import { useTrips, Trip } from '@/hooks/useTrips';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 
 interface PaladioDateRangePickerProps {
   startDate: string; // YYYY-MM-DD
@@ -65,6 +66,7 @@ export function PaladioDateRangePicker({
   holidays,
 }: PaladioDateRangePickerProps) {
   const { t, locale } = useTranslation();
+  const auth = useOptionalAuth();
   const intlLocale = locale === 'en' ? 'en-US' : locale;
 
   const weekdays = useMemo(() => {
@@ -91,8 +93,12 @@ export function PaladioDateRangePicker({
       }));
   }, [tripsToUse, excludeTripId]);
 
-  const [localHolidays] = useState<Set<string>>(() => {
+  const serverHolidayDates = auth?.user?.preferences?.holiday_dates;
+  const localHolidays = useMemo(() => {
     if (holidays) return holidays;
+    if (Array.isArray(serverHolidayDates)) {
+      return new Set<string>(serverHolidayDates.map(String));
+    }
     if (typeof window === 'undefined') return new Set<string>();
     try {
       const stored = localStorage.getItem('paladio_user_holidays');
@@ -100,7 +106,7 @@ export function PaladioDateRangePicker({
     } catch {
       return new Set<string>();
     }
-  });
+  }, [holidays, serverHolidayDates]);
   const activeHolidays = holidays || localHolidays;
 
   const [overlapConflict, setOverlapConflict] = useState<{

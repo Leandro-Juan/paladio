@@ -164,7 +164,10 @@ function MonitoringPageInner() {
           {/* Top Telemetry Header */}
           <header className={styles.pageHeader}>
         <div className={styles.headerTitleGroup}>
-          <h1 className={styles.pageTitle}>{t('monitoring.page_title')}</h1>
+          <div className={styles.titleWithBadge}>
+            <h1 className={styles.pageTitle}>{t('monitoring.page_title')}</h1>
+            <span className={styles.experimentalBadge}>{t('monitoring.experimental_badge')}</span>
+          </div>
         </div>
 
         <div className={styles.headerActions}>

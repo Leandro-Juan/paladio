@@ -2733,6 +2733,7 @@
     "err_same_corridor": "Start und Ziel dürfen nicht derselbe Korridor sein.",
     "est_per_night": "Gesch. {price} / Nacht",
     "est_stay_total": "Gesch. Aufenthalt gesamt:",
+    "experimental_badge": "EXPERIMENTELL",
     "fetching_live_rates": "Live-Preise für {nights} Nächte werden abgerufen",
     "filter_all_routes": "Alle Routen ({count})",
     "filter_deals_active": "Aktive Deals ({count})",

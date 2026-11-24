@@ -2733,6 +2733,7 @@
     "err_same_corridor": "出発地と目的地を同じにすることはできません。",
     "est_per_night": "推定 {price} / 泊",
     "est_stay_total": "宿泊合計見積:",
+    "experimental_badge": "実験的",
     "fetching_live_rates": "{nights}泊の最新料金を取得中",
     "filter_all_routes": "すべてのルート ({count})",
     "filter_deals_active": "お得情報あり ({count})",

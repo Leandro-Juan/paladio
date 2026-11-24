@@ -7,6 +7,7 @@ import { RouteCalendar, CalendarDay, LodgingSummary } from '@/hooks/useRouteMoni
 import { PlaneIcon, CloseIcon, ChevronRightIcon } from '@/components/icons';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import { useTrips, Trip } from '@/hooks/useTrips';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 import styles from './MonitoringCalendar.module.css';
 
 interface MonitoringCalendarProps {
@@ -38,6 +39,7 @@ export function MonitoringCalendar({
 }: MonitoringCalendarProps) {
   const router = useRouter();
   const { t, locale } = useTranslation();
+  const auth = useOptionalAuth();
   const activeCurrency = calendar?.currency || currency || 'EUR';
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
   const [hoveredDay, setHoveredDay] = useState<CalendarDay | null>(null);
@@ -68,8 +70,12 @@ export function MonitoringCalendar({
     return null;
   };
 
-  // User marked holidays from Dashboard Calendar
+  // User marked holidays from Dashboard Calendar / DB preferences
+  const serverHolidayDates = auth?.user?.preferences?.holiday_dates;
   const userHolidays = useMemo(() => {
+    if (Array.isArray(serverHolidayDates)) {
+      return new Set<string>(serverHolidayDates.map(String));
+    }
     if (typeof window === 'undefined') return new Set<string>();
     try {
       const stored = localStorage.getItem('paladio_user_holidays');
@@ -77,7 +83,7 @@ export function MonitoringCalendar({
     } catch {
       return new Set<string>();
     }
-  }, []);
+  }, [serverHolidayDates]);
 
   // Top 3 best package dates
   const top3Dates = useMemo(() => {

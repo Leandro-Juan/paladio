@@ -562,6 +562,12 @@ a {
   position: relative;
 }
 
+.trip-details-layout {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .sidebar {
   display: flex;
 }
@@ -1112,9 +1118,26 @@ a {
   body, html {
     background: #FFFFFF !important;
     color: #0F172A !important;
+    width: auto !important;
     height: auto !important;
-    min-height: 100% !important;
+    min-height: 0 !important;
     overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .trip-details-layout,
+  .layout-container,
+  .main-content {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   .print-only,
@@ -1127,16 +1150,34 @@ a {
     overflow: visible !important;
     background: #FFFFFF !important;
     color: #0F172A !important;
+    --color-text-primary: #0F172A;
+    --color-text-muted: #64748B;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  .print-page-break {
-    page-break-after: always !important;
-    break-after: page !important;
+  #trip-print-dossier thead {
+    display: table-header-group;
+  }
+
+  #trip-print-dossier tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .print-page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
   }
 
   .print-avoid-break {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  .print-keep-with-next {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 }
 
