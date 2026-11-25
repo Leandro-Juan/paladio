@@ -1865,6 +1865,10 @@
 <p>Two self-hosted subsystems keep Paladio independent of commercial itinerary aggregators: a TimescaleDB-backed flight and lodging Deal Engine that scores packages against P10 quantile baselines and realism gates, and a 14-table local GTFS + Valhalla + 5-tier fare transit stack.</p>
 <h2 id="continuous-flight-and-lodging-deal-engine">Continuous flight and lodging Deal Engine<a class="headerlink" href="#continuous-flight-and-lodging-deal-engine" title="Permanent link">&para;</a></h2>
 <p><code>backend/app/engine/market/</code> runs scheduled daily sweeps (<code>03:00 UTC</code>) and on-demand route backfills to catch statistically rare price drops rather than noisy promotional banners.</p>
+<div class="admonition warning">
+<p class="admonition-title">Experimental data scraping</p>
+<p>While the quantile baseline, verdict, and itinerary gating pipeline is deterministic, the <strong>flight and lodging data scraping</strong> layer is currently experimental and subject to upstream provider changes.</p>
+</div>
 <pre class="mermaid"><code>flowchart LR
     Flights["Aviasales Cache API + Ryanair Public API"] --&gt; Ticks["TimescaleDB market_price_ticks"]
     Ticks --&gt; Daily["price_daily &amp; route_baselines (q02..q90)"]

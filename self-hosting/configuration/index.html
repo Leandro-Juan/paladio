@@ -1985,7 +1985,7 @@
 <td style="text-align: left;"><code>POSTGRES_PASSWORD</code></td>
 <td style="text-align: left;"><code>postgres</code></td>
 <td style="text-align: left;">Yes</td>
-<td style="text-align: left;">PostgreSQL password (generated automatically by <code>install.sh</code> / <code>install.ps1</code>)</td>
+<td style="text-align: left;">PostgreSQL password (generated automatically by <code>scripts/install/install.sh</code> / <code>scripts/install/install.ps1</code>)</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>POSTGRES_DB</code></td>
@@ -2019,13 +2019,13 @@
 </tr>
 <tr>
 <td style="text-align: left;"><code>JWT_SECRET_KEY</code></td>
-<td style="text-align: left;">Persisted <code>data/.jwt_secret</code></td>
+<td style="text-align: left;">Persisted <code>.local/data/.jwt_secret</code> (local) / <code>/data/.jwt_secret</code> (Docker)</td>
 <td style="text-align: left;">Yes</td>
 <td style="text-align: left;">HS256 signing secret (generate with <code>openssl rand -hex 32</code>)</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>JWT_SECRET_PATH</code></td>
-<td style="text-align: left;"><code>data/.jwt_secret</code></td>
+<td style="text-align: left;"><code>.local/data/.jwt_secret</code> (local) / <code>/data/.jwt_secret</code> (Docker)</td>
 <td style="text-align: left;">No</td>
 <td style="text-align: left;">Fallback secret file path (<code>0600</code>) when <code>JWT_SECRET_KEY</code> is unset outside production</td>
 </tr>

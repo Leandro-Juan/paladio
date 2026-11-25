@@ -1907,6 +1907,10 @@
 
 <h1 id="route-monitoring-and-deal-packages">Route monitoring and deal packages<a class="headerlink" href="#route-monitoring-and-deal-packages" title="Permanent link">&para;</a></h1>
 <p>Monitor round-trip flight and lodging corridors continuously at <code>/monitoring</code>, evaluate fare drops against 10th-percentile (<code>P10</code>) quantile baselines, inspect multi-month bidirectional calendars, and convert verified packages directly into trips in <code>/engine</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Experimental data scraping</p>
+<p>The underlying flight and lodging <strong>data scraping</strong> in Route Monitoring is currently experimental. External provider scrapers and rate feeds may be unstable or incomplete depending on upstream changes and configured API keys.</p>
+</div>
 <p><img alt="Paladio Route Price &amp; Tariff Telemetry" src="../../assets/screenshots/monitoring.png" /></p>
 <h2 id="fleet-kpi-cards-and-monitored-routes-table">Fleet KPI cards and monitored routes table<a class="headerlink" href="#fleet-kpi-cards-and-monitored-routes-table" title="Permanent link">&para;</a></h2>
 <p>Celery Beat triggers the daily market pipeline (<code>daily_market_pipeline_task</code>) at <code>03:00 UTC</code> (plus on-demand corridor sweeps and backfills), storing historical price ticks inside a TimescaleDB hypertable (<code>market_price_ticks</code>).</p>
