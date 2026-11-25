@@ -11,7 +11,7 @@ Paladio runs locally on Linux, macOS, or Windows with Docker Engine and Docker C
 | **RAM** | 8 GB | 12 GB to 16 GB | `valhalla` reserves up to 3,072 MB (`mem_limit: 3072m`), `api` and `worker` allow up to 2,048 MB each, and `beat` allows 512 MB |
 | **CPU** | 4 cores | 6+ cores | In-process CPU ONNX inference (`FASTEMBED_THREADS=2`), C++20 `paladio_core` compilation, and Valhalla routing tiles (`cpus: 2.0`) |
 | **Disk** | 20 GB free | 50 GB+ free | Docker images, `/opt/models/fastembed` ONNX weights, `pgdata`, `valhalladata` OSM extracts, and `gtfsdata` transit feeds |
-| **Software** | Docker + Compose v2 | Docker Engine 24+ | `install.sh` and `install.ps1` abort if `docker`, the Docker daemon, or `docker compose version` is unavailable |
+| **Software** | Docker + Compose v2 | Docker Engine 24+ | `scripts/install/install.sh` and `scripts/install/install.ps1` abort if `docker`, the Docker daemon, or `docker compose version` is unavailable |
 
 ## Services and persistent volumes
 
@@ -46,13 +46,13 @@ cd paladio
 === "Linux / macOS (automated)"
 
     ```bash
-    ./install.sh
+    ./scripts/install/install.sh
     ```
 
 === "Windows PowerShell (automated)"
 
     ```powershell
-    .\install.ps1
+    .\scripts\install\install.ps1
     ```
 
 === "Manual .env setup"
@@ -78,7 +78,7 @@ docker compose exec api python scripts/migrate_verified_fares_to_quotes.py
 ```
 
 !!! info "About the one-line remote installer scripts"
-    `install.sh` and `install.ps1` support piping directly from GitHub (`curl -fsSL https://raw.githubusercontent.com/Leandro-Juan/paladio/main/install.sh | bash`), which downloads `docker-compose.yml` into `$HOME/paladio`. Because the current `docker-compose.yml` references local `build:` contexts (`backend/Dockerfile` and `frontend/Dockerfile`) instead of prebuilt GitHub Container Registry images (`ghcr.io/leandro-juan/paladio-api` and `ghcr.io/leandro-juan/paladio-frontend`), always clone the repository first before running `./install.sh` or `.\install.ps1`.
+    `scripts/install/install.sh` and `scripts/install/install.ps1` support piping directly from GitHub (`curl -fsSL https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.sh | bash`), which downloads `docker-compose.yml` into `$HOME/paladio`. Because the current `docker-compose.yml` references local `build:` contexts (`backend/Dockerfile` and `frontend/Dockerfile`) instead of prebuilt GitHub Container Registry images (`ghcr.io/leandro-juan/paladio-api` and `ghcr.io/leandro-juan/paladio-frontend`), always clone the repository first before running `./scripts/install/install.sh` or `.\scripts\install\install.ps1`.
 
 ## First-run administrator provisioning
 

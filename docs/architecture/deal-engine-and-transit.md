@@ -6,6 +6,9 @@ Two self-hosted subsystems keep Paladio independent of commercial itinerary aggr
 
 `backend/app/engine/market/` runs scheduled daily sweeps (`03:00 UTC`) and on-demand route backfills to catch statistically rare price drops rather than noisy promotional banners.
 
+!!! warning "Experimental data scraping"
+    While the quantile baseline, verdict, and itinerary gating pipeline is deterministic, the **flight and lodging data scraping** layer is currently experimental and subject to upstream provider changes.
+
 ```mermaid
 flowchart LR
     Flights["Aviasales Cache API + Ryanair Public API"] --> Ticks["TimescaleDB market_price_ticks"]

@@ -22,14 +22,14 @@ Set these variables in `.env` (or container environment overrides) before runnin
 | Variable | Default | Required in production | Purpose |
 | :--- | :--- | :--- | :--- |
 | `POSTGRES_USER` | `postgres` | Yes | PostgreSQL database superuser or application role name |
-| `POSTGRES_PASSWORD` | `postgres` | Yes | PostgreSQL password (generated automatically by `install.sh` / `install.ps1`) |
+| `POSTGRES_PASSWORD` | `postgres` | Yes | PostgreSQL password (generated automatically by `scripts/install/install.sh` / `scripts/install/install.ps1`) |
 | `POSTGRES_DB` | `paladio` | Yes | Primary PostgreSQL database holding TimescaleDB and `pgvector` tables |
 | `DATABASE_URL` | Compose DSN | Yes (non-Docker) | Async SQLAlchemy connection string (`postgresql+asyncpg://…`) |
 | `POSTGRES_HOST` | `db` | Compose default | Hostname used by helper scripts and health probes |
 | `REDIS_URL` | `redis://redis:6379/0` | Yes | Redis broker, result backend, pub/sub channels, and locks |
 | `ENVIRONMENT` | `development` | Set `production` | Controls strict production checks for `JWT_SECRET_KEY` and `WALLET_ENCRYPTION_KEY` |
-| `JWT_SECRET_KEY` | Persisted `data/.jwt_secret` | Yes | HS256 signing secret (generate with `openssl rand -hex 32`) |
-| `JWT_SECRET_PATH` | `data/.jwt_secret` | No | Fallback secret file path (`0600`) when `JWT_SECRET_KEY` is unset outside production |
+| `JWT_SECRET_KEY` | Persisted `.local/data/.jwt_secret` (local) / `/data/.jwt_secret` (Docker) | Yes | HS256 signing secret (generate with `openssl rand -hex 32`) |
+| `JWT_SECRET_PATH` | `.local/data/.jwt_secret` (local) / `/data/.jwt_secret` (Docker) | No | Fallback secret file path (`0600`) when `JWT_SECRET_KEY` is unset outside production |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` | No | JWT token lifetime in minutes (`1440` = 24 hours) |
 | `WALLET_ENCRYPTION_KEY` | Dev seed only | Yes | Fernet symmetric key protecting Bookings Wallet secrets (`access_code`, Wi-Fi keys) |
 | `ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Yes (custom domain) | Comma-separated CORS allowlist for the FastAPI gateway |
