@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { withViewTransition } from '@/utils/viewTransition';
 
 export type TypographyMode = 'inter' | 'classic';
 
@@ -31,12 +32,20 @@ export const useTypographyStore = create<TypographyStore>((set) => ({
     try {
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(STORAGE_KEY, typography);
-        document.documentElement.setAttribute('data-typography', typography);
       }
     } catch {
       // ignore
     }
-    set({ typography });
+    withViewTransition(() => {
+      try {
+        if (typeof document !== 'undefined') {
+          document.documentElement.setAttribute('data-typography', typography);
+        }
+      } catch {
+        // ignore
+      }
+      set({ typography });
+    });
   },
   toggleTypography: () =>
     set((state) => {
@@ -44,11 +53,19 @@ export const useTypographyStore = create<TypographyStore>((set) => ({
       try {
         if (typeof window !== 'undefined') {
           window.localStorage.setItem(STORAGE_KEY, next);
-          document.documentElement.setAttribute('data-typography', next);
         }
       } catch {
         // ignore
       }
+      withViewTransition(() => {
+        try {
+          if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute('data-typography', next);
+          }
+        } catch {
+          // ignore
+        }
+      });
       return { typography: next };
     }),
 }));

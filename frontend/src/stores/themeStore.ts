@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { withViewTransition } from '@/utils/viewTransition';
 
 export type Theme = 'light' | 'dark' | 'silent-waters';
 
@@ -72,12 +73,20 @@ export const useThemeStore = create<ThemeStore>((set) => ({
     try {
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(STORAGE_KEY, theme);
-        document.documentElement.setAttribute('data-theme', theme);
       }
     } catch {
       // ignore
     }
-    set({ theme });
+    withViewTransition(() => {
+      try {
+        if (typeof document !== 'undefined') {
+          document.documentElement.setAttribute('data-theme', theme);
+        }
+      } catch {
+        // ignore
+      }
+      set({ theme });
+    });
   },
   toggleTheme: () =>
     set((state) => {
@@ -87,11 +96,19 @@ export const useThemeStore = create<ThemeStore>((set) => ({
       try {
         if (typeof window !== 'undefined') {
           window.localStorage.setItem(STORAGE_KEY, next);
-          document.documentElement.setAttribute('data-theme', next);
         }
       } catch {
         // ignore
       }
+      withViewTransition(() => {
+        try {
+          if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute('data-theme', next);
+          }
+        } catch {
+          // ignore
+        }
+      });
       return { theme: next };
     }),
 }));

@@ -75,6 +75,34 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-full: 9999px;
+
+  /* Z-index Scale (Layering Architecture) */
+  --z-map: 10;
+  --z-panel: 20;
+  --z-nav: 30;
+  --z-pop: 40;
+  --z-modal: 50;
+
+  /* Motion & Animation Tokens (Tactical Editorial) */
+  --duration-instant: 90ms;
+  --duration-fast: 150ms;
+  --duration-snappy: 200ms;
+  --duration-bouncy: 280ms;
+  --duration-gentle: 320ms;
+  --duration-exit: 140ms;
+
+  --ease-snappy: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-gentle: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  --transition-fast: 150ms cubic-bezier(0.23, 1, 0.32, 1);
+  --transition-snappy: 200ms cubic-bezier(0.23, 1, 0.32, 1);
+  --transition-gentle: 320ms cubic-bezier(0.23, 1, 0.32, 1);
+  --transition-bouncy: 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Progressive enhancement: animate to/from intrinsic keywords like auto */
+  interpolate-size: allow-keywords;
 }
 
 [data-theme="dark"] {
@@ -283,6 +311,27 @@ a {
   text-decoration: none;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+:where(a, button, input, select, textarea, summary, [role="button"], [role="tab"], [role="menuitem"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :where(button:not(:disabled):not([data-no-press]):not(.paladio-no-press)):not(.leaflet-container button) {
+    transition: scale var(--duration-fast) var(--ease-snappy);
+  }
+
+  :where(button:not(:disabled):not([data-no-press]):not(.paladio-no-press)):not(.leaflet-container button):active {
+    scale: 0.975;
+  }
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
@@ -337,30 +386,6 @@ a {
   .paladio-poi-insert {
     animation: none !important;
   }
-}
-
-/* Map Waypoint Focus Pop-In Bounce Animation */
-@keyframes paladioWaypointPopIn {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.35);
-  }
-  60% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.18);
-  }
-  80% {
-    transform: translate(-50%, -50%) scale(0.96);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-.paladio-waypoint-pop {
-  animation: paladioWaypointPopIn 0.44s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-  will-change: transform, opacity;
 }
 
 /* Paladio Teardrop Pin Entrance/Exit Animations (Search & Day Territory Hover) */
@@ -531,12 +556,17 @@ a {
   animation: spin 1s linear infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin {
+    animation-duration: 6s;
+  }
+}
 
 /* Fluid Tab Content Entrance Animation */
 @keyframes tabPaneEntrance {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.996);
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
@@ -545,12 +575,12 @@ a {
 }
 
 .animate-tab-pane {
-  animation: tabPaneEntrance 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: tabPaneEntrance var(--duration-snappy) var(--ease-snappy) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-tab-pane {
-    animation: none !important;
+    animation: fadeIn var(--duration-instant) ease-out backwards;
   }
 }
 
@@ -638,6 +668,12 @@ a {
   border-color: var(--color-accent-primary);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .engine-active {
+    animation: none;
+  }
+}
+
 /* Brand logo theme switching */
 [data-theme="dark"] .brand-logo-light {
   display: none !important;
@@ -710,7 +746,7 @@ a {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -785,6 +821,15 @@ a {
   .sidebar.mobile-open {
     transform: translateX(0);
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-sidebar-backdrop {
+      animation: fadeIn var(--duration-instant) ease-out;
+    }
+    .sidebar {
+      transition: none;
+    }
   }
 
   .main-content {
@@ -976,6 +1021,12 @@ a {
   100% { transform: scale(0.9); opacity: 0.6; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  @keyframes pinGlow {
+    0%, 100% { transform: none; opacity: 0.35; }
+  }
+}
+
 /* Paladio Single-Line Dual-Thumb Range Slider */
 .paladio-dual-slider-container {
   position: relative;
@@ -1060,11 +1111,18 @@ a {
 @keyframes fadeInSlide {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.98);
+    transform: translateY(10px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes fadeInSlide {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 }
 
@@ -1091,7 +1149,556 @@ a {
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Canonical Motion Primitives & Interactive Transitions
+   ========================================================================== */
+
+/* Route / View Page Transitions */
+@keyframes paladioPageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.paladio-page-enter {
+  display: block;
+  width: 100%;
+  animation: fadeIn var(--duration-instant) ease-out backwards;
+}
+
+.trip-details-layout > .paladio-page-enter,
+.paladio-page-enter:has(> [data-vault-root]) {
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .paladio-page-enter {
+    animation: paladioPageEnter var(--duration-snappy) var(--ease-snappy) backwards;
+  }
+}
+
+/* Modals & Dialogs (Backdrop + Panel, Enter + Exit) */
+@keyframes paladioBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes paladioBackdropOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes paladioModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes paladioModalOut {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+}
+
+.paladio-modal-backdrop {
+  animation: paladioBackdropIn 180ms ease-out both;
+}
+
+.paladio-modal-backdrop[data-state="closing"] {
+  animation: paladioBackdropOut var(--duration-exit) var(--ease-exit) forwards;
+  pointer-events: none;
+}
+
+.paladio-modal-panel {
+  animation: paladioModalIn var(--duration-snappy) var(--ease-snappy) both;
+}
+
+.paladio-modal-panel[data-state="closing"] {
+  animation: paladioModalOut var(--duration-exit) var(--ease-exit) forwards;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paladio-modal-backdrop {
+    animation: paladioBackdropIn var(--duration-instant) ease-out both;
+  }
+  .paladio-modal-backdrop[data-state="closing"] {
+    animation: paladioBackdropOut var(--duration-instant) ease-out forwards;
+  }
+  .paladio-modal-panel {
+    animation: paladioBackdropIn var(--duration-instant) ease-out both;
+  }
+  .paladio-modal-panel[data-state="closing"] {
+    animation: paladioBackdropOut var(--duration-instant) ease-out forwards;
+  }
+}
+
+/* Popovers, Dropdowns & Context Menus (Trigger-Aligned Origin) */
+@keyframes paladioPopoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(var(--pop-y, -4px)) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes paladioPopoverOut {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(var(--pop-y, -4px)) scale(0.96);
+  }
+}
+
+.paladio-popover {
+  --pop-y: -4px;
+  transform-origin: top right;
+  animation: paladioPopoverIn 160ms var(--ease-snappy) both;
+}
+
+.paladio-popover[data-origin="top-left"] {
+  --pop-y: -4px;
+  transform-origin: top left;
+}
+
+.paladio-popover[data-origin="top-right"] {
+  --pop-y: -4px;
+  transform-origin: top right;
+}
+
+.paladio-popover[data-origin="bottom-left"] {
+  --pop-y: 4px;
+  transform-origin: bottom left;
+}
+
+.paladio-popover[data-origin="bottom-right"] {
+  --pop-y: 4px;
+  transform-origin: bottom right;
+}
+
+.paladio-popover[data-origin="top"] {
+  --pop-y: -4px;
+  transform-origin: top center;
+}
+
+.paladio-popover[data-origin="bottom"] {
+  --pop-y: 4px;
+  transform-origin: bottom center;
+}
+
+.paladio-popover[data-state="closing"] {
+  animation: paladioPopoverOut 120ms var(--ease-exit) forwards;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paladio-popover {
+    animation: paladioBackdropIn var(--duration-instant) ease-out both;
+  }
+  .paladio-popover[data-state="closing"] {
+    animation: paladioBackdropOut var(--duration-instant) ease-out forwards;
+  }
+}
+
+/* Native Top-Layer Dialog / Popover Fallback Support */
+dialog.paladio-top-layer {
+  opacity: 0;
+  transition-property: opacity, transform, display, overlay;
+  transition-duration: var(--duration-snappy);
+  transition-timing-function: var(--ease-snappy);
+  transition-behavior: allow-discrete;
+}
+
+dialog.paladio-top-layer[open]:not([data-closing]) {
+  opacity: 1;
+}
+
+@starting-style {
+  dialog.paladio-top-layer[open]:not([data-closing]) {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.paladio-top-layer {
+    transform: translateY(6px) scale(0.96);
+  }
+  dialog.paladio-top-layer[open]:not([data-closing]) {
+    transform: none;
+  }
+  @starting-style {
+    dialog.paladio-top-layer[open]:not([data-closing]) {
+      transform: translateY(6px) scale(0.96);
+    }
+  }
+}
+
+/* Toasts (Enter + Exit + Progress Timer) */
+@keyframes paladioToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes paladioToastInRtl {
+  from {
+    opacity: 0;
+    transform: translateX(-18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes paladioToastOut {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(14px) scale(0.96);
+  }
+}
+
+@keyframes paladioToastOutRtl {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-14px) scale(0.96);
+  }
+}
+
+@keyframes paladioToastProgress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+.paladio-toast {
+  animation: paladioToastIn var(--duration-snappy) var(--ease-snappy) both;
+}
+
+[dir="rtl"] .paladio-toast {
+  animation-name: paladioToastInRtl;
+}
+
+.paladio-toast[data-state="closing"] {
+  animation: paladioToastOut 150ms var(--ease-exit) forwards;
+  pointer-events: none;
+}
+
+[dir="rtl"] .paladio-toast[data-state="closing"] {
+  animation-name: paladioToastOutRtl;
+}
+
+.paladio-toast-progress {
+  transform-origin: left center;
+  animation: paladioToastProgress linear forwards;
+}
+
+[dir="rtl"] .paladio-toast-progress {
+  transform-origin: right center;
+}
+
+.paladio-toast:hover .paladio-toast-progress {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paladio-toast {
+    animation: paladioBackdropIn var(--duration-instant) ease-out both;
+  }
+  [dir="rtl"] .paladio-toast {
+    animation-name: paladioBackdropIn;
+  }
+  .paladio-toast[data-state="closing"] {
+    animation: paladioBackdropOut var(--duration-instant) ease-out forwards;
+  }
+  [dir="rtl"] .paladio-toast[data-state="closing"] {
+    animation-name: paladioBackdropOut;
+  }
+}
+
+/* Smooth CSS Grid Collapsibles / Accordions (Zero height/width layout animation) */
+.paladio-collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows 220ms var(--ease-snappy),
+    opacity 180ms ease-out,
+    visibility 0s linear 220ms;
+}
+
+.paladio-collapsible[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows 220ms var(--ease-snappy),
+    opacity 180ms ease-out,
+    visibility 0s linear 0s;
+}
+
+@starting-style {
+  .paladio-collapsible[data-open="true"] {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+.paladio-collapsible-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paladio-collapsible {
+    transition:
+      opacity var(--duration-instant) ease-out,
+      visibility 0s linear var(--duration-instant);
+  }
+  .paladio-collapsible[data-open="true"] {
+    transition:
+      opacity var(--duration-instant) ease-out,
+      visibility 0s linear 0s;
+  }
+}
+
+/* Native <details> Progressive Enhancement */
+details::details-content {
+  overflow: hidden;
+  transition-property: block-size, opacity, content-visibility;
+  transition-duration: 220ms;
+  transition-timing-function: var(--ease-snappy);
+  transition-behavior: allow-discrete;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  details::details-content {
+    transition-duration: var(--duration-instant);
+  }
+}
+
+/* Staggered Sibling Entrance (CSS sibling-index with @supports gate + nth-child fallback) */
+@keyframes paladioCardReveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.paladio-stagger-list > * {
+  --stagger-step: 28ms;
+  animation: paladioCardReveal var(--duration-snappy) var(--ease-snappy) backwards;
+}
+
+@supports (animation-delay: calc(sibling-index() * 0.1s)) {
+  .paladio-stagger-list > * {
+    animation-delay: min(calc((sibling-index() - 1) * var(--stagger-step)), 220ms);
+  }
+}
+
+@supports not (animation-delay: calc(sibling-index() * 0.1s)) {
+  .paladio-stagger-list > *:nth-child(1) { animation-delay: 0ms; }
+  .paladio-stagger-list > *:nth-child(2) { animation-delay: 28ms; }
+  .paladio-stagger-list > *:nth-child(3) { animation-delay: 56ms; }
+  .paladio-stagger-list > *:nth-child(4) { animation-delay: 84ms; }
+  .paladio-stagger-list > *:nth-child(5) { animation-delay: 112ms; }
+  .paladio-stagger-list > *:nth-child(6) { animation-delay: 140ms; }
+  .paladio-stagger-list > *:nth-child(7) { animation-delay: 168ms; }
+  .paladio-stagger-list > *:nth-child(8) { animation-delay: 196ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paladio-stagger-list > * {
+    animation: paladioBackdropIn var(--duration-instant) ease-out backwards;
+    animation-delay: 0ms !important;
+  }
+}
+
+/* Physics-Based Spring Badge Pop (transform only, never bounce opacity) */
+@keyframes paladioBadgePop {
+  from {
+    transform: scale(0.95);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.paladio-badge-pop {
+  animation-name: paladioBadgePop;
+  animation-duration: var(--duration-bouncy);
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-timing-function: linear(0, 0.38 14%, 1.09 36%, 0.97 58%, 1.01 78%, 1);
+  animation-fill-mode: both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paladio-badge-pop {
+    animation: paladioBackdropIn var(--duration-instant) ease-out both;
+  }
+}
+
+/* Pulse, Ping & Skeleton Primitives */
+@keyframes paladioPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@keyframes paladioPing {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  75%, 100% {
+    transform: scale(1.85);
+    opacity: 0;
+  }
+}
+
+@keyframes paladioSkeletonPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.92; }
+}
+
+.paladio-pulse {
+  animation: paladioPulse 1.6s ease-in-out infinite;
+}
+
+.paladio-ping {
+  animation: paladioPing 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.paladio-skeleton {
+  animation: paladioSkeletonPulse 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paladio-pulse,
+  .paladio-ping,
+  .paladio-skeleton {
+    animation: none !important;
+  }
+}
+
+/* Interactive Cards & Hover-Revealed Actions */
+.paladio-card-interactive {
+  transition: transform var(--transition-snappy), box-shadow var(--transition-snappy), border-color var(--transition-fast);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .paladio-card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .paladio-card-interactive:active {
+    transform: translateY(0) scale(0.99);
+  }
+}
+
+.paladio-reveal-actions {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.paladio-reveal-parent:hover .paladio-reveal-actions,
+.paladio-reveal-parent:focus-within .paladio-reveal-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .paladio-reveal-actions {
+    opacity: 1;
+  }
+}
+
+/* Sliding Active Pill / Underline Primitives */
+.paladio-sliding-pill,
+.paladio-sliding-underline {
+  transition:
+    transform var(--transition-snappy),
+    width var(--transition-snappy),
+    height var(--transition-snappy),
+    opacity var(--duration-fast) ease;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paladio-sliding-pill,
+  .paladio-sliding-underline {
+    transition: opacity var(--duration-instant) ease-out;
+  }
+}
+
+/* Spring Toggle Thumb (Physics-Based linear() with cubic-bezier fallback) */
+.paladio-toggle-thumb {
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-timing-function: linear(0, 0.42 15%, 1.07 38%, 0.98 62%, 1.01 82%, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paladio-toggle-thumb {
+    transition: none;
+  }
+  .paladio-drawer-panel {
+    transition: opacity var(--duration-instant) ease-out !important;
+    transform: none !important;
+  }
+}
+
+/* Document View Transitions (Theme / Nav-Style / Mode Switches) */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
 
