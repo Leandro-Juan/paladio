@@ -2058,15 +2058,11 @@
 </div>
 </div>
 <ol>
-<li>Confirm the backend gateway is serving health checks and verify database migrations are applied:</li>
+<li>The automated installers (<code>install.sh</code> and <code>install.ps1</code>) automatically apply database migrations and seed the verified transit fare catalog once the backend is healthy. If you used <strong>Manual <code>.env</code> setup</strong> (or are upgrading an existing installation), verify health checks, apply migrations, and seed the transit fare catalog manually:</li>
 </ol>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>curl<span class="w"> </span>-fs<span class="w"> </span>http://127.0.0.1:8000/health
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>api<span class="w"> </span>alembic<span class="w"> </span>upgrade<span class="w"> </span>head
-</span></code></pre></div>
-<ol>
-<li>Seed the verified global transit fare quotes if your database starts empty:</li>
-</ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>api<span class="w"> </span>python<span class="w"> </span>scripts/migrate_verified_fares_to_quotes.py
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>api<span class="w"> </span>python<span class="w"> </span>scripts/migrate_verified_fares_to_quotes.py
 </span></code></pre></div>
 <div class="admonition info">
 <p class="admonition-title">About the one-line remote installer scripts</p>
@@ -2085,8 +2081,8 @@
 </div>
 <h2 id="troubleshooting-installation-startup">Troubleshooting installation startup<a class="headerlink" href="#troubleshooting-installation-startup" title="Permanent link">&para;</a></h2>
 <p>If containers fail to start or <code>/health</code> times out after 60s, inspect service logs to isolate build, memory, or port conflicts:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>ps
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>--tail<span class="o">=</span><span class="m">100</span><span class="w"> </span>api<span class="w"> </span>worker<span class="w"> </span>db<span class="w"> </span>valhalla
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>ps
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>--tail<span class="o">=</span><span class="m">100</span><span class="w"> </span>api<span class="w"> </span>worker<span class="w"> </span>db<span class="w"> </span>valhalla
 </span></code></pre></div>
 <ul>
 <li><strong>Port 3000 or 8000 already in use</strong>: Set <code>API_PORT</code> or <code>FRONTEND_PORT</code> in <code>.env</code> and restart with <code>docker compose up -d</code>.</li>
