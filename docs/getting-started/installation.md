@@ -64,16 +64,11 @@ cd paladio
     docker compose up -d --build
     ```
 
-3. Confirm the backend gateway is serving health checks and verify database migrations are applied:
+3. The automated installers (`install.sh` and `install.ps1`) automatically apply database migrations and seed the verified transit fare catalog once the backend is healthy. If you used **Manual `.env` setup** (or are upgrading an existing installation), verify health checks, apply migrations, and seed the transit fare catalog manually:
 
 ```bash
 curl -fs http://127.0.0.1:8000/health
 docker compose exec api alembic upgrade head
-```
-
-4. Seed the verified global transit fare quotes if your database starts empty:
-
-```bash
 docker compose exec api python scripts/migrate_verified_fares_to_quotes.py
 ```
 

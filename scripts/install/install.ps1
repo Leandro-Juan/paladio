@@ -206,11 +206,34 @@ function Install-Paladio {
 
         if ($healthy) {
             Write-Success "Backend API is online and healthy!"
+
+            # --- Step 7: Initialize Database & Transit Fare Catalog ---
+            Write-Info "Ensuring database migrations and transit fare catalog are up to date..."
+            $ErrorActionPreference = "Continue"
+            docker compose exec -T api alembic upgrade head
+            $migrateExit = $LASTEXITCODE
+            $seedExit = 1
+            if ($migrateExit -eq 0) {
+                docker compose exec -T api python scripts/migrate_verified_fares_to_quotes.py
+                $seedExit = $LASTEXITCODE
+            }
+            $ErrorActionPreference = $prevPref
+
+            if ($migrateExit -eq 0 -and $seedExit -eq 0) {
+                Write-Success "Database schema and transit fare catalog initialized."
+            } else {
+                Write-Warn "Database initialization returned a non-zero exit code. Once services are ready, run:"
+                Write-Warn "  docker compose exec api alembic upgrade head"
+                Write-Warn "  docker compose exec api python scripts/migrate_verified_fares_to_quotes.py"
+            }
         } else {
             Write-Warn "Backend is still initializing. Check logs with: docker compose logs -f"
+            Write-Warn "Once healthy, initialize the database and transit fare catalog with:"
+            Write-Warn "  docker compose exec api alembic upgrade head"
+            Write-Warn "  docker compose exec api python scripts/migrate_verified_fares_to_quotes.py"
         }
 
-        # --- Step 7: Final Instruction Banner ---
+        # --- Step 8: Final Instruction Banner ---
         Write-Host ""
         Write-Host "+-------------------------------------------------------------+" -ForegroundColor Cyan
         Write-Host "|  Paladio is successfully installed and running!             |" -ForegroundColor Cyan

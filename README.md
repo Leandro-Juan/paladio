@@ -115,12 +115,7 @@ cd paladio
 ./scripts/install/install.sh   # Windows PowerShell: .\scripts\install\install.ps1
 ```
 
-The installer checks Docker, creates secure random credentials, starts Paladio, and waits until the app is ready. On a fresh install, initialize the database and transit fare catalog:
-
-```bash
-docker compose exec api alembic upgrade head
-docker compose exec api python scripts/migrate_verified_fares_to_quotes.py
-```
+The installer checks Docker, creates secure random credentials, starts Paladio, waits until the app is ready, and initializes the database schema and transit fare catalog automatically.
 
 Open **[`http://localhost:3000`](http://localhost:3000)**, create your account, and start planning your first trip — no API keys required.
 
@@ -128,7 +123,7 @@ Open **[`http://localhost:3000`](http://localhost:3000)**, create your account, 
 <summary><strong>System requirements, manual setup & local development</strong></summary>
 
 - **Recommended hardware**: 8 GB RAM / 4 CPU cores / 20 GB disk minimum; 12–16 GB RAM / 6+ cores / 50 GB+ disk recommended for local maps, transit schedules, and search models.
-- **Manual setup**: Copy `.env.example` to `.env`, set random secrets for `POSTGRES_PASSWORD` and `JWT_SECRET_KEY` (`openssl rand -hex 32`), and run `docker compose up -d --build`.
+- **Manual setup**: Copy `.env.example` to `.env`, set random secrets for `POSTGRES_PASSWORD` and `JWT_SECRET_KEY` (`openssl rand -hex 32`), run `docker compose up -d --build`, and initialize the database and transit fare catalog with `docker compose exec api alembic upgrade head` and `docker compose exec api python scripts/migrate_verified_fares_to_quotes.py`.
 - **What runs inside Docker**: Web app (`:3000`), API server (`:8000`), PostgreSQL database, Redis, local Valhalla map router, and background workers for price alerts, maps, and transit.
 - **Developing locally**: See [Install with Docker](./docs/getting-started/installation.md) and [Local Development](./docs/getting-started/local-development.md) to build the C++ route solver and run services natively.
 

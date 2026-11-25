@@ -176,11 +176,24 @@ printf "\n"
 
 if [ $HEALTHY -eq 1 ]; then
 	success "Backend API is online and healthy!"
+
+	# --- Step 7: Initialize Database & Transit Fare Catalog ---
+	info "Ensuring database migrations and transit fare catalog are up to date..."
+	if docker compose exec -T api alembic upgrade head && docker compose exec -T api python scripts/migrate_verified_fares_to_quotes.py; then
+		success "Database schema and transit fare catalog initialized."
+	else
+		warn "Database initialization returned a non-zero exit code. Once services are ready, run:"
+		warn "  docker compose exec api alembic upgrade head"
+		warn "  docker compose exec api python scripts/migrate_verified_fares_to_quotes.py"
+	fi
 else
 	warn "Backend is still initializing. Check logs with: docker compose logs -f"
+	warn "Once healthy, initialize the database and transit fare catalog with:"
+	warn "  docker compose exec api alembic upgrade head"
+	warn "  docker compose exec api python scripts/migrate_verified_fares_to_quotes.py"
 fi
 
-# --- Step 7: Final Instruction Banner ---
+# --- Step 8: Final Instruction Banner ---
 printf "\n"
 printf "${COLOR_TEAL}╭─────────────────────────────────────────────────────────────╮${COLOR_RESET}\n"
 printf "${COLOR_TEAL}│${COLOR_RESET}  ${COLOR_BOLD}Paladio is successfully installed and running!${COLOR_RESET}             ${COLOR_TEAL}│${COLOR_RESET}\n"
