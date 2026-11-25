@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from app.core.paths import resolve_project_root, resolve_runtime_data_dir
 from app.db.models import SystemConfigModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,19 +25,6 @@ def set_record_value(record: SystemConfigModel, val: dict[str, Any]) -> None:
     flag_modified(record, "value")
 
 
-def resolve_project_root() -> Path:
-    """Dynamically resolve repository or app root."""
-    # Try traversing upwards looking for .release-please-manifest.json or docker-compose.yml
-    curr = Path(__file__).resolve().parent
-    for _ in range(5):
-        if (curr / ".release-please-manifest.json").exists() or (
-            curr / "docker-compose.yml"
-        ).exists():
-            return curr
-        curr = curr.parent
-    return Path(__file__).resolve().parents[2]
-
-
 def get_current_installed_version() -> str:
     """Dynamically read the current version from the project manifest or environment."""
     env_ver = os.getenv("APP_VERSION")
@@ -44,7 +32,7 @@ def get_current_installed_version() -> str:
         return env_ver.lstrip("v").strip()
 
     root = resolve_project_root()
-    manifest = root / ".release-please-manifest.json"
+    manifest = root / ".github" / "release-please-manifest.json"
     if manifest.exists():
         try:
             data = json.loads(manifest.read_text(encoding="utf-8"))
@@ -52,6 +40,24 @@ def get_current_installed_version() -> str:
                 return str(data["."]).lstrip("v").strip()
         except Exception as e:
             logger.warning(f"Failed to read version from manifest: {e}")
+
+    for pyproject_candidate in (
+        root / "backend" / "pyproject.toml",
+        root / "pyproject.toml",
+    ):
+        if pyproject_candidate.exists():
+            try:
+                match = re.search(
+                    r'^version\s*=\s*"([^"]+)"',
+                    pyproject_candidate.read_text(encoding="utf-8"),
+                    re.MULTILINE,
+                )
+                if match:
+                    return match.group(1).lstrip("v").strip()
+            except Exception as e:
+                logger.warning(
+                    f"Failed to read version from {pyproject_candidate}: {e}"
+                )
 
     # Fallback to frontend package.json
     frontend_pkg = root / "frontend" / "package.json"
@@ -90,8 +96,7 @@ def get_updates_directory() -> Path:
     if custom_dir:
         path = Path(custom_dir)
     else:
-        root = resolve_project_root()
-        path = root / "data" / "updates"
+        path = resolve_runtime_data_dir() / "updates"
 
     try:
         path.mkdir(parents=True, exist_ok=True)

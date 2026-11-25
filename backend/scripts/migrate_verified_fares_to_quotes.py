@@ -3,11 +3,15 @@
 import asyncio
 import hashlib
 import logging
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
-from app.db.models import TransitFareQuoteModel
-from app.db.session import async_session
 from sqlalchemy import select
+
+_BACKEND_ROOT = str(Path(__file__).resolve().parents[1])
+if _BACKEND_ROOT not in sys.path:
+    sys.path.insert(0, _BACKEND_ROOT)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -162,6 +166,9 @@ OFFICIAL_CITED_QUOTES = [
 
 
 async def migrate_quotes() -> None:
+    from app.db.models import TransitFareQuoteModel
+    from app.db.session import async_session
+
     now = datetime.now(timezone.utc)
     async with async_session() as db:
         for item in OFFICIAL_CITED_QUOTES:

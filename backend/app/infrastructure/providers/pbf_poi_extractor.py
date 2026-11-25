@@ -603,11 +603,13 @@ class PbfPoiExtractor:
     @classmethod
     def find_local_pbf(cls, city_name: str) -> str | None:
         """Looks for existing .osm.pbf on disk in standard paths."""
+        from app.core.paths import resolve_runtime_data_dir
+
         city_clean = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
         search_dirs = [
             os.environ.get("OSM_PBF_DIR", "/custom_files"),
             "/custom_files",
-            os.path.abspath("./data/custom_files"),
+            str(resolve_runtime_data_dir() / "custom_files"),
             os.path.abspath("./custom_files"),
         ]
 
@@ -632,6 +634,7 @@ class PbfPoiExtractor:
             return existing
 
         try:
+            from app.core.paths import resolve_runtime_data_dir
             from app.services.osm_map_service import OSMMapService
 
             url, filename = await OSMMapService.resolve_osm_pbf_url(city_name)
@@ -640,7 +643,7 @@ class PbfPoiExtractor:
                 try:
                     os.makedirs(target_dir, exist_ok=True)
                 except OSError:
-                    target_dir = os.path.abspath("./data/custom_files")
+                    target_dir = str(resolve_runtime_data_dir() / "custom_files")
                     os.makedirs(target_dir, exist_ok=True)
 
             dest_path = os.path.join(target_dir, filename)

@@ -4,12 +4,14 @@ import shutil
 import uuid
 from pathlib import Path
 
+from app.core.paths import resolve_runtime_data_dir
 from app.db.models import TripTicketAttachmentModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 STORAGE_BASE_DIR = Path(
-    os.getenv("WALLET_STORAGE_DIR", "data/wallet_attachments")
+    os.getenv("WALLET_STORAGE_DIR")
+    or (resolve_runtime_data_dir() / "wallet_attachments")
 ).resolve()
 TEMP_STORAGE_DIR = (STORAGE_BASE_DIR / "temp").resolve()
 

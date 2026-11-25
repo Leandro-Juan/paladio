@@ -1,12 +1,14 @@
 import hashlib
 import hmac
 import os
-from pathlib import Path
 import secrets
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 import jwt
+
+from app.core.paths import resolve_runtime_data_dir
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 APP_ENV = os.getenv("APP_ENV", "").lower()
@@ -17,7 +19,9 @@ def _load_or_generate_secret_key() -> str:
     if env_secret and env_secret.strip():
         return env_secret.strip()
 
-    secret_file = Path(os.getenv("JWT_SECRET_PATH", "data/.jwt_secret"))
+    secret_file = Path(
+        os.getenv("JWT_SECRET_PATH") or (resolve_runtime_data_dir() / ".jwt_secret")
+    )
     try:
         if secret_file.exists():
             content = secret_file.read_text(encoding="utf-8").strip()
