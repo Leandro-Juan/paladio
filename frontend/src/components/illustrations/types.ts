@@ -13,7 +13,8 @@ export type IllustrationCategory =
   | 'Transit & Waypoints'
   | 'Navigation'
   | 'Hospitality & Leisure'
-  | 'Tactical & Protocol';
+  | 'Tactical & Protocol'
+  | 'Place Placeholders';
 
 export interface IllustrationMetadata {
   id: string;
