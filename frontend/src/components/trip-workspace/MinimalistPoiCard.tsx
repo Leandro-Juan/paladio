@@ -173,8 +173,8 @@ export function MinimalistPoiCard({
         maxHeight: isRemoving ? '0px' : isEditMode ? '160px' : '90px',
         overflow: isRemoving ? 'hidden' : 'visible',
         transition: isRemoving
-          ? 'all 0.28s cubic-bezier(0.2, 0, 0, 1)'
-          : 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+          ? 'opacity var(--transition-snappy), transform var(--transition-snappy), max-height var(--duration-gentle) var(--ease-exit)'
+          : 'opacity var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast)',
         position: 'relative',
         userSelect: 'none',
         pointerEvents: isRemoving ? 'none' : undefined,

@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { NotificationItem, NotificationType } from '@/types/notification';
 import { formatFullDateTime, formatRelativeTime } from '@/utils/date';
 import { EmptyState } from './EmptyState';
@@ -43,6 +44,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
     () => true,
     () => false
   );
+  const panelMount = useAnimatedMount(isOpen, 140);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const [stylePos, setStylePos] = useState<React.CSSProperties>({
@@ -148,12 +150,15 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
     };
   }, [isOpen, onClose, triggerRef]);
 
-  if (!isOpen || !isClient) return null;
+  if (!panelMount.shouldRender || !isClient) return null;
 
   return createPortal(
     <div
       ref={panelRef}
       role="dialog"
+      className="paladio-popover"
+      data-state={panelMount.dataState}
+      data-origin={placement === 'top' ? 'bottom-left' : 'top-left'}
       aria-label={t('nav.notifications')}
       aria-modal="false"
       style={{
@@ -242,6 +247,7 @@ export function NotificationCenter({ isOpen, onClose, placement = 'bottom', trig
 
       {/* Notifications List */}
       <div
+        className={notifications.length > 0 ? 'paladio-stagger-list' : undefined}
         style={{
           flex: 1,
           overflowY: 'auto',

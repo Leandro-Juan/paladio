@@ -11,6 +11,7 @@ import { HelpArticleView } from '@/components/help/HelpArticleView';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
 import { ChevronLeftIcon } from '@/components/icons';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount, useEscapeAndFocusReturn } from '@/hooks/useAnimatedMount';
 import styles from './help.module.css';
 
 function getHelpViewKey(categoryId: string, articleId: string | null): string {
@@ -27,6 +28,9 @@ function HelpPageInner() {
   const selectedArticleId = searchParams?.get('doc') || searchParams?.get('article') || null;
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const { shouldRender: showMobileSidebarBackdrop, isClosing: isMobileBackdropClosing } =
+    useAnimatedMount(isMobileSidebarOpen, 150);
+  useEscapeAndFocusReturn(isMobileSidebarOpen, () => setIsMobileSidebarOpen(false));
 
   // Per-instance reading & scroll tracking (resets cleanly whenever user leaves and reopens /help)
   const contentAreaRef = useRef<HTMLElement | null>(null);
@@ -191,12 +195,21 @@ function HelpPageInner() {
 
       {/* Main Split Layout */}
       <div className={styles.helpBody}>
+        {showMobileSidebarBackdrop && (
+          <div
+            aria-hidden="true"
+            className={styles.helpSidebarBackdrop}
+            data-state={isMobileBackdropClosing ? 'closing' : 'open'}
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+        )}
         {/* Left Navigation Sidebar with Search Input */}
         <HelpSidebar
           selectedCategoryId={activeCategoryId}
           selectedArticleId={selectedArticleId}
           onSelectCategory={handleSelectCategory}
           onSelectArticle={handleSelectArticle}
+          isMobileOpen={isMobileSidebarOpen}
         />
 
         {/* Right Main Content Area */}
@@ -206,6 +219,7 @@ function HelpPageInner() {
           className={styles.helpContentArea}
           data-testid="help-content-area"
         >
+          <div key={getHelpViewKey(activeCategoryId, selectedArticleId)} className="animate-tab-pane">
           {selectedArticle ? (
             /* Mode 1: Detailed Article View */
             <HelpArticleView
@@ -287,6 +301,7 @@ function HelpPageInner() {
               </section>
             </div>
           )}
+          </div>
         </main>
       </div>
     </div>

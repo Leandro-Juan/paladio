@@ -68,7 +68,7 @@
   background: #FFFFFF;
   color: #0F4C5C;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   padding: 0;
 }
 
@@ -326,7 +326,10 @@
   border: 1px solid rgba(15, 76, 92, 0.22);
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
   user-select: none;
 }
 
@@ -407,4 +410,19 @@
   background: rgba(24, 37, 44, 0.92);
   color: #7CC4D1;
   border-color: rgba(124, 196, 209, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poiCard,
+  .poiImage,
+  .focusButton,
+  .addButton {
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .poiCard:hover,
+  .poiCard:hover .poiImage,
+  .focusButton:hover,
+  .addButton:active {
+    transform: none;
+  }
 }

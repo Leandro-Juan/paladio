@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { translate } from '@/stores/localeStore';
+import { useAnimatedMount, useEscapeAndFocusReturn } from '@/hooks/useAnimatedMount';
 import { Spinner, CheckIcon, ClockIcon, CloseIcon, RefreshIcon } from '@/components/icons';
 import {
   PlannedTripTransitItem,
@@ -19,7 +20,8 @@ interface SyncGtfsTripsModalProps {
 function SyncGtfsTripsModalContent({
   onClose,
   onSyncSuccess,
-}: Omit<SyncGtfsTripsModalProps, 'isOpen'>) {
+  dataState,
+}: Omit<SyncGtfsTripsModalProps, 'isOpen'> & { dataState: 'open' | 'closing' }) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState<PlannedTripTransitItem[]>([]);
@@ -115,6 +117,11 @@ function SyncGtfsTripsModalContent({
   return (
     <div
       data-testid="sync-gtfs-trips-modal"
+      className="paladio-modal-backdrop"
+      data-state={dataState}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !submitting) onClose();
+      }}
       style={{
         position: 'fixed',
         inset: 0,
@@ -127,6 +134,11 @@ function SyncGtfsTripsModalContent({
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        className="paladio-modal-panel"
+        data-state={dataState}
+        onClick={(e) => e.stopPropagation()}
         style={{
           background: 'var(--color-surface-card)',
           borderRadius: '16px',
@@ -450,12 +462,16 @@ export function SyncGtfsTripsModal({
   onClose,
   onSyncSuccess,
 }: SyncGtfsTripsModalProps) {
-  if (!isOpen) return null;
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
+  useEscapeAndFocusReturn(isOpen, onClose);
+
+  if (!shouldRender) return null;
 
   return (
     <SyncGtfsTripsModalContent
       onClose={onClose}
       onSyncSuccess={onSyncSuccess}
+      dataState={dataState}
     />
   );
 }

@@ -1319,6 +1319,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             </button>
             {isShiftDatePickerOpen && typeof document !== 'undefined' && createPortal(
               <div
+                className="paladio-modal-backdrop"
                 onClick={() => setIsShiftDatePickerOpen(false)}
                 style={{
                   position: 'fixed',
@@ -1332,7 +1333,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                   padding: '16px',
                 }}
               >
-                <div onClick={(e) => e.stopPropagation()}>
+                <div className="paladio-modal-panel" onClick={(e) => e.stopPropagation()}>
                   <PaladioSingleDatePicker
                     title={t('trip_config.new_start_date_title')}
                     selectedDate={shiftStartDate}
@@ -1481,6 +1482,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         <div
           role="dialog"
           aria-modal="true"
+          className="paladio-modal-backdrop"
           style={{
             position: 'fixed',
             inset: 0,
@@ -1493,6 +1495,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           }}
         >
           <div
+            className="paladio-modal-panel"
             style={{
               background: 'var(--color-surface-card)',
               border: '1px solid var(--color-danger)',

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HELP_CATEGORIES, HelpArticle } from './helpData';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 
 interface HelpSearchModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
 
   // Flatten all articles
   const allArticles = HELP_CATEGORIES.flatMap((c) =>
@@ -86,13 +88,15 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, filtered, selectedIndex, handleClose, handleSelect]);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={t('help.search_docs_aria')}
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       style={{
         position: 'fixed',
         inset: 0,
@@ -104,9 +108,11 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
         justifyContent: 'center',
         paddingTop: '12vh',
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
+        className="paladio-modal-panel"
+        data-state={dataState}
         style={{
           width: '90%',
           maxWidth: '600px',
@@ -193,7 +199,7 @@ export function HelpSearchModal({ isOpen, onClose, onSelectArticle }: HelpSearch
                 })}
             </div>
           ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <ul className="paladio-stagger-list" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {filtered.map((item, idx) => {
                 const isSelected = idx === selectedIndex;
                 return (

@@ -71,8 +71,6 @@ export function LanguagePickerModal({
       }
     } catch (err) {
       console.error('Failed to update language:', err);
-    } finally {
-      onClose();
     }
   };
 

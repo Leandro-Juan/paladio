@@ -287,7 +287,7 @@ export function SettingsSidebar({
 
         {/* Suggested Search Dropdown Menu */}
         {isOpen && searchQuery.trim().length > 0 && (
-          <div id="settings-search-dropdown" className={styles.searchDropdownMenu} role="listbox">
+          <div id="settings-search-dropdown" className={`${styles.searchDropdownMenu} paladio-popover`} data-origin="top" role="listbox">
             <div className={styles.searchDropdownList}>
               {suggestions.length === 0 ? (
                 <div className={styles.searchDropdownEmpty}>

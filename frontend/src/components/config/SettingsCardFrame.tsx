@@ -1,6 +1,7 @@
 'use strict';
 import React from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useSlidingIndicator } from '@/hooks/useSlidingIndicator';
 import { SettingsContextMenu, ContextMenuItem } from './SettingsContextMenu';
 
 export interface SubTabItem {
@@ -47,6 +48,13 @@ export function SettingsCardFrame({
   className,
 }: SettingsCardFrameProps) {
   const { t } = useTranslation();
+  const {
+    containerRef: subTabListRef,
+    registerItem: registerSubTab,
+    indicatorStyle: subTabIndicatorStyle,
+    isReady: subTabIndicatorReady,
+    animate: subTabAnimate,
+  } = useSlidingIndicator<string>(activeSubTab, [subTabs?.length ?? 0]);
 
   const getBadgeStyle = () => {
     switch (badgeTone) {
@@ -162,7 +170,8 @@ export function SettingsCardFrame({
                 fontSize: '12px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                transition:
+                  'background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast)',
               }}
             >
               {actionButton.icon || '+'}
@@ -178,7 +187,9 @@ export function SettingsCardFrame({
       {/* Segmented Sub-Tab Switcher (Pill style from reference mockup) */}
       {subTabs && subTabs.length > 0 && onSelectSubTab && (
         <div
+          ref={subTabListRef}
           style={{
+            position: 'relative',
             display: 'flex',
             alignItems: 'center',
             backgroundColor: 'var(--color-bg-main, #F7F5F0)',
@@ -191,23 +202,40 @@ export function SettingsCardFrame({
             overflowX: 'auto',
           }}
         >
+          <div
+            aria-hidden="true"
+            className="paladio-sliding-pill"
+            data-animate={subTabAnimate ? 'true' : 'false'}
+            style={{
+              ...subTabIndicatorStyle,
+              borderRadius: '9999px',
+              backgroundColor: 'var(--color-surface-card, #FFFFFF)',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
+              zIndex: 0,
+            }}
+          />
           {subTabs.map((tab) => {
             const isActive = activeSubTab === tab.id;
             return (
               <button
                 key={tab.id}
+                ref={registerSubTab(tab.id)}
                 type="button"
+                aria-pressed={isActive}
                 onClick={() => onSelectSubTab(tab.id)}
                 style={{
+                  position: 'relative',
+                  zIndex: 1,
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
                   padding: '6px 16px',
                   borderRadius: '9999px',
                   border: 'none',
-                  backgroundColor: isActive
-                    ? 'var(--color-surface-card, #FFFFFF)'
-                    : 'transparent',
+                  backgroundColor:
+                    isActive && !subTabIndicatorReady
+                      ? 'var(--color-surface-card, #FFFFFF)'
+                      : 'transparent',
                   color: isActive
                     ? 'var(--color-text-primary, #1A202C)'
                     : 'var(--color-text-muted, #718096)',
@@ -215,10 +243,11 @@ export function SettingsCardFrame({
                   fontSize: '12px',
                   fontWeight: isActive ? 600 : 500,
                   cursor: 'pointer',
-                  boxShadow: isActive
-                    ? '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)'
-                    : 'none',
-                  transition: 'all 0.16s ease',
+                  boxShadow:
+                    isActive && !subTabIndicatorReady
+                      ? '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)'
+                      : 'none',
+                  transition: 'color var(--transition-fast)',
                   whiteSpace: 'nowrap',
                 }}
               >

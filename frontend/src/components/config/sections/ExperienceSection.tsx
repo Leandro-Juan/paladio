@@ -4,6 +4,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useThemeStore } from '@/stores/themeStore';
 import { useTypographyStore } from '@/stores/typographyStore';
 import { useNavigationStore } from '@/stores/navigationStore';
+import { useSlidingIndicator } from '@/hooks/useSlidingIndicator';
 import { SettingsHeader } from '../SettingsHeader';
 import { SettingsCardFrame } from '../SettingsCardFrame';
 import { TacticalToggle } from '../TacticalToggle';
@@ -44,6 +45,13 @@ export function ExperienceSection({
   const resolvedFromProps = resolveExperienceSubTab(subTab, initialSubTab);
   const [prevPropKey, setPrevPropKey] = useState(`${subTab}:${initialSubTab ?? ''}`);
   const [activeSubTab, setActiveSubTab] = useState<ExperienceTabKey>(resolvedFromProps);
+  const {
+    containerRef: subTabListRef,
+    registerItem: registerSubTab,
+    indicatorStyle: subTabIndicatorStyle,
+    isReady: subTabIndicatorReady,
+    animate: subTabAnimate,
+  } = useSlidingIndicator<ExperienceTabKey>(activeSubTab);
 
   const currentPropKey = `${subTab}:${initialSubTab ?? ''}`;
   if (currentPropKey !== prevPropKey) {
@@ -113,9 +121,11 @@ export function ExperienceSection({
 
       {/* Horizontal Sub-Tab Switcher */}
       <div
+        ref={subTabListRef}
         role="tablist"
         aria-label={t('config.appearance_subtabs_aria')}
         style={{
+          position: 'relative',
           display: 'inline-flex',
           alignItems: 'center',
           backgroundColor: 'var(--color-bg-main, #F7F5F0)',
@@ -128,29 +138,50 @@ export function ExperienceSection({
           overflowX: 'auto',
         }}
       >
+        <div
+          aria-hidden="true"
+          className="paladio-sliding-pill"
+          data-animate={subTabAnimate ? 'true' : 'false'}
+          style={{
+            ...subTabIndicatorStyle,
+            borderRadius: '9999px',
+            backgroundColor: 'var(--color-surface-card, #FFFFFF)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+            zIndex: 0,
+          }}
+        />
         {EXPERIENCE_SUBTABS.map((tab) => {
           const isActive = activeSubTab === tab.id;
           return (
             <button
               key={tab.id}
+              ref={registerSubTab(tab.id)}
               type="button"
               role="tab"
               aria-selected={isActive}
               onClick={() => setActiveSubTab(tab.id)}
               style={{
+                position: 'relative',
+                zIndex: 1,
                 display: 'inline-flex',
                 alignItems: 'center',
                 padding: '6px 14px',
                 borderRadius: '9999px',
                 border: 'none',
-                backgroundColor: isActive ? 'var(--color-surface-card, #FFFFFF)' : 'transparent',
+                backgroundColor:
+                  isActive && !subTabIndicatorReady
+                    ? 'var(--color-surface-card, #FFFFFF)'
+                    : 'transparent',
                 color: isActive ? 'var(--color-accent-teal, #2A8C82)' : 'var(--color-text-muted, #718096)',
                 fontFamily: 'var(--font-ui, sans-serif)',
                 fontSize: '12px',
                 fontWeight: isActive ? 700 : 500,
                 cursor: 'pointer',
-                boxShadow: isActive ? '0 1px 3px rgba(0, 0, 0, 0.08)' : 'none',
-                transition: 'all 0.16s ease',
+                boxShadow:
+                  isActive && !subTabIndicatorReady
+                    ? '0 1px 3px rgba(0, 0, 0, 0.08)'
+                    : 'none',
+                transition: 'color var(--transition-fast)',
                 whiteSpace: 'nowrap',
               }}
             >
@@ -160,6 +191,7 @@ export function ExperienceSection({
         })}
       </div>
 
+      <div key={activeSubTab} className="animate-tab-pane">
       {/* 1. Interface Appearance & Theme Engine */}
       {activeSubTab === 'theme' && (
       <SettingsCardFrame
@@ -542,6 +574,7 @@ export function ExperienceSection({
         </div>
       </SettingsCardFrame>
       )}
+      </div>
     </div>
   );
 }

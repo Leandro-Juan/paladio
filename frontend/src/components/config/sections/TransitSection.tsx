@@ -511,6 +511,7 @@ export function TransitSection({
       {deleteGtfsCandidate && (
         <div
           data-testid="gtfs-delete-modal"
+          className="paladio-modal-backdrop"
           style={{
             position: 'fixed',
             inset: 0,
@@ -523,6 +524,7 @@ export function TransitSection({
           }}
         >
           <div
+            className="paladio-modal-panel"
             style={{
               background: 'var(--color-surface-card)',
               borderRadius: '16px',

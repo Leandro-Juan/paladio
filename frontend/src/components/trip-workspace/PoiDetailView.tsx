@@ -3979,6 +3979,7 @@ export function PoiDetailView({
                 <div
                   role="dialog"
                   aria-modal="true"
+                  className="paladio-modal-backdrop"
                   onClick={() => setShowPlaceExportMenu(false)}
                   style={{
                     position: 'fixed',
@@ -3993,6 +3994,7 @@ export function PoiDetailView({
                   }}
                 >
                   <div
+                    className="paladio-modal-panel"
                     onClick={(e) => e.stopPropagation()}
                     style={{
                       width: '100%',
@@ -4139,6 +4141,7 @@ export function PoiDetailView({
         <div
           role="dialog"
           aria-modal="true"
+          className="paladio-modal-backdrop"
           onClick={() => setLightboxOpen(false)}
           style={{
             position: 'fixed',
@@ -4151,7 +4154,6 @@ export function PoiDetailView({
             justifyContent: 'space-between',
             padding: 0,
             overflow: 'hidden',
-            animation: 'fadeIn 0.2s ease-out',
           }}
         >
           {/* Lightbox Header Banner in Paladio Colors */}

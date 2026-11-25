@@ -19,6 +19,7 @@ export function ThinkingScreen({
   const { t } = useTranslation();
   return (
     <div
+      className="paladio-thinking-root"
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -28,7 +29,6 @@ export function ThinkingScreen({
         width: '100%',
         padding: '2rem 1rem',
         textAlign: 'center',
-        animation: 'paladioFadeIn 0.35s ease-out',
       }}
     >
       {!error ? (
@@ -157,6 +157,10 @@ export function ThinkingScreen({
       )}
 
       <style jsx>{`
+        .paladio-thinking-root {
+          animation: paladioThinkingEnter var(--duration-gentle) var(--ease-snappy);
+        }
+
         .paladio-thinking-dot {
           width: 13px;
           height: 13px;
@@ -188,7 +192,7 @@ export function ThinkingScreen({
           }
         }
 
-        @keyframes paladioFadeIn {
+        @keyframes paladioThinkingEnter {
           from {
             opacity: 0;
             transform: translateY(10px);
@@ -196,6 +200,16 @@ export function ThinkingScreen({
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .paladio-thinking-root {
+            animation: none !important;
+          }
+          .paladio-thinking-dot {
+            animation: none !important;
+            opacity: 0.7;
           }
         }
       `}</style>

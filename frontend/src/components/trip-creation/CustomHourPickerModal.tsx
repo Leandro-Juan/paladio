@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { ChevronUpIcon, ChevronDownIcon, ClockIcon } from '@/components/icons';
 
 interface CustomHourPickerModalProps {
@@ -103,7 +104,9 @@ export function CustomHourPickerModal({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
+
+  if (!shouldRender) return null;
 
   const handleHourChange = (newH: number) => {
     const normalizedH = clampHour(newH);
@@ -139,6 +142,8 @@ export function CustomHourPickerModal({
 
   return (
     <div
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -151,11 +156,14 @@ export function CustomHourPickerModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        animation: 'fadeIn 0.15s ease',
       }}
     >
       <div
         ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        className="paladio-modal-panel"
+        data-state={dataState}
         style={{
           background: 'var(--color-surface-raised, #FFFFFF)',
           border: '1px solid var(--color-border, #E2D9CC)',
@@ -167,7 +175,6 @@ export function CustomHourPickerModal({
           flexDirection: 'column',
           alignItems: 'center',
           gap: '1rem',
-          animation: 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-text-secondary)' }}>

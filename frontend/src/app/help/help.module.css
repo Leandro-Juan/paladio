@@ -72,7 +72,11 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -140,7 +144,10 @@
   border: 1px solid var(--color-border, #E2D9CC);
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
+  transition:
+    border-color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -166,6 +173,25 @@
 }
 
 /* Mobile Sidebar Drawer */
+.helpSidebar {
+  width: 280px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border, #E2D9CC);
+  background: var(--color-surface-subtle, #FAF6F0);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.helpSidebarOpen {
+  transform: translateX(0);
+}
+
+.helpSidebarBackdrop {
+  display: none;
+}
+
 .mobileMenuToggle {
   display: none;
   background: none;
@@ -193,7 +219,45 @@
     display: flex;
     align-items: center;
   }
+  .helpSidebarBackdrop {
+    display: block;
+    position: fixed;
+    inset: 54px 0 0 0;
+    background: rgba(15, 23, 42, 0.36);
+    z-index: 29;
+    transition: opacity var(--transition-snappy);
+  }
+  .helpSidebarBackdrop[data-state='closing'] {
+    opacity: 0;
+  }
+  .helpSidebar {
+    position: fixed;
+    top: 54px;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    height: auto;
+    transform: translateX(-100%);
+    transition: transform var(--transition-gentle);
+    box-shadow: var(--shadow-lg);
+  }
+  .helpSidebarOpen {
+    transform: translateX(0);
+  }
   .helpContentArea {
     padding: 20px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backBtn,
+  .moreItemCard,
+  .helpSidebar,
+  .helpSidebarBackdrop {
+    transition: opacity var(--transition-fast);
+  }
+  .backBtn:hover,
+  .moreItemCard:hover {
+    transform: none;
   }
 }

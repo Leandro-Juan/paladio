@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import {
   BoardingPassTacticalIllustration,
   HotelBookingTacticalIllustration,
@@ -125,7 +126,9 @@ export function DocumentUploadModal({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, isScanning, onClose]);
 
-  if (!isOpen) return null;
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
+
+  if (!shouldRender) return null;
 
   const processTripPackage = async (file: File) => {
     setIsScanning(true);
@@ -325,6 +328,8 @@ export function DocumentUploadModal({
 
   return (
     <div
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       style={{
         position: 'fixed',
         inset: 0,
@@ -335,7 +340,6 @@ export function DocumentUploadModal({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1.25rem',
-        animation: 'fadeIn 0.15s ease',
       }}
     >
       {/* Hidden file inputs */}
@@ -378,6 +382,10 @@ export function DocumentUploadModal({
 
       <div
         ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        className="paladio-modal-panel"
+        data-state={dataState}
         style={{
           background: 'var(--color-surface-raised, #FFFFFF)',
           border: '1px solid var(--color-border, #E2D9CC)',
@@ -461,6 +469,7 @@ export function DocumentUploadModal({
           {/* Scanning Progress HUD */}
           {isScanning && (
             <div
+              className="paladio-pulse"
               style={{
                 padding: '1.25rem',
                 borderRadius: '16px',
@@ -469,7 +478,6 @@ export function DocumentUploadModal({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
-                animation: 'pulse 1.5s infinite ease-in-out',
               }}
             >
               <Spinner size={22} color="var(--color-accent-teal-deep, #0F4C5C)" />

@@ -5,6 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSidebarStore } from '@/stores/sidebarStore';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
+import { useSlidingIndicator } from '@/hooks/useSlidingIndicator';
 import { NotificationBell } from './NotificationBell';
 import { UserMenu } from './UserMenu';
 import styles from './AppSidebar.module.css';
@@ -88,14 +90,26 @@ export function AppSidebar() {
     },
   ];
 
+  const activeHref =
+    navItems.find(
+      (item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+    )?.href ?? null;
+
+  const { containerRef, registerItem, indicatorStyle, isReady, animate } =
+    useSlidingIndicator<string, HTMLUListElement>(activeHref, [isCollapsed, isMobileOpen]);
+  const toggleMount = useAnimatedMount(isCollapsed, 130);
+  const backdropMount = useAnimatedMount(isMobileOpen, 150);
+
   return (
     <>
       {/* Floating Toggle Button when Collapsed */}
-      {isCollapsed && (
+      {toggleMount.shouldRender && (
         <button
           type="button"
           onClick={toggleSidebar}
-          className={styles.floatingToggle}
+          className={`${styles.floatingToggle} paladio-popover`}
+          data-origin="top-left"
+          data-state={toggleMount.dataState}
           data-tooltip={t('nav.expand_navigation')}
           data-tooltip-shortcut="Ctrl+B"
           data-tooltip-position="right"
@@ -110,9 +124,10 @@ export function AppSidebar() {
       )}
 
       {/* Mobile Drawer Backdrop */}
-      {isMobileOpen && (
+      {backdropMount.shouldRender && (
         <div
-          className={styles.mobileBackdrop}
+          className={`${styles.mobileBackdrop} paladio-modal-backdrop`}
+          data-state={backdropMount.dataState}
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />
@@ -159,16 +174,24 @@ export function AppSidebar() {
           </div>
 
           {/* Navigation Items */}
-          <ul className={styles.navList}>
+          <ul ref={containerRef} className={styles.navList}>
+            <li
+              aria-hidden="true"
+              className={`${styles.activePill} paladio-sliding-pill`}
+              data-animate={animate ? 'true' : 'false'}
+              style={indicatorStyle}
+            />
             {navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+              const isActive = item.href === activeHref;
               return (
                 <li key={item.href}>
                   <button
+                    ref={registerItem(item.href)}
                     type="button"
                     role="link"
                     onClick={() => handleNavigate(item.href)}
                     className={`${styles.navItem} ${isActive ? styles.active : ''}`}
+                    data-pill-ready={isReady ? 'true' : 'false'}
                     aria-label={item.label}
                     aria-current={isActive ? 'page' : undefined}
                   >

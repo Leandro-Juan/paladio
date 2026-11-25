@@ -438,10 +438,18 @@ export function LlmConfigCard() {
                               ? 'var(--color-accent-teal, #0D9488)'
                               : 'var(--color-text-muted)',
                           cursor: 'pointer',
-                          transition: 'all 0.15s ease',
+                          transition: 'background-color var(--transition-fast), color var(--transition-fast)',
                         }}
                       >
-                        <ChevronDownIcon size={12} />
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            transform: openMenuProvider === key ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform var(--transition-snappy)',
+                          }}
+                        >
+                          <ChevronDownIcon size={12} />
+                        </span>
                       </button>
                     )}
                   </div>
@@ -467,6 +475,8 @@ export function LlmConfigCard() {
                 {isConfigured && openMenuProvider === key && (
                   <div
                     data-llm-dropdown
+                    className="paladio-popover"
+                    data-origin="top-left"
                     style={{
                       position: 'absolute',
                       top: 'calc(100% + 4px)',

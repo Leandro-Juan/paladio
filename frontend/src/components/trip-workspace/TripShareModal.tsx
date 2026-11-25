@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { CloseIcon } from '@/components/icons';
 import {
   downloadTripPackage,
@@ -34,6 +35,7 @@ export function TripShareModal({
 }: TripShareModalProps) {
   const { t } = useTranslation();
   const isMounted = useIsMounted();
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
   const [profile, setProfile] = useState<'full_vault' | 'community_shareable'>('full_vault');
   const [isExportingTrip, setIsExportingTrip] = useState(false);
   const [tripError, setTripError] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export function TripShareModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleKeyDown]);
 
-  if (!isOpen || !isMounted) return null;
+  if (!shouldRender || !isMounted) return null;
 
   const handleCopyLink = async () => {
     try {
@@ -153,6 +155,8 @@ export function TripShareModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-modal-title"
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       onClick={onClose}
       style={{
         position: 'fixed',
@@ -167,6 +171,8 @@ export function TripShareModal({
       }}
     >
       <div
+        className="paladio-modal-panel"
+        data-state={dataState}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
@@ -179,7 +185,6 @@ export function TripShareModal({
           display: 'flex',
           flexDirection: 'column',
           color: 'var(--color-text-primary, #111827)',
-          animation: 'paladioFadeInScale 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         {/* Header */}

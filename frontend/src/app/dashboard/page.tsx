@@ -104,7 +104,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Top 12-Column Grid: Hero Trip Card (7 cols) + 8-Point Harmonic Radar Star (5 cols) */}
-        <div className={styles.topGrid}>
+        <div className={`${styles.topGrid} paladio-stagger-list`}>
           <div className={styles.heroCol}>
             {nextTrip ? (
               <Link
@@ -142,7 +142,7 @@ export default function DashboardPage() {
         {/* Bottom 12-Column Grid:
             Left (4 cols): Best Offer from Monitored Routes
             Right (8 cols): Recommended POIs (3 Cards with Verified Photos) */}
-        <div className={styles.bottomGrid}>
+        <div className={`${styles.bottomGrid} paladio-stagger-list`}>
           <div className={styles.squareTicketCol}>
             <BestOfferCard />
           </div>

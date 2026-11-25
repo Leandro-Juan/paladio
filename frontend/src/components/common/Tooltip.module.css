@@ -50,11 +50,11 @@
 }
 
 .entering {
-  animation: tooltipEnter 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: tooltipEnter 160ms var(--ease-snappy, cubic-bezier(0.23, 1, 0.32, 1)) forwards;
 }
 
 .exiting {
-  animation: tooltipExit 100ms ease-in forwards;
+  animation: tooltipExit 100ms var(--ease-exit, cubic-bezier(0.4, 0, 1, 1)) forwards;
 }
 
 @keyframes tooltipEnter {
@@ -76,6 +76,38 @@
   to {
     opacity: 0;
     transform: translate(var(--tx, 0), var(--ty, 0)) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entering {
+    animation: tooltipEnterReduced 90ms ease-out forwards;
+  }
+
+  .exiting {
+    animation: tooltipExitReduced 80ms ease-out forwards;
+  }
+
+  @keyframes tooltipEnterReduced {
+    from {
+      opacity: 0;
+      transform: translate(var(--tx, 0), var(--ty, 0));
+    }
+    to {
+      opacity: 1;
+      transform: translate(var(--tx, 0), var(--ty, 0));
+    }
+  }
+
+  @keyframes tooltipExitReduced {
+    from {
+      opacity: 1;
+      transform: translate(var(--tx, 0), var(--ty, 0));
+    }
+    to {
+      opacity: 0;
+      transform: translate(var(--tx, 0), var(--ty, 0));
+    }
   }
 }
 

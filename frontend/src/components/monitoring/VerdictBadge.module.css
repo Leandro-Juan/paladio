@@ -17,7 +17,10 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   border: 1px solid transparent;
-  transition: all 150ms ease;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .sizeSm {
@@ -146,4 +149,10 @@
   opacity: 1;
   visibility: visible;
   transform: translateX(-50%) translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badgeTooltip {
+    transition: opacity var(--duration-instant) ease-out, visibility var(--duration-instant);
+  }
 }

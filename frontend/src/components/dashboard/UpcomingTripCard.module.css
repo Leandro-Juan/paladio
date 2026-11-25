@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--transition-snappy), box-shadow var(--transition-snappy);
   position: relative;
   overflow: hidden;
 }
@@ -116,7 +116,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform 0.35s ease;
+  transition: transform var(--transition-gentle);
 }
 
 .card:hover .bannerImage {
@@ -262,7 +262,7 @@
   font-weight: 600;
   cursor: pointer;
   letter-spacing: 0.04em;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .abortBtn:hover {
@@ -276,10 +276,21 @@
   font-weight: 600;
   color: #0284C7;
   text-decoration: none;
-  transition: color 0.15s ease, text-decoration 0.15s ease;
+  transition: color var(--transition-fast), text-decoration var(--transition-fast);
 }
 
 .detailsLink:hover {
   color: #0369A1;
   text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .bannerImage {
+    transition: box-shadow var(--transition-fast);
+  }
+  .card:hover,
+  .card:hover .bannerImage {
+    transform: none;
+  }
 }

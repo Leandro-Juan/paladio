@@ -96,3 +96,9 @@
 .emptyAction:hover {
   opacity: 0.9;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .emptyAction {
+    transition: none;
+  }
+}

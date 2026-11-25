@@ -13,13 +13,13 @@
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  animation: seedCardEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: seedCardEnter var(--duration-gentle) var(--ease-snappy) both;
 }
 
 @keyframes seedCardEnter {
   0% {
     opacity: 0;
-    transform: translate3d(24px, -12px, 0) scale(0.96);
+    transform: translate3d(20px, -10px, 0) scale(0.96);
   }
   100% {
     opacity: 1;
@@ -30,6 +30,12 @@
 @media (prefers-reduced-motion: reduce) {
   .floatingCard {
     animation: none;
+  }
+  .primaryCta {
+    transition: background-color var(--transition-fast);
+  }
+  .primaryCta:hover {
+    transform: none;
   }
 }
 

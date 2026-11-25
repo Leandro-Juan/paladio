@@ -269,6 +269,8 @@ export function TripWorkspaceHeader({
         {/* Animated Sliding Pill with gold selected underline */}
         <div
           aria-hidden="true"
+          className="paladio-sliding-pill"
+          data-animate={pillStyle.isReady ? 'true' : 'false'}
           style={{
             position: 'absolute',
             left: 0,
@@ -284,7 +286,7 @@ export function TripWorkspaceHeader({
             pointerEvents: 'none',
             zIndex: 1,
             transition: pillStyle.isReady
-              ? 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), width 0.22s cubic-bezier(0.16, 1, 0.3, 1), height 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease'
+              ? 'transform var(--transition-snappy), width var(--transition-snappy), height var(--transition-snappy), opacity var(--duration-fast) var(--ease-snappy)'
               : 'none',
             willChange: 'transform, width',
           }}
@@ -316,8 +318,7 @@ export function TripWorkspaceHeader({
                 fontFamily: 'inherit',
                 fontSize: '0.82rem',
                 fontWeight: isActive ? 600 : 500,
-                transition: 'color 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s ease',
-                outline: 'none',
+                transition: 'color var(--transition-fast), transform var(--transition-fast)',
                 userSelect: 'none',
               }}
               onMouseEnter={(e) => {
@@ -337,7 +338,7 @@ export function TripWorkspaceHeader({
                   display: 'flex',
                   alignItems: 'center',
                   color: isActive ? '#FFFFFF' : 'currentColor',
-                  transition: 'color 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                  transition: 'color var(--transition-fast)',
                 }}
               />
               <span className="hidden sm:inline">{tab.label}</span>

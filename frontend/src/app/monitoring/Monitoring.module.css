@@ -149,7 +149,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  transition: all 0.15s ease;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
   box-shadow: 0 1px 2px rgba(15, 76, 92, 0.2);
 }
 
@@ -168,7 +168,7 @@
   padding: 0.5rem 1rem;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .secondaryBtn:hover {
@@ -278,7 +278,7 @@
   color: var(--color-text-muted, #64748B);
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .filterPill:hover {
@@ -519,7 +519,10 @@
   border-radius: 6px;
   padding: 0.25rem 0.5rem;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .inspectBtn:hover {
@@ -816,7 +819,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .directLinkBtn:hover {
@@ -981,7 +984,7 @@
   background: #FFFFFF;
   border: 1px solid var(--color-border, #E2E8F0);
   color: var(--color-text-secondary, #475569);
-  transition: all 0.12s ease;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .amenityIconPill:hover {
@@ -1019,7 +1022,10 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.2s ease;
+  transition:
+    background-color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
   box-shadow: 0 2px 8px rgba(15, 76, 92, 0.25);
 }
 
@@ -1048,13 +1054,32 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  transition: all 0.15s ease;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .discardDealBtn:hover {
   background: var(--color-danger-soft, rgba(179, 38, 30, 0.08));
   color: var(--color-danger, #B3261E);
   border-color: var(--color-danger, #B3261E);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .livePulseDot {
+    animation: none;
+  }
+  .experimentalBadge,
+  .primaryBtn,
+  .makeTripBtn {
+    transition: opacity var(--transition-fast), background-color var(--transition-fast), filter var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .experimentalBadge:hover,
+  .primaryBtn:hover,
+  .makeTripBtn:hover {
+    transform: none;
+  }
 }
 
 

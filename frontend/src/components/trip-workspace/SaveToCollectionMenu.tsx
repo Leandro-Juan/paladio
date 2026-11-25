@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { useTripCollections, CollectionPoiSummary } from '@/hooks/useTripCollections';
 import { notify } from '@/utils/notify';
 
@@ -50,6 +51,12 @@ export function SaveToCollectionMenu({
   } = useTripCollections(tripId);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const [cachedPoi, setCachedPoi] = useState(poi);
+  if (poi && poi !== cachedPoi) {
+    setCachedPoi(poi);
+  }
+  const activePoi = poi ?? cachedPoi;
+  const menuMount = useAnimatedMount(isOpen && Boolean(activePoi && tripId), 130);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [selectedColor, setSelectedColor] = useState(PALADIO_COLORS[0].hex);
   const [isCreating, setIsCreating] = useState(false);
@@ -78,27 +85,27 @@ export function SaveToCollectionMenu({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen || !poi || !tripId) return null;
+  if (!menuMount.shouldRender || !activePoi || !tripId) return null;
 
   const handleToggle = async (collectionId: string, colName: string) => {
     setTogglingColId(collectionId);
     try {
       const summary: CollectionPoiSummary = {
-        id: poi.id,
-        name: poi.name,
-        category: poi.category,
-        cost_eur: poi.cost_eur,
-        duration_mins: poi.duration_mins,
-        photo_url: poi.photo_url,
-        thumbnail_url: poi.thumbnail_url,
-        formatted_address: poi.formatted_address,
-        rating: poi.rating,
+        id: activePoi.id,
+        name: activePoi.name,
+        category: activePoi.category,
+        cost_eur: activePoi.cost_eur,
+        duration_mins: activePoi.duration_mins,
+        photo_url: activePoi.photo_url,
+        thumbnail_url: activePoi.thumbnail_url,
+        formatted_address: activePoi.formatted_address,
+        rating: activePoi.rating,
       };
-      const isSaved = await togglePoiInCollection(collectionId, poi.id, summary);
+      const isSaved = await togglePoiInCollection(collectionId, activePoi.id, summary);
       if (isSaved) {
-        notify.success(t('collections.saved_toast_title'), t('collections.saved_toast_desc', { name: poi.name, collection: colName }));
+        notify.success(t('collections.saved_toast_title'), t('collections.saved_toast_desc', { name: activePoi.name, collection: colName }));
       } else {
-        notify.info(t('collections.removed_toast_title'), t('collections.removed_toast_desc', { name: poi.name, collection: colName }));
+        notify.info(t('collections.removed_toast_title'), t('collections.removed_toast_desc', { name: activePoi.name, collection: colName }));
       }
     } catch {
       notify.error(t('collections.action_failed_title'), t('collections.could_not_update'));
@@ -122,18 +129,18 @@ export function SaveToCollectionMenu({
       const created = await createCollection(trimmed, undefined, selectedColor);
       if (created) {
         const summary: CollectionPoiSummary = {
-          id: poi.id,
-          name: poi.name,
-          category: poi.category,
-          cost_eur: poi.cost_eur,
-          duration_mins: poi.duration_mins,
-          photo_url: poi.photo_url,
-          thumbnail_url: poi.thumbnail_url,
-          formatted_address: poi.formatted_address,
-          rating: poi.rating,
+          id: activePoi.id,
+          name: activePoi.name,
+          category: activePoi.category,
+          cost_eur: activePoi.cost_eur,
+          duration_mins: activePoi.duration_mins,
+          photo_url: activePoi.photo_url,
+          thumbnail_url: activePoi.thumbnail_url,
+          formatted_address: activePoi.formatted_address,
+          rating: activePoi.rating,
         };
-        await togglePoiInCollection(created.id, poi.id, summary);
-        notify.success(t('collections.created_toast_title'), t('collections.created_saved_desc', { collection: created.name, name: poi.name }));
+        await togglePoiInCollection(created.id, activePoi.id, summary);
+        notify.success(t('collections.created_toast_title'), t('collections.created_saved_desc', { collection: created.name, name: activePoi.name }));
         setNewCollectionName('');
         setShowCreateInput(false);
       }
@@ -163,6 +170,9 @@ export function SaveToCollectionMenu({
     <div
       ref={menuRef}
       data-testid="save-to-collection-menu"
+      className="paladio-popover"
+      data-state={menuMount.dataState}
+      data-origin={align === 'right' ? 'top-right' : 'top-left'}
       onClick={(e) => e.stopPropagation()}
       style={{
         position: isFixed ? 'fixed' : 'absolute',
@@ -181,22 +191,8 @@ export function SaveToCollectionMenu({
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        animation: 'paladioMenuDeploy 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-        transformOrigin: align === 'right' ? 'top right' : 'top left',
       }}
     >
-      <style>{`
-        @keyframes paladioMenuDeploy {
-          from {
-            opacity: 0;
-            transform: translateY(-8px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
 
       {/* Header */}
       <div
@@ -233,7 +229,7 @@ export function SaveToCollectionMenu({
               marginTop: '1px',
             }}
           >
-            {poi.name}
+            {activePoi.name}
           </div>
         </div>
         <button
@@ -289,7 +285,7 @@ export function SaveToCollectionMenu({
           </div>
         ) : (
           collections.map((col) => {
-            const isSavedInCol = col.items.some((it) => it.poi_id === poi.id);
+            const isSavedInCol = col.items.some((it) => it.poi_id === activePoi.id);
             const isToggling = togglingColId === col.id;
 
             return (

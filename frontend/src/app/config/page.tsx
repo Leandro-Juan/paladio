@@ -875,6 +875,7 @@ function ConfigPageInner() {
         )}
 
         {/* View Switcher */}
+        <div key={activeTab} className="animate-tab-pane">
         {activeTab === 'overview' && (
           <SettingsOverview
             onSelectTab={handleSelectTab}
@@ -1000,6 +1001,7 @@ function ConfigPageInner() {
             onBackToOverview={() => handleSelectTab('overview')}
           />
         )}
+        </div>
       </main>
       </div>
     </div>

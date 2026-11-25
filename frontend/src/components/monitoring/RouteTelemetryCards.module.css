@@ -168,3 +168,14 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+    transition: box-shadow var(--transition-fast);
+  }
+  .sparklinePath {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+

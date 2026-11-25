@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { CloseIcon, PlusIcon } from '@/components/icons';
 
 interface PhotoUploadModalProps {
@@ -54,7 +55,9 @@ export function PhotoUploadModal({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
+
+  if (!shouldRender) return null;
 
   const downscaleDataUrlIfNeeded = (dataUrl: string, mimeType: string, callback: (out: string) => void) => {
     if (mimeType === 'image/gif' || mimeType === 'image/svg+xml') {
@@ -148,6 +151,8 @@ export function PhotoUploadModal({
 
   return (
     <div
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       style={{
         position: 'fixed',
         inset: 0,
@@ -158,11 +163,14 @@ export function PhotoUploadModal({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1rem',
-        animation: 'fadeIn 0.15s ease',
       }}
     >
       <div
         ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        className="paladio-modal-panel"
+        data-state={dataState}
         style={{
           background: 'var(--color-surface-raised, #FFFFFF)',
           border: '1px solid var(--color-border, #E2D9CC)',

@@ -36,7 +36,7 @@ export function NotificationBell({ placement = 'bottom' }: NotificationBellProps
           justifyContent: 'center',
           cursor: 'pointer',
           color: 'var(--color-text-muted, #566B76)',
-          transition: 'all 0.15s ease',
+          transition: 'background-color var(--transition-fast, 150ms ease), color var(--transition-fast, 150ms ease)',
         }}
         onMouseOver={(e) => {
           if (!isOpen) {
@@ -69,7 +69,8 @@ export function NotificationBell({ placement = 'bottom' }: NotificationBellProps
         {/* Unread Badge Counter */}
         {unreadCount > 0 && (
           <span
-            className="font-mono"
+            key={unreadCount}
+            className="font-mono paladio-badge-pop"
             style={{
               position: 'absolute',
               top: '-3px',

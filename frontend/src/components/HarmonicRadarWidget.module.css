@@ -18,6 +18,12 @@
   box-shadow: var(--shadow-sm);
   flex: 1;
   position: relative;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-snappy);
+}
+
+.radarCard:hover {
+  border-color: var(--color-border-bold, rgba(15, 76, 92, 0.25));
+  box-shadow: var(--shadow-md);
 }
 
 .header {
@@ -93,4 +99,10 @@
   font-size: 9px;
   color: var(--color-text-muted);
   margin-top: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radarCard {
+    transition: border-color var(--transition-fast);
+  }
 }

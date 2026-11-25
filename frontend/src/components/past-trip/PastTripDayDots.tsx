@@ -38,8 +38,9 @@ export function PastTripDayDots({
         title={t('vault.view_all_days')}
         aria-selected={selectedDay === null}
         style={{
-          height: '7px',
-          width: selectedDay === null ? '24px' : '7px',
+          height: '8px',
+          width: '8px',
+          margin: '0 3px',
           borderRadius: '999px',
           background:
             selectedDay === null
@@ -48,7 +49,13 @@ export function PastTripDayDots({
           border: 'none',
           padding: 0,
           cursor: 'pointer',
-          transition: 'all 0.25s ease',
+          transform: selectedDay === null ? 'scale(1.45)' : 'scale(1)',
+          boxShadow:
+            selectedDay === null
+              ? '0 0 0 3px rgba(15, 76, 92, 0.16)'
+              : 'none',
+          transition:
+            'transform var(--transition-snappy), background-color var(--transition-fast), box-shadow var(--transition-fast)',
         }}
       />
 
@@ -66,8 +73,9 @@ export function PastTripDayDots({
             title={t('trips.day_label', { number: dayNum })}
             aria-selected={isActive}
             style={{
-              height: '7px',
-              width: isActive ? '24px' : '7px',
+              height: '8px',
+              width: '8px',
+              margin: '0 3px',
               borderRadius: '999px',
               background: isActive
                 ? 'var(--color-accent-primary, #0F4C5C)'
@@ -75,7 +83,10 @@ export function PastTripDayDots({
               border: 'none',
               padding: 0,
               cursor: 'pointer',
-              transition: 'all 0.25s ease',
+              transform: isActive ? 'scale(1.45)' : 'scale(1)',
+              boxShadow: isActive ? '0 0 0 3px rgba(15, 76, 92, 0.16)' : 'none',
+              transition:
+                'transform var(--transition-snappy), background-color var(--transition-fast), box-shadow var(--transition-fast)',
             }}
           />
         );

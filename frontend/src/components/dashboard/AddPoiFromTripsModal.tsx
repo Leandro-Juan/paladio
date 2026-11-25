@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import type { Trip } from '@/hooks/useTrips';
 import type { TripCollection, CollectionPoiSummary } from '@/hooks/useTripCollections';
 import { PoiCategoryIcon } from '@/components/PoiCategoryBadge';
@@ -42,6 +43,12 @@ export function AddPoiFromTripsModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTripId, setSelectedTripId] = useState<string>('all');
   const [addingIds, setAddingIds] = useState<Set<string>>(new Set());
+  const [cachedCollection, setCachedCollection] = useState<TripCollection | null>(collection);
+  if (collection && collection !== cachedCollection) {
+    setCachedCollection(collection);
+  }
+  const activeCollection = collection ?? cachedCollection;
+  const { shouldRender, dataState } = useAnimatedMount(isOpen && Boolean(activeCollection), 150);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -166,13 +173,13 @@ export function AddPoiFromTripsModal({
     return ids;
   }, [collection]);
 
-  if (!isOpen || !collection || typeof document === 'undefined') return null;
+  if (!shouldRender || !activeCollection || typeof document === 'undefined') return null;
 
   const handleAdd = async (cand: TripPoiCandidate) => {
     if (addingIds.has(cand.poiId)) return;
     setAddingIds((prev) => new Set(prev).add(cand.poiId));
     try {
-      await onAddPoi(collection.id, cand.poiId, cand.summary);
+      await onAddPoi(activeCollection.id, cand.poiId, cand.summary);
     } finally {
       setAddingIds((prev) => {
         const next = new Set(prev);
@@ -188,6 +195,8 @@ export function AddPoiFromTripsModal({
       aria-modal="true"
       aria-labelledby="add-from-trips-modal-title"
       data-testid="add-from-trips-modal"
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       onClick={onClose}
       style={{
         position: 'fixed',
@@ -203,6 +212,8 @@ export function AddPoiFromTripsModal({
       }}
     >
       <div
+        className="paladio-modal-panel"
+        data-state={dataState}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
@@ -250,7 +261,7 @@ export function AddPoiFromTripsModal({
                 return (
                   <>
                     {parts[0]}
-                    <strong>{collection.name}</strong>
+                    <strong>{activeCollection.name}</strong>
                     {parts[1]}
                   </>
                 );

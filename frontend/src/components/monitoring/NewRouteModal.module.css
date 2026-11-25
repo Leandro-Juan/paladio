@@ -8,12 +8,22 @@
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  animation: fadeIn 0.2s ease;
+  animation: fadeIn 180ms ease-out both;
+}
+
+.backdrop[data-state="closing"] {
+  animation: fadeOut var(--duration-exit, 140ms) var(--ease-exit, cubic-bezier(0.4, 0, 1, 1)) forwards;
+  pointer-events: none;
 }
 
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 .modalCard {
@@ -28,7 +38,12 @@
   position: relative;
   max-height: 92vh;
   overflow: hidden;
-  animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: popIn var(--duration-snappy, 200ms) var(--ease-snappy, cubic-bezier(0.23, 1, 0.32, 1)) both;
+}
+
+.modalCard[data-state="closing"] {
+  animation: popOut var(--duration-exit, 140ms) var(--ease-exit, cubic-bezier(0.4, 0, 1, 1)) forwards;
+  pointer-events: none;
 }
 
 @keyframes popIn {
@@ -38,7 +53,33 @@
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: none;
+  }
+}
+
+@keyframes popOut {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop {
+    animation: fadeIn var(--duration-instant, 90ms) ease-out both;
+  }
+  .backdrop[data-state="closing"] {
+    animation: fadeOut var(--duration-instant, 90ms) ease-out forwards;
+  }
+  .modalCard {
+    animation: fadeIn var(--duration-instant, 90ms) ease-out both;
+  }
+  .modalCard[data-state="closing"] {
+    animation: fadeOut var(--duration-instant, 90ms) ease-out forwards;
   }
 }
 

@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { CloseIcon } from '@/components/icons';
 
 export interface WheelDialPickerProps<T> {
@@ -51,6 +52,7 @@ export function WheelDialPicker<T>({
 }: WheelDialPickerProps<T>) {
   const isMounted = useIsMounted();
   const { t } = useTranslation();
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
   const resolvedTitle = t(title);
   const resolvedSubtitle = subtitle !== undefined ? t(subtitle) : t('config.wheel_subtitle');
   const resolvedSearchPlaceholder = searchPlaceholder !== undefined ? t(searchPlaceholder) : t('common.search');
@@ -277,7 +279,7 @@ export function WheelDialPicker<T>({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  if (!isOpen || !isMounted) return null;
+  if (!shouldRender || !isMounted) return null;
 
   const currentItem = (items && items.length > 0) ? (items[selectedIndex] || items[0]) : null;
 
@@ -286,6 +288,8 @@ export function WheelDialPicker<T>({
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel ? t(ariaLabel) : resolvedTitle}
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       style={{
         position: 'fixed',
         inset: 0,
@@ -296,7 +300,6 @@ export function WheelDialPicker<T>({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '20px',
-        animation: 'fadeIn 0.2s ease-out',
         overscrollBehavior: 'contain',
         touchAction: 'none',
       }}
@@ -306,6 +309,8 @@ export function WheelDialPicker<T>({
     >
       {/* Container Card */}
       <div
+        className="paladio-modal-panel"
+        data-state={dataState}
         style={{
           position: 'relative',
           width: '100%',
@@ -627,7 +632,7 @@ export function WheelDialPicker<T>({
               alignItems: 'center',
               justifyContent: 'center',
               gap: '10px',
-              transition: 'all 0.15s ease',
+              transition: 'opacity var(--transition-fast), transform var(--transition-fast)',
             }}
             className="hover:opacity-95 active:scale-[0.98]"
           >

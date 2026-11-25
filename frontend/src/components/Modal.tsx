@@ -3,6 +3,7 @@
 import React, { useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount, useEscapeAndFocusReturn } from '@/hooks/useAnimatedMount';
 
 const emptySubscribe = () => () => {};
 
@@ -37,8 +38,10 @@ export function Modal({
     () => true,
     () => false
   );
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
+  useEscapeAndFocusReturn(isOpen, onCancel);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   const resolvedConfirmText = confirmText === undefined ? t('common.ok') : (confirmText ? t(confirmText) : '');
   const resolvedCancelText = cancelText === undefined ? t('common.cancel_upper') : (cancelText ? t(cancelText) : '');
@@ -58,29 +61,43 @@ export function Modal({
   }
 
   const modalElement = (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(8, 28, 36, 0.65)',
-      backdropFilter: 'blur(4px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 9999
-    }}>
-      <div style={{
-        background: 'var(--color-surface-card)',
-        border: isDangerMode 
-          ? '1px solid var(--color-danger)' 
-          : isWarningMode
-          ? '1px solid var(--color-accent-warning)'
-          : '1px solid var(--color-border)',
-        borderRadius: '12px',
-        padding: '2rem',
-        maxWidth: '480px',
-        width: '90%',
-        boxShadow: 'var(--shadow-lg)'
-      }}>
+    <div
+      className="paladio-modal-backdrop"
+      data-state={dataState}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
+      style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(8, 28, 36, 0.65)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="paladio-modal-panel"
+        data-state={dataState}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'var(--color-surface-card)',
+          border: isDangerMode 
+            ? '1px solid var(--color-danger)' 
+            : isWarningMode
+            ? '1px solid var(--color-accent-warning)'
+            : '1px solid var(--color-border)',
+          borderRadius: '12px',
+          padding: '2rem',
+          maxWidth: '480px',
+          width: '90%',
+          boxShadow: 'var(--shadow-lg)'
+        }}
+      >
         <h2 className="font-display" style={{ margin: '0 0 1rem 0', fontSize: '1.5rem', color: headerColor }}>
           {t(title)}
         </h2>
@@ -107,7 +124,7 @@ export function Modal({
                 fontFamily: 'var(--font-mono)',
                 cursor: 'pointer',
                 fontWeight: 500,
-                transition: 'all 0.15s ease'
+                transition: 'background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast)'
               }}
             >
               {resolvedCancelText}
@@ -126,7 +143,7 @@ export function Modal({
                 cursor: 'pointer',
                 fontWeight: 600,
                 boxShadow: 'var(--shadow-sm)',
-                transition: 'all 0.15s ease'
+                transition: 'opacity var(--transition-fast), box-shadow var(--transition-fast)'
               }}
             >
               {resolvedConfirmText}

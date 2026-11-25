@@ -5,6 +5,7 @@ import { TripTicket } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG, STATUS_BADGE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { LockIcon, SearchIcon, EditIcon, TrashIcon } from '@/components/icons';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 
 interface TicketShellProps {
   ticket: TripTicket;
@@ -26,6 +27,7 @@ export function TicketShell({
   const { t } = useTranslation();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuMount = useAnimatedMount(showMenu, 130);
   const typeConfig = TICKET_TYPE_CONFIG[ticket.ticket_type] || TICKET_TYPE_CONFIG.other;
   const statusConfig = STATUS_BADGE_CONFIG[ticket.status] || STATUS_BADGE_CONFIG.planned;
   const isUsed = ticket.status === 'used';
@@ -160,14 +162,17 @@ export function TicketShell({
                 cursor: 'pointer',
                 fontSize: '12px',
                 fontFamily: 'var(--font-mono)',
-                outline: 'none',
+                transition: 'background-color var(--transition-fast), border-color var(--transition-fast)',
               }}
             >
               ···
             </button>
 
-            {showMenu && (
+            {menuMount.shouldRender && (
               <div
+                className="paladio-popover"
+                data-state={menuMount.dataState}
+                data-origin="top-right"
                 style={{
                   position: 'absolute',
                   right: 0,

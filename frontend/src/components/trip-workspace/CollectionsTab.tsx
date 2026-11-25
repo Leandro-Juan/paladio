@@ -23,6 +23,7 @@ import {
 } from '@/utils/dragPreview';
 import { notify } from '@/utils/notify';
 import { getApiBaseUrl, getAuthToken } from '@/utils/api';
+import { Collapsible } from '@/components/common/Collapsible';
 import { useTranslation } from '@/hooks/useTranslation';
 import { classifyPoiCategory, getPoiCategoryLabel } from '@/utils/poiCategory';
 
@@ -575,6 +576,8 @@ export function CollectionsTab({
         <form
           onSubmit={handleCreateCollection}
           data-testid="create-collection-form"
+          className="paladio-popover"
+          data-origin="top"
           style={{
             padding: '14px',
             borderRadius: '14px',
@@ -584,7 +587,6 @@ export function CollectionsTab({
             flexDirection: 'column',
             gap: '10px',
             boxShadow: 'var(--shadow-sm)',
-            animation: 'paladioFadeIn 0.15s ease-out',
           }}
         >
           <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-accent-primary)' }}>
@@ -865,6 +867,7 @@ export function CollectionsTab({
                     background: isExpanded ? 'var(--color-surface-raised, #FAFAFA)' : 'transparent',
                     borderBottom: isExpanded ? '1px solid var(--color-border)' : 'none',
                     userSelect: 'none',
+                    transition: 'background-color var(--transition-fast), border-color var(--transition-fast)',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
@@ -1029,7 +1032,7 @@ export function CollectionsTab({
                         style={{
                           color: 'var(--color-text-muted)',
                           transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                          transition: 'transform 0.15s ease',
+                          transition: 'transform var(--transition-snappy)',
                           display: 'flex',
                           alignItems: 'center',
                         }}
@@ -1043,7 +1046,7 @@ export function CollectionsTab({
                 </div>
 
                 {/* Collection Content (Saved POIs) */}
-                {isExpanded && (
+                <Collapsible isOpen={isExpanded}>
                   <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {uniqueItems.length === 0 ? (
                       <div
@@ -1331,7 +1334,7 @@ export function CollectionsTab({
                       })
                     )}
                   </div>
-                )}
+                </Collapsible>
               </div>
             );
           })}
@@ -1347,6 +1350,7 @@ export function CollectionsTab({
             aria-modal="true"
             aria-labelledby="delete-collection-modal-title"
             data-testid="delete-collection-confirm-modal"
+            className="paladio-modal-backdrop"
             style={{
               position: 'fixed',
               inset: 0,
@@ -1364,6 +1368,7 @@ export function CollectionsTab({
             }}
           >
             <div
+              className="paladio-modal-panel"
               onClick={(e) => e.stopPropagation()}
               style={{
                 width: '100%',
@@ -1477,6 +1482,7 @@ export function CollectionsTab({
         <div
           role="dialog"
           aria-modal="true"
+          className="paladio-modal-backdrop"
           onClick={() => !isImportingPlaces && setShowImportModal(false)}
           style={{
             position: 'fixed',
@@ -1492,6 +1498,7 @@ export function CollectionsTab({
         >
           <form
             onSubmit={handleImportPlaces}
+            className="paladio-modal-panel"
             onClick={(e) => e.stopPropagation()}
             style={{
               width: '100%',

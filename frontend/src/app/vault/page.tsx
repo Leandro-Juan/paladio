@@ -92,7 +92,7 @@ export default function VaultPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+    <div data-vault-root="true" style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       {/* Travel Statistics Tab on the Left */}
       <VaultStatsTab
         trips={trips}

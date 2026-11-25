@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useSlidingIndicator } from '@/hooks/useSlidingIndicator';
 import { NotificationBell } from './NotificationBell';
 import { UserMenu } from './UserMenu';
 import styles from './FloatingDock.module.css';
@@ -91,6 +92,14 @@ export function FloatingDock() {
     },
   ];
 
+  const activeHref =
+    navItems.find(
+      (item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+    )?.href ?? null;
+
+  const { containerRef, registerItem, indicatorStyle, isReady, animate } =
+    useSlidingIndicator<string, HTMLUListElement>(activeHref, [isVisible]);
+
   return (
     <>
       {/* Bottom hover activation zone & peek affordance */}
@@ -125,14 +134,22 @@ export function FloatingDock() {
       >
         <div className={styles.dock}>
           {/* Navigation Items with Dynamic Expansion */}
-          <ul className={styles.navList}>
+          <ul ref={containerRef} className={styles.navList}>
+            <li
+              aria-hidden="true"
+              className={`${styles.activePill} paladio-sliding-pill`}
+              data-animate={animate ? 'true' : 'false'}
+              style={indicatorStyle}
+            />
             {navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+              const isActive = item.href === activeHref;
               return (
                 <li key={item.href}>
                   <Link
+                    ref={registerItem(item.href)}
                     href={item.href}
                     className={`${styles.navItem} ${isActive ? styles.active : ''}`}
+                    data-pill-ready={isReady ? 'true' : 'false'}
                     aria-label={item.label}
                     aria-current={isActive ? 'page' : undefined}
                   >

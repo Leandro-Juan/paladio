@@ -493,7 +493,7 @@ export function PaladioDateRangePicker({
             color: isPrevMonthDisabled ? 'var(--color-text-muted, #B0B0B0)' : 'var(--color-text-primary, #1A1A1A)',
             opacity: isPrevMonthDisabled ? 0.35 : 1,
             boxShadow: isPrevMonthDisabled ? 'none' : '0 1px 3px rgba(0,0,0,0.03)',
-            transition: 'all 0.15s ease',
+            transition: 'background-color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast)',
           }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -524,7 +524,7 @@ export function PaladioDateRangePicker({
             cursor: 'pointer',
             color: 'var(--color-text-primary, #1A1A1A)',
             boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            transition: 'all 0.15s ease',
+            transition: 'background-color var(--transition-fast), border-color var(--transition-fast)',
           }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -535,6 +535,8 @@ export function PaladioDateRangePicker({
 
       {/* Two consecutive months side by side with dashed center line */}
       <div
+        key={leftMonthDate.getFullYear() * 12 + leftMonthDate.getMonth()}
+        className="animate-tab-pane"
         style={{
           display: 'grid',
           gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',

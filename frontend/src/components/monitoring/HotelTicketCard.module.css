@@ -223,7 +223,7 @@
   background: #FFFFFF;
   border: 1px solid var(--color-border, #E2E8F0);
   color: var(--color-text-secondary, #475569);
-  transition: all 0.12s ease;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .amenityIconPill:hover {
@@ -257,7 +257,10 @@
   border-radius: 4px;
   border: 1px solid #CBD5E1;
   background: #FFFFFF;
-  transition: all 0.15s ease;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .directLinkBtn:hover {

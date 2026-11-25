@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { useSlidingIndicator } from '@/hooks/useSlidingIndicator';
 import { BalancesWidget } from '@/components/trip-workspace/costs/BalancesWidget';
 import { CategoryBreakdownWidget } from '@/components/trip-workspace/costs/CategoryBreakdownWidget';
 import { TripPhotosView } from '@/components/trip-workspace/TripPhotosView';
@@ -52,6 +53,13 @@ export function PastTripTabs({
 }: PastTripTabsProps) {
   const { t } = useTranslation();
   const { addNotification } = useNotificationStore();
+  const {
+    containerRef: tabListRef,
+    registerItem: registerTab,
+    indicatorStyle: tabIndicatorStyle,
+    isReady: tabIndicatorReady,
+    animate: tabAnimate,
+  } = useSlidingIndicator<PastTripTabId>(activeTab);
 
   const [isEditing, setIsEditing] = useState(false);
   const [draftDesc, setDraftDesc] = useState(description);
@@ -140,7 +148,24 @@ export function PastTripTabs({
           marginBottom: '1.5rem',
         }}
       >
-        <div style={{ display: 'flex', gap: '1.75rem' }}>
+        <div
+          ref={tabListRef}
+          role="tablist"
+          style={{ position: 'relative', display: 'flex', gap: '1.75rem' }}
+        >
+          <span
+            aria-hidden="true"
+            className="paladio-sliding-underline"
+            data-animate={tabAnimate ? 'true' : 'false'}
+            style={{
+              ...tabIndicatorStyle,
+              top: 'auto',
+              bottom: '-3.5px',
+              height: '3px',
+              borderRadius: '2px',
+              background: 'var(--color-accent-primary, #0F4C5C)',
+            }}
+          />
           {(
             [
               { id: 'about', label: t('vault.tab_about') },
@@ -153,6 +178,7 @@ export function PastTripTabs({
             return (
               <button
                 key={tab.id}
+                ref={registerTab(tab.id)}
                 type="button"
                 role="tab"
                 aria-selected={isActive}
@@ -167,12 +193,13 @@ export function PastTripTabs({
                   color: isActive ? 'var(--color-accent-teal, #0F4C5C)' : 'var(--color-text-muted, #566B76)',
                   cursor: 'pointer',
                   position: 'relative',
-                  transition: 'color 0.15s ease',
+                  transition: 'color var(--transition-fast)',
                 }}
               >
                 {tab.label}
-                {isActive && (
+                {isActive && !tabIndicatorReady && (
                   <span
+                    aria-hidden="true"
                     style={{
                       position: 'absolute',
                       bottom: '-3.5px',
@@ -229,7 +256,7 @@ export function PastTripTabs({
 
       {/* Tab Panes */}
       {activeTab === 'about' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div key="about" className="animate-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {isEditing ? (
             /* Inline Edit Mode */
             <div
@@ -407,7 +434,7 @@ export function PastTripTabs({
       )}
 
       {activeTab === 'itinerary' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div key="itinerary" className="animate-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {filteredDays.length === 0 ? (
             <div className="font-mono text-muted text-sm" style={{ padding: '2rem 0' }}>
               {t('vault.no_itinerary_stops_view')}
@@ -501,7 +528,7 @@ export function PastTripTabs({
       )}
 
       {activeTab === 'costs' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div key="costs" className="animate-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {expenseItems.length === 0 ? (
             <div
               style={{
@@ -540,7 +567,7 @@ export function PastTripTabs({
       )}
 
       {activeTab === 'photos' && (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div key="photos" className="animate-tab-pane" style={{ display: 'flex', flexDirection: 'column' }}>
           <TripPhotosView tripId={tripId} photos={photos} onPhotosChange={onPhotosChange} />
         </div>
       )}

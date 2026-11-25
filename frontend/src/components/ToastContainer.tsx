@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -19,20 +19,64 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
   const { t, locale } = useTranslation();
   const { notification, durationMs } = toast;
   const theme = TOAST_THEMES[notification.type] || TOAST_THEMES.info;
+  const [isClosing, setIsClosing] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const remainingRef = useRef(durationMs);
+  const startedAtRef = useRef<number | null>(null);
+  const closeStartedRef = useRef(false);
+  const closeTimeoutRef = useRef<number | null>(null);
+  const onDismissRef = useRef(onDismiss);
 
   useEffect(() => {
-    if (durationMs <= 0) return;
-    const timer = setTimeout(() => {
-      onDismiss();
-    }, durationMs);
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
 
-    return () => clearTimeout(timer);
-  }, [durationMs, onDismiss]);
+  const triggerClose = useCallback(() => {
+    if (closeStartedRef.current) return;
+    closeStartedRef.current = true;
+    setIsClosing(true);
+    const prefersReduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    closeTimeoutRef.current = window.setTimeout(() => {
+      onDismissRef.current();
+    }, prefersReduced ? 80 : 150);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current !== null) {
+        window.clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (durationMs <= 0 || isClosing || isPaused) return;
+    const ms = Math.max(0, remainingRef.current);
+    startedAtRef.current = Date.now();
+    const timer = window.setTimeout(() => {
+      remainingRef.current = 0;
+      triggerClose();
+    }, ms);
+
+    return () => {
+      window.clearTimeout(timer);
+      if (startedAtRef.current !== null) {
+        remainingRef.current = Math.max(0, remainingRef.current - (Date.now() - startedAtRef.current));
+        startedAtRef.current = null;
+      }
+    };
+  }, [durationMs, isClosing, isPaused, triggerClose]);
 
   return (
     <div
       role="status"
       aria-live="polite"
+      className="paladio-toast"
+      data-state={isClosing ? 'closing' : 'open'}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
       style={{
         background: 'var(--color-surface-card)',
         borderLeft: `4px solid ${theme.border}`,
@@ -46,7 +90,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
         display: 'flex',
         gap: '10px',
         position: 'relative',
-        animation: 'slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        overflow: 'hidden',
       }}
     >
       {/* Icon */}
@@ -110,7 +154,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
           <div style={{ marginTop: '6px' }}>
             <Link
               href={notification.actionLink}
-              onClick={onDismiss}
+              onClick={triggerClose}
               className="font-mono"
               style={{
                 display: 'inline-flex',
@@ -130,7 +174,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
 
       {/* Dismiss button */}
       <button
-        onClick={onDismiss}
+        onClick={triggerClose}
         title={t('notifications.dismiss')}
         style={{
           background: 'transparent',
@@ -145,6 +189,23 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
       >
         ×
       </button>
+
+      {durationMs > 0 && (
+        <div
+          aria-hidden="true"
+          className="paladio-toast-progress"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: '2px',
+            background: theme.border,
+            opacity: 0.65,
+            animationDuration: `${durationMs}ms`,
+          }}
+        />
+      )}
     </div>
   );
 }

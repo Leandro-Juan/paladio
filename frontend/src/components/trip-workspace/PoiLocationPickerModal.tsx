@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { CloseIcon, PinIcon, SearchIcon, CheckIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
 
@@ -66,6 +67,7 @@ export function PoiLocationPickerModal({
   onConfirm,
 }: PoiLocationPickerModalProps) {
   const { t } = useTranslation();
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
   const hasValidInitial =
     typeof initialLat === 'number' && !isNaN(initialLat) && typeof initialLng === 'number' && !isNaN(initialLng);
 
@@ -249,13 +251,15 @@ export function PoiLocationPickerModal({
     setSearchResults([]);
   };
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label={t('poi_picker.dialog_aria')}
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -274,6 +278,8 @@ export function PoiLocationPickerModal({
     >
       <div
         data-testid="poi-location-picker-modal"
+        className="paladio-modal-panel"
+        data-state={dataState}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'var(--color-surface-raised, #FFFFFF)',

@@ -324,13 +324,12 @@ function createWaypointCenterIcon(): L.DivIcon {
         user-select: none;
         -webkit-user-drag: none;
       ">
-        <div style="
+        <div class="paladio-ping" style="
           position: absolute;
           width: 32px;
           height: 32px;
           border-radius: 50%;
           background: rgba(15, 76, 92, 0.25);
-          animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
           pointer-events: none;
         "></div>
         <div style="
@@ -2270,6 +2269,13 @@ export default function TripMapView({
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1000,
+            pointerEvents: 'none',
+          }}
+        >
+        <div
+          className="paladio-popover"
+          data-origin="top"
+          style={{
             background: 'rgba(15, 76, 92, 0.95)',
             backdropFilter: 'blur(8px)',
             color: '#FFFFFF',
@@ -2310,6 +2316,7 @@ export default function TripMapView({
             <CloseIcon size={10} />
           </button>
         </div>
+        </div>
       )}
 
       {/* Tactical Waypoint Dropping Active Banner */}
@@ -2321,6 +2328,13 @@ export default function TripMapView({
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1000,
+            pointerEvents: 'none',
+          }}
+        >
+        <div
+          className="paladio-popover"
+          data-origin="top"
+          style={{
             background: 'rgba(15, 76, 92, 0.95)',
             backdropFilter: 'blur(8px)',
             color: '#FFFFFF',
@@ -2357,6 +2371,7 @@ export default function TripMapView({
           >
             <CloseIcon size={10} />
           </button>
+        </div>
         </div>
       )}
 
@@ -3580,13 +3595,22 @@ export default function TripMapView({
       {/* Floating Active Transit Line Banner */}
       {activeTransitLine && (
         <div
-          data-testid="active-transit-line-banner"
+          className="paladio-drawer-panel"
           style={{
             position: 'absolute',
             top: '20px',
-            left: isSidebarOpen ? 'calc(50% + 180px)' : '50%',
-            transform: 'translateX(-50%)',
+            left: '50%',
+            transform: isSidebarOpen ? 'translateX(calc(-50% + 180px))' : 'translateX(-50%)',
+            transition: 'transform var(--transition-gentle)',
             zIndex: 900,
+            pointerEvents: 'none',
+          }}
+        >
+        <div
+          data-testid="active-transit-line-banner"
+          className="paladio-popover"
+          data-origin="top"
+          style={{
             background: 'var(--color-surface-card, #FFFFFF)',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
@@ -3600,7 +3624,7 @@ export default function TripMapView({
             fontFamily: 'var(--font-sans, inherit)',
             fontSize: '12px',
             pointerEvents: 'auto',
-            transition: 'all 0.25s ease',
+            transition: 'border-color var(--transition-fast)',
           }}
         >
           <span
@@ -3649,19 +3673,22 @@ export default function TripMapView({
             </button>
           )}
         </div>
+        </div>
       )}
 
       {/* Floating Detailed Transit Route Legend */}
       {transitMode === 'detailed' && (
         <div
           data-testid="detailed-transit-legend"
+          className="paladio-drawer-panel"
           style={{
             position: 'absolute',
             bottom: '28px',
-            left: isSidebarOpen
-              ? `calc(${sidebarTab === 'route' ? 'min(380px, calc(100vw - 32px))' : 'min(520px, calc(100vw - 32px))'} + 84px)`
-              : '84px',
-            transition: 'left 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
+            left: '84px',
+            transform: isSidebarOpen
+              ? `translateX(${sidebarTab === 'route' ? 'min(380px, calc(100vw - 32px))' : 'min(520px, calc(100vw - 32px))'})`
+              : 'translateX(0)',
+            transition: 'transform var(--transition-gentle)',
             zIndex: 900,
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(12px)',

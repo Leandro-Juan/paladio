@@ -37,6 +37,7 @@ export function SpatialFilterCard({
     return (
       <div
         data-testid="dropping-waypoint-prompt"
+        className="paladio-pulse"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -46,7 +47,6 @@ export function SpatialFilterCard({
           borderRadius: '10px',
           background: 'rgba(15, 76, 92, 0.08)',
           border: '1.5px dashed var(--color-accent-primary, #0F4C5C)',
-          animation: 'pulse 2s infinite ease-in-out',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

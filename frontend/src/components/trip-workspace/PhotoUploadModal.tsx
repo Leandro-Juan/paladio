@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { CameraTacticalIllustration } from '@/components/illustrations';
 import { CloseIcon, PlusIcon, Spinner, UploadIcon, VideoIcon } from '@/components/icons';
 
@@ -22,6 +23,7 @@ export function PhotoUploadModal({
 }: PhotoUploadModalProps) {
   const { t } = useTranslation();
   const isMounted = useIsMounted();
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
   const [dragOver, setDragOver] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -77,7 +79,7 @@ export function PhotoUploadModal({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, handleClose]);
 
-  if (!isOpen || !isMounted || typeof document === 'undefined') return null;
+  if (!shouldRender || !isMounted || typeof document === 'undefined') return null;
 
   const handleFilesAdded = (files: FileList | File[]) => {
     const valid = Array.from(files).filter(
@@ -103,6 +105,8 @@ export function PhotoUploadModal({
 
   return createPortal(
     <div
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       style={{
         position: 'fixed',
         inset: 0,
@@ -138,6 +142,8 @@ export function PhotoUploadModal({
 
       <div
         ref={modalRef}
+        className="paladio-modal-panel"
+        data-state={dataState}
         style={{
           background: 'var(--color-surface-raised, #FFFFFF)',
           border: '1px solid var(--color-border, #E2D9CC)',

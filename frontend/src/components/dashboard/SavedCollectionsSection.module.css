@@ -57,7 +57,10 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform var(--transition-snappy),
+    box-shadow var(--transition-snappy),
+    border-color var(--transition-fast);
   box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
   text-decoration: none;
   color: inherit;
@@ -214,11 +217,11 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--color-accent-teal-deep, #144A40);
-  transition: gap 0.15s ease;
+  transition: transform var(--transition-fast), color var(--transition-fast);
 }
 
 .card:hover .footerAction {
-  gap: 7px;
+  transform: translateX(2px);
 }
 
 .emptyState {
@@ -566,4 +569,15 @@
 .removePoiBtn:hover {
   color: #E11D48;
   background-color: rgba(225, 29, 72, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .footerAction {
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+  }
+  .card:hover,
+  .card:hover .footerAction {
+    transform: none;
+  }
 }

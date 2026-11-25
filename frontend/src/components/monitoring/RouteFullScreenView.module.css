@@ -3,12 +3,26 @@
   flex-direction: column;
   gap: 1.5rem;
   width: 100%;
-  animation: fadeIn 0.2s ease;
+  animation: fadeIn var(--duration-snappy, 200ms) var(--ease-snappy, cubic-bezier(0.23, 1, 0.32, 1)) backwards;
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .container {
+    animation: fadeInReduced var(--duration-instant, 90ms) ease-out backwards;
+  }
+  .backBtn {
+    transition: background-color var(--duration-instant, 90ms) ease;
+  }
+}
+
+@keyframes fadeInReduced {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .topBar {
@@ -39,7 +53,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast, 150ms ease), border-color var(--transition-fast, 150ms ease), color var(--transition-fast, 150ms ease);
 }
 
 .backBtn:hover {

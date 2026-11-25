@@ -148,7 +148,7 @@
   font-family: var(--font-mono, monospace);
   font-weight: 600;
   letter-spacing: 0.02em;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .engineSwitchBtn:hover {
@@ -337,7 +337,10 @@
   background: rgba(15, 76, 92, 0.05);
   border: 1px solid rgba(15, 76, 92, 0.12);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
   user-select: none;
 }
 
@@ -434,7 +437,10 @@
   border: 1px solid rgba(15, 76, 92, 0.2);
   cursor: pointer;
   vertical-align: baseline;
-  transition: all 0.15s ease;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
   user-select: none;
 }
 
@@ -596,6 +602,11 @@
   50% { opacity: 1; }
 }
 
+@keyframes pulseChip {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
 /* Streaming inline cursor */
 .cursor {
   display: inline-block;
@@ -746,12 +757,7 @@
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(15, 76, 92, 0.3);
   font-size: 12px;
-  animation: slideDown 0.2s ease;
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  animation: slideDown var(--transition-fast);
 }
 
 .undoToastBtn {
@@ -809,7 +815,7 @@
   cursor: pointer;
   font-family: inherit;
   font-weight: 500;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .quickChip:hover {
@@ -905,4 +911,27 @@
   color: #FFFFFF;
   border: none;
   cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulseDot,
+  .toolRunning,
+  .thinkingDots .dot,
+  .thinkingText,
+  .cursor {
+    animation: none;
+  }
+  .dockPanel,
+  .switcherPopover {
+    animation: fadeIn var(--duration-instant) ease-out;
+  }
+  .floatingTrigger,
+  .inlinePoiChip {
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .floatingTrigger:hover,
+  .floatingTrigger:active,
+  .inlinePoiChip:hover {
+    transform: none;
+  }
 }

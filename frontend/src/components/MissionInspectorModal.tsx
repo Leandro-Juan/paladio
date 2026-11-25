@@ -1,8 +1,9 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount, useEscapeAndFocusReturn } from '@/hooks/useAnimatedMount';
 import { Trip } from '@/hooks/useTrips';
 import { countWaypoints, isTripCompleted } from '@/utils/tripParser';
 import { TripStatus, calculateTripDurationDays, downloadTripIcs } from '@/utils/calendarUtils';
@@ -17,10 +18,18 @@ interface MissionInspectorModalProps {
 
 export function MissionInspectorModal({ isOpen, trip, status, onClose }: MissionInspectorModalProps) {
   const { t, locale } = useTranslation();
-  if (!isOpen || !trip) return null;
+  const [cachedTrip, setCachedTrip] = useState<Trip | null>(trip);
+  if (trip && trip !== cachedTrip) {
+    setCachedTrip(trip);
+  }
+  const activeTrip = trip ?? cachedTrip;
+  const { shouldRender, dataState } = useAnimatedMount(isOpen && Boolean(activeTrip), 150);
+  useEscapeAndFocusReturn(isOpen && Boolean(activeTrip), onClose);
 
-  const durationDays = calculateTripDurationDays(trip.start_date, trip.end_date);
-  const waypoints = countWaypoints(trip.itinerary_data);
+  if (!shouldRender || !activeTrip) return null;
+
+  const durationDays = calculateTripDurationDays(activeTrip.start_date, activeTrip.end_date);
+  const waypoints = countWaypoints(activeTrip.itinerary_data);
   const dateLocale = locale === 'en' ? undefined : locale;
 
   const statusConfig = {
@@ -46,6 +55,8 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
 
   return (
     <div
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       style={{
         position: 'fixed',
         inset: 0,
@@ -60,7 +71,10 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
       onClick={onClose}
     >
       <div
-        className="bg-surface border-subtle"
+        role="dialog"
+        aria-modal="true"
+        className="bg-surface border-subtle paladio-modal-panel"
+        data-state={dataState}
         style={{
           width: '100%',
           maxWidth: '480px',
@@ -90,7 +104,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
               {statusConfig.label}
             </span>
             <h3 className="font-display" style={{ fontSize: '1.65rem', fontWeight: 300, marginTop: '0.5rem', marginBottom: 0, color: 'var(--color-text-primary)' }}>
-              {trip.destination}
+              {activeTrip.destination}
             </h3>
           </div>
           <button
@@ -126,7 +140,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
           <div>
             <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>{t('calendar.timeframe')}</span>
             <p className="font-mono text-xs font-semibold" style={{ marginTop: '2px', color: 'var(--color-text-primary)' }}>
-              {new Date(trip.start_date).toLocaleDateString(dateLocale)} - {new Date(trip.end_date).toLocaleDateString(dateLocale)}
+              {new Date(activeTrip.start_date).toLocaleDateString(dateLocale)} - {new Date(activeTrip.end_date).toLocaleDateString(dateLocale)}
             </p>
           </div>
           <div>
@@ -146,16 +160,16 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
           <div>
             <span className="font-mono text-muted text-xs" style={{ display: 'block' }}>{t('calendar.system_id')}</span>
             <p className="font-mono text-muted text-xs" style={{ marginTop: '2px' }}>
-              {trip.id ? trip.id.slice(0, 8) : t('calendar.ephemeral')}
+              {activeTrip.id ? activeTrip.id.slice(0, 8) : t('calendar.ephemeral')}
             </p>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {trip.id && (
+          {activeTrip.id && (
             <Link
-              href={isTripCompleted(trip) ? `/vault/${trip.id}` : `/trips/${trip.id}`}
+              href={isTripCompleted(activeTrip) ? `/vault/${activeTrip.id}` : `/trips/${activeTrip.id}`}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -179,7 +193,7 @@ export function MissionInspectorModal({ isOpen, trip, status, onClose }: Mission
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button
               type="button"
-              onClick={() => downloadTripIcs(trip)}
+              onClick={() => downloadTripIcs(activeTrip)}
               style={{
                 flex: 1,
                 padding: '0.6rem 1rem',

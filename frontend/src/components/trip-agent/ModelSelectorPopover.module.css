@@ -11,7 +11,7 @@
   align-items: flex-start;
   justify-content: center;
   padding: 16px;
-  animation: fadeIn 0.15s ease-out;
+  animation: fadeIn var(--duration-fast, 150ms) ease-out;
 }
 
 @keyframes fadeIn {
@@ -30,7 +30,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: scaleIn var(--duration-snappy, 200ms) var(--ease-snappy, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
 :global([data-theme="dark"]) .popoverCard {
@@ -42,11 +42,18 @@
 @keyframes scaleIn {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.97);
+    transform: translateY(-8px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popoverOverlay,
+  .popoverCard {
+    animation: fadeIn var(--duration-instant, 90ms) ease-out;
   }
 }
 
