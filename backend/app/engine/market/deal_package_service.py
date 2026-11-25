@@ -27,6 +27,10 @@ from app.db.models import (
     UserModel,
 )
 from app.engine.market.baselines import resolve_route_baseline_quantiles
+from app.engine.market.booking_links import (
+    build_flight_booking_url,
+    build_hotel_booking_url,
+)
 from app.engine.market.config import config
 from app.engine.market.lodging.ranking import HotelCandidate, rank_hotels
 
@@ -146,6 +150,10 @@ class DealPackageService:
         nights: int,
         travelers: int,
         fallback_badge: str = "Best Value",
+        destination: str = "",
+        city_name: str | None = None,
+        check_in: date | str | None = None,
+        check_out: date | str | None = None,
     ) -> tuple[dict[str, Any], int]:
         """Formats a RankedHotel into the deal package lodging payload."""
         cand = ranked_hotel.candidate
@@ -164,6 +172,15 @@ class DealPackageService:
             if cand.review_score
             else None
         )
+        booking_url = build_hotel_booking_url(
+            destination=destination,
+            property_name=cand.name,
+            city_name=city_name,
+            check_in=check_in,
+            check_out=check_out,
+            deep_link=cand.deep_link,
+            travelers=travelers,
+        )
         return (
             {
                 "property_name": prop_name,
@@ -173,7 +190,7 @@ class DealPackageService:
                 "stars": cand.stars,
                 "review_score": cand.review_score,
                 "review_count": cand.review_count,
-                "booking_url": cand.deep_link,
+                "booking_url": booking_url,
                 "source": cand.provider or "lodging",
                 "is_live": False,
                 "taxes_included": cand.taxes_included,
@@ -260,9 +277,14 @@ class DealPackageService:
         fl_landed_unit = flight_info.get("landed_price_cents") or fl_base_unit
         fl_base_cents = int(fl_base_unit * travelers)
         fl_landed_cents = int(fl_landed_unit * travelers)
-        fl_url = (
-            flight_info.get("deep_link")
-            or f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={orig}&destinationIata={dest}&dateOut={dep_date}"
+        ret_flight_info = pkg.get("return_flight")
+        fl_url = build_flight_booking_url(
+            origin=orig,
+            destination=dest,
+            depart_date=dep_date,
+            return_date=ret_date if ret_flight_info else None,
+            deep_link=flight_info.get("deep_link"),
+            travelers=travelers,
         )
 
         lodging_info = pkg.get("lodging")
@@ -277,19 +299,16 @@ class DealPackageService:
                 lg_nightly_cents * nights
             )
             lg_quality = lodging_info.get("quality_score")
-            lg_url = lodging_info.get("deep_link") or lodging_info.get("booking_url")
-            if not lg_url and dest:
-                checkin_str = dep_date if dep_date else ""
-                checkout_str = ret_date if ret_date else ""
-                dates_query = (
-                    f"&checkin={checkin_str}&checkout={checkout_str}"
-                    if checkin_str and checkout_str
-                    else ""
-                )
-                lg_url = f"https://www.booking.com/searchresults.html?ss={dest}{dates_query}&group_adults={travelers}&no_rooms=1"
-            elif lg_url and travelers > 1 and "group_adults=" not in lg_url:
-                sep = "&" if "?" in lg_url else "?"
-                lg_url = f"{lg_url}{sep}group_adults={travelers}&no_rooms=1"
+            lg_url = build_hotel_booking_url(
+                destination=dest,
+                property_name=lodging_info.get("property_name"),
+                city_name=pkg.get("destination_name"),
+                check_in=dep_date,
+                check_out=ret_date,
+                deep_link=lodging_info.get("deep_link")
+                or lodging_info.get("booking_url"),
+                travelers=travelers,
+            )
 
             photo_url = lodging_info.get("photo_url")
             amenities = lodging_info.get("amenities") or []
@@ -343,7 +362,6 @@ class DealPackageService:
                 "address": address,
             }
 
-        ret_flight_info = pkg.get("return_flight")
         ret_flight_item = None
         ret_landed_cents = 0
         if ret_flight_info:
@@ -351,9 +369,12 @@ class DealPackageService:
             ret_landed_unit = ret_flight_info.get("landed_price_cents") or ret_base_unit
             ret_base_cents = int(ret_base_unit * travelers)
             ret_landed_cents = int(ret_landed_unit * travelers)
-            ret_url = (
-                ret_flight_info.get("deep_link")
-                or f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={dest}&destinationIata={orig}&dateOut={ret_date}"
+            ret_url = build_flight_booking_url(
+                origin=dest,
+                destination=orig,
+                depart_date=ret_date,
+                deep_link=ret_flight_info.get("deep_link"),
+                travelers=travelers,
             )
             ret_flight_item = {
                 "airline": ret_flight_info.get("airline") or "Flight",
@@ -681,6 +702,7 @@ class DealPackageService:
             .limit(1)
         )
         city_obj = (await session.execute(city_stmt)).scalar_one_or_none()
+        city_name = city_obj.name if city_obj else None
         center_lat = city_obj.center_lat if city_obj else None
         center_lon = city_obj.center_lon if city_obj else None
 
@@ -854,9 +876,13 @@ class DealPackageService:
                 or out_meta.get("carrier")
                 or (out_tick.source.title() if out_tick.source else "Flight")
             )
-            out_url = (
-                out_meta.get("deep_link")
-                or f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={orig}&destinationIata={dest_code}&dateOut={dep_dt.isoformat()}"
+            out_url = build_flight_booking_url(
+                origin=orig,
+                destination=dest_code,
+                depart_date=dep_dt,
+                return_date=best_ret_tick.depart_date,
+                deep_link=out_meta.get("deep_link"),
+                travelers=cand_travelers,
             )
 
             # Extract rich flight metadata for Return
@@ -870,15 +896,19 @@ class DealPackageService:
                 or ret_meta.get("carrier")
                 or (best_ret_tick.source.title() if best_ret_tick.source else "Flight")
             )
-            ret_url = (
-                ret_meta.get("deep_link")
-                or f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={dest_code}&destinationIata={orig}&dateOut={best_ret_tick.depart_date.isoformat()}"
+            ret_url = build_flight_booking_url(
+                origin=dest_code,
+                destination=orig,
+                depart_date=best_ret_tick.depart_date,
+                deep_link=ret_meta.get("deep_link"),
+                travelers=cand_travelers,
             )
 
             # Dynamic Lodging Resolution (cached DB observations only; never live-scrape on read):
             chosen_ranked = best_hotel_by_date.get(dep_dt)
             lodging_item: dict[str, Any] | None = None
             total_hotel_cents = 0
+            ret_dt = best_ret_tick.depart_date
 
             if chosen_ranked and (
                 self._has_rich_lodging_meta(chosen_ranked.candidate)
@@ -889,6 +919,10 @@ class DealPackageService:
                     best_nights,
                     cand_travelers,
                     fallback_badge="Best Value",
+                    destination=dest_code,
+                    city_name=city_name,
+                    check_in=dep_dt,
+                    check_out=ret_dt,
                 )
             elif dep_dt in best_enriched_by_date:
                 lodging_item, total_hotel_cents = self._build_lodging_item(
@@ -896,6 +930,10 @@ class DealPackageService:
                     best_nights,
                     cand_travelers,
                     fallback_badge="Best Value",
+                    destination=dest_code,
+                    city_name=city_name,
+                    check_in=dep_dt,
+                    check_out=ret_dt,
                 )
             elif best_enriched_by_date:
                 closest_date = min(
@@ -906,6 +944,10 @@ class DealPackageService:
                     best_nights,
                     cand_travelers,
                     fallback_badge="Destination Best",
+                    destination=dest_code,
+                    city_name=city_name,
+                    check_in=dep_dt,
+                    check_out=ret_dt,
                 )
             elif chosen_ranked:
                 lodging_item, total_hotel_cents = self._build_lodging_item(
@@ -913,6 +955,10 @@ class DealPackageService:
                     best_nights,
                     cand_travelers,
                     fallback_badge="Best Value",
+                    destination=dest_code,
+                    city_name=city_name,
+                    check_in=dep_dt,
+                    check_out=ret_dt,
                 )
             elif best_hotel_by_date:
                 closest_date = min(
@@ -923,6 +969,10 @@ class DealPackageService:
                     best_nights,
                     cand_travelers,
                     fallback_badge="Destination Best",
+                    destination=dest_code,
+                    city_name=city_name,
+                    check_in=dep_dt,
+                    check_out=ret_dt,
                 )
 
             total_fl_cents = (out_cents + ret_cents) * cand_travelers
