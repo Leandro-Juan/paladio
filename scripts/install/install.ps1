@@ -3,11 +3,11 @@
 # Single-Command One-Line Installer for Windows (PowerShell 5.1+ / 7+)
 # ==============================================================================
 # Usage (PowerShell):
-#   irm https://raw.githubusercontent.com/Leandro-Juan/paladio/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.ps1 | iex
 # Usage (CMD / Win+R):
-#   powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Leandro-Juan/paladio/main/install.ps1 | iex"
+#   powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.ps1 | iex"
 # Or locally:
-#   .\install.ps1
+#   .\scripts\install\install.ps1
 # ==============================================================================
 
 function Install-Paladio {
@@ -34,8 +34,8 @@ function Install-Paladio {
 
     function Show-Banner {
         $banner = @'
-  ___       _           _ _
- | _ \ __ _| |__ _  __| (_)___    Paladio Sovereign Travel Engine
+  ___      _          _ _
+ | _ \__ _| |__ _  __| (_)___    Paladio Sovereign Travel Engine
  |  _/ _` | / _` |/ _` | / _ \   Single-Command Windows Installer
  |_| \__,_|_\__,_|\__,_|_\___/
 '@
@@ -93,8 +93,11 @@ function Install-Paladio {
     # --- Step 2: Determine Installation Directory ---
     $installDir = $env:PALADIO_INSTALL_DIR
     if ([string]::IsNullOrWhiteSpace($installDir)) {
+        $scriptRepoRoot = if ($PSScriptRoot) { (Resolve-Path -LiteralPath (Join-Path (Join-Path $PSScriptRoot "..") "..") -ErrorAction SilentlyContinue).Path } else { $null }
         if (Test-Path -LiteralPath "docker-compose.yml" -PathType Leaf) {
             $installDir = (Get-Location).Path
+        } elseif ($scriptRepoRoot -and (Test-Path -LiteralPath (Join-Path $scriptRepoRoot "docker-compose.yml") -PathType Leaf)) {
+            $installDir = $scriptRepoRoot
         } else {
             $homeDir = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
             $installDir = Join-Path $homeDir "paladio"

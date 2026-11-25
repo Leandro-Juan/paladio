@@ -133,8 +133,6 @@ def generate_all():
         repo_root / "frontend" / "public",
         repo_root / "docs" / "assets",
         repo_root / "cpp_core" / "assets",
-        repo_root / "site" / "assets",
-        repo_root / "scratch" / "generated",
     ]
 
     for target in targets:
@@ -143,18 +141,12 @@ def generate_all():
         logo_jpeg.save(target / "logo.jpeg", quality=95)
         logo_white.save(target / "logo-white.png")
         h_title.save(target / "logo-horizontal.png")
-        h_title.save(target / "logo_horizontal.png")
         h_title_dark.save(target / "logo-horizontal-dark.png")
-        h_title_dark.save(target / "logo_horizontal_dark.png")
         h_caps.save(target / "logo-horizontal-caps.png")
-        h_caps.save(target / "logo_horizontal_caps.png")
         h_caps_dark.save(target / "logo-horizontal-caps-dark.png")
-        h_caps_dark.save(target / "logo_horizontal_caps_dark.png")
 
     # Favicons (White)
     fav_targets = [
-        repo_root / "site" / "assets" / "images" / "favicon.png",
-        repo_root / "cpp_core" / "site" / "assets" / "images" / "favicon.png",
         repo_root / "frontend" / "public" / "favicon.png",
     ]
     for ft in fav_targets:

@@ -8,6 +8,8 @@ edit_uri: "edit/main/docs/"
 
 copyright: "Copyright &copy; 2026 Leandro Juan. Released under the GNU AGPLv3."
 
+site_dir: .local/site
+
 exclude_docs: |
   explanation/UI_UX_ARCHITECTURE_BIBLE.md
 

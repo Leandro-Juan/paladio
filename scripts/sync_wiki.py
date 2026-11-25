@@ -328,7 +328,7 @@ Clone the repository, generate `.env` secrets, and launch the 7-container cluste
 ```bash
 git clone https://github.com/Leandro-Juan/paladio.git
 cd paladio
-./install.sh
+./scripts/install/install.sh
 ```
 
 Read [[Install with Docker|Install-with-Docker]] for hardware sizing, Windows PowerShell instructions, database migrations, and `/setup` provisioning.

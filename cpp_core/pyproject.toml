@@ -64,5 +64,6 @@ cmake.define.PALADIO_BUILD_PYTHON = "ON"
 wheel.expand-macos-universal-tags = true
 
 [tool.pytest.ini_options]
+pythonpath = ["build"]
 testpaths = ["tests/python"]
 python_files = ["test_*.py"]
