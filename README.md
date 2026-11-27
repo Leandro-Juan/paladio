@@ -14,6 +14,7 @@ Plan realistic trips tailored to your tastes, catch genuine flight and hotel dea
 [![Release](https://img.shields.io/github/v/release/Leandro-Juan/paladio)](https://github.com/Leandro-Juan/paladio/releases)
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](./LICENSE)
 [![Docs](https://img.shields.io/badge/Docs-MkDocs-teal.svg)](https://leandro-juan.github.io/paladio/)
+[![Live Demo](https://img.shields.io/badge/Demo-Try%20Live-0F4C5C.svg)](https://paladio-xi.vercel.app)
 
 </div>
 
@@ -22,8 +23,71 @@ Plan realistic trips tailored to your tastes, catch genuine flight and hotel dea
     <img alt="Paladio Product Tour — Watch Full Video" src="docs/assets/paladio-promo-preview.webp" width="860">
   </a>
   <br/>
-  <sub><b>▶ <a href="https://leandro-juan.github.io/paladio/#product-tour">Watch the full product tour (2m 25s, 720p)</a></b> · <a href="https://leandro-juan.github.io/paladio/assets/paladio-promo.mp4">Direct MP4 stream</a></sub>
+  <sub><b>▶ <a href="https://leandro-juan.github.io/paladio/#product-tour">Watch the full product tour (2m 25s, 720p)</a></b> · <a href="https://leandro-juan.github.io/paladio/assets/paladio-promo.mp4">Direct MP4 stream</a> · <a href="https://paladio-xi.vercel.app">Try the Interactive Demo</a></sub>
 </div>
+
+<details>
+<summary><strong>Screenshots &amp; Feature Gallery</strong> — Control Center, Trip Planning, Public Transit, Route Monitoring, Wallet, Costs &amp; Vault</summary>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="./docs/assets/screenshots/dashboard.png"><img src="docs/assets/screenshots/dashboard.png" alt="Control Center & Taste Star" width="100%"></a>
+      <br/>
+      <sub><b>Control Center &amp; Taste Star</b> — Upcoming trip countdowns, your 8-axis Taste Star radar, travel pace &amp; budget profile, highlighted deals, and personalized POI recommendations.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <a href="./docs/assets/screenshots/engine.png"><img src="docs/assets/screenshots/engine.png" alt="New Trip Builder" width="100%"></a>
+      <br/>
+      <sub><b>Trip Planning (<code>/engine</code>)</b> — Natural-language or blank trip builder with flight corridor windows, hotel base-camp anchors, travel window calendar with overlap guards, and document autofill.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="./docs/assets/screenshots/trip-workspace.png"><img src="docs/assets/screenshots/trip-workspace.png" alt="Trip Workspace & Map" width="100%"></a>
+      <br/>
+      <sub><b>Trip Workspace &amp; Route Map</b> — Day-by-day optimized itinerary synchronized with interactive map pins, route hulls, stop durations, costs, drag-and-drop editing, and waypoint locking.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <a href="./docs/assets/screenshots/transit.png"><img src="docs/assets/screenshots/transit.png" alt="Public Transport & GTFS Routing" width="100%"></a>
+      <br/>
+      <sub><b>Public Transport &amp; GTFS Directions</b> — Local door-to-door directions, scheduled itinerary legs, interactive transit line overlays, and nearby station departures powered by Valhalla and GTFS feeds.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="./docs/assets/screenshots/monitoring.png"><img src="docs/assets/screenshots/monitoring.png" alt="Route Monitoring & Fare Deals" width="100%"></a>
+      <br/>
+      <sub><b>Route Monitoring &amp; Deals (<code>/monitoring</code>)</b> — 24/7 flight &amp; package price tracking against 30-day medians with verified savings breakdowns, historical charts, and seasonal fare calendars.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <a href="./docs/assets/screenshots/wallet.png"><img src="docs/assets/screenshots/wallet.png" alt="Bookings Wallet" width="100%"></a>
+      <br/>
+      <sub><b>Bookings Wallet &amp; Passes</b> — Drag-and-drop PDF, Apple Wallet <code>.pkpass</code>, and image boarding passes with an "Up Next" banner, encrypted hotel PINs, barcodes, and itinerary sync.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="./docs/assets/screenshots/costs.png"><img src="docs/assets/screenshots/costs.png" alt="Costs & Group Splitting" width="100%"></a>
+      <br/>
+      <sub><b>Costs &amp; Group Bill Splitting</b> — Live ECB multi-currency converter, route-estimated vs. logged trip spend, per-traveler balances, and simplified group settlement transfers.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <a href="./docs/assets/screenshots/vault.png"><img src="docs/assets/screenshots/vault.png" alt="Trip Archive World Map & Stats" width="100%"></a>
+      <br/>
+      <sub><b>Trip Archive (<code>/vault</code>)</b> — Interactive world GeoJSON travel map with expedition pins, total days logged, countries visited, distance compared to Earth's equator, and past trip recaps.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <a href="./docs/assets/screenshots/config.png"><img src="docs/assets/screenshots/config.png" alt="System Configuration & Settings" width="520"></a>
+      <br/>
+      <sub><b>Self-Hosted Settings (<code>/config</code>)</b> — Solver walking/pacing limits, GTFS transit manager, scraper cadence, optional 13-provider LLM config, photo sync (Immich / Synology), and 10 UI languages.</sub>
+    </td>
+  </tr>
+</table>
+
+</details>
 
 ## Your Private Travel Agency
 
@@ -196,6 +260,7 @@ Then ask things like _"Check my Kyoto trip for tight transfers or missing meals"
 
 - **Documentation Portal:** [leandro-juan.github.io/paladio](https://leandro-juan.github.io/paladio/) (source in [`docs/`](./docs/))
   - [Installation](./docs/getting-started/installation.md) · [Quickstart](./docs/getting-started/quickstart.md) · [User Guide](./docs/user-guide/trip-workspace.md) · [Self-Hosting](./docs/self-hosting/configuration.md) · [Architecture](./docs/architecture/system-overview.md) · [REST API](./docs/reference/rest-api.md) · [MCP Server (82 Tools)](./docs/reference/mcp-server.md)
+- **Live Interactive Demo:** [paladio-xi.vercel.app](https://paladio-xi.vercel.app) (sandboxed showcase from the [`demo`](https://github.com/Leandro-Juan/paladio/tree/demo) branch)
 - **GitHub Wiki:** [github.com/Leandro-Juan/paladio/wiki](https://github.com/Leandro-Juan/paladio/wiki)
 - **In-App Help Center:** Available at `/help` inside any running instance (22 guides across 10 languages)
 - **Standalone Route Solver:** [`Leandro-Juan/paladio-core`](https://github.com/Leandro-Juan/paladio-core) (Apache-2.0, mirrored from [`cpp_core/`](./cpp_core/))
