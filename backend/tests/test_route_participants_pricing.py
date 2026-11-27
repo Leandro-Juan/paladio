@@ -19,6 +19,12 @@ async def test_route_creation_with_participants():
     """Verify route creation persists participants and travelers count correctly with no real monitoring."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        existing_routes = await client.get("/api/market/routes")
+        if existing_routes.status_code == 200:
+            for r in existing_routes.json():
+                if r.get("origin_iata") == "MAD" and r.get("destination_code") == "FCO":
+                    await client.delete(f"/api/market/routes/{r['id']}")
+
         today = date.today()
         participants_data = [
             {"id": "p_org", "name": "Organizer Alice", "is_organizer": True},

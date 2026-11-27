@@ -74,7 +74,7 @@ async def test_market_api_lifecycle(db_session):
         assert len(cal["months"]) == 3
         assert len(cal["months"][0]["days"]) >= 28
         assert cal["view"] == "roundtrip"
-        assert cal["pricing"] == "package"
+        assert cal["pricing"] == "flights"
         assert "top_dates" in cal
         assert isinstance(cal["top_dates"], list)
 
@@ -123,6 +123,7 @@ async def test_market_api_lifecycle(db_session):
 @pytest.mark.asyncio
 async def test_discard_deal_lifecycle(db_session, async_client):
     import uuid
+    from datetime import datetime, timezone
     from app.db.models import (
         DealEventModel,
         DealCandidateModel,
@@ -175,24 +176,33 @@ async def test_discard_deal_lifecycle(db_session, async_client):
     await db_session.flush()
 
     deal_id = f"deal_{uuid.uuid4().hex[:8]}"
+    depart_dt = (date.today() + timedelta(days=7)).isoformat()
+    return_dt = (date.today() + timedelta(days=11)).isoformat()
     deal = DealEventModel(
         id=deal_id,
         candidate_id=cand_id,
         alert_id=alert_id,
         user_id=user_id,
         status="alerted",
+        alerted_at=datetime.now(timezone.utc),
         package_json={
             "origin_iata": "MAD",
             "destination_code": "FCO",
             "origin_name": "Madrid",
             "destination_name": "Rome",
-            "depart_date": (date.today() + timedelta(days=7)).isoformat(),
-            "return_date": (date.today() + timedelta(days=11)).isoformat(),
+            "depart_date": depart_dt,
+            "return_date": return_dt,
             "nights": 4,
             "flight": {
                 "airline": "Ryanair",
-                "depart_time": "2026-11-18T09:00:00Z",
-                "arrival_time": "2026-11-18T11:30:00Z",
+                "depart_time": f"{depart_dt}T09:00:00Z",
+                "arrival_time": f"{depart_dt}T11:30:00Z",
+                "landed_price_cents": 4500,
+            },
+            "return_flight": {
+                "airline": "Ryanair",
+                "depart_time": f"{return_dt}T18:00:00Z",
+                "arrival_time": f"{return_dt}T20:30:00Z",
                 "landed_price_cents": 4500,
             },
             "lodging": {
@@ -209,23 +219,30 @@ async def test_discard_deal_lifecycle(db_session, async_client):
     db_session.add(deal)
     await db_session.commit()
 
-    # 1. Verify deal is returned in active deals
-    deals_res = await async_client.get("/api/market/deals")
-    assert deals_res.status_code == 200
-    deal_ids = [d["id"] for d in deals_res.json()]
-    assert deal_id in deal_ids
+    try:
+        # 1. Verify deal is returned in active deals
+        deals_res = await async_client.get("/api/market/deals?limit=50")
+        assert deals_res.status_code == 200
+        deal_ids = [d["id"] for d in deals_res.json()]
+        assert deal_id in deal_ids
 
-    # 2. Discard deal
-    discard_res = await async_client.post(f"/api/market/deals/{deal_id}/discard")
-    assert discard_res.status_code == 200
-    assert discard_res.json()["status"] == "discarded"
-    assert discard_res.json()["deal_id"] == deal_id
+        # 2. Discard deal
+        discard_res = await async_client.post(f"/api/market/deals/{deal_id}/discard")
+        assert discard_res.status_code == 200
+        assert discard_res.json()["status"] == "discarded"
+        assert discard_res.json()["deal_id"] == deal_id
 
-    # 3. Verify deal is no longer in active deals list
-    deals_after = await async_client.get("/api/market/deals")
-    assert deals_after.status_code == 200
-    deal_ids_after = [d["id"] for d in deals_after.json()]
-    assert deal_id not in deal_ids_after
+        # 3. Verify deal is no longer in active deals list
+        deals_after = await async_client.get("/api/market/deals?limit=50")
+        assert deals_after.status_code == 200
+        deal_ids_after = [d["id"] for d in deals_after.json()]
+        assert deal_id not in deal_ids_after
+    finally:
+        await db_session.delete(deal)
+        await db_session.delete(cand)
+        await db_session.delete(alert)
+        await db_session.delete(user)
+        await db_session.commit()
 
 
 @pytest.mark.asyncio
