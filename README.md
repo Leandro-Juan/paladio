@@ -18,11 +18,11 @@ Plan realistic trips tailored to your tastes, catch genuine flight and hotel dea
 </div>
 
 <div align="center">
-  <a href="./docs/assets/paladio-promo.mp4">
+  <a href="https://leandro-juan.github.io/paladio/#product-tour">
     <img alt="Paladio Product Tour — Watch Full Video" src="docs/assets/paladio-promo-preview.webp" width="860">
   </a>
   <br/>
-  <sub><b>▶ <a href="./docs/assets/paladio-promo.mp4">Watch the full product tour (720p MP4)</a></b></sub>
+  <sub><b>▶ <a href="https://leandro-juan.github.io/paladio/#product-tour">Watch the full product tour (2m 25s, 720p)</a></b> · <a href="https://leandro-juan.github.io/paladio/assets/paladio-promo.mp4">Direct MP4 stream</a></sub>
 </div>
 
 ## Your Private Travel Agency
