@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "paladio-core"
-version = "3.0.0" # x-release-please-version
+version = "3.1.0" # x-release-please-version
 description = "Deterministic C++20 combinatorial routing and orienteering solver with Python bindings"
 readme = "README.md"
 requires-python = ">=3.10"

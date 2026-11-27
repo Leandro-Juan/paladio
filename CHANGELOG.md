@@ -1,5 +1,59 @@
 # Changelog
 
+## [3.1.0](https://github.com/Leandro-Juan/paladio/compare/v3.0.0...v3.1.0) (2026-11-27)
+
+
+### Features
+
+* **backend:** add category and lexical scoring to POI retrieval ([b7d88fe](https://github.com/Leandro-Juan/paladio/commit/b7d88fe24dafbd356ca8fc5ec4b5fa8ec57f5759))
+* **backend:** add deal watch alerts migration and dynamic booking links ([3c82abb](https://github.com/Leandro-Juan/paladio/commit/3c82abb129572c3a6b2aa128f540ed70ddc91b3e))
+* **backend:** add Google Flights provider and round-trip verification ([d497c4f](https://github.com/Leandro-Juan/paladio/commit/d497c4fab084b54c7685c21c109721bbeec8bd52))
+* **backend:** add persistent trip generation jobs and manager ([590fe94](https://github.com/Leandro-Juan/paladio/commit/590fe94717853412b8ae39ab1266eeda9bf7898c))
+* **backend:** enhance LLM model discovery and provider config ([2d4f0e4](https://github.com/Leandro-Juan/paladio/commit/2d4f0e4b6beb0e52cf20e51b0d29382eef02540b))
+* **frontend:** add motion tokens, view transitions, and animation hooks ([9202f1b](https://github.com/Leandro-Juan/paladio/commit/9202f1bea37b914c5de553d140dcd53f0fff7a24))
+* **frontend:** add persistent trip generation overlay and store ([dea3cb0](https://github.com/Leandro-Juan/paladio/commit/dea3cb0415fde9198f13080af3de558a14cc8b1a))
+* **frontend:** enhance LLM config card and model selector ([55531c1](https://github.com/Leandro-Juan/paladio/commit/55531c1b8d155a32c7efadc0cb90fa8e1231cf0a))
+* **frontend:** format transit durations over 59 minutes in hours ([d094818](https://github.com/Leandro-Juan/paladio/commit/d094818bef26b8873a4d637e55d2cb88df1d43f7))
+* **frontend:** update i18n translations across all 10 locales ([1d41196](https://github.com/Leandro-Juan/paladio/commit/1d411963b4c2a9ece4261ad16f31f161a67dec82))
+* **install:** auto-select free ports when defaults are in use ([a51403a](https://github.com/Leandro-Juan/paladio/commit/a51403a5395419b50487dd826a506afeb368f051))
+
+
+### Bug Fixes
+
+* **backend:** harden PBF downloads, Celery memory, and transit service ([22464ea](https://github.com/Leandro-Juan/paladio/commit/22464ea5c7dfbeb633cd80e3a316d2e6b5318009))
+* **backend:** persist wallet key and improve ticket seeding ([1e02e54](https://github.com/Leandro-Juan/paladio/commit/1e02e54e8dc9a2132ccc07e53fa6f074ac7c044e))
+* **ci:** eliminate flight sweep sleep hang and stabilize Playwright E2E specs ([03d794f](https://github.com/Leandro-Juan/paladio/commit/03d794f47143892bf661687de0e2e2483f428fee))
+* **docs:** rebuild smooth 1x promo preview and host watchable tour video on Pages ([35c6369](https://github.com/Leandro-Juan/paladio/commit/35c6369636520991471f58c1941a28d96fd145e3))
+* **frontend:** refine drag preview, media URLs, theme, and monitoring ([b0b028b](https://github.com/Leandro-Juan/paladio/commit/b0b028ba2b4a7851bf1ff8d6d0d6d2071665ca17))
+* **security:** apply URI encoding sanitizer in sanitizeImageUrl ([ec11697](https://github.com/Leandro-Juan/paladio/commit/ec116978e5c6861170e68a46950de1e97b504256))
+* **security:** harden auth, updater SSRF/size bounds, wallet storage, and C++ bindings ([0a07b29](https://github.com/Leandro-Juan/paladio/commit/0a07b29b0a3805e42b13ce3ece1b06423ce10749))
+* **security:** harden SSRF, path injection, ReDoS, XSS, and error sanitization ([bc06d88](https://github.com/Leandro-Juan/paladio/commit/bc06d88a22572d9a2c030bf904b664b85ece0acd))
+* **security:** isolate data-image Blob rendering from HTTP URL sanitization ([121164b](https://github.com/Leandro-Juan/paladio/commit/121164bd5207fbe9ce2239fe8130987697814ac5))
+* **security:** isolate sanitized image preview rendering from JSX attribute XSS flows ([928bf65](https://github.com/Leandro-Juan/paladio/commit/928bf6569d89bc92e8adaec25ebc5d05bd07ced8))
+* **tests:** align test_user_system with normalized preference and L2 embedding contracts ([ed598d3](https://github.com/Leandro-Juan/paladio/commit/ed598d3dac305592863389e8c9d8e9c49f46f821))
+* **tests:** update portal CT locators, market defaults, and relative GTFS dates ([c2ab57e](https://github.com/Leandro-Juan/paladio/commit/c2ab57ef66283bf9a1b055aaa05995b73c49dfc5))
+* **tests:** validate parsed booking URL hostname for CodeQL alert [#29](https://github.com/Leandro-Juan/paladio/issues/29) ([414f7f7](https://github.com/Leandro-Juan/paladio/commit/414f7f759a9c9d077605942ecb5bd42b057b2707))
+* **trips:** fix blank trip timeout, city ranking, and generic hotel lookup ([f1a586c](https://github.com/Leandro-Juan/paladio/commit/f1a586ceb976271e8ef2d8722f99dea1c47d1932))
+
+
+### Code Refactoring
+
+* **backend:** centralize runtime data paths and add docker migrate service ([e6261c5](https://github.com/Leandro-Juan/paladio/commit/e6261c564951a0ae0be58f27cc8569f2758c5b12))
+* **frontend:** move place placeholder illustrations into frontend components ([422bd9b](https://github.com/Leandro-Juan/paladio/commit/422bd9b7f1f747ec48d44a139d84c64a6fd8bb26))
+
+
+### Documentation
+
+* **assets:** rename dark logos to white and add promo media ([ec8f771](https://github.com/Leandro-Juan/paladio/commit/ec8f7710796ec0660c9ac6de250fc4edb5205c8f))
+* document experimental deal scraping and updated install/data paths ([5128aa5](https://github.com/Leandro-Juan/paladio/commit/5128aa55f9324ddb3e2d1c71dd80353c2d6d4ae3))
+* lower minimum and recommended RAM requirements to 4 GB and 8 GB ([2033d75](https://github.com/Leandro-Juan/paladio/commit/2033d75d36d44a9c3446ac238c3d992bdfac3f9e))
+* mention drag-and-drop editing for blank trips in README ([2358348](https://github.com/Leandro-Juan/paladio/commit/2358348f8929a8f2d9628893dc35a8e7be855a9a))
+* polish public-launch docs, templates, wiki sync, and repo hygiene ([6b91d49](https://github.com/Leandro-Juan/paladio/commit/6b91d493471de1d1fab1da3394d27e7137af0c86))
+* **readme:** add live demo links, refreshed screenshots, and collapsed gallery ([5697b92](https://github.com/Leandro-Juan/paladio/commit/5697b926bd7111a60387fbad5b88582a00dae795))
+* **readme:** embed 1080p product tour video directly ([99042ff](https://github.com/Leandro-Juan/paladio/commit/99042fff1def0e3902475af7c5c8648215f44400))
+* **readme:** update 1080p video user-attachment URL ([2e3eba1](https://github.com/Leandro-Juan/paladio/commit/2e3eba12d1e595455b07d9928f715f9624ad56bb))
+* update installation, self-hosting, and developer guides ([2decffe](https://github.com/Leandro-Juan/paladio/commit/2decffe7f3d9352f4c237c95479e9318137c362a))
+
 ## [3.0.0](https://github.com/Leandro-Juan/paladio/compare/v2.0.0...v3.0.0) (2026-11-24)
 
 ### Features
