@@ -2245,6 +2245,7 @@ def derive_city_transit_task(
 @app.task(name="app.tasks.daily_flight_sweep_task")
 def daily_flight_sweep_task(
     pilot_routes: list[list[str]] | None = None,
+    spread_across_day: bool = True,
 ) -> dict[str, Any]:
     """Celery task running daily forward calendar flight sweep."""
     from app.engine.market.config import config
@@ -2264,7 +2265,7 @@ def daily_flight_sweep_task(
                 return await run_daily_flight_sweep(
                     session=session,
                     pilot_routes=converted,
-                    spread_across_day=True,
+                    spread_across_day=spread_across_day,
                 )
             finally:
                 await engine.dispose()
@@ -2323,6 +2324,7 @@ def daily_deal_detection_task(*args, **kwargs) -> dict[str, Any]:
 @app.task(name="app.tasks.daily_market_pipeline_task")
 def daily_market_pipeline_task(
     pilot_routes: list[list[str]] | None = None,
+    spread_across_day: bool = True,
 ) -> dict[str, Any]:
     """
     Daily orchestrated market pipeline task:
@@ -2369,7 +2371,7 @@ def daily_market_pipeline_task(
                             sweep_res = await run_daily_flight_sweep(
                                 session=session,
                                 pilot_routes=converted,
-                                spread_across_day=True,
+                                spread_across_day=spread_across_day,
                             )
                     except Exception as sweep_err:
                         logger.error(f"[Daily Pipeline] Sweep stage error: {sweep_err}")

@@ -1,14 +1,24 @@
 import { test, expect } from '@playwright/test';
-import { mockAuthenticatedUser } from './test-utils';
+import { getCorsHeaders, mockAuthenticatedUser } from './test-utils';
 
 test.describe('Dashboard Calendar Features', () => {
   test('past days styling, holiday cursor toggle, and monitored deals', async ({ page }) => {
     await mockAuthenticatedUser(page);
 
+    const now = new Date();
+    const y = now.getFullYear();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const departObj = now.getMonth() === 11 && now.getDate() > 25 ? new Date(y, 11, 20) : new Date(y, now.getMonth(), now.getDate() + 2);
+    const returnRaw = new Date(departObj.getFullYear(), departObj.getMonth(), departObj.getDate() + 4);
+    const returnObj = returnRaw.getFullYear() === y ? returnRaw : new Date(y, 11, 31);
+    const departDate = `${departObj.getFullYear()}-${pad(departObj.getMonth() + 1)}-${pad(departObj.getDate())}`;
+    const returnDate = `${returnObj.getFullYear()}-${pad(returnObj.getMonth() + 1)}-${pad(returnObj.getDate())}`;
+
     // Mock monitored deals API
     await page.route(/.*\/api(\/v1)?\/market\/routes-best-deals.*/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify([
           {
@@ -19,9 +29,9 @@ test.describe('Dashboard Calendar Features', () => {
             destination_code: 'FCO',
             origin_name: 'Madrid',
             destination_name: 'Rome',
-            depart_date: '2026-12-15',
-            return_date: '2026-12-20',
-            nights: 5,
+            depart_date: departDate,
+            return_date: returnDate,
+            nights: 4,
             total_price_eur: 140,
             baseline_median_eur: 200,
             savings_eur: 60,
@@ -31,6 +41,22 @@ test.describe('Dashboard Calendar Features', () => {
             status: 'ACTIVE',
             detected_at: new Date().toISOString(),
             currency: 'EUR',
+            flight: {
+              carrier: 'Iberia',
+              flight_number: 'IB3230',
+              duration_mins: 150,
+              departure_time: `${departDate}T09:00:00`,
+              booking_url: null,
+              price_eur: 70,
+            },
+            return_flight: {
+              carrier: 'Iberia',
+              flight_number: 'IB3231',
+              duration_mins: 155,
+              departure_time: `${returnDate}T18:00:00`,
+              booking_url: null,
+              price_eur: 70,
+            },
           },
         ]),
       });

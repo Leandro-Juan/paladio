@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockPaladioWebSocket } from './test-utils';
+import { getCorsHeaders, mockPaladioWebSocket } from './test-utils';
 
 test('Vault page displays travel stats tab on left, removes cluster badge, and zooms cleanly', async ({ page }) => {
   // Set auth credentials
@@ -12,6 +12,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   await page.route(/.*\/api(\/v1)?\/auth\/setup-status/, async (route) => {
     await route.fulfill({
       status: 200,
+      headers: getCorsHeaders(route),
       contentType: 'application/json',
       body: JSON.stringify({ setup_required: false, user_count: 1 }),
     });
@@ -20,6 +21,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   await page.route(/.*\/api(\/v1)?\/(auth|users)\/me/, async (route) => {
     await route.fulfill({
       status: 200,
+      headers: getCorsHeaders(route),
       contentType: 'application/json',
       body: JSON.stringify({
         id: 'mock-user-123',
@@ -37,6 +39,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   await page.route(/.*\/api(\/v1)?\/trips\/trip-sevilla/, async (route) => {
     await route.fulfill({
       status: 200,
+      headers: getCorsHeaders(route),
       contentType: 'application/json',
       body: JSON.stringify({
         id: 'trip-sevilla',
@@ -52,6 +55,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   await page.route(/.*\/api(\/v1)?\/trips\/?$/, async (route) => {
     await route.fulfill({
       status: 200,
+      headers: getCorsHeaders(route),
       contentType: 'application/json',
       body: JSON.stringify([
         {
@@ -216,7 +220,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   await expect(deployedCard).toBeVisible({ timeout: 5000 });
 
   // Assert card content matches updated specifications
-  await expect(page.locator('text=Travel Guide').first()).toBeVisible();
+  await expect(deployedCard.locator('h3')).toContainText('Sevilla');
   
   // Assert ARCHIVED badge and Days Guide subtitle are removed
   await expect(deployedCard.locator('text=ARCHIVED')).toHaveCount(0);
@@ -258,7 +262,7 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   const portoMarker = markers.nth(1);
   await portoMarker.click({ force: true });
   await expect(deployedCard).toBeVisible({ timeout: 5000 });
-  await expect(page.locator('text=Porto Travel Guide')).toBeVisible();
+  await expect(deployedCard.locator('h3')).toContainText('Porto');
   const portoPrompt = page.getByTestId('deployed-trip-prompt');
   await expect(portoPrompt).toContainText('Exploring historic wine cellars');
   await expect(deployedCard.locator('text=Portugal')).toBeVisible();
@@ -267,11 +271,15 @@ test('Vault page displays travel stats tab on left, removes cluster badge, and z
   await closeBtn.click();
   await page.waitForTimeout(300);
 
-  // Test trip without prompt & unrated (trip-madrid-2 at Sep 24): prompt and rating elements should be omitted
+  // Test trip without prompt & unrated (trip-madrid-2 at Sep 24): select Expedition #2 via switcher
   const fallbackMarker = markers.nth(2);
   await fallbackMarker.click({ force: true });
   await expect(deployedCard).toBeVisible({ timeout: 5000 });
-  await expect(page.locator('text=Madrid Travel Guide')).toBeVisible();
+  await deployedCard
+    .getByTestId('deployed-trip-expedition-switcher')
+    .getByRole('button', { name: /#2/ })
+    .click();
+  await expect(deployedCard.locator('h3')).toContainText('Madrid');
   await expect(page.getByTestId('deployed-trip-prompt')).toHaveCount(0);
   await expect(page.getByTestId('deployed-trip-rating')).toHaveCount(0);
 

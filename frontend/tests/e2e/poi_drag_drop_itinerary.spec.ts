@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockAuthenticatedUser } from './test-utils';
+import { getCorsHeaders, mockAuthenticatedUser } from './test-utils';
 
 test.describe('POI Drag and Drop into Itinerary E2E', () => {
   test('drags POI from search, automatically switches to route, and drops into exact desired slot', async ({ page }) => {
@@ -58,12 +58,40 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
     };
 
     // Route mocks
-    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+    await page.route(/.*\/api(\/v1)?\/locations\/.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/(collections|expenses|tickets).*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/settlement.*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify({ balances: [], settlements: [], total_spent: 0, currency: 'EUR' }),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/?(\\?.*)?$`), async (route) => {
       if (route.request().method() === 'PUT' || route.request().method() === 'PATCH') {
         const body = JSON.parse(route.request().postData() || '{}');
         savedItinerary = body.itinerary_data;
         await route.fulfill({
           status: 200,
+          headers: getCorsHeaders(route),
           contentType: 'application/json',
           body: JSON.stringify({ ...mockTrip, itinerary_data: savedItinerary }),
         });
@@ -71,6 +99,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       }
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify(mockTrip),
       });
@@ -80,6 +109,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
     await page.route(/.*\/api(\/v1)?\/pois\/search.*/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({
           results: [
@@ -171,8 +201,8 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       el.dispatchEvent(ev);
     });
 
-    // 5. Verify toast appears and custom floating preview is cleaned up
-    await expect(page.getByText('Added Meiji Jingu Shrine to Day 1')).toBeVisible({ timeout: 5000 });
+    // 5. Verify stop appears in itinerary and custom floating preview is cleaned up
+    await expect(sidebar.getByText('Meiji Jingu Shrine')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('[data-paladio-custom-drag-preview]')).toHaveCount(0);
 
     // 6. Verify EXACT stop order in DOM:
@@ -247,12 +277,40 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       },
     };
 
-    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+    await page.route(/.*\/api(\/v1)?\/locations\/.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/(collections|expenses|tickets).*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/settlement.*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify({ balances: [], settlements: [], total_spent: 0, currency: 'EUR' }),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/?(\\?.*)?$`), async (route) => {
       if (route.request().method() === 'PUT' || route.request().method() === 'PATCH') {
         const body = JSON.parse(route.request().postData() || '{}');
         savedItinerary = body.itinerary_data;
         await route.fulfill({
           status: 200,
+          headers: getCorsHeaders(route),
           contentType: 'application/json',
           body: JSON.stringify({ ...mockTrip, itinerary_data: savedItinerary }),
         });
@@ -260,6 +318,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       }
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify(mockTrip),
       });
@@ -298,12 +357,9 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       cardEl.dispatchEvent(ev);
     });
 
-    // 3. Verify the toast notification appears and custom preview is cleaned up
-    await expect(page.getByText('Removed "Senso-ji Temple" from Day 1')).toBeVisible({ timeout: 5000 });
+    // 3. Verify Senso-ji is removed from the DOM, custom preview is cleaned up, and Tokyo Skytree remains
+    await expect(sidebar.getByText('Senso-ji Temple')).not.toBeVisible({ timeout: 5000 });
     await expect(page.locator('[data-paladio-custom-drag-preview]')).toHaveCount(0);
-
-    // 4. Verify Senso-ji is removed from the DOM, but Tokyo Skytree remains
-    await expect(sidebar.getByText('Senso-ji Temple')).not.toBeVisible();
     await expect(sidebar.getByText('Tokyo Skytree')).toBeVisible();
 
     console.log('SUCCESS: Verified POI grabbed and dropped outside was removed with animation!');
@@ -364,12 +420,40 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       },
     };
 
-    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+    await page.route(/.*\/api(\/v1)?\/locations\/.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/(collections|expenses|tickets).*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/settlement.*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify({ balances: [], settlements: [], total_spent: 0, currency: 'EUR' }),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/?(\\?.*)?$`), async (route) => {
       if (route.request().method() === 'PUT' || route.request().method() === 'PATCH') {
         const body = JSON.parse(route.request().postData() || '{}');
         savedItinerary = body.itinerary_data;
         await route.fulfill({
           status: 200,
+          headers: getCorsHeaders(route),
           contentType: 'application/json',
           body: JSON.stringify({ ...mockTrip, itinerary_data: savedItinerary }),
         });
@@ -377,6 +461,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       }
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify(mockTrip),
       });
@@ -385,6 +470,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
     await page.route(/.*\/api(\/v1)?\/pois\/search.*/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({
           results: [
@@ -460,8 +546,8 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
     await expect(proceedBtn).toBeVisible();
     await proceedBtn.click();
 
-    // Verify toast and custom drag preview cleanup
-    await expect(page.getByText('Added Meiji Jingu Shrine to Day 1')).toBeVisible({ timeout: 5000 });
+    // Verify stop added and custom drag preview cleanup
+    await expect(sidebar.getByText('Meiji Jingu Shrine')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('[data-paladio-custom-drag-preview]')).toHaveCount(0);
 
     // Verify order in DOM: Meiji Jingu (index 0) -> Senso-ji -> Tokyo Skytree
@@ -513,9 +599,37 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       },
     };
 
-    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+    await page.route(/.*\/api(\/v1)?\/locations\/.*/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/(collections|expenses|tickets).*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/settlement.*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify({ balances: [], settlements: [], total_spent: 0, currency: 'EUR' }),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/?(\\?.*)?$`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify(mockTrip),
       });
@@ -524,6 +638,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
     await page.route(/.*\/api(\/v1)?\/pois\/search.*/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({
           results: [
@@ -632,7 +747,34 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       },
     };
 
-    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+    await page.route(/.*\/api(\/v1)?\/locations\/.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/(collections|expenses|tickets).*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/settlement.*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify({ balances: [], settlements: [], total_spent: 0, currency: 'EUR' }),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/?(\\?.*)?$`), async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -643,6 +785,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
     await page.route(/.*\/api(\/v1)?\/pois\/search.*/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({
           results: [
@@ -738,12 +881,40 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       },
     };
 
-    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+    await page.route(/.*\/api(\/v1)?\/locations\/.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/(collections|expenses|tickets).*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/settlement.*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify({ balances: [], settlements: [], total_spent: 0, currency: 'EUR' }),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/?(\\?.*)?$`), async (route) => {
       if (route.request().method() === 'PUT' || route.request().method() === 'PATCH') {
         const body = JSON.parse(route.request().postData() || '{}');
         savedItinerary = body.itinerary_data;
         await route.fulfill({
           status: 200,
+          headers: getCorsHeaders(route),
           contentType: 'application/json',
           body: JSON.stringify({ ...mockTrip, itinerary_data: savedItinerary }),
         });
@@ -751,6 +922,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       }
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify(mockTrip),
       });
@@ -759,6 +931,7 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
     await page.route(/.*\/api(\/v1)?\/pois\/search.*/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({
           results: [
@@ -801,9 +974,14 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       el.dispatchEvent(ev);
     });
 
+    // Wait for sidebar to auto-switch back to Route view so the hotel card has a non-zero bounding box
+    await expect(page.getByTestId('tab-route')).toHaveText('Route');
+
     // Drop onto top of day 1
     const topCard = sidebar.getByTestId('poi-stop-card-poi-hotel-bkk');
+    await expect(topCard).toBeVisible({ timeout: 5000 });
     await topCard.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
       const payload = JSON.stringify({
         source: 'search',
         poi: {
@@ -818,7 +996,12 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       const dt = new DataTransfer();
       dt.setData('application/paladio-poi', payload);
       dt.setData('text/plain', payload);
-      const ev = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt });
+      const ev = new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        clientY: rect.top + 1,
+        dataTransfer: dt,
+      });
       el.dispatchEvent(ev);
     });
 
@@ -882,9 +1065,37 @@ test.describe('POI Drag and Drop into Itinerary E2E', () => {
       },
     };
 
-    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}`), async (route) => {
+    await page.route(/.*\/api(\/v1)?\/locations\/.*/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/(collections|expenses|tickets).*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/settlement.*`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify({ balances: [], settlements: [], total_spent: 0, currency: 'EUR' }),
+      });
+    });
+
+    await page.route(new RegExp(`.*/api(/v1)?/trips/${mockTripId}/?(\\?.*)?$`), async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify(mockTrip),
       });

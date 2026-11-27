@@ -1,8 +1,18 @@
 import { test, expect } from '@playwright/test';
-import { mockPaladioWebSocket } from './test-utils';
+import { getCorsHeaders, mockPaladioWebSocket } from './test-utils';
 
 test.describe('Dashboard Upcoming Trips Cards (Card Design from Image)', () => {
   test('renders upcoming trip cards with exact design specifications', async ({ page }) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const now = new Date();
+    const startDt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 15);
+    const endDt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 24);
+    const fmtIso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const fmtRangePart = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const startDate = fmtIso(startDt);
+    const endDate = fmtIso(endDt);
+    const expectedDateRange = `${fmtRangePart(startDt)} - ${fmtRangePart(endDt)}`;
+
     await mockPaladioWebSocket(page);
 
     await page.addInitScript(() => {
@@ -12,6 +22,7 @@ test.describe('Dashboard Upcoming Trips Cards (Card Design from Image)', () => {
     await page.route(/.*\/api(\/v1)?\/auth\/setup-status/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({ setup_required: false, user_count: 1 }),
       });
@@ -20,6 +31,7 @@ test.describe('Dashboard Upcoming Trips Cards (Card Design from Image)', () => {
     await page.route(/.*\/api(\/v1)?\/(auth|users)\/me/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({
           id: 'admin-id',
@@ -37,15 +49,16 @@ test.describe('Dashboard Upcoming Trips Cards (Card Design from Image)', () => {
     await page.route(/.*\/api(\/v1)?\/trips\/?(\?.*)?$/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify([
           {
             id: 'trip-cabo-001',
             destination: 'Cabo San Lucas, B.C.S., Mexico',
-            start_date: '2026-11-20',
-            end_date: '2026-11-29',
+            start_date: startDate,
+            end_date: endDate,
             status: 'confirmed',
-            created_at: '2026-11-01T10:00:00Z',
+            created_at: new Date().toISOString(),
             origin_iata: 'MAD',
             destination_iata: 'SJD',
             corridor: 'MAD → SJD',
@@ -73,17 +86,18 @@ test.describe('Dashboard Upcoming Trips Cards (Card Design from Image)', () => {
     await page.route(/.*\/api(\/v1)?\/market\/summary.*/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({ monitored_routes: 1, deals_detected: 0, ticks_scanned_today: 0, avg_savings_pct: 0 }),
       });
     });
 
     await page.route(/.*\/api(\/v1)?\/market\/routes.*/, async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      await route.fulfill({ status: 200, headers: getCorsHeaders(route), contentType: 'application/json', body: JSON.stringify([]) });
     });
 
     await page.route(/.*\/api(\/v1)?\/market\/deals.*/, async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      await route.fulfill({ status: 200, headers: getCorsHeaders(route), contentType: 'application/json', body: JSON.stringify([]) });
     });
 
     await page.route(/.*\/api(\/v1)?\/locations\/(resolve-airport|search).*/, async (route) => {
@@ -91,6 +105,7 @@ test.describe('Dashboard Upcoming Trips Cards (Card Design from Image)', () => {
       if (url.includes('resolve-airport')) {
         await route.fulfill({
           status: 200,
+          headers: getCorsHeaders(route),
           contentType: 'application/json',
           body: JSON.stringify({
             iata: 'SJD',
@@ -102,6 +117,7 @@ test.describe('Dashboard Upcoming Trips Cards (Card Design from Image)', () => {
       } else {
         await route.fulfill({
           status: 200,
+          headers: getCorsHeaders(route),
           contentType: 'application/json',
           body: JSON.stringify([
             {
@@ -148,7 +164,7 @@ test.describe('Dashboard Upcoming Trips Cards (Card Design from Image)', () => {
 
     // 6. Verify Meta Row: Duration (10 days) and Date Range pill
     await expect(card.getByText(/10 days/i)).toBeVisible();
-    await expect(card.getByText(/Nov 20 - Nov 29/i)).toBeVisible();
+    await expect(card.getByText(expectedDateRange)).toBeVisible();
 
     // 7. Verify Image Banner and Countdown Badge (X days without exclamation mark)
     const banner = card.locator('img[class*="bannerImage"]');

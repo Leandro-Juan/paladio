@@ -33,6 +33,17 @@ from app.tasks import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _clean_daily_pipeline_redis_lock():
+    """Ensure no stale lock from prior runs poisons pipeline orchestration tests."""
+    r = redis.Redis.from_url(redis_url)
+    r.delete("paladio:market:daily_chain_lock")
+    try:
+        yield
+    finally:
+        r.delete("paladio:market:daily_chain_lock")
+
+
 @pytest.mark.asyncio
 async def test_celery_beat_schedule_configuration():
     """Verify that celery beat_schedule configures daily-market-pipeline at 03:00 UTC."""
@@ -252,16 +263,25 @@ async def test_gate_two_consecutive_unattended_daily_runs_with_injected_failures
         "app.engine.market.adapters.CompositeFlightFeed", lambda *a, **kw: mock_provider
     )
 
-    # RUN 1
-    run1_res = daily_market_pipeline_task(pilot_routes=pilot_routes)
-    assert run1_res["status"] == "completed", f"Run 1 failed: {run1_res}"
-    assert run1_res["sweep"]["status"] == "completed"
-    assert run1_res["sweep"]["routes_ok"] > 0
-    assert run1_res["sweep"]["calls_failed"] > 0  # Failed route was isolated!
+    r = redis.Redis.from_url(redis_url)
+    r.delete("paladio:market:daily_chain_lock")
+    try:
+        # RUN 1
+        run1_res = daily_market_pipeline_task(
+            pilot_routes=pilot_routes, spread_across_day=False
+        )
+        assert run1_res["status"] == "completed", f"Run 1 failed: {run1_res}"
+        assert run1_res["sweep"]["status"] == "completed"
+        assert run1_res["sweep"]["routes_ok"] > 0
+        assert run1_res["sweep"]["calls_failed"] > 0  # Failed route was isolated!
 
-    # RUN 2 (Consecutive unattended run)
-    run2_res = daily_market_pipeline_task(pilot_routes=pilot_routes)
-    assert run2_res["status"] == "completed", f"Run 2 failed: {run2_res}"
-    assert run2_res["sweep"]["status"] == "completed"
-    assert run2_res["sweep"]["routes_ok"] > 0
-    assert run2_res["sweep"]["calls_failed"] > 0
+        # RUN 2 (Consecutive unattended run)
+        run2_res = daily_market_pipeline_task(
+            pilot_routes=pilot_routes, spread_across_day=False
+        )
+        assert run2_res["status"] == "completed", f"Run 2 failed: {run2_res}"
+        assert run2_res["sweep"]["status"] == "completed"
+        assert run2_res["sweep"]["routes_ok"] > 0
+        assert run2_res["sweep"]["calls_failed"] > 0
+    finally:
+        r.delete("paladio:market:daily_chain_lock")

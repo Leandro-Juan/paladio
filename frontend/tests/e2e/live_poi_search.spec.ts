@@ -73,7 +73,7 @@ test.describe('POI Search Engine End-to-End Tests', () => {
 
     // Take screenshot of Exact Match and Animated Waypoint
     await page.screenshot({
-      path: '/home/leandro/.gemini/antigravity/brain/90ec7988-42d5-4523-9d23-24a746c734f6/exact_match_search.png',
+      path: 'test-results/exact_match_search.png',
     });
 
     // 4. Test Natural Language Query: "good and cozy cafes with charm"
@@ -90,7 +90,7 @@ test.describe('POI Search Engine End-to-End Tests', () => {
 
     // Take screenshot of Natural Language RAG
     await page.screenshot({
-      path: '/home/leandro/.gemini/antigravity/brain/9178dcf9-d939-4657-922a-bc1a92afaa92/semantic_rag_search.png',
+      path: 'test-results/semantic_rag_search.png',
     });
 
     // 5. Test Not Found Query: "Statue of Liberty"
@@ -107,7 +107,7 @@ test.describe('POI Search Engine End-to-End Tests', () => {
 
     // Take screenshot of Not Found State
     await page.screenshot({
-      path: '/home/leandro/.gemini/antigravity/brain/9178dcf9-d939-4657-922a-bc1a92afaa92/not_found_search.png',
+      path: 'test-results/not_found_search.png',
     });
   });
 });

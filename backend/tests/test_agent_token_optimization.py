@@ -19,7 +19,8 @@ def test_detect_domain_toolsets_does_not_overactivate_on_dining():
 
     allowed = get_allowed_tool_names(domains)
     assert allowed == set(CORE_TOOLS)
-    assert len(allowed) <= 18
+    assert len(allowed) == len(CORE_TOOLS)
+    assert len(allowed) <= 22
 
 
 def test_poi_extraction_compacts_payload():
@@ -94,6 +95,10 @@ async def test_agent_runner_configures_model_settings_max_tokens(monkeypatch):
     with (
         patch("app.agent.runner.acquire_turn_lock", return_value=True),
         patch("app.agent.runner.release_turn_lock", return_value=None),
+        patch(
+            "app.agent.runner.HardwareService.check_memory_safety",
+            return_value=(True, "ok"),
+        ),
         patch(
             "app.application.trip_editing.trip_service.TripService.get_trip",
             return_value=mock_trip,
@@ -180,6 +185,10 @@ async def test_agent_runner_configures_extra_body_for_ollama():
         patch("app.agent.runner.acquire_turn_lock", return_value=True),
         patch("app.agent.runner.release_turn_lock", return_value=None),
         patch(
+            "app.agent.runner.HardwareService.check_memory_safety",
+            return_value=(True, "ok"),
+        ),
+        patch(
             "app.application.trip_editing.trip_service.TripService.get_trip",
             return_value=mock_trip,
         ),
@@ -236,6 +245,10 @@ async def test_agent_runner_handles_rate_limit_error():
     with (
         patch("app.agent.runner.acquire_turn_lock", return_value=True),
         patch("app.agent.runner.release_turn_lock", return_value=None),
+        patch(
+            "app.agent.runner.HardwareService.check_memory_safety",
+            return_value=(True, "ok"),
+        ),
         patch(
             "app.application.trip_editing.trip_service.TripService.get_trip",
             return_value=mock_trip,

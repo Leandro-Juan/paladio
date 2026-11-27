@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockAuthenticatedUser } from './test-utils';
+import { getCorsHeaders, mockAuthenticatedUser } from './test-utils';
 
 test.describe('Engine Trip Preparation Cockpit', () => {
   test.beforeEach(async ({ page }) => {
@@ -177,13 +177,19 @@ test.describe('Engine Trip Preparation Cockpit', () => {
     const existingEndLabel = `${y}-${m}-14`;
 
     await page.route(/.*\/api(\/v1)?\/trips\/generation-jobs.*/, async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      await route.fulfill({
+        status: 200,
+        headers: getCorsHeaders(route),
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
     });
 
     await page.route(/.*\/api(\/v1)?\/trips\/?$/, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
+          headers: getCorsHeaders(route),
           contentType: 'application/json',
           body: JSON.stringify([
             { id: 'trip-existing-1', destination: 'Rome', start_date: isoStart, end_date: isoEnd, status: 'active' },
@@ -197,12 +203,12 @@ test.describe('Engine Trip Preparation Cockpit', () => {
     await page.goto('/engine');
 
     // Navigate calendar forward if the next month isn't already visible
+    await page.locator('button[data-date]').first().waitFor({ state: 'visible' });
+    if (!(await page.locator(`button[data-date="${existingStartLabel}"]`).isVisible().catch(() => false))) {
+      await page.getByRole('button', { name: /Next month/i }).click();
+    }
     const startTripBtn = page.locator(`button[title*="Rome"][title*="${existingStartLabel}"]`).filter({ hasText: /^10$/ });
     const endTripBtn = page.locator(`button[title*="Rome"][title*="${existingEndLabel}"]`).filter({ hasText: /^14$/ });
-    await startTripBtn.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
-    if (!(await startTripBtn.isVisible().catch(() => false))) {
-      await page.getByRole('button', { name: /Next month/i }).click().catch(() => {});
-    }
     await expect(startTripBtn).toBeVisible();
     await expect(endTripBtn).toBeVisible();
 

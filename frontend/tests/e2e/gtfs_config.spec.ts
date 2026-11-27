@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockAuthenticatedUser } from './test-utils';
+import { getCorsHeaders, mockAuthenticatedUser } from './test-utils';
 
 test.describe('GTFS Configuration Management - Delete and Stop Compilation', () => {
   test.beforeEach(async ({ page }) => {
@@ -62,9 +62,10 @@ test.describe('GTFS Configuration Management - Delete and Stop Compilation', () 
 
     let deletedCity: string | null = null;
 
-    await page.route(/.*\/api(\/v1)?\/users.*/, async (route) => {
+    await page.route(/.*\/api(\/v1)?\/users\/?(\?.*)?$/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify([]),
       });
@@ -82,6 +83,7 @@ test.describe('GTFS Configuration Management - Delete and Stop Compilation', () 
         };
         await route.fulfill({
           status: 200,
+          headers: getCorsHeaders(route),
           contentType: 'application/json',
           body: JSON.stringify({
             status: 'deleted',
@@ -92,12 +94,14 @@ test.describe('GTFS Configuration Management - Delete and Stop Compilation', () 
       } else if (url.includes('/transit/registry')) {
         await route.fulfill({
           status: 200,
+          headers: getCorsHeaders(route),
           contentType: 'application/json',
           body: JSON.stringify(mockRegistry),
         });
       } else {
         await route.fulfill({
           status: 200,
+          headers: getCorsHeaders(route),
           contentType: 'application/json',
           body: JSON.stringify({}),
         });
