@@ -9,6 +9,7 @@ import { Trip, TripRevisionItem, useTrips } from '@/hooks/useTrips';
 import type { RouteItineraryData } from '@/types/domain';
 import { extractTripTitle } from '@/utils/tripParser';
 import { apiFetch, resolveApiMediaUrl, sanitizeImageUrl } from '@/utils/api';
+import { SanitizedImage } from '@/components/common/SanitizedImage';
 import { notify } from '@/utils/notify';
 import { useAuth } from '@/contexts/AuthContext';
 import { PaladioDateRangePicker } from '@/components/trip-creation/PaladioDateRangePicker';
@@ -856,8 +857,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             }}
           >
             {photoUrl && !photoPreviewError && sanitizeImageUrl(resolveApiMediaUrl(photoUrl)) ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <SanitizedImage
                 src={sanitizeImageUrl(resolveApiMediaUrl(photoUrl))}
                 alt={t('workspace.photo_preview')}
                 onError={() => setPhotoPreviewError(true)}
