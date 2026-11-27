@@ -19,11 +19,11 @@ Plan realistic trips tailored to your tastes, catch genuine flight and hotel dea
 </div>
 
 <div align="center">
-  <a href="https://leandro-juan.github.io/paladio/#product-tour">
-    <img alt="Paladio Product Tour — Watch Full Video" src="docs/assets/paladio-promo-preview.webp" width="860">
-  </a>
-  <br/>
-  <sub><b>▶ <a href="https://leandro-juan.github.io/paladio/#product-tour">Watch the full product tour (2m 25s, 720p)</a></b> · <a href="https://leandro-juan.github.io/paladio/assets/paladio-promo.mp4">Direct MP4 stream</a> · <a href="https://paladio-xi.vercel.app">Try the Interactive Demo</a></sub>
+
+https://github.com/user-attachments/assets/b383605f-b851-4a60-ba35-ba44b3f3229d
+
+<sub><b>Paladio Product Tour (2m 25s, 1080p)</b> · <a href="https://leandro-juan.github.io/paladio/">Documentation</a> · <a href="https://paladio-xi.vercel.app">Try the Interactive Demo</a></sub>
+
 </div>
 
 <details>
