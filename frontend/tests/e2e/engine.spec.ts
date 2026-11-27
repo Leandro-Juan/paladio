@@ -70,6 +70,30 @@ test.describe('Engine Trip Preparation Cockpit', () => {
   });
 
   test('clears page and renders thinking animation dots and status message on trip creation', async ({ page }) => {
+    await page.route(/.*\/api(\/v1)?\/trips\/generation-jobs.*/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+    await page.route(/.*\/api(\/v1)?\/trips\/generate\/?$/, async (route) => {
+      const nowIso = new Date().toISOString();
+      await route.fulfill({
+        status: 202,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'job-thinking-1',
+          thread_id: 'paladio_job-thinking-1',
+          destination: 'Paris',
+          title: 'Trip to Paris',
+          status: 'running',
+          stage: 'ANALYZING_PROMPT',
+          stage_message: 'Analyzing prompt...',
+          prompt: 'Art and museums route in Paris',
+          acknowledged: false,
+          created_at: nowIso,
+          updated_at: nowIso,
+        }),
+      });
+    });
+
     await page.goto('/engine');
     await expect(page.getByRole('button', { name: /Generate Sovereign Trip Plan/i })).toBeVisible();
 
@@ -152,7 +176,11 @@ test.describe('Engine Trip Preparation Cockpit', () => {
     const existingStartLabel = `${y}-${m}-10`;
     const existingEndLabel = `${y}-${m}-14`;
 
-    await page.route(/.*\/api(\/v1)?\/trips.*/, async (route) => {
+    await page.route(/.*\/api(\/v1)?\/trips\/generation-jobs.*/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/?$/, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
@@ -171,6 +199,7 @@ test.describe('Engine Trip Preparation Cockpit', () => {
     // Navigate calendar forward if the next month isn't already visible
     const startTripBtn = page.locator(`button[title*="Rome"][title*="${existingStartLabel}"]`).filter({ hasText: /^10$/ });
     const endTripBtn = page.locator(`button[title*="Rome"][title*="${existingEndLabel}"]`).filter({ hasText: /^14$/ });
+    await startTripBtn.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
     if (!(await startTripBtn.isVisible().catch(() => false))) {
       await page.getByRole('button', { name: /Next month/i }).click().catch(() => {});
     }
@@ -276,9 +305,11 @@ test.describe('Engine Trip Preparation Cockpit', () => {
     const retDate = futureDay(16);
 
     const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-    const capturedTripPosts: Array<Record<string, unknown>> = [];
+    const capturedGeneratePosts: Array<Record<string, unknown>> = [];
     let failBlankPost = true;
     let scanCallCount = 0;
+    let activeSocket: { send: (data: string) => void } | null = null;
+    let generatedJobReturned = false;
 
     await page.route(/.*\/api(\/v1)?\/trips\/scan-boarding-pass/, async (route) => {
       scanCallCount += 1;
@@ -329,6 +360,83 @@ test.describe('Engine Trip Preparation Cockpit', () => {
       });
     });
 
+    await page.route(/.*\/api(\/v1)?\/trips\/generation-jobs\/[^/]+\/acknowledge\/?$/, async (route) => {
+      await route.fulfill({ status: 204, body: '' });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/generation-jobs\/?$/, async (route) => {
+      const nowIso = new Date().toISOString();
+      const jobs = generatedJobReturned
+        ? [
+            {
+              id: 'job-e2e-1',
+              thread_id: 'paladio_job-e2e-1',
+              destination: 'Paris',
+              title: 'Paris Custom Title',
+              status: 'completed',
+              stage: 'DONE',
+              prompt: 'Museums and cafes in Paris',
+              trip_id: 'created-trip-999',
+              acknowledged: false,
+              created_at: nowIso,
+              updated_at: nowIso,
+              completed_at: nowIso,
+            },
+          ]
+        : [];
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(jobs) });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/generate\/?$/, async (route) => {
+      const postJson = route.request().postDataJSON() as Record<string, unknown>;
+      capturedGeneratePosts.push(postJson);
+      generatedJobReturned = true;
+      const nowIso = new Date().toISOString();
+      await route.fulfill({
+        status: 202,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'job-e2e-1',
+          thread_id: 'paladio_job-e2e-1',
+          destination: 'Paris',
+          title: String(postJson.title || 'Paris Custom Title'),
+          status: 'running',
+          stage: 'STARTING_INFERENCE',
+          prompt: String(postJson.prompt || ''),
+          acknowledged: false,
+          created_at: nowIso,
+          updated_at: nowIso,
+        }),
+      });
+      setTimeout(() => {
+        activeSocket?.send(
+          JSON.stringify({
+            event: 'TRIP_JOB_COMPLETED',
+            status: 'completed',
+            job_id: 'job-e2e-1',
+            thread_id: 'paladio_job-e2e-1',
+            trip_id: 'created-trip-999',
+            destination: 'Paris',
+            title: String(postJson.title || 'Paris Custom Title'),
+          })
+        );
+      }, 150);
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/created-trip-999\/?$/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'created-trip-999',
+          destination: 'Paris',
+          start_date: depDate,
+          end_date: retDate,
+          itinerary_data: { days: [{ day: 1, date: depDate, itinerary: { path: [] } }] },
+        }),
+      });
+    });
+
     await page.route(/.*\/api(\/v1)?\/trips\/?$/, async (route) => {
       if (route.request().method() === 'OPTIONS') {
         await route.fallback();
@@ -336,7 +444,6 @@ test.describe('Engine Trip Preparation Cockpit', () => {
       }
       if (route.request().method() === 'POST') {
         const postJson = route.request().postDataJSON() as Record<string, unknown>;
-        capturedTripPosts.push(postJson);
         if (failBlankPost) {
           await route.fulfill({
             status: 500,
@@ -363,29 +470,7 @@ test.describe('Engine Trip Preparation Cockpit', () => {
     });
 
     await page.routeWebSocket(/.*\/api(\/v1)?\/ws\/stream.*/, (ws) => {
-      ws.onMessage((msg) => {
-        try {
-          const parsed = JSON.parse(typeof msg === 'string' ? msg : msg.toString());
-          if (parsed.action === 'chat') {
-            ws.send(
-              JSON.stringify({
-                event: 'EVALUATING_ROUTES',
-                status: 'complete',
-                data: {
-                  days: [{ day: 1, date: depDate, itinerary: { path: [] } }],
-                  travel_constraints: {
-                    destination_city: 'Paris',
-                    start_date: depDate,
-                    end_date: retDate,
-                  },
-                },
-              })
-            );
-          }
-        } catch {
-          // ignore
-        }
-      });
+      activeSocket = ws;
     });
 
     await page.goto('/engine');
@@ -453,18 +538,19 @@ test.describe('Engine Trip Preparation Cockpit', () => {
     await page.getByRole('button', { name: /Generate Sovereign Trip Plan/i }).click();
 
     await page.waitForURL(/\/trips\/created-trip-999/, { timeout: 10000 });
-    const saved = capturedTripPosts[capturedTripPosts.length - 1];
-    const savedItin = saved.itinerary_data as Record<string, unknown>;
-    const savedConstraints = savedItin.travel_constraints as Record<string, unknown>;
-    expect(savedItin.title).toBe('Paris Custom Title');
-    expect(savedItin.description).toBe('Architectural walking tour');
-    expect(String(savedItin.cover_photo || '')).toMatch(/^data:image\//);
+    const saved = capturedGeneratePosts[capturedGeneratePosts.length - 1];
+    const savedConstraints = saved.manual_constraints as Record<string, unknown>;
+    expect(saved.title).toBe('Paris Custom Title');
+    expect(saved.description).toBe('Architectural walking tour');
+    expect(String(saved.cover_photo || '')).toMatch(/^data:image\//);
+    expect(saved.budget).toBe(0);
+    expect(saved.budget_usd).toBe(0);
     expect(savedConstraints.budget).toBe(0);
     expect(savedConstraints.budget_usd).toBe(0);
-    expect(savedConstraints.origin_iata).toBe('MAD');
-    expect(savedConstraints.destination_iata).toBe('CDG');
-    expect(savedConstraints.departure_hour).toBe('09:15');
-    expect(savedConstraints.arrival_hour).toBe('19:45');
+    expect(saved.origin_iata).toBe('MAD');
+    expect(saved.destination_iata).toBe('CDG');
+    expect(saved.departure_hour).toBe('09:15');
+    expect(saved.arrival_hour).toBe('19:45');
   });
 });
 

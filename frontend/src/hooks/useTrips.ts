@@ -173,6 +173,16 @@ export function useTrips() {
     }
   }, []);
 
+  useEffect(() => {
+    const handleTripCreated = () => {
+      void fetchTrips();
+    };
+    window.addEventListener('paladio:trip_created', handleTripCreated);
+    return () => {
+      window.removeEventListener('paladio:trip_created', handleTripCreated);
+    };
+  }, [fetchTrips]);
+
   const getTrip = useCallback(async (id: string, signal?: AbortSignal): Promise<Trip | null> => {
     try {
       const trip = await apiFetch<Trip>(`/trips/${id}`, { signal });

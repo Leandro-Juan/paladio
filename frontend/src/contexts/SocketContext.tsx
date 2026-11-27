@@ -1,13 +1,21 @@
 "use client";
 
 import React, { createContext, useState, useEffect, useRef, useCallback } from 'react';
+import { useOptionalAuth } from '@/contexts/AuthContext';
+import { Poi } from '@/types/domain';
+import { notify } from '@/utils/notify';
+import { getAuthToken, getWsBaseUrl } from '@/utils/api';
+import {
+  TripGenerationServerEvent,
+  useTripGenerationStore,
+} from '@/stores/tripGenerationStore';
 
-export type SocketStatus = 'disconnected' | 'connected' | 'inferencing' | 'error' | 'awaiting_input';
+export type SocketStatus = 'disconnected' | 'connected' | 'error';
 
 export interface PaladioEvent {
   event: string;
-  status: string;
-  data?: Record<string, unknown>;
+  status?: string;
+  data?: unknown;
   message?: string;
   city?: string;
   city_name?: string;
@@ -16,99 +24,20 @@ export interface PaladioEvent {
   raw_count?: number;
   progress?: number;
   trip_id?: string;
-}
-
-import { OptimizationResult, Poi } from '../types/domain';
-import { notify } from '@/utils/notify';
-import { getAuthToken, getWsBaseUrl } from '@/utils/api';
-
-import { create } from 'zustand';
-
-interface LogStore {
-  logs: string[];
-  addLog: (msg: string) => void;
-  clearLogs: () => void;
-  initLogs: () => void;
-}
-
-export const useLogStore = create<LogStore>((set) => ({
-  logs: ['> SYSTEM READY. AWAITING INITIALIZATION.'],
-  addLog: (msg) => set((state) => {
-    const replayable = [
-      '> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING ROUTE SOLVER.',
-      '> [PLANNER] OPTIMIZING ROUTES & TRANSIT...',
-      '> [PLANNER] ITINERARY GENERATED.',
-      '> [ENGINE] INFERENCE CYCLE COMPLETE. IDLE.'
-    ];
-    if (replayable.includes(msg) && state.logs.includes(msg)) return state;
-    const newLogs = [...state.logs, msg];
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('paladio_logs', JSON.stringify(newLogs));
-    }
-    return { logs: newLogs };
-  }),
-  clearLogs: () => {
-    const newLogs = ['> SYSTEM READY. AWAITING INITIALIZATION.'];
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('paladio_logs', JSON.stringify(newLogs));
-    }
-    set({ logs: newLogs });
-  },
-  initLogs: () => {
-    if (typeof window !== 'undefined') {
-      const savedStatus = sessionStorage.getItem('paladio_status');
-      if (savedStatus === 'connected' || savedStatus === 'error') {
-         sessionStorage.removeItem('paladio_logs');
-         set({ logs: ['> SYSTEM READY. AWAITING INITIALIZATION.'] });
-      } else {
-        const saved = sessionStorage.getItem('paladio_logs');
-        if (saved) {
-          try {
-            set({ logs: JSON.parse(saved) });
-          } catch {}
-        }
-      }
-    }
-  }
-}));
-export interface VerificationPayload {
-  message?: string;
-  fields?: string[];
-  constraints?: Record<string, unknown>;
-  booking_anchors?: Record<string, unknown>;
-}
-
-export interface OverlapWarningPayload {
-  message?: string;
-  warning_title?: string;
-  overlapping_trip?: {
-    id?: string;
-    destination?: string;
-    start_date?: string;
-    end_date?: string;
-  };
-  variant?: string;
-}
-
-export interface GuardrailAbortPayload {
+  job_id?: string;
+  thread_id?: string;
+  user_id?: string | null;
+  destination?: string;
   title?: string;
-  errors: string[];
+  interrupt_type?: string;
+  interrupt_payload?: Record<string, unknown>;
+  guardrail_errors?: string[];
+  error_message?: string;
 }
 
 export interface SocketContextProps {
   status: SocketStatus;
-  itinerary: OptimizationResult | null;
-  clearItinerary: () => void;
-  missingFields: string[];
-  verificationPayload: VerificationPayload | null;
-  clearVerification: () => void;
-  overlapWarning: OverlapWarningPayload | null;
-  clearOverlapWarning: () => void;
-  guardrailAbort: GuardrailAbortPayload | null;
-  clearGuardrailAbort: () => void;
-  sendMessage: (msg: string, payloadExtras?: Record<string, unknown>) => void;
   sendFeedback: (poi: Poi, targetScore: number, userId?: string) => void;
-  sendResume: (data: Record<string, unknown>) => void;
   connect: () => void;
   disconnect: () => void;
 }
@@ -116,227 +45,43 @@ export interface SocketContextProps {
 export const SocketContext = createContext<SocketContextProps | null>(null);
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
+  const auth = useOptionalAuth();
+  const authUserId = auth?.user?.id ?? null;
+  const authToken = auth?.token ?? null;
+
   const [status, setStatus] = useState<SocketStatus>('disconnected');
-
-  const { addLog } = useLogStore.getState();
-  useEffect(() => { useLogStore.getState().initLogs(); }, []);
-
-  const [itinerary, setItinerary] = useState<OptimizationResult | null>(null);
-
-  const clearItinerary = useCallback(() => {
-    setItinerary(null);
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('paladio_itinerary');
-      sessionStorage.removeItem('paladio_status');
-    }
-  }, []);
-
-  const [missingFields, setMissingFields] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const savedStatus = sessionStorage.getItem('paladio_status');
-      if (savedStatus === 'connected' || savedStatus === 'error') return [];
-      const saved = sessionStorage.getItem('paladio_missing');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          // ignore
-        }
-      }
-    }
-    return [];
-  });
-
-  const [verificationPayload, setVerificationPayload] = useState<VerificationPayload | null>(null);
-  const clearVerification = useCallback(() => {
-    setVerificationPayload(null);
-    setMissingFields([]);
-    setStatus('connected');
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('paladio_missing');
-    }
-  }, []);
-  const [overlapWarning, setOverlapWarning] = useState<OverlapWarningPayload | null>(null);
-  const clearOverlapWarning = useCallback(() => setOverlapWarning(null), []);
-  const [guardrailAbort, setGuardrailAbort] = useState<GuardrailAbortPayload | null>(null);
-  const clearGuardrailAbort = useCallback(() => setGuardrailAbort(null), []);
-  
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const threadIdRef = useRef<string>('');
-  const hasNotifiedItineraryRef = useRef<boolean>(false);
-  const verificationPayloadRef = useRef<VerificationPayload | null>(null);
   const connectRef = useRef<() => void>(() => {});
+  const authIdentityRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    verificationPayloadRef.current = verificationPayload;
-  }, [verificationPayload]);
-
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = sessionStorage.getItem('paladio_thread_id');
-      const tid = stored || Date.now().toString(36).substring(2, 15);
-      threadIdRef.current = tid;
-      if (!stored) {
-        sessionStorage.setItem('paladio_thread_id', tid);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (missingFields.length > 0) sessionStorage.setItem('paladio_missing', JSON.stringify(missingFields));
-      else sessionStorage.removeItem('paladio_missing');
-    }
-  }, [missingFields]);
-
-  
-  
   const handleEvent = useCallback((payload: PaladioEvent) => {
     switch (payload.event) {
-      case 'STARTING_INFERENCE':
-        hasNotifiedItineraryRef.current = false;
-        setStatus('inferencing');
-        setItinerary(null);
-        setVerificationPayload(null);
-        setOverlapWarning(null);
-        setGuardrailAbort(null);
-        addLog('> [ENGINE] INITIALIZING LANGGRAPH SWARM...');
-        break;
-      case 'PARSING_TICKETS':
-        addLog(`> [PARSER] BOOKING ANCHORS PROCESSED.`);
-        break;
-      case 'VERIFYING_CONSTRAINTS':
-        addLog(`> [VERIFY] REVIEWING TRIP CONSTRAINTS & ANCHORS...`);
-        break;
-      case 'VERIFICATION_REQUIRED':
-        setStatus('awaiting_input');
-        if (payload.data) {
-          setVerificationPayload(payload.data as unknown as VerificationPayload);
-          if (payload.data.fields) {
-            setMissingFields(payload.data.fields as string[]);
-          }
-          addLog(`> [VERIFY] ${payload.data.message || 'REVIEW REQUIRED'}`);
-          notify.warning('Review Required', (payload.data.message as string) || 'Please verify parsed trip constraints.', {
-            actionLink: '/engine',
-            actionLabel: 'Review',
-          });
-        }
-        break;
-      case 'VERIFICATION_COMPLETED':
-        addLog(`> [VERIFY] CONSTRAINTS CONFIRMED.`);
-        setVerificationPayload(null);
-        setMissingFields([]);
-        break;
-      case 'EVALUATING_GUARDRAILS':
-        addLog(`> [GUARDRAILS] EVALUATING DETERMINISTIC RULES & SCHEDULE OVERLAP...`);
-        break;
-      case 'GUARDRAILS_PASSED':
-        addLog(`> [GUARDRAILS] ALL GUARDRAILS PASSED.`);
-        break;
-      case 'GUARDRAILS_ABORTED':
-        setStatus('error');
-        {
-          const rawErrors = Array.isArray(payload.data)
-            ? payload.data
-            : [payload.data || 'Trip aborted by guardrails.'];
-          const errList = rawErrors.map(String);
-          setGuardrailAbort({
-            title: '[GUARDRAILS ABORTED] TRIP REJECTED',
-            errors: errList,
-          });
-          addLog(`> [GUARDRAILS] ABORTED: ${errList.join(', ')}`);
-          notify.error('Guardrail Abort', errList.join(', '), {
-            actionLink: '/engine',
-            actionLabel: 'View Error',
-          });
-        }
-        break;
-      case 'TRIP_OVERLAP_WARNING':
-        setStatus('awaiting_input');
-        if (payload.data) {
-          setOverlapWarning(payload.data as unknown as OverlapWarningPayload);
-          addLog(`> [GUARDRAILS] [WARNING] TRIP SCHEDULE OVERLAP: ${payload.data.message || ''}`);
-          notify.warning('Schedule Overlap', (payload.data.message as string) || 'Trip clashes with existing itinerary.', {
-            actionLink: '/engine',
-            actionLabel: 'View Warning',
-          });
-        }
-        break;
-      case 'ANALYZING_PROMPT':
-        addLog(`> [ANALYZER] ANALYZING USER REQUEST & PREFERENCES...`);
-        break;
-      case 'SCRAPING_DYNAMIC_DATA':
-        addLog(`> [PLANNER] ${payload.data || 'FETCHING POIS & TRANSIT...'}`);
-        break;
-      case 'CLARIFICATION_NEEDED':
-        setStatus('awaiting_input');
-        if (payload.data && payload.data.fields) {
-          setMissingFields(payload.data.fields as string[]);
-          addLog(`> [SYSTEM] ${payload.data.message}`);
-          notify.warning('Input Required', (payload.data.message as string) || 'Solver requires additional constraints.', {
-            actionLink: '/engine',
-            actionLabel: 'Open Engine',
-          });
-        } else {
-          addLog(`> [SYSTEM] CLARIFICATION NEEDED.`);
-          notify.warning('Input Required', 'Clarification needed to proceed with itinerary optimization.', {
-            actionLink: '/engine',
-            actionLabel: 'Open Engine',
-          });
-        }
-        break;
-      case 'EXTRACTING_CONSTRAINTS':
-        addLog(`> [VALIDATOR] CONSTRAINTS EXTRACTED. PREPARING ROUTE SOLVER.`);
-        break;
-      case 'EVALUATING_ROUTES':
-        if ((payload.status === 'completed' || payload.status === 'recovered') && payload.data) {
-          addLog(`> [PLANNER] ITINERARY GENERATED.`);
-          const incoming = payload.data as unknown as OptimizationResult;
-          setItinerary(incoming);
-          setStatus('connected');
-          if (!hasNotifiedItineraryRef.current) {
-            hasNotifiedItineraryRef.current = true;
-            notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
-              actionLink: '/vault',
-              actionLabel: 'View Itinerary',
-            });
-          }
-        } else if (payload.status === 'running') {
-          addLog(`> [PLANNER] OPTIMIZING ROUTES & TRANSIT...`);
-        } else if (payload.data) {
-          addLog(`> [PLANNER] ITINERARY GENERATED.`);
-          const incoming = payload.data as unknown as OptimizationResult;
-          setItinerary(incoming);
-          setStatus('connected');
-          if (!hasNotifiedItineraryRef.current) {
-            hasNotifiedItineraryRef.current = true;
-            notify.success('Itinerary Generated', 'Continuous Sovereign Travel plan is ready for review.', {
-              actionLink: '/vault',
-              actionLabel: 'View Itinerary',
-            });
-          }
-        }
+      case 'TRIP_JOB_STARTED':
+      case 'TRIP_JOB_PROGRESS':
+      case 'TRIP_JOB_AWAITING_INPUT':
+      case 'TRIP_JOB_COMPLETED':
+      case 'TRIP_JOB_ABORTED':
+      case 'TRIP_JOB_FAILED':
+      case 'TRIP_JOB_CANCELLED':
+        useTripGenerationStore
+          .getState()
+          .handleServerEvent(payload as unknown as TripGenerationServerEvent);
         break;
       case 'FEEDBACK_PROCESSED':
-        addLog(`> [MODEL] PREFERENCE WEIGHTS UPDATED FROM FEEDBACK.`);
         notify.info('Preferences Updated', 'Preference weights calibrated from feedback.', {
           actionLink: '/dashboard',
           actionLabel: 'View Control Center',
         });
         break;
       case 'ERROR':
-        setStatus('error');
-        addLog(`> [CRITICAL ERROR] ${payload.status}`);
-        notify.error('Engine Fault', `Execution error encountered: ${payload.status || 'Inference error'}`);
-        break;
-      case 'MAP_INGESTION':
-        addLog(`> [MAP] ${payload.message || payload.status}`);
+        notify.error(
+          'Engine Fault',
+          `Execution error encountered: ${payload.status || 'Inference error'}`
+        );
         break;
       case 'TRANSIT_QUEUED': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] Download queued for ${cityName}...`);
         notify.info(
           'GTFS Download Queued',
           `Official public transit data download for ${cityName} is queued.`,
@@ -353,7 +98,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
       case 'TRANSIT_DOWNLOAD_STARTED': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] Downloading official GTFS schedule for ${cityName}...`);
         notify.info(
           'GTFS Download Started',
           `Downloading official GTFS public transit data for ${cityName} in the background...`,
@@ -369,8 +113,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         break;
       }
       case 'TRANSIT_DERIVATION_READY': {
-        const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] Transit lines and stops derived for ${cityName}.`);
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('paladio:transit_derivation_ready', { detail: payload }));
           window.dispatchEvent(new CustomEvent('paladio:transit_event', { detail: payload }));
@@ -379,7 +121,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
       case 'TRANSIT_TILES_READY': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] Transit lines and stations ready for ${cityName}.`);
         notify.info(
           'Transit Network Ready',
           `Official public transit network for ${cityName} is now ready.`,
@@ -396,7 +137,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
       case 'TRANSIT_COMPILE_FAILED': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] Transit download failed for ${cityName}.`);
         notify.error(
           'GTFS Download Failed',
           `Transit data download for ${cityName} encountered an error.`
@@ -409,7 +149,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
       case 'TRANSIT_DERIVATION_FAILED': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] Transit derivation failed for ${cityName}.`);
         notify.error(
           'Transit Derivation Failed',
           `Derivation of transit lines for ${cityName} encountered an error.`
@@ -422,7 +161,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
       case 'TRANSIT_UNAVAILABLE': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] No GTFS transit schedule available for ${cityName}.`);
         notify.info(
           'Transit Feed Unavailable',
           `No public transit GTFS schedule exists for ${cityName}. Point-to-point transit directions remain active via Transitous.`
@@ -435,7 +173,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
       case 'TRANSIT_DELETED': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [TRANSIT] GTFS transit data deleted / stopped for ${cityName}.`);
         notify.info(
           'GTFS Data Removed',
           `Transit schedules and compilation for ${cityName} have been removed and cleaned up.`
@@ -447,8 +184,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         break;
       }
       case 'HYDRATION_STARTED': {
-        const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [POI HYDRATION] Database download initiated for ${cityName}...`);
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('paladio:city_hydration_started', { detail: payload }));
           window.dispatchEvent(new CustomEvent('paladio:city_hydration_event', { detail: payload }));
@@ -463,12 +198,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         break;
       }
       case 'HYDRATION_STAGE_COMPLETED': {
-        const cityName = payload.city_name || payload.city || 'City';
-        if (payload.stage === 'INGESTING') {
-          addLog(`> [POI HYDRATION] ${payload.raw_count || 'Venues'} POIs ingested for ${cityName}.`);
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('paladio:city_hydration_completed', { detail: payload }));
-          }
+        if (payload.stage === 'INGESTING' && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('paladio:city_hydration_completed', { detail: payload }));
         }
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('paladio:city_hydration_stage_completed', { detail: payload }));
@@ -478,8 +209,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
       case 'HYDRATION_COMPLETED': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [POI HYDRATION] Database download & indexing complete for ${cityName}.`);
-        notify.success('POI Database Ready', `POI database for ${cityName} has finished downloading and indexing.`);
+        notify.success(
+          'POI Database Ready',
+          `POI database for ${cityName} has finished downloading and indexing.`
+        );
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('paladio:city_hydration_completed', { detail: payload }));
           window.dispatchEvent(new CustomEvent('paladio:city_hydration_event', { detail: payload }));
@@ -488,8 +221,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
       case 'HYDRATION_FAILED': {
         const cityName = payload.city_name || payload.city || 'City';
-        addLog(`> [POI HYDRATION] Download failed for ${cityName}.`);
-        notify.error('POI Download Failed', `Downloading POI database for ${cityName} encountered an error.`);
+        notify.error(
+          'POI Download Failed',
+          `Downloading POI database for ${cityName} encountered an error.`
+        );
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('paladio:city_hydration_failed', { detail: payload }));
           window.dispatchEvent(new CustomEvent('paladio:city_hydration_event', { detail: payload }));
@@ -497,16 +232,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         break;
       }
       case 'HEARTBEAT':
-        // Periodic keepalive from gateway; ignore to prevent log pollution
-        break;
-      case 'DONE':
-        setStatus('connected');
-        addLog('> [ENGINE] INFERENCE CYCLE COMPLETE. IDLE.');
+      case 'PONG':
         break;
       default:
-        addLog(`> [TELEMETRY] ${payload.event}: ${payload.status}`);
+        break;
     }
-  }, [addLog]);
+  }, []);
 
   const clearReconnectTimer = useCallback(() => {
     if (reconnectTimerRef.current) {
@@ -516,14 +247,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const connect = useCallback(() => {
-    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+    if (
+      wsRef.current &&
+      (wsRef.current.readyState === WebSocket.OPEN ||
+        wsRef.current.readyState === WebSocket.CONNECTING)
+    ) {
       return;
     }
 
     clearReconnectTimer();
 
     const wsBase = getWsBaseUrl();
-    const token = getAuthToken();
+    const token = authToken || getAuthToken();
     const authQuery = token ? `?token=${encodeURIComponent(token)}` : '';
     const wsUrl = `${wsBase}/api/ws/stream${authQuery}`;
 
@@ -533,13 +268,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     ws.onopen = () => {
       if (wsRef.current !== ws) return;
       clearReconnectTimer();
-      setStatus(prev => (prev === 'awaiting_input' && verificationPayloadRef.current) ? 'awaiting_input' : (prev === 'inferencing' ? 'inferencing' : 'connected'));
-      addLog('> [NETWORK] UPLINK ESTABLISHED WITH PALADIO GATEWAY.');
-      
-      ws.send(JSON.stringify({
-        action: 'attach',
-        thread_id: threadIdRef.current
-      }));
+      setStatus('connected');
     };
 
     ws.onmessage = (event) => {
@@ -548,17 +277,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         const payload: PaladioEvent = JSON.parse(event.data);
         handleEvent(payload);
       } catch {
-        addLog(`> [ERROR] FAILED TO PARSE INCOMING TELEMETRY.`);
+        // Ignore unparseable frames
       }
     };
 
     ws.onclose = (event) => {
       if (wsRef.current !== ws) return;
       wsRef.current = null;
-      setStatus(prev => (prev === 'awaiting_input' || prev === 'inferencing') ? prev : 'disconnected');
+      setStatus('disconnected');
       if (event.code !== 1000) {
-        addLog(`> [NETWORK] UPLINK LOST. (CODE: ${event.code})`);
-        // Auto-reconnect with 2.5s delay
         clearReconnectTimer();
         reconnectTimerRef.current = setTimeout(() => {
           reconnectTimerRef.current = null;
@@ -570,15 +297,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     ws.onerror = () => {
       if (wsRef.current !== ws) return;
       setStatus('error');
-      addLog('> [ERROR] WEBSOCKET CONNECTION FAILED.');
-      // Auto-reconnect with 2.5s delay
       clearReconnectTimer();
       reconnectTimerRef.current = setTimeout(() => {
         reconnectTimerRef.current = null;
         connectRef.current();
       }, 2500);
     };
-  }, [addLog, handleEvent, clearReconnectTimer]);
+  }, [authToken, handleEvent, clearReconnectTimer]);
 
   useEffect(() => {
     connectRef.current = connect;
@@ -591,6 +316,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       wsRef.current = null;
       socket.close(1000);
     }
+    setStatus('disconnected');
   }, [clearReconnectTimer]);
 
   useEffect(() => {
@@ -609,98 +335,46 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     };
   }, [connect, disconnect]);
 
-  const sendMessage = useCallback((message: string, payloadExtras?: Record<string, unknown>) => {
-    setGuardrailAbort(null);
-    addLog(`> [USER] ${message}`);
+  // Reconnect WebSocket cleanly when the authenticated user/token transitions (e.g. after login/logout)
+  useEffect(() => {
+    const nextIdentity = `${authUserId || ''}:${authToken || ''}`;
+    if (authIdentityRef.current === null) {
+      authIdentityRef.current = nextIdentity;
+      return;
+    }
+    if (authIdentityRef.current !== nextIdentity) {
+      authIdentityRef.current = nextIdentity;
+      disconnect();
+      connect();
+    }
+  }, [authUserId, authToken, connect, disconnect]);
 
-    const sendPayload = (ws: WebSocket) => {
-      if (payloadExtras?.thread_id && typeof payloadExtras.thread_id === 'string') {
-        threadIdRef.current = payloadExtras.thread_id;
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('paladio_thread_id', payloadExtras.thread_id);
-        }
+  const sendFeedback = useCallback(
+    (poi: Partial<Poi>, targetScore: number, userId: string = 'default_user') => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        return;
       }
+
       const payload = {
-        action: 'chat',
-        message,
-        thread_id: threadIdRef.current,
-        ...(payloadExtras || {})
+        action: 'feedback',
+        poi,
+        target_score: targetScore,
+        user_id: userId,
       };
-      ws.send(JSON.stringify(payload));
-    };
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      sendPayload(wsRef.current);
-    } else if (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING) {
-      const socket = wsRef.current;
-      socket.addEventListener('open', () => {
-        sendPayload(socket);
-      }, { once: true });
-    } else {
-      addLog('> [ERROR] CANNOT SEND. UPLINK OFFLINE.');
-    }
-  }, [addLog]);
-
-  const sendFeedback = useCallback((poi: Partial<Poi>, targetScore: number, userId: string = 'default_user') => {
-    addLog(`> [USER] TUNING MODEL... ADJUSTING AFFINITY FOR: ${poi.name || 'POI'}`);
-    
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      addLog('> [ERROR] CANNOT SEND FEEDBACK. UPLINK OFFLINE.');
-      return;
-    }
-    
-    const payload = {
-      action: 'feedback',
-      poi,
-      target_score: targetScore,
-      user_id: userId,
-      thread_id: threadIdRef.current
-    };
-    wsRef.current.send(JSON.stringify(payload));
-  }, [addLog]);
-
-  const sendResume = useCallback((data: Record<string, unknown>) => {
-    addLog(`> [USER] SUBMITTING REQUIRED FIELDS / CONFIRMATION...`);
-    
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      addLog('> [ERROR] CANNOT RESUME. UPLINK OFFLINE.');
-      return;
-    }
-    
-    setStatus('inferencing');
-    setMissingFields([]);
-    setVerificationPayload(null);
-    setOverlapWarning(null);
-    setGuardrailAbort(null);
-    
-    const payload = {
-      action: 'resume',
-      answers: data,
-      ...data,
-      message: JSON.stringify(data),
-      thread_id: threadIdRef.current
-    };
-    wsRef.current.send(JSON.stringify(payload));
-  }, [addLog]);
+      wsRef.current.send(JSON.stringify(payload));
+    },
+    []
+  );
 
   return (
-    <SocketContext.Provider value={{
-      status,
-      itinerary,
-      clearItinerary,
-      missingFields,
-      verificationPayload,
-      clearVerification,
-      overlapWarning,
-      clearOverlapWarning,
-      guardrailAbort,
-      clearGuardrailAbort,
-      sendMessage,
-      sendFeedback,
-      sendResume,
-      connect,
-      disconnect
-    }}>
+    <SocketContext.Provider
+      value={{
+        status,
+        sendFeedback,
+        connect,
+        disconnect,
+      }}
+    >
       {children}
     </SocketContext.Provider>
   );

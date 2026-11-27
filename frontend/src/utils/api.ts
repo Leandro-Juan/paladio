@@ -1,15 +1,32 @@
 import { AuthTokenResponse, CreateUserData, SetupStatusResponse, UpdateProfileData, UpdateUserData, User } from '@/types/auth';
 
+declare global {
+  interface Window {
+    __PALADIO_RUNTIME_CONFIG__?: {
+      apiPort?: string;
+      apiUrl?: string;
+    };
+  }
+}
+
 export const getApiBaseUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const runtimeUrl = window.__PALADIO_RUNTIME_CONFIG__?.apiUrl?.trim();
+    if (runtimeUrl) {
+      return runtimeUrl.replace(/\/+$/, '');
+    }
+  }
   if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '');
   }
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol;
     const host = window.location.hostname;
-    return `${protocol}//${host}:8000/api`;
+    const port = window.__PALADIO_RUNTIME_CONFIG__?.apiPort || '8000';
+    return `${protocol}//${host}:${port}/api`;
   }
-  return 'http://localhost:8000/api';
+  const serverPort = process.env.API_PORT || '8000';
+  return `http://localhost:${serverPort}/api`;
 };
 
 export const getWsBaseUrl = (): string => {
@@ -21,12 +38,21 @@ export const getWsBaseUrl = (): string => {
     return `${protocol}//${process.env.NEXT_PUBLIC_WS_HOST}`;
   }
   if (typeof window !== 'undefined') {
+    const runtimeUrl = window.__PALADIO_RUNTIME_CONFIG__?.apiUrl?.trim();
+    if (runtimeUrl) {
+      return runtimeUrl
+        .replace(/\/+$/, '')
+        .replace(/\/api$/, '')
+        .replace(/^http:\/\//i, 'ws://')
+        .replace(/^https:\/\//i, 'wss://');
+    }
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    const port = process.env.NEXT_PUBLIC_WS_PORT || '8000';
+    const port = window.__PALADIO_RUNTIME_CONFIG__?.apiPort || process.env.NEXT_PUBLIC_WS_PORT || '8000';
     return `${protocol}//${host}:${port}`;
   }
-  return 'ws://localhost:8000';
+  const serverPort = process.env.API_PORT || '8000';
+  return `ws://localhost:${serverPort}`;
 };
 
 export const resolveApiMediaUrl = (url: string): string => {
@@ -382,6 +408,8 @@ export interface ConfiguredProviderInfo {
   active_model: string;
   available_models: string[];
   masked_key: string | null;
+  has_saved_key?: boolean;
+  base_url?: string | null;
   requires_key: boolean;
 }
 
@@ -435,6 +463,20 @@ export interface TestLLMConnectionResponse {
   model: string;
 }
 
+export interface ListLLMModelsPayload {
+  provider: string;
+  api_key?: string | null;
+  base_url?: string | null;
+}
+
+export interface ListLLMModelsResponse {
+  success: boolean;
+  provider: string;
+  models: string[];
+  source?: string;
+  error?: string;
+}
+
 export const fetchLlmConfigApi = (): Promise<LLMConfigResponse> => {
   return apiFetch<LLMConfigResponse>('/system/llm/config');
 };
@@ -455,6 +497,26 @@ export const testLlmConfigApi = (
     method: 'POST',
     body: JSON.stringify(data),
   });
+};
+
+export const fetchProviderModelsApi = (
+  data: ListLLMModelsPayload
+): Promise<ListLLMModelsResponse> => {
+  return apiFetch<ListLLMModelsResponse>('/system/llm/models', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const deleteLlmProviderApi = (
+  provider: string
+): Promise<{ status: string; config: LLMConfigResponse }> => {
+  return apiFetch<{ status: string; config: LLMConfigResponse }>(
+    `/system/llm/provider/${encodeURIComponent(provider)}`,
+    {
+      method: 'DELETE',
+    }
+  );
 };
 
 export const unloadLlmModelApi = (
@@ -727,6 +789,98 @@ export const purgeSystemCacheApi = (): Promise<{
     method: 'POST',
   });
 };
+
+// ---------------------------------------------------------------------------
+// Background Trip Generation Jobs API
+// ---------------------------------------------------------------------------
+
+export type TripGenerationJobStatus =
+  | 'running'
+  | 'awaiting_input'
+  | 'completed'
+  | 'aborted'
+  | 'failed'
+  | 'cancelled';
+
+export interface TripGenerationOverlapInfo {
+  id?: string;
+  destination?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface TripGenerationInterruptPayload {
+  type?: string;
+  message?: string;
+  warning_title?: string;
+  overlapping_trip?: TripGenerationOverlapInfo;
+  fields?: string[];
+  constraints?: Record<string, unknown>;
+  booking_anchors?: Record<string, unknown>;
+  variant?: string;
+}
+
+export interface TripGenerationJob {
+  id: string;
+  user_id?: string | null;
+  thread_id: string;
+  destination: string;
+  title?: string | null;
+  status: TripGenerationJobStatus;
+  stage: string;
+  stage_message?: string | null;
+  prompt: string;
+  interrupt_type?: string | null;
+  interrupt_payload?: TripGenerationInterruptPayload | null;
+  guardrail_errors?: string[] | null;
+  error_message?: string | null;
+  trip_id?: string | null;
+  acknowledged: boolean;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+  kind?: 'personalized' | 'blank';
+}
+
+export const startTripGenerationApi = (
+  payload: Record<string, unknown>
+): Promise<TripGenerationJob> => {
+  return apiFetch<TripGenerationJob>('/trips/generate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
+export const listTripGenerationJobsApi = (): Promise<TripGenerationJob[]> => {
+  return apiFetch<TripGenerationJob[]>('/trips/generation-jobs');
+};
+
+export const getTripGenerationJobApi = (jobId: string): Promise<TripGenerationJob> => {
+  return apiFetch<TripGenerationJob>(`/trips/generation-jobs/${encodeURIComponent(jobId)}`);
+};
+
+export const resumeTripGenerationJobApi = (
+  jobId: string,
+  payload: Record<string, unknown>
+): Promise<TripGenerationJob> => {
+  return apiFetch<TripGenerationJob>(`/trips/generation-jobs/${encodeURIComponent(jobId)}/resume`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
+export const cancelTripGenerationJobApi = (jobId: string): Promise<TripGenerationJob> => {
+  return apiFetch<TripGenerationJob>(`/trips/generation-jobs/${encodeURIComponent(jobId)}/cancel`, {
+    method: 'POST',
+  });
+};
+
+export const acknowledgeTripGenerationJobApi = (jobId: string): Promise<void> => {
+  return apiFetch<void>(`/trips/generation-jobs/${encodeURIComponent(jobId)}/acknowledge`, {
+    method: 'POST',
+  });
+};
+
 
 
 
