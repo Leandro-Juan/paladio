@@ -33,7 +33,10 @@ from app.engine.market.adapters import (
 from app.engine.market.baselines import resolve_baseline_median
 from app.engine.market.config import config
 from app.engine.market.ports import LiveFareVerifier, LodgingFeed
-from app.engine.market.verifier import DefaultLiveFareVerifier
+from app.engine.market.verifier import (
+    DefaultLiveFareVerifier,
+    build_flight_feed_live_checker,
+)
 from app.engine.market.providers.base import NoDataError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,8 +77,15 @@ async def run_deal_detection_scan(
         logger.info("No active deal watch alerts for detection scan.")
         return []
 
-    verifier = verifier or DefaultLiveFareVerifier()
     flight_feed = flight_feed or CompositeFlightFeed()
+    if verifier is None:
+        live_checker = (
+            build_flight_feed_live_checker(flight_feed, session=session)
+            if config.ENABLE_VERIFICATION
+            and (config.ENABLE_RYANAIR or config.ENABLE_GOOGLE_FLIGHTS)
+            else None
+        )
+        verifier = DefaultLiveFareVerifier(live_checker=live_checker)
     lodging_feed = lodging_feed or OpenLodgingFeed()
     lodging_scorer = lodging_scorer or SovereignLodgingScorer()
     itinerary_gate = itinerary_gate or SovereignItineraryGate()

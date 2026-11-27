@@ -131,6 +131,11 @@ class ProviderRouter:
                     f"[Router] Skipping {provider.name}: disabled by MARKET_ENABLE_RYANAIR"
                 )
                 continue
+            if p_name_lower == "google_flights" and not config.ENABLE_GOOGLE_FLIGHTS:
+                logger.info(
+                    f"[Router] Skipping {provider.name}: disabled by MARKET_ENABLE_GOOGLE_FLIGHTS"
+                )
+                continue
             if not getattr(config, f"ENABLE_{provider.name.upper()}", True):
                 logger.info(
                     f"[Router] Skipping {provider.name}: disabled by kill switch"

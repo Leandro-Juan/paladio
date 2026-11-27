@@ -92,10 +92,35 @@ class MarketConfig:
         "1",
         "yes",
     )
+    ENABLE_GOOGLE_FLIGHTS: bool = os.getenv(
+        "MARKET_ENABLE_GOOGLE_FLIGHTS", "true"
+    ).lower() in ("true", "1", "yes")
     ENABLE_LODGING: bool = os.getenv("MARKET_ENABLE_LODGING", "true").lower() in (
         "true",
         "1",
         "yes",
+    )
+
+    # Google Flights live provider (fast-flights + primp)
+    GOOGLE_FLIGHTS_MAX_RPM: int = int(os.getenv("MARKET_GOOGLE_FLIGHTS_MAX_RPM", "12"))
+    GOOGLE_FLIGHTS_DAILY_BUDGET: int = int(
+        os.getenv("MARKET_GOOGLE_FLIGHTS_DAILY_BUDGET", "200")
+    )
+    GOOGLE_FLIGHTS_MAX_RANGE_DAYS: int = int(
+        os.getenv("MARKET_GOOGLE_FLIGHTS_MAX_RANGE_DAYS", "14")
+    )
+    GOOGLE_FLIGHTS_MONTH_SAMPLE_DAYS: int = int(
+        os.getenv("MARKET_GOOGLE_FLIGHTS_MONTH_SAMPLE_DAYS", "4")
+    )
+    GOOGLE_FLIGHTS_CACHE_TTL_SEC: int = int(
+        os.getenv("MARKET_GOOGLE_FLIGHTS_CACHE_TTL_SEC", "7200")
+    )
+    GOOGLE_FLIGHTS_SWEEP_CACHE_TTL_SEC: int = int(
+        os.getenv("MARKET_GOOGLE_FLIGHTS_SWEEP_CACHE_TTL_SEC", "43200")
+    )
+    GOOGLE_FLIGHTS_SOCS_COOKIE: str = os.getenv(
+        "MARKET_GOOGLE_FLIGHTS_SOCS_COOKIE",
+        "CAESHAgBEhJnd3NfMjAyMzA4MTAtMF9SQzIaAmVuIAEaBgiAo_CmBg",
     )
 
     # Cheap feasibility (Phase 5B)
