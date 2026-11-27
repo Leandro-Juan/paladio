@@ -20,7 +20,7 @@ Plan realistic trips tailored to your tastes, catch genuine flight and hotel dea
 
 <div align="center">
 
-https://github.com/user-attachments/assets/b383605f-b851-4a60-ba35-ba44b3f3229d
+https://github.com/user-attachments/assets/0d9aaa3e-f7aa-475c-a33c-4b70880c75ee
 
 <sub><b>Paladio Product Tour (2m 25s, 1080p)</b> · <a href="https://leandro-juan.github.io/paladio/">Documentation</a> · <a href="https://paladio-xi.vercel.app">Try the Interactive Demo</a></sub>
 
