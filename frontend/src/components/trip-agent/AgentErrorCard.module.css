@@ -8,7 +8,7 @@
   padding: 12px 14px;
   margin: 6px 0 2px 0;
   box-shadow: 0 2px 8px rgba(212, 42, 47, 0.06);
-  animation: cardFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: cardFadeIn var(--transition-snappy);
 }
 
 [data-theme="dark"] .errorCard {
@@ -188,7 +188,7 @@
   font-weight: 600;
   padding: 6px 12px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
   box-shadow: 0 1px 3px rgba(15, 76, 92, 0.2);
 }
 
@@ -213,7 +213,7 @@
   font-weight: 600;
   padding: 5px 10px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .retryBtn:hover {
@@ -283,7 +283,7 @@
   font-size: 9.5px;
   cursor: pointer;
   color: var(--color-text-primary, #1E293B);
-  transition: all 0.12s ease;
+  transition: transform var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 [data-theme="dark"] .copyBtn {
@@ -294,4 +294,19 @@
 
 .copyBtn:hover {
   transform: scale(1.02);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .errorCard {
+    animation: none;
+  }
+  .switchBtn,
+  .copyBtn {
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  }
+  .switchBtn:hover,
+  .switchBtn:active,
+  .copyBtn:hover {
+    transform: none;
+  }
 }

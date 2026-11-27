@@ -103,6 +103,7 @@ export function SettlementModal({
     <div
       role="dialog"
       aria-modal="true"
+      className="paladio-modal-backdrop"
       style={{
         position: 'fixed',
         inset: 0,
@@ -120,6 +121,7 @@ export function SettlementModal({
       }}
     >
       <div
+        className="paladio-modal-panel"
         style={{
           background: 'var(--color-surface-card)',
           borderRadius: '24px',

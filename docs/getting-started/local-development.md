@@ -29,15 +29,17 @@ cmake --build cpp_core/build-asan -j4
 ctest --test-dir cpp_core/build-asan --output-on-failure
 ```
 
-4. Install `paladio_core` into your active Python virtual environment via `scikit-build-core`:
+4. Create and activate your Python virtual environment (reused for the backend below), then install `paladio_core` via `scikit-build-core`:
 
 ```bash
-pip install -e ./cpp_core --no-build-isolation
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ./cpp_core
 pytest cpp_core/tests/python/test_engine.py -q
 ```
 
 !!! tip "Standalone `paladio_core` build flags"
-    Pass `-DPALADIO_ENABLE_NATIVE=ON` in Release builds to add `-march=native` alongside `-O3 -DNDEBUG`, or `-DPALADIO_BUILD_PYTHON=OFF` when embedding only the `paladio::engine` C++ static target.
+    Pass `-DPALADIO_ENABLE_NATIVE=ON` in Release builds to add `-march=native` alongside `-O3 -DNDEBUG`, or `-DPALADIO_BUILD_PYTHON=OFF` when embedding only the `paladio::engine` C++ static target. You can pass `--no-build-isolation` to `pip install -e ./cpp_core` only if `scikit-build-core` and `pybind11` are already installed in the active virtual environment.
 
 ## Run the FastAPI backend and Celery workers
 
@@ -47,27 +49,28 @@ The backend requires Python 3.10+ (Docker uses Python 3.12), PostgreSQL 16 with 
 
 ```bash
 sudo apt-get update && sudo apt-get install -y \
-  tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa poppler-utils fonts-liberation
+  tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa poppler-utils fonts-liberation fonts-dejavu-core
 ```
 
-2. Create a Python virtual environment, install `backend` with dev extras, and ensure `paladio_core*.so` is importable in `backend/`:
+2. Activate `.venv` (or create it if you skipped step 4 above), install `backend` with dev extras, and ensure `paladio_core` is installed in the same environment:
 
 ```bash
-python3 -m venv .venv
 source .venv/bin/activate
 pip install -e "./backend[dev]"
 ```
 
-3. Start PostgreSQL, Redis, and Valhalla via Docker Compose while running Python processes natively on your host, then apply Alembic migrations and verified fare quotes:
+3. Start PostgreSQL, Redis, and Valhalla via Docker Compose while running Python processes natively on your host. Include `docker-compose.dev.yml` so `db`, `redis`, and `valhalla` bind `127.0.0.1` ports (`5432`, `6379`, `8002`), and pass `--no-deps` so `valhalla` does not trigger the Docker `migrate` service. Because the backend does not auto-load `.env` and Celery defaults `REDIS_URL` to `redis://redis:6379/0`, export `DATABASE_URL` and `REDIS_URL` before running Alembic migrations and verified fare quotes (adjusting the password in `DATABASE_URL` if your `.env` sets a custom `POSTGRES_PASSWORD`):
 
 ```bash
-docker compose up -d db redis valhalla
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --no-deps db redis valhalla
+export DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/paladio"
+export REDIS_URL="redis://localhost:6379/0"
 cd backend
 alembic upgrade head
 python scripts/migrate_verified_fares_to_quotes.py
 ```
 
-4. Launch FastAPI, the Celery worker across all three queues (`celery`, `transit_build`, `poi_hydration`), and Celery Beat in separate terminals:
+4. Launch FastAPI, the Celery worker across all three queues (`celery`, `transit_build`, `poi_hydration`), and Celery Beat in separate terminals (with `.venv` activated and `DATABASE_URL` / `REDIS_URL` exported; `VALHALLA_URL` already defaults to `http://localhost:8002`):
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app
@@ -82,10 +85,12 @@ celery -A app.celery_app worker --loglevel=info \
 celery -A app.celery_app beat --loglevel=info
 ```
 
-5. Run targeted backend tests (`backend/tests/conftest.py` installs a Python fallback mock only if compiled `paladio_core` is missing, so test with compiled `paladio_core` whenever verifying solver output):
+5. Run targeted backend tests (`backend/tests/conftest.py` forces a Python mock for `paladio_core` by default via `MOCK_PALADIO_CORE=1`; pass `MOCK_PALADIO_CORE=0` whenever verifying compiled `paladio_core` output):
 
 ```bash
-pytest backend/tests/test_bridge.py -k test_bridge_solver -q
+pytest backend/tests/test_bridge.py -k test_bridge_64_pois -q
+# Or against the compiled C++20 extension:
+MOCK_PALADIO_CORE=0 pytest backend/tests/test_bridge.py -k test_bridge_64_pois -q
 ```
 
 !!! note "Optional Playwright scraping dependency"

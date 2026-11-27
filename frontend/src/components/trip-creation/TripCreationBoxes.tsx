@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useTrips } from '@/hooks/useTrips';
 import { useAuth } from '@/contexts/AuthContext';
 import { MealRequirement } from '@/types/domain';
 import {
@@ -27,14 +25,12 @@ import { PaladioDateRangePicker } from './PaladioDateRangePicker';
 import { DocumentUploadModal, ExtractedTravelDocData } from './DocumentUploadModal';
 import { TravelDocumentDraft } from '@/hooks/useTripTickets';
 import { useTripDraftStore } from '@/stores/tripDraftStore';
-import { useLogStore } from '@/contexts/SocketContext';
+import { useTripGenerationStore } from '@/stores/tripGenerationStore';
 import { CurrencyWheelPicker } from '@/components/trip-workspace/costs/CurrencyWheelPicker';
 import { FlagIcon } from '@/components/trip-workspace/costs/FlagIcon';
 import { getCurrencyInfo, CurrencyInfo } from '@/utils/currencyResolver';
 import { ParticipantsManager, SelectedParticipant } from './ParticipantsManager';
 import { PhotoUploadModal } from './PhotoUploadModal';
-import { getApiBaseUrl } from '@/utils/api';
-import { resolveAirportIata } from '@/utils/airportResolver';
 import { DemoLockedButton } from '@/components/common/DemoFeatureGate';
 
 interface TripCreationBoxesProps {
@@ -93,8 +89,6 @@ export function TripCreationBoxes({
   onReconnect,
 }: TripCreationBoxesProps) {
   const { t } = useTranslation();
-  const router = useRouter();
-  const { saveTrip } = useTrips();
   const { user: currentUser } = useAuth();
 
   const draft = useTripDraftStore();
@@ -129,7 +123,6 @@ export function TripCreationBoxes({
     selectedMode,
     hasUserModified,
     updateDraft,
-    resetDraft,
     initializeWithUser,
   } = draft;
 
@@ -605,323 +598,39 @@ export function TripCreationBoxes({
     setIsCreatingBlank(true);
     onBlankSubmitStart?.(t('engine.creating_blank_workspace'));
 
-    try {
-      const start = parseLocalIsoDate(startDate);
-      const parseHhmm = (val: string | undefined, fallbackMins: number): number => {
-        if (!val) return fallbackMins;
-        const parts = val.trim().split(':');
-        const h = parseInt(parts[0], 10);
-        const m = parseInt(parts[1] || '0', 10);
-        if (Number.isNaN(h) || Number.isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
-          return fallbackMins;
-        }
-        return h * 60 + m;
-      };
-      const fmtHhmm = (mins: number): string => {
-        const clamped = Math.max(0, Math.min(23 * 60 + 59, Math.round(mins)));
-        return `${String(Math.floor(clamped / 60)).padStart(2, '0')}:${String(clamped % 60).padStart(2, '0')}`;
-      };
+    const res = await useTripGenerationStore.getState().startBlankJob({
+      destination,
+      origin,
+      originIata,
+      destIata,
+      startDate,
+      endDate,
+      departureHour,
+      arrivalHour,
+      budgetUsd,
+      currency,
+      tripTitle,
+      tripDescription,
+      hotelArea,
+      hotelAddress,
+      hotelLat,
+      hotelLng,
+      hotelCheckInDate: effectiveCheckInDate,
+      hotelCheckOutDate: effectiveCheckOutDate,
+      hotelCheckInHour,
+      hotelCheckOutHour,
+      participants,
+      customPhotoUrl,
+      isPhotoRemoved,
+      scannedDocuments,
+    });
 
-      const arrMins = parseHhmm(departureHour, 9 * 60);
-      const depMins = parseHhmm(arrivalHour, 20 * 60);
-      const cinMins = parseHhmm(hotelCheckInHour, 15 * 60);
-      const coutMins = parseHhmm(hotelCheckOutHour, 11 * 60);
-
-      // Dynamically resolve destination airport anchor
-      let airportPoi: { id: string; name: string; city: string; category: string; duration_mins: number; cost_eur: number; location: { latitude: number; longitude: number } } | null = null;
-      const userSpecifiedIata = destIata.trim().toUpperCase();
-      let effectiveIata = userSpecifiedIata;
-      const baseUrl = getApiBaseUrl();
-      let cityFallbackLat = 0;
-      let cityFallbackLng = 0;
-      try {
-        const apRes = await fetch(`${baseUrl}/locations/resolve-airport?city=${encodeURIComponent(destination.trim())}`);
-        if (apRes.ok) {
-          const apData = await apRes.json();
-          if (typeof apData?.latitude === 'number' && typeof apData?.longitude === 'number') {
-            cityFallbackLat = apData.latitude;
-            cityFallbackLng = apData.longitude;
-          }
-          if (!effectiveIata && apData?.iata) {
-            effectiveIata = apData.iata;
-          }
-          if (apData?.iata && (!userSpecifiedIata || userSpecifiedIata === String(apData.iata).toUpperCase())) {
-            airportPoi = {
-              id: `airport-${String(apData.iata).toLowerCase()}`,
-              name: apData.name || t('engine.airport_suffix_name', { name: apData.iata }),
-              city: apData.city || destination.trim(),
-              category: 'AIRPORT',
-              duration_mins: 120,
-              cost_eur: 0,
-              location: {
-                latitude: typeof apData.latitude === 'number' ? apData.latitude : 0,
-                longitude: typeof apData.longitude === 'number' ? apData.longitude : 0,
-              },
-            };
-          }
-        }
-      } catch {
-        // fallback
-      }
-      if (!airportPoi && !effectiveIata) {
-        effectiveIata = (await resolveAirportIata(destination.trim())) || '';
-      }
-      if (!airportPoi) {
-        airportPoi = {
-          id: effectiveIata ? `airport-${effectiveIata.toLowerCase()}` : 'airport-dest',
-          name: effectiveIata
-            ? t('engine.airport_suffix_name', { name: effectiveIata })
-            : t('engine.airport_suffix_name', { name: destination.trim() }),
-          city: destination.trim(),
-          category: 'AIRPORT',
-          duration_mins: 120,
-          cost_eur: 0,
-          location: { latitude: cityFallbackLat, longitude: cityFallbackLng },
-        };
-      }
-
-      // Dynamically resolve hotel anchor (always present for daily start/end anchors even on blank trips)
-      let resolvedHotelLat = typeof hotelLat === 'number' ? hotelLat : 0;
-      let resolvedHotelLng = typeof hotelLng === 'number' ? hotelLng : 0;
-      if (resolvedHotelLat === 0 && resolvedHotelLng === 0) {
-        try {
-          const locQuery = hotelArea.trim()
-            ? `${hotelArea.trim()} ${destination.trim()}`
-            : destination.trim();
-          const locRes = await fetch(`${baseUrl}/locations/search?q=${encodeURIComponent(locQuery)}&limit=1`);
-          if (locRes.ok) {
-            const locItems = await locRes.json();
-            if (Array.isArray(locItems) && locItems.length > 0) {
-              if (typeof locItems[0].latitude === 'number' && typeof locItems[0].longitude === 'number') {
-                resolvedHotelLat = locItems[0].latitude;
-                resolvedHotelLng = locItems[0].longitude;
-              }
-            }
-          }
-        } catch {
-          // keep 0 or fallback to city airport coordinates resolved above
-        }
-        if (resolvedHotelLat === 0 && resolvedHotelLng === 0 && (cityFallbackLat !== 0 || cityFallbackLng !== 0)) {
-          resolvedHotelLat = cityFallbackLat;
-          resolvedHotelLng = cityFallbackLng;
-        }
-      }
-
-      const hotelPoi = {
-        id: 'hotel-base',
-        name: hotelArea.trim() || t('engine.accommodation_hotel_fallback'),
-        city: destination.trim(),
-        category: 'HOTEL',
-        duration_mins: 0,
-        cost_eur: 0,
-        location: {
-          latitude: resolvedHotelLat,
-          longitude: resolvedHotelLng,
-        },
-      };
-
-      const days = [];
-      for (let i = 1; i <= tripDurationDays; i++) {
-        const d = new Date(start);
-        d.setDate(d.getDate() + (i - 1));
-        const dayDateStr = formatLocalIsoDate(d);
-        const isCinDay = dayDateStr === effectiveCheckInDate;
-        const isCoutDay = dayDateStr === effectiveCheckOutDate;
-
-        let dayPath: Array<{
-          poi: { id: string; name: string; city: string; category: string; duration_mins: number; cost_eur: number; location: { latitude: number; longitude: number } };
-          scheduled_start?: string;
-          scheduled_end?: string;
-          arrival_time?: string;
-          departure_time?: string;
-        }> = [];
-
-        if (tripDurationDays === 1) {
-          const arrStart = arrMins;
-          const depEnd = depMins > arrStart + 60
-            ? depMins
-            : Math.min(23 * 60 + 59, Math.max(arrStart + 120, depMins));
-          const arrEnd = Math.min(arrStart + 60, Math.max(arrStart, depEnd - 60));
-          let depStart = Math.max(arrEnd + 30, depEnd - 120);
-          const midHotel = Math.max(arrEnd + 15, Math.min(cinMins, Math.max(arrEnd + 15, depStart - 15)));
-          depStart = Math.max(midHotel + 15, depStart);
-          dayPath = [
-            { poi: airportPoi, scheduled_start: fmtHhmm(arrStart), scheduled_end: fmtHhmm(arrEnd), arrival_time: fmtHhmm(arrStart), departure_time: fmtHhmm(arrEnd) },
-            { poi: hotelPoi, scheduled_start: fmtHhmm(midHotel), scheduled_end: fmtHhmm(midHotel), arrival_time: fmtHhmm(midHotel), departure_time: fmtHhmm(midHotel) },
-            { poi: airportPoi, scheduled_start: fmtHhmm(depStart), scheduled_end: fmtHhmm(depEnd), arrival_time: fmtHhmm(depStart), departure_time: fmtHhmm(depEnd) },
-          ];
-        } else {
-          if (i === 1) {
-            const arrStart = arrMins;
-            const arrEnd = Math.min(23 * 60 + 59, arrStart + 60);
-            const hotelTime = isCinDay
-              ? Math.max(Math.min(23 * 60 + 59, arrEnd + 30), cinMins)
-              : Math.max(Math.min(23 * 60 + 59, arrEnd + 30), 21 * 60);
-            dayPath = [
-              { poi: airportPoi, scheduled_start: fmtHhmm(arrStart), scheduled_end: fmtHhmm(arrEnd), arrival_time: fmtHhmm(arrStart), departure_time: fmtHhmm(arrEnd) },
-              { poi: hotelPoi, scheduled_start: fmtHhmm(hotelTime), scheduled_end: fmtHhmm(hotelTime), arrival_time: fmtHhmm(hotelTime), departure_time: fmtHhmm(hotelTime) },
-            ];
-          } else if (i === tripDurationDays) {
-            const depEnd = depMins;
-            const rawAirportStart = Math.max(0, depEnd - 120);
-            const maxHotelDep = Math.max(0, rawAirportStart - 30);
-            const hotelStart = isCoutDay
-              ? Math.min(coutMins, maxHotelDep)
-              : Math.min(9 * 60, maxHotelDep);
-            const depStart = Math.max(depEnd >= hotelStart + 30 ? hotelStart + 30 : hotelStart, rawAirportStart);
-            dayPath = [
-              { poi: hotelPoi, scheduled_start: fmtHhmm(hotelStart), scheduled_end: fmtHhmm(hotelStart), arrival_time: fmtHhmm(hotelStart), departure_time: fmtHhmm(hotelStart) },
-              { poi: airportPoi, scheduled_start: fmtHhmm(depStart), scheduled_end: fmtHhmm(depEnd), arrival_time: fmtHhmm(depStart), departure_time: fmtHhmm(depEnd) },
-            ];
-          } else {
-            const mornTime = isCoutDay ? Math.min(9 * 60, coutMins) : 9 * 60;
-            const eveTime = isCinDay ? Math.max(21 * 60, cinMins) : 21 * 60;
-            dayPath = [
-              { poi: hotelPoi, scheduled_start: fmtHhmm(mornTime), scheduled_end: fmtHhmm(mornTime), arrival_time: fmtHhmm(mornTime), departure_time: fmtHhmm(mornTime) },
-              { poi: hotelPoi, scheduled_start: fmtHhmm(eveTime), scheduled_end: fmtHhmm(eveTime), arrival_time: fmtHhmm(eveTime), departure_time: fmtHhmm(eveTime) },
-            ];
-          }
-        }
-
-        days.push({
-          day: i,
-          date: dayDateStr,
-          theme: t('engine.day_exploration_theme', { day: i }),
-          itinerary: {
-            day_index: i - 1,
-            path: dayPath,
-            total_cost_eur: 0,
-            total_time_mins: 0,
-          },
-          activities: dayPath.map((node) => node.poi).filter(Boolean),
-        });
-      }
-
-      const outboundFlightDoc = scannedDocuments.find((d) => d.ticket_type === 'flight' && !d.metadata?.is_return_leg);
-      const returnFlightDoc = scannedDocuments.find((d) => d.ticket_type === 'flight' && Boolean(d.metadata?.is_return_leg));
-      const numericBudget =
-        budgetUsd !== '' && Number.isFinite(Number(budgetUsd))
-          ? Math.max(0, Number(budgetUsd))
-          : 1500;
-      const coverPhotoPayload = !isPhotoRemoved && customPhotoUrl ? customPhotoUrl : undefined;
-      const blankItineraryData = {
-        title: tripTitle.trim() || t('engine.trip_to_destination', { destination: destination.trim() }),
-        destination: destination.trim(),
-        origin: origin.trim() || undefined,
-        description: tripDescription.trim() || undefined,
-        ...(coverPhotoPayload ? { cover_photo: coverPhotoPayload } : {}),
-        departure_hour: departureHour || '09:00',
-        arrival_hour: arrivalHour || '20:00',
-        participants: participants.map((p) => ({
-          id: p.id,
-          user_id: p.user_id,
-          name: p.name,
-          email: p.email,
-          is_guest: p.is_guest,
-        })),
-        outbound_flight: outboundFlightDoc ? {
-          airline: outboundFlightDoc.provider || undefined,
-          flight_number: (outboundFlightDoc.metadata?.flight_number as string) || undefined,
-          origin_iata: (outboundFlightDoc.metadata?.origin_iata as string) || originIata || undefined,
-          destination_iata: (outboundFlightDoc.metadata?.destination_iata as string) || destIata || undefined,
-          departure_time: outboundFlightDoc.start_time || `${startDate}T${departureHour || '09:00'}:00`,
-          arrival_time: outboundFlightDoc.metadata?.arrival_hour
-            ? `${startDate}T${outboundFlightDoc.metadata.arrival_hour}:00`
-            : `${startDate}T${departureHour || '09:00'}:00`,
-          seat: outboundFlightDoc.seat_or_room || undefined,
-          pnr: outboundFlightDoc.reference_code || undefined,
-          holder_name: outboundFlightDoc.holder_name || undefined,
-        } : undefined,
-        return_flight: returnFlightDoc ? {
-          airline: returnFlightDoc.provider || undefined,
-          flight_number: (returnFlightDoc.metadata?.flight_number as string) || undefined,
-          origin_iata: (returnFlightDoc.metadata?.origin_iata as string) || destIata || undefined,
-          destination_iata: (returnFlightDoc.metadata?.destination_iata as string) || originIata || undefined,
-          departure_time: returnFlightDoc.start_time || `${endDate}T${arrivalHour || '20:00'}:00`,
-          arrival_time: returnFlightDoc.metadata?.arrival_hour
-            ? `${endDate}T${returnFlightDoc.metadata.arrival_hour}:00`
-            : `${endDate}T${arrivalHour || '20:00'}:00`,
-          seat: returnFlightDoc.seat_or_room || undefined,
-          pnr: returnFlightDoc.reference_code || undefined,
-          holder_name: returnFlightDoc.holder_name || undefined,
-        } : undefined,
-        scanned_documents: scannedDocuments,
-        hotel: {
-          name: hotelPoi.name,
-          address: hotelAddress || undefined,
-          lat: hotelPoi.location.latitude,
-          lng: hotelPoi.location.longitude,
-          check_in_date: effectiveCheckInDate,
-          check_in_time: hotelCheckInHour || '15:00',
-          check_out_date: effectiveCheckOutDate,
-          check_out_time: hotelCheckOutHour || '11:00',
-        },
-        airport: {
-          name: airportPoi.name,
-          lat: airportPoi.location.latitude,
-          lng: airportPoi.location.longitude,
-        },
-        travel_constraints: {
-          destination_city: destination.trim(),
-          destination_iata: destIata.trim().toUpperCase() || effectiveIata || undefined,
-          origin_city: origin.trim() || undefined,
-          origin_iata: originIata.trim().toUpperCase() || undefined,
-          start_date: startDate,
-          end_date: endDate,
-          departure_hour: departureHour || '09:00',
-          arrival_hour: arrivalHour || '20:00',
-          budget: numericBudget,
-          budget_usd: numericBudget,
-          currency: currency,
-          travelers: travelersCount,
-          participants: participants.map((p) => ({
-            id: p.id,
-            user_id: p.user_id,
-            name: p.name,
-            email: p.email,
-            is_guest: p.is_guest,
-          })),
-          accommodation: hotelPoi.name,
-          hotel: {
-            name: hotelPoi.name,
-            address: hotelAddress || undefined,
-            lat: hotelPoi.location.latitude,
-            lng: hotelPoi.location.longitude,
-            check_in_date: effectiveCheckInDate,
-            check_in_time: hotelCheckInHour || '15:00',
-            check_out_date: effectiveCheckOutDate,
-            check_out_time: hotelCheckOutHour || '11:00',
-          },
-        },
-        days,
-        is_blank_trip: true,
-      };
-
-      const startIso = new Date(startDate).toISOString();
-      const endIso = new Date(endDate).toISOString();
-
-      const createdTrip = await saveTrip({
-        destination: destination.trim(),
-        start_date: startIso,
-        end_date: endIso,
-        itinerary_data: blankItineraryData,
-      });
-
-      if (createdTrip?.id) {
-        resetDraft();
-        useLogStore.getState().clearLogs();
-        setBlankSuccess(t('engine.blank_trip_created_msg'));
-        setTimeout(() => {
-          router.push(`/trips/${createdTrip.id}`);
-        }, 500);
-      } else {
-        throw new Error(t('engine.err_create_trip_db'));
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('engine.err_creating_blank_trip');
-      setBlankError(msg);
-      setIsCreatingBlank(false);
-      onBlankSubmitError?.(msg);
+    setIsCreatingBlank(false);
+    if (res.error) {
+      setBlankError(res.error);
+      onBlankSubmitError?.(res.error);
+    } else if (res.tripId) {
+      setBlankSuccess(t('engine.blank_trip_created_msg'));
     }
   };
 
@@ -1540,6 +1249,7 @@ export function TripCreationBoxes({
                   {/* Currency Spin Dial Trigger Capsule */}
                   <button
                     type="button"
+                    data-testid="engine-currency-dial-btn"
                     onClick={() => setIsCurrencyWheelOpen(true)}
                     title={t('engine.change_currency_dial_title')}
                     style={{
@@ -1647,25 +1357,6 @@ export function TripCreationBoxes({
               </div>
             )}
 
-            {status === 'inferencing' && (
-              <div
-                style={{
-                  padding: '12px 16px',
-                  background: '#EFF6FF',
-                  border: '1px solid #BFDBFE',
-                  borderRadius: '12px',
-                  color: '#1E40AF',
-                  fontSize: '13px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <Spinner size={16} color="#2563EB" />
-                <span>{t('engine.swarm_inferencing_optimizing')}</span>
-              </div>
-            )}
-
             {/* Submit Action Button */}
             <div>
               {!demoLockedSubmit && status === 'disconnected' && selectedMode === 'personalized' && (
@@ -1714,18 +1405,18 @@ export function TripCreationBoxes({
                 <button
                   type="button"
                   onClick={handlePersonalizedSubmit}
-                  disabled={disabled || status === 'inferencing'}
+                  disabled={disabled}
                   style={{
                     width: '100%',
                     padding: '13px 24px',
                     borderRadius: '9999px',
                     border: 'none',
-                    background: status === 'inferencing' || disabled ? 'var(--color-text-muted)' : 'var(--color-accent-primary, #0F4C5C)',
+                    background: disabled ? 'var(--color-text-muted)' : 'var(--color-accent-primary, #0F4C5C)',
                     color: '#FFFFFF',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '14px',
                     fontWeight: 600,
-                    cursor: status === 'inferencing' || disabled ? 'not-allowed' : 'pointer',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1734,18 +1425,9 @@ export function TripCreationBoxes({
                     boxShadow: '0 2px 8px rgba(15, 76, 92, 0.25)',
                   }}
                 >
-                  {status === 'inferencing' ? (
-                    <>
-                      <Spinner size={16} color="#FFFFFF" />
-                      {t('engine.optimization_in_progress')}
-                    </>
-                  ) : (
-                    <>
-                      <StarIcon size={15} color="#FFFFFF" />
-                      <span>{t('engine.generate_sovereign_trip_plan')}</span>
-                      <ArrowRightIcon size={14} />
-                    </>
-                  )}
+                  <StarIcon size={15} color="#FFFFFF" />
+                  <span>{t('engine.generate_sovereign_trip_plan')}</span>
+                  <ArrowRightIcon size={14} />
                 </button>
               ) : (
                 <button

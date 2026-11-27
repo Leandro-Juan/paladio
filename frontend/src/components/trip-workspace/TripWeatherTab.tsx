@@ -997,7 +997,8 @@ export function TripWeatherTab({
                   alignItems: 'center',
                   gap: '6px',
                   cursor: 'pointer',
-                  transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                  transition:
+                    'border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast)',
                   textAlign: 'center',
                 }}
               >
@@ -1032,6 +1033,7 @@ export function TripWeatherTab({
         </div>
       </div>
 
+      <div key={selectedDayForecast.date} className="animate-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* -------------------------------------------------------------------- */}
       {/* 2. Highlights Section Title                                          */}
       {/* -------------------------------------------------------------------- */}
@@ -1354,6 +1356,7 @@ export function TripWeatherTab({
             />
           </div>
         </div>
+      </div>
       </div>
 
       {/* -------------------------------------------------------------------- */}

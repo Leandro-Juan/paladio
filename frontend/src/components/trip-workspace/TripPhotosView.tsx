@@ -831,6 +831,7 @@ export function TripPhotosView({
       {mounted && activePhoto && lightboxIndex !== null && typeof document !== 'undefined' &&
         createPortal(
           <div
+            className="paladio-modal-backdrop"
             style={{
               position: 'fixed',
               inset: 0,

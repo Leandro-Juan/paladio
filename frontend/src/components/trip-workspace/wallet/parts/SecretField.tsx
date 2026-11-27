@@ -22,11 +22,14 @@ export function SecretField({ value, label, highlight = false }: SecretFieldProp
       style={{
         display: 'inline-flex',
         alignItems: 'center',
+        flexWrap: 'wrap',
         gap: '6px',
         padding: highlight ? '4px 8px' : '2px 6px',
         borderRadius: '6px',
-        background: highlight ? '#FFFBEB' : 'var(--color-surface-card, #F8FAFC)',
-        border: `1px solid ${highlight ? '#FDE68A' : 'var(--color-border, #CBD5E1)'}`,
+        maxWidth: '100%',
+        minWidth: 0,
+        background: highlight ? 'var(--color-accent-warning-bg, rgba(226, 179, 60, 0.12))' : 'var(--color-surface-card, #F8FAFC)',
+        border: `1px solid ${highlight ? 'var(--color-accent-warning-border, rgba(226, 179, 60, 0.35))' : 'var(--color-border, #CBD5E1)'}`,
       }}
     >
       {label && (
@@ -34,7 +37,7 @@ export function SecretField({ value, label, highlight = false }: SecretFieldProp
           className="font-mono"
           style={{
             fontSize: '10px',
-            color: highlight ? '#B45309' : 'var(--color-text-muted, #64748B)',
+            color: highlight ? 'var(--color-accent-warning, #B45309)' : 'var(--color-text-muted, #64748B)',
             fontWeight: 600,
             letterSpacing: '0.5px',
           }}
@@ -47,8 +50,11 @@ export function SecretField({ value, label, highlight = false }: SecretFieldProp
         style={{
           fontSize: highlight ? '13px' : '11px',
           fontWeight: 700,
-          color: highlight ? '#B45309' : 'var(--color-text-primary, #0F172A)',
+          color: highlight ? 'var(--color-accent-warning, #B45309)' : 'var(--color-text-primary, #0F172A)',
           letterSpacing: isRevealed ? '0.5px' : '2px',
+          minWidth: 0,
+          overflowWrap: 'anywhere',
+          wordBreak: 'break-word',
         }}
       >
         {isRevealed ? value : '••••••••'}
@@ -63,7 +69,7 @@ export function SecretField({ value, label, highlight = false }: SecretFieldProp
         style={{
           background: 'none',
           border: 'none',
-          color: highlight ? '#D97706' : 'var(--color-text-muted, #64748B)',
+          color: highlight ? 'var(--color-accent-warning, #D97706)' : 'var(--color-text-muted, #64748B)',
           cursor: 'pointer',
           padding: '2px',
           display: 'flex',

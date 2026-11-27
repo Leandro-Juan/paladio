@@ -18,6 +18,18 @@ from app.db.models import TransitCacheStatus
 logger = logging.getLogger(__name__)
 
 
+def _release_worker_memory() -> None:
+    """Releases Python cyclic garbage and trims glibc arenas between heavy hydration stages."""
+    import ctypes
+    import gc
+
+    gc.collect()
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
+
+
 def _get_task_session_maker():
     """
     Creates an isolated SQLAlchemy async session factory using NullPool.
@@ -189,6 +201,7 @@ async def _run_ingest_city_pois(city_name: str, force: bool = False) -> dict[str
             return {"city_name": name, "city_id": canon_id, "raw_count": len(records)}
     finally:
         await task_engine.dispose()
+        _release_worker_memory()
 
 
 async def _run_enrich_tier12_city_pois(
@@ -459,7 +472,8 @@ async def _run_enrich_tier12_city_pois(
                 }
 
                 facets = FacetExtractor.extract_facets(poi_dict)
-                m.controlled_facets = facets.model_dump()
+                m.facets = facets.model_dump()
+                poi_dict["controlled_facets"] = m.facets
                 m.doc_quality = FacetExtractor.compute_doc_quality(
                     poi=poi_dict,
                     has_wikidata=bool(m.wikidata_id),
@@ -488,10 +502,10 @@ async def _run_enrich_tier12_city_pois(
 
             if texts_to_embed:
                 logger.info(
-                    f"Batch embedding {len(texts_to_embed)} priority POIs via OnnxEmbeddingProvider (batch_size=128)"
+                    f"Batch embedding {len(texts_to_embed)} priority POIs via OnnxEmbeddingProvider (batch_size=32)"
                 )
                 vectors = await embed_provider.embed_batch(
-                    texts_to_embed, batch_size=128
+                    texts_to_embed, batch_size=32
                 )
                 for model, vec in zip(models_to_embed, vectors):
                     model.embedding = vec
@@ -519,6 +533,7 @@ async def _run_enrich_tier12_city_pois(
             }
     finally:
         await task_engine.dispose()
+        _release_worker_memory()
 
 
 async def _run_enrich_long_tail_city_pois(
@@ -692,7 +707,8 @@ async def _run_enrich_long_tail_city_pois(
                     }
 
                     facets = FacetExtractor.extract_facets(poi_dict)
-                    m.controlled_facets = facets.model_dump()
+                    m.facets = facets.model_dump()
+                    poi_dict["controlled_facets"] = m.facets
                     m.doc_quality = FacetExtractor.compute_doc_quality(
                         poi=poi_dict,
                         has_wikidata=bool(m.wikidata_id),
@@ -721,7 +737,7 @@ async def _run_enrich_long_tail_city_pois(
                 if texts_to_embed:
                     try:
                         vectors = await embed_provider.embed_batch(
-                            texts_to_embed, batch_size=128
+                            texts_to_embed, batch_size=32
                         )
                         for model, vec in zip(models_to_embed, vectors):
                             model.embedding = vec
@@ -775,6 +791,8 @@ async def _run_enrich_long_tail_city_pois(
             }
     finally:
         await task_engine.dispose()
+        OnnxEmbeddingProvider.clear_cached_models()
+        _release_worker_memory()
 
 
 @app.task(bind=True, name="app.tasks.ingest_city_pois_task", queue="poi_hydration")
@@ -2227,6 +2245,7 @@ def derive_city_transit_task(
 @app.task(name="app.tasks.daily_flight_sweep_task")
 def daily_flight_sweep_task(
     pilot_routes: list[list[str]] | None = None,
+    spread_across_day: bool = True,
 ) -> dict[str, Any]:
     """Celery task running daily forward calendar flight sweep."""
     from app.engine.market.config import config
@@ -2246,7 +2265,7 @@ def daily_flight_sweep_task(
                 return await run_daily_flight_sweep(
                     session=session,
                     pilot_routes=converted,
-                    spread_across_day=True,
+                    spread_across_day=spread_across_day,
                 )
             finally:
                 await engine.dispose()
@@ -2305,6 +2324,7 @@ def daily_deal_detection_task(*args, **kwargs) -> dict[str, Any]:
 @app.task(name="app.tasks.daily_market_pipeline_task")
 def daily_market_pipeline_task(
     pilot_routes: list[list[str]] | None = None,
+    spread_across_day: bool = True,
 ) -> dict[str, Any]:
     """
     Daily orchestrated market pipeline task:
@@ -2351,7 +2371,7 @@ def daily_market_pipeline_task(
                             sweep_res = await run_daily_flight_sweep(
                                 session=session,
                                 pilot_routes=converted,
-                                spread_across_day=True,
+                                spread_across_day=spread_across_day,
                             )
                     except Exception as sweep_err:
                         logger.error(f"[Daily Pipeline] Sweep stage error: {sweep_err}")

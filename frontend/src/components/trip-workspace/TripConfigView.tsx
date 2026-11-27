@@ -8,7 +8,7 @@ import { translate } from '@/stores/localeStore';
 import { Trip, TripRevisionItem, useTrips } from '@/hooks/useTrips';
 import type { RouteItineraryData } from '@/types/domain';
 import { extractTripTitle } from '@/utils/tripParser';
-import { apiFetch } from '@/utils/api';
+import { apiFetch, resolveApiMediaUrl } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { useAuth } from '@/contexts/AuthContext';
 import { PaladioDateRangePicker } from '@/components/trip-creation/PaladioDateRangePicker';
@@ -859,7 +859,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             {photoUrl && !photoPreviewError ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={photoUrl}
+                src={resolveApiMediaUrl(photoUrl)}
                 alt={t('workspace.photo_preview')}
                 onError={() => setPhotoPreviewError(true)}
                 style={{
@@ -926,7 +926,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                         height: '54px',
                         borderRadius: '6px',
                         border: photoUrl === url ? '2px solid var(--color-accent-primary)' : '1px solid var(--color-border)',
-                        backgroundImage: `url(${url})`,
+                        backgroundImage: `url(${resolveApiMediaUrl(url)})`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         cursor: 'pointer',
@@ -1320,6 +1320,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
             </button>
             {isShiftDatePickerOpen && typeof document !== 'undefined' && createPortal(
               <div
+                className="paladio-modal-backdrop"
                 onClick={() => setIsShiftDatePickerOpen(false)}
                 style={{
                   position: 'fixed',
@@ -1333,7 +1334,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
                   padding: '16px',
                 }}
               >
-                <div onClick={(e) => e.stopPropagation()}>
+                <div className="paladio-modal-panel" onClick={(e) => e.stopPropagation()}>
                   <PaladioSingleDatePicker
                     title={t('trip_config.new_start_date_title')}
                     selectedDate={shiftStartDate}
@@ -1488,6 +1489,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
         <div
           role="dialog"
           aria-modal="true"
+          className="paladio-modal-backdrop"
           style={{
             position: 'fixed',
             inset: 0,
@@ -1500,6 +1502,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           }}
         >
           <div
+            className="paladio-modal-panel"
             style={{
               background: 'var(--color-surface-card)',
               border: '1px solid var(--color-danger)',

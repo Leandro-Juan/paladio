@@ -36,17 +36,20 @@ logger = logging.getLogger(__name__)
 class CompositeFlightFeed(FlightFeed, LiveQuoteProvider, FareProvider):
     """
     Sovereign Flight Feed backed by verified providers.
-    Uses Ryanair first for intra-European routes, layered with Aviasales; Aviasales primary for global.
+    Uses Ryanair first for intra-European routes, Google Flights second, layered with Aviasales;
+    Google Flights + Aviasales for global routes.
     """
 
     def __init__(self, timeout_sec: float = 16.0):
         from app.engine.market.providers.aviasales import AviasalesProvider
+        from app.engine.market.providers.google_flights import GoogleFlightsProvider
         from app.engine.market.providers.ryanair import RyanairProvider
 
         self.name = "composite"
         self.timeout_sec = timeout_sec
-        self.aviasales = AviasalesProvider(timeout_sec=timeout_sec)
         self.ryanair = RyanairProvider(timeout_sec=timeout_sec)
+        self.google_flights = GoogleFlightsProvider(timeout_sec=timeout_sec)
+        self.aviasales = AviasalesProvider(timeout_sec=timeout_sec)
 
     def _get_router(self, origin_iata: str, dest_iata: str):
         from app.engine.market.flights.classifier import route_classifier
@@ -58,10 +61,10 @@ class CompositeFlightFeed(FlightFeed, LiveQuoteProvider, FareProvider):
             and classification.corridor_region == "intra_europe"
         )
         if is_intra_europe:
-            # Per Decision D11 & prioritized hierarchy: Ryanair direct-carrier primary in Europe, Aviasales secondary
-            providers = [self.ryanair, self.aviasales]
+            # Ryanair direct-carrier ALWAYS #1 in Europe, Google Flights #2, Aviasales #3
+            providers = [self.ryanair, self.google_flights, self.aviasales]
         else:
-            providers = [self.aviasales]
+            providers = [self.google_flights, self.aviasales]
         return ProviderRouter(asset_type="flight", providers=providers)
 
     async def fetch_month(
@@ -69,10 +72,11 @@ class CompositeFlightFeed(FlightFeed, LiveQuoteProvider, FareProvider):
     ) -> list[FareObservation]:
         """
         Fetches full month fare observations using prioritized regional hierarchy:
-        - Intra-Europe: Queries Ryanair first for dense daily carrier schedule quotes.
-          Also queries Aviasales to capture legacy full-service carriers (Iberia, TAP, etc.)
-          and seamlessly falls back to Aviasales if Ryanair is blocked or unavailable.
-        - Non-Europe / Intercontinental: Queries Aviasales directly.
+        - Intra-Europe: Queries Ryanair first for dense daily carrier schedule quotes,
+          layers Aviasales for legacy full-service carriers, and falls back to
+          budgeted Google Flights sampling when both return empty.
+        - Non-Europe / Intercontinental: Queries Aviasales bulk calendar first and
+          falls back to budgeted Google Flights sampling when unavailable.
         """
         from app.engine.market.flights.classifier import route_classifier
 
@@ -82,11 +86,28 @@ class CompositeFlightFeed(FlightFeed, LiveQuoteProvider, FareProvider):
             and classification.corridor_region == "intra_europe"
         )
         if not is_intra_europe:
-            return await self.aviasales.fetch_month(
-                origin, dest, month, trip_type=trip_type
-            )
+            aviasales_obs: list[FareObservation] = []
+            try:
+                aviasales_obs = await self.aviasales.fetch_month(
+                    origin, dest, month, trip_type=trip_type
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[CompositeFlightFeed] Aviasales fetch_month failed for {origin}->{dest} ({month.strftime('%Y-%m')}): {e}."
+                )
+            if aviasales_obs or not config.ENABLE_GOOGLE_FLIGHTS:
+                return aviasales_obs
+            try:
+                return await self.google_flights.fetch_month(
+                    origin, dest, month, trip_type=trip_type
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[CompositeFlightFeed] Google Flights fetch_month failed for {origin}->{dest} ({month.strftime('%Y-%m')}): {e}."
+                )
+                return []
 
-        # Intra-Europe: Ryanair primary
+        # Intra-Europe: Ryanair primary (#1)
         ryanair_obs: list[FareObservation] = []
         try:
             ryanair_obs = await self.ryanair.fetch_month(
@@ -98,7 +119,7 @@ class CompositeFlightFeed(FlightFeed, LiveQuoteProvider, FareProvider):
             )
 
         # Layer in Aviasales for legacy carriers, additional dates, or fallback
-        aviasales_obs: list[FareObservation] = []
+        aviasales_obs = []
         try:
             aviasales_obs = await self.aviasales.fetch_month(
                 origin, dest, month, trip_type=trip_type
@@ -108,10 +129,21 @@ class CompositeFlightFeed(FlightFeed, LiveQuoteProvider, FareProvider):
                 f"[CompositeFlightFeed] Aviasales fetch_month failed for {origin}->{dest} ({month.strftime('%Y-%m')}): {e}."
             )
 
+        if not ryanair_obs and not aviasales_obs and config.ENABLE_GOOGLE_FLIGHTS:
+            try:
+                return await self.google_flights.fetch_month(
+                    origin, dest, month, trip_type=trip_type
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[CompositeFlightFeed] Google Flights fetch_month fallback failed for {origin}->{dest} ({month.strftime('%Y-%m')}): {e}."
+                )
+                return []
+
         if not ryanair_obs and not aviasales_obs:
             return []
 
-        # Merge observations from both authentic providers without synthetic fillers
+        # Merge observations from authentic providers without synthetic fillers
         return ryanair_obs + aviasales_obs
 
     async def fetch_cached_flights(
@@ -192,14 +224,62 @@ class CompositeFlightFeed(FlightFeed, LiveQuoteProvider, FareProvider):
                 months_ahead=months_ahead,
             )
 
+    async def _verify_with_session(
+        self, quote: FlightQuote, session: AsyncSession
+    ) -> tuple[bool, int, dict[str, Any]]:
+        from app.engine.market.flights.classifier import route_classifier
+        from app.engine.market.providers.base import NoDataError
+        from app.engine.market.providers.router import ProviderRouter
+
+        classification = route_classifier.classify_corridor(
+            quote.origin_iata, quote.destination_iata
+        )
+        is_intra_europe = (
+            classification.is_europe
+            and classification.corridor_region == "intra_europe"
+        )
+
+        prior_res: tuple[bool, int, dict[str, Any]] | None = None
+        if is_intra_europe and config.ENABLE_RYANAIR:
+            try:
+                ry_router = ProviderRouter(
+                    asset_type="flight", providers=[self.ryanair]
+                )
+                prior_res = await ry_router.execute_ladder(
+                    session, "verify_flight", quote
+                )
+                is_ry_quote = (
+                    quote.source or ""
+                ).lower() == "ryanair" or "ryanair" in (quote.carrier or "").lower()
+                if prior_res[0] or (prior_res[1] > 0 and is_ry_quote):
+                    return prior_res
+            except NoDataError:
+                prior_res = None
+
+        if config.ENABLE_GOOGLE_FLIGHTS:
+            try:
+                gf_router = ProviderRouter(
+                    asset_type="flight", providers=[self.google_flights]
+                )
+                return await gf_router.execute_ladder(session, "verify_flight", quote)
+            except NoDataError as exc:
+                if prior_res is not None:
+                    return prior_res
+                return (False, 0, {"reason": str(exc)})
+
+        if prior_res is not None:
+            return prior_res
+        raise NoDataError(
+            f"No flight live verifier available for {quote.origin_iata}->{quote.destination_iata}"
+        )
+
     async def verify_flight(
         self, quote: FlightQuote, session: Any | None = None
     ) -> tuple[bool, int, dict[str, Any]]:
-        router = self._get_router(quote.origin_iata, quote.destination_iata)
         if session is not None:
-            return await router.execute_ladder(session, "verify_flight", quote)
+            return await self._verify_with_session(quote, session)
         async with async_session() as local_session:
-            return await router.execute_ladder(local_session, "verify_flight", quote)
+            return await self._verify_with_session(quote, local_session)
 
     async def verify_lodging(
         self, quote: LodgingQuote

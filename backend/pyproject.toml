@@ -15,7 +15,7 @@ dependencies = [
     "uvicorn[standard]>=0.27.0",
     "websockets>=12.0",
     "pydantic>=2.5.3",
-    "pydantic-ai>=2.0.0,<2.50.0",
+    "pydantic-ai>=2.60.0,<3.0.0",
     "mcp>=1.20.0,<2.0.0",
     "fastmcp-slim>=3.3.0,<4.0.0",
     "langchain-core>=1.0.0",
@@ -27,7 +27,10 @@ dependencies = [
     "celery>=5.3.6",
     "httpx>=0.26.0",
     "alembic>=1.13.0",
-    "docker>=7.0.0",
+    "PyJWT>=2.8.0",
+    "cryptography>=42.0.0",
+    "numpy>=1.26.0",
+    "email-validator>=2.1.0",
     "timezonefinder>=6.0.0",
     "scipy>=1.12.0",
     "pillow>=10.2.0",
@@ -41,6 +44,7 @@ dependencies = [
     "fastembed>=0.9.0",
     "rapidfuzz>=3.0.0",
     "dateparser>=1.2.0",
+    "fast-flights>=3.1.0",
 ]
 
 [project.optional-dependencies]

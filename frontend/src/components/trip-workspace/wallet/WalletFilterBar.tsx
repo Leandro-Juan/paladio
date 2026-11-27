@@ -5,6 +5,7 @@ import { TicketType } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { SearchIcon, CloseIcon } from '@/components/icons';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useSlidingIndicator } from '@/hooks/useSlidingIndicator';
 
 export type FilterCategory = 'all' | TicketType;
 
@@ -24,6 +25,8 @@ export function WalletFilterBar({
   onSearchChange,
 }: WalletFilterBarProps) {
   const { t } = useTranslation();
+  const { containerRef, registerItem, indicatorStyle, isReady, animate } =
+    useSlidingIndicator<FilterCategory>(currentCategory, [counts]);
   const categories: Array<{ id: FilterCategory; label: string }> = [
     { id: 'all', label: t('wallet.all_tickets') },
     { id: 'flight', label: t(TICKET_TYPE_CONFIG.flight.labelKey) },
@@ -47,9 +50,11 @@ export function WalletFilterBar({
     >
       {/* Category Filter Tabs */}
       <div
+        ref={containerRef}
         role="tablist"
         aria-label={t('wallet.filter_by_category_aria')}
         style={{
+          position: 'relative',
           display: 'flex',
           alignItems: 'center',
           gap: '4px',
@@ -61,6 +66,17 @@ export function WalletFilterBar({
           maxWidth: '100%',
         }}
       >
+        <div
+          aria-hidden="true"
+          className="paladio-sliding-pill"
+          data-animate={animate ? 'true' : 'false'}
+          style={{
+            ...indicatorStyle,
+            borderRadius: '6px',
+            background: 'var(--color-accent-primary)',
+            zIndex: 0,
+          }}
+        />
         {categories.map((cat) => {
           const isActive = currentCategory === cat.id;
           const count = counts[cat.id] || 0;
@@ -69,22 +85,26 @@ export function WalletFilterBar({
           return (
             <button
               key={cat.id}
+              ref={registerItem(cat.id)}
+              type="button"
               role="tab"
               aria-selected={isActive}
               onClick={() => onSelectCategory(cat.id)}
               style={{
+                position: 'relative',
+                zIndex: 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
                 padding: '6px 12px',
                 borderRadius: '6px',
                 border: 'none',
-                background: isActive ? 'var(--color-accent-primary)' : 'transparent',
+                background: isActive && !isReady ? 'var(--color-accent-primary)' : 'transparent',
                 color: isActive ? 'var(--color-text-on-accent, #FFFFFF)' : 'var(--color-text-muted)',
                 fontSize: '11px',
                 fontWeight: isActive ? 700 : 500,
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                transition: 'color var(--transition-fast), transform var(--transition-fast)',
                 whiteSpace: 'nowrap',
               }}
             >
@@ -98,6 +118,7 @@ export function WalletFilterBar({
                   padding: '1px 5px',
                   borderRadius: '10px',
                   fontWeight: 600,
+                  transition: 'background-color var(--transition-fast), color var(--transition-fast)',
                 }}
               >
                 {count}

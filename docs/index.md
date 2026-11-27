@@ -6,13 +6,13 @@ Paladio is a self-hosted travel planning, route optimization, and fare telemetry
 
 -   :material-rocket-launch:{ .lg .middle } **Getting started**
 
-    Deploy the 7-container Docker stack, run first-time provisioning at `/setup`, calibrate your 8-axis Taste Star, and compile `paladio_core` locally.
+    Deploy the Docker Compose stack (7 long-running services plus one-shot `migrate`), run first-time provisioning at `/setup`, calibrate your 8-axis Taste Star, and compile `paladio_core` locally.
 
     [:octicons-arrow-right-24: Start with installation](getting-started/installation.md)
 
 -   :material-compass-outline:{ .lg .middle } **User guide**
 
-    Explore Control Center, New Trip creation, the Trip Workspace map and Speed Dial, public transit GTFS, the Bookings Wallet, Route Monitoring, Costs, Trip Archive, and the optional AI assistant.
+    Explore Control Center, New Trip creation, the Trip Workspace map and Speed Dial, public transit GTFS, the Bookings Wallet, Route Monitoring (experimental), Costs, Trip Archive, and the optional AI assistant.
 
     [:octicons-arrow-right-24: Explore the user guide](user-guide/control-center-and-taste.md)
 

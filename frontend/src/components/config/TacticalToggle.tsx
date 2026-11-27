@@ -72,11 +72,11 @@ export function TacticalToggle({
           border: '1.5px solid rgba(0, 0, 0, 0.08)',
           cursor: disabled ? 'not-allowed' : 'pointer',
           padding: '2px',
-          transition: 'background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease',
-          outline: 'none',
+          transition: 'background-color var(--transition-snappy), border-color var(--transition-fast)',
         }}
       >
         <span
+          className="paladio-toggle-thumb"
           style={{
             display: 'block',
             width: '18px',
@@ -85,7 +85,6 @@ export function TacticalToggle({
             backgroundColor: '#FFFFFF',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
             transform: checked ? 'translateX(18px)' : 'translateX(0px)',
-            transition: 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         />
       </button>

@@ -779,6 +779,7 @@ export function SavedCollectionsSection({
             aria-modal="true"
             aria-labelledby="dashboard-delete-collection-modal-title"
             data-testid="delete-collection-confirm-modal"
+            className="paladio-modal-backdrop"
             style={{
               position: 'fixed',
               inset: 0,
@@ -796,6 +797,7 @@ export function SavedCollectionsSection({
             }}
           >
             <div
+              className="paladio-modal-panel"
               onClick={(e) => e.stopPropagation()}
               style={{
                 width: '100%',

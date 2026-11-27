@@ -179,10 +179,21 @@
   padding: 7px 16px;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .standbySecondaryBtn:hover {
   background-color: var(--color-surface-hover, rgba(15, 76, 92, 0.04));
   border-color: var(--color-accent-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .standbyPrimaryBtn {
+    transition: opacity var(--transition-fast);
+  }
+  .standbyPrimaryBtn:hover {
+    transform: none;
+  }
 }

@@ -1776,6 +1776,10 @@ async def search_pois(
         w_vec=0.55 if query_vector else 0.0,
         w_fts=0.25 if sq.clean_query else 0.0,
         w_trgm=0.20 if sq.clean_query else 0.0,
+        w_cat=0.35 if sq.target_categories else 0.0,
+        target_categories=sq.target_categories,
+        lexical_keywords=sq.lexical_keywords,
+        fallback_to_top=True,
         apply_mmr=True,
     )
 
@@ -1827,12 +1831,17 @@ async def search_pois(
             func.lower(AttractionModel.category).in_(allowed_cats_list)
         )
     if clean_query:
-        count_filters.append(
-            or_(
-                AttractionModel.name.ilike(f"%{clean_query}%"),
-                AttractionModel.description.ilike(f"%{clean_query}%"),
+        text_or_clauses = [
+            AttractionModel.name.ilike(f"%{clean_query}%"),
+            AttractionModel.description.ilike(f"%{clean_query}%"),
+        ]
+        if sq.target_categories:
+            text_or_clauses.append(
+                func.lower(AttractionModel.category).in_(sq.target_categories)
             )
-        )
+        for kw in (sq.lexical_keywords or [])[:5]:
+            text_or_clauses.append(AttractionModel.name.ilike(f"%{kw}%"))
+        count_filters.append(or_(*text_or_clauses))
     try:
         count_stmt = (
             select(func.count()).select_from(AttractionModel).where(*count_filters)
@@ -1841,14 +1850,26 @@ async def search_pois(
     except Exception:
         db_total = 0
 
+    target_cats_set = {c.lower() for c in (sq.target_categories or [])}
     results: list[PoiSearchItem] = []
     for c in candidates:
         raw_sim = c.get("vec_sim")
         richness = compute_info_richness_score(c)
-        if raw_sim is not None and not (
-            isinstance(raw_sim, float) and math.isnan(raw_sim)
-        ):
-            sim_val = float(raw_sim) * 0.94 + richness * 0.06
+        has_valid_vec_sim = (
+            raw_sim is not None
+            and not (isinstance(raw_sim, float) and math.isnan(raw_sim))
+            and float(raw_sim) > 0.0
+        )
+        if has_valid_vec_sim:
+            if target_cats_set:
+                cat_match = (
+                    1.0
+                    if str(c.get("category") or "").lower() in target_cats_set
+                    else 0.0
+                )
+                sim_val = 0.45 * float(raw_sim) + 0.45 * cat_match + 0.10 * richness
+            else:
+                sim_val = float(raw_sim) * 0.94 + richness * 0.06
         else:
             raw_comp = c.get("composite_score")
             sim_val = (
@@ -1944,9 +1965,21 @@ async def download_city_pois(
             f"Could not queue Celery hydration task for {city}: {e}. Running in-process fallback."
         )
         import asyncio
-        from app.tasks import _run_ingest_city_pois
+        from app.tasks import (
+            _run_enrich_long_tail_city_pois,
+            _run_enrich_tier12_city_pois,
+            _run_ingest_city_pois,
+        )
 
-        asyncio.create_task(_run_ingest_city_pois(city.strip(), force=True))
+        async def _run_full_hydration_in_process(
+            target_city: str, force_ingest: bool = True
+        ) -> None:
+            s1 = await _run_ingest_city_pois(target_city, force=force_ingest)
+            cid = s1.get("city_id") if isinstance(s1, dict) else None
+            await _run_enrich_tier12_city_pois(target_city, city_id=cid)
+            await _run_enrich_long_tail_city_pois(target_city, city_id=cid)
+
+        asyncio.create_task(_run_full_hydration_in_process(city.strip(), True))
         task_id = "in_process"
 
     # Set active hydration flag in Redis

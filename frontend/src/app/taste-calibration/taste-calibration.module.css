@@ -429,12 +429,19 @@
   width: 100%;
   height: 5px;
   background: var(--color-border-subtle);
+  overflow: hidden;
 }
 
 .progressFill {
+  width: 100%;
   height: 100%;
   background: var(--color-accent-primary);
-  transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: left center;
+  transition: transform var(--transition-gentle);
+}
+
+:global([dir="rtl"]) .progressFill {
+  transform-origin: right center;
 }
 
 /* Already Calibrated Guard Card */
@@ -483,5 +490,11 @@
   .actionRow {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressFill {
+    transition: none;
   }
 }

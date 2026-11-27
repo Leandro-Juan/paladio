@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useSlidingIndicator } from '@/hooks/useSlidingIndicator';
 import { NotificationBell } from './NotificationBell';
 import { UserMenu } from './UserMenu';
 import styles from './FloatingDock.module.css';
@@ -70,6 +71,20 @@ export function FloatingDock() {
       ),
     },
     {
+      href: '/monitoring',
+      label: t('nav.monitoring'),
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z" />
+          <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
+          <path d="M12 2v2" />
+          <path d="M12 20v2" />
+          <path d="m4.93 4.93 1.41 1.41" />
+          <path d="m17.66 17.66 1.41 1.41" />
+        </svg>
+      ),
+    },
+    {
       href: '/vault',
       label: t('nav.vault'),
       icon: (
@@ -79,17 +94,15 @@ export function FloatingDock() {
         </svg>
       ),
     },
-    {
-      href: '/config',
-      label: t('nav.system_config'),
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-      ),
-    },
   ];
+
+  const activeHref =
+    navItems.find(
+      (item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+    )?.href ?? null;
+
+  const { containerRef, registerItem, indicatorStyle, isReady, animate } =
+    useSlidingIndicator<string, HTMLUListElement>(activeHref, [isVisible]);
 
   return (
     <>
@@ -125,14 +138,22 @@ export function FloatingDock() {
       >
         <div className={styles.dock}>
           {/* Navigation Items with Dynamic Expansion */}
-          <ul className={styles.navList}>
+          <ul ref={containerRef} className={styles.navList}>
+            <li
+              aria-hidden="true"
+              className={`${styles.activePill} paladio-sliding-pill`}
+              data-animate={animate ? 'true' : 'false'}
+              style={indicatorStyle}
+            />
             {navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+              const isActive = item.href === activeHref;
               return (
                 <li key={item.href}>
                   <Link
+                    ref={registerItem(item.href)}
                     href={item.href}
                     className={`${styles.navItem} ${isActive ? styles.active : ''}`}
+                    data-pill-ready={isReady ? 'true' : 'false'}
                     aria-label={item.label}
                     aria-current={isActive ? 'page' : undefined}
                   >

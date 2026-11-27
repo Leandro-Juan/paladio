@@ -49,26 +49,57 @@ def test_jwt_token_invalid_or_tampered():
     assert decode_access_token("completely.invalid.jwt") is None
 
 
-def test_jwt_secret_fail_fast_in_production():
-    with patch.dict(
-        os.environ, {"ENVIRONMENT": "production", "JWT_SECRET_KEY": ""}, clear=False
-    ):
-        os.environ.pop("JWT_SECRET_KEY", None)
-        with pytest.raises(RuntimeError) as exc_info:
-            importlib.reload(security)
-        assert "JWT_SECRET_KEY must be explicitly configured in production" in str(
-            exc_info.value
-        )
+def test_jwt_secret_fail_fast_in_production(tmp_path):
+    blocker_file = tmp_path / "not_a_dir"
+    blocker_file.write_text("x", encoding="utf-8")
+    unwritable_path = str(blocker_file / ".jwt_secret")
 
     with patch.dict(
-        os.environ, {"APP_ENV": "production", "ENVIRONMENT": "test"}, clear=False
+        os.environ,
+        {
+            "ENVIRONMENT": "production",
+            "JWT_SECRET_KEY": "",
+            "JWT_SECRET_PATH": unwritable_path,
+        },
+        clear=False,
     ):
         os.environ.pop("JWT_SECRET_KEY", None)
         with pytest.raises(RuntimeError) as exc_info:
             importlib.reload(security)
-        assert "JWT_SECRET_KEY must be explicitly configured in production" in str(
-            exc_info.value
-        )
+        assert "JWT_SECRET_KEY must be explicitly configured" in str(exc_info.value)
+
+    with patch.dict(
+        os.environ,
+        {
+            "APP_ENV": "production",
+            "ENVIRONMENT": "test",
+            "JWT_SECRET_KEY": "",
+            "JWT_SECRET_PATH": unwritable_path,
+        },
+        clear=False,
+    ):
+        os.environ.pop("JWT_SECRET_KEY", None)
+        with pytest.raises(RuntimeError) as exc_info:
+            importlib.reload(security)
+        assert "JWT_SECRET_KEY must be explicitly configured" in str(exc_info.value)
+
+    writable_path = tmp_path / ".jwt_secret_persisted"
+    with patch.dict(
+        os.environ,
+        {
+            "ENVIRONMENT": "production",
+            "JWT_SECRET_KEY": "",
+            "JWT_SECRET_PATH": str(writable_path),
+        },
+        clear=False,
+    ):
+        os.environ.pop("JWT_SECRET_KEY", None)
+        importlib.reload(security)
+        first_secret = security.SECRET_KEY
+        assert writable_path.exists()
+        assert (writable_path.stat().st_mode & 0o777) == 0o600
+        importlib.reload(security)
+        assert security.SECRET_KEY == first_secret
 
     # Restore module state
     with patch.dict(
@@ -79,3 +110,15 @@ def test_jwt_secret_fail_fast_in_production():
         },
     ):
         importlib.reload(security)
+
+
+def test_create_access_token_protects_reserved_claims():
+    token = create_access_token(
+        subject="real-user-1",
+        extra_claims={"sub": "spoofed-admin", "exp": 1, "role": "user"},
+    )
+    payload = decode_access_token(token)
+    assert payload is not None
+    assert payload["sub"] == "real-user-1"
+    assert payload["role"] == "user"
+    assert payload["exp"] > payload["iat"]

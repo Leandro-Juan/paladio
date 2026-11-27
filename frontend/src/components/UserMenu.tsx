@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 
 interface UserMenuProps {
   isCollapsed?: boolean;
@@ -17,6 +18,13 @@ export function UserMenu({ isCollapsed = false, dockMode = false, placement = 't
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuMount = useAnimatedMount(isOpen, 130);
+  const popoverOrigin =
+    placement === 'bottom'
+      ? 'top-right'
+      : dockMode
+      ? 'bottom-right'
+      : 'bottom-left';
 
   // Close on outside click
   useEffect(() => {
@@ -231,9 +239,12 @@ export function UserMenu({ isCollapsed = false, dockMode = false, placement = 't
       )}
 
       {/* Popover Dropdown Card */}
-      {isOpen && (
+      {menuMount.shouldRender && (
         <div
           role="menu"
+          className="paladio-popover"
+          data-state={menuMount.dataState}
+          data-origin={popoverOrigin}
           aria-label={t('nav.user_navigation')}
           style={{
             position: 'absolute',
@@ -252,7 +263,6 @@ export function UserMenu({ isCollapsed = false, dockMode = false, placement = 't
             display: 'flex',
             flexDirection: 'column',
             gap: '4px',
-            animation: 'fadeIn 0.15s ease-out',
           }}
         >
           {/* Header: User avatar, User name, Admin Badge, Email */}

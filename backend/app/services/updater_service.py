@@ -6,8 +6,10 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
+from app.core.paths import resolve_project_root, resolve_runtime_data_dir
 from app.db.models import SystemConfigModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,24 +19,40 @@ logger = logging.getLogger(__name__)
 
 CONFIG_KEY = "updater"
 DEFAULT_GITHUB_REPO = os.getenv("GITHUB_REPO", "Leandro-Juan/paladio")
+_GITHUB_REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+_ALLOWED_DOWNLOAD_HOSTS = frozenset(
+    {
+        "github.com",
+        "api.github.com",
+        "codeload.github.com",
+        "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com",
+    }
+)
+_MAX_UPDATE_BYTES = 256 * 1024 * 1024  # 256 MiB
+
+
+def _validate_github_repo(repo: str) -> str:
+    cleaned = repo.strip()
+    if not _GITHUB_REPO_RE.match(cleaned) or ".." in cleaned:
+        raise ValueError("Invalid GitHub repository format. Expected 'owner/repo'.")
+    return cleaned
+
+
+def _validate_download_url(url: str) -> str:
+    cleaned = url.strip()
+    parsed = urlparse(cleaned)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or host not in _ALLOWED_DOWNLOAD_HOSTS:
+        raise ValueError(
+            "Update downloads are restricted to official HTTPS GitHub release endpoints."
+        )
+    return cleaned
 
 
 def set_record_value(record: SystemConfigModel, val: dict[str, Any]) -> None:
     record.value = dict(val)
     flag_modified(record, "value")
-
-
-def resolve_project_root() -> Path:
-    """Dynamically resolve repository or app root."""
-    # Try traversing upwards looking for .release-please-manifest.json or docker-compose.yml
-    curr = Path(__file__).resolve().parent
-    for _ in range(5):
-        if (curr / ".release-please-manifest.json").exists() or (
-            curr / "docker-compose.yml"
-        ).exists():
-            return curr
-        curr = curr.parent
-    return Path(__file__).resolve().parents[2]
 
 
 def get_current_installed_version() -> str:
@@ -44,7 +62,7 @@ def get_current_installed_version() -> str:
         return env_ver.lstrip("v").strip()
 
     root = resolve_project_root()
-    manifest = root / ".release-please-manifest.json"
+    manifest = root / ".github" / "release-please-manifest.json"
     if manifest.exists():
         try:
             data = json.loads(manifest.read_text(encoding="utf-8"))
@@ -52,6 +70,24 @@ def get_current_installed_version() -> str:
                 return str(data["."]).lstrip("v").strip()
         except Exception as e:
             logger.warning(f"Failed to read version from manifest: {e}")
+
+    for pyproject_candidate in (
+        root / "backend" / "pyproject.toml",
+        root / "pyproject.toml",
+    ):
+        if pyproject_candidate.exists():
+            try:
+                match = re.search(
+                    r'^version\s*=\s*"([^"]+)"',
+                    pyproject_candidate.read_text(encoding="utf-8"),
+                    re.MULTILINE,
+                )
+                if match:
+                    return match.group(1).lstrip("v").strip()
+            except Exception as e:
+                logger.warning(
+                    f"Failed to read version from {pyproject_candidate}: {e}"
+                )
 
     # Fallback to frontend package.json
     frontend_pkg = root / "frontend" / "package.json"
@@ -63,7 +99,7 @@ def get_current_installed_version() -> str:
         except Exception as e:
             logger.warning(f"Failed to read version from frontend package.json: {e}")
 
-    return "3.0.0"
+    return "3.0.0"  # x-release-please-version
 
 
 def parse_semver(v: str) -> tuple[int, ...]:
@@ -90,8 +126,7 @@ def get_updates_directory() -> Path:
     if custom_dir:
         path = Path(custom_dir)
     else:
-        root = resolve_project_root()
-        path = root / "data" / "updates"
+        path = resolve_runtime_data_dir() / "updates"
 
     try:
         path.mkdir(parents=True, exist_ok=True)
@@ -171,7 +206,7 @@ class UpdaterService:
         if check_interval_hours is not None:
             val["check_interval_hours"] = max(1, int(check_interval_hours))
         if github_repo is not None and github_repo.strip():
-            val["github_repo"] = github_repo.strip()
+            val["github_repo"] = _validate_github_repo(github_repo)
 
         set_record_value(record, val)
         await session.commit()
@@ -197,7 +232,7 @@ class UpdaterService:
             record = result.scalar_one_or_none()
 
         val = dict(record.value or {})
-        repo = val.get("github_repo") or DEFAULT_GITHUB_REPO
+        repo = _validate_github_repo(val.get("github_repo") or DEFAULT_GITHUB_REPO)
         current_ver = get_current_installed_version()
         val["current_version"] = current_ver
         val["last_checked_at"] = datetime.now(timezone.utc).isoformat()
@@ -205,7 +240,7 @@ class UpdaterService:
 
         headers = {
             "Accept": "application/vnd.github.v3+json",
-            "User-Agent": "Paladio-AutoUpdater/2.0",
+            "User-Agent": f"Paladio-AutoUpdater/{current_ver}",
         }
         gh_token = os.getenv("GITHUB_TOKEN")
         if gh_token:
@@ -340,6 +375,8 @@ class UpdaterService:
             await session.commit()
             return val
 
+        target_url = _validate_download_url(str(target_url))
+
         # Set downloading status and commit so UI immediately reflects it
         val["download_status"] = "downloading"
         val["last_error"] = None
@@ -351,6 +388,7 @@ class UpdaterService:
             client = httpx.AsyncClient(follow_redirects=True, timeout=60.0)
             close_client = True
 
+        dest_file: Path | None = None
         try:
             updates_dir = get_updates_directory()
             safe_ver = re.sub(r"[^a-zA-Z0-9_\.-]", "_", str(target_version))
@@ -365,25 +403,34 @@ class UpdaterService:
 
             sha256_hash = hashlib.sha256()
             total_bytes = 0
+            current_ver = get_current_installed_version()
+            initial_host = (urlparse(target_url).hostname or "").lower()
 
             headers = {
-                "User-Agent": "Paladio-AutoUpdater/2.0",
+                "User-Agent": f"Paladio-AutoUpdater/{current_ver}",
                 "Accept": "application/vnd.github+json, application/octet-stream, */*",
             }
             gh_token = os.getenv("GITHUB_TOKEN")
-            if gh_token:
+            if gh_token and initial_host in ("github.com", "api.github.com"):
                 headers["Authorization"] = f"Bearer {gh_token}"
 
             async with client.stream(
                 "GET", target_url, headers=headers, follow_redirects=True
             ) as stream_resp:
+                final_url = getattr(stream_resp, "url", None)
+                if isinstance(final_url, (str, httpx.URL)):
+                    _validate_download_url(str(final_url))
                 stream_resp.raise_for_status()
                 with open(dest_file, "wb") as f:
                     async for chunk in stream_resp.aiter_bytes(chunk_size=65536):
                         if chunk:
+                            total_bytes += len(chunk)
+                            if total_bytes > _MAX_UPDATE_BYTES:
+                                raise ValueError(
+                                    f"Update archive exceeds maximum permitted size ({_MAX_UPDATE_BYTES} bytes)."
+                                )
                             f.write(chunk)
                             sha256_hash.update(chunk)
-                            total_bytes += len(chunk)
 
             if total_bytes == 0:
                 raise ValueError("Downloaded file is empty (0 bytes received)")
@@ -405,6 +452,11 @@ class UpdaterService:
 
         except Exception as e:
             logger.exception(f"Failed to download update: {e}")
+            if dest_file is not None and dest_file.exists():
+                try:
+                    dest_file.unlink()
+                except Exception:
+                    pass
             val["download_status"] = "failed"
             val["last_error"] = str(e)
             set_record_value(record, val)

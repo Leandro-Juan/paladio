@@ -225,7 +225,7 @@ export default function TasteCalibrationPage() {
 
         {/* Right Question Card */}
         <section className={styles.questionCard} aria-live="polite">
-          <div className={styles.questionBody}>
+          <div key={currentQuestion.id} className={`${styles.questionBody} animate-tab-pane`}>
             <div className={styles.questionMetaRow}>
               <span className={styles.stepCounter}>
                 {t('taste_calibration.step_counter', {
@@ -312,10 +312,12 @@ export default function TasteCalibrationPage() {
             <div
               className={styles.progressFill}
               style={{
-                width: `${Math.max(
-                  Math.round(((currentIndex + 1) / totalQuestions) * 100),
-                  completionPct
-                )}%`,
+                transform: `scaleX(${
+                  Math.max(
+                    Math.round(((currentIndex + 1) / totalQuestions) * 100),
+                    completionPct
+                  ) / 100
+                })`,
               }}
             />
           </div>

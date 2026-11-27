@@ -185,13 +185,27 @@ export function TripSpeedDial({
     >
       <style>{`
         @keyframes activePopPulse {
-          0% { transform: scale(0.92); }
-          50% { transform: scale(1.14); }
+          0% { transform: scale(0.95); }
+          50% { transform: scale(1.08); }
           100% { transform: scale(1); }
         }
         [data-testid="speed-dial-trigger"],
         [data-testid="speed-dial-trigger"] * {
           cursor: pointer !important;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .paladio-speed-dial-item {
+            transition: opacity var(--duration-instant) ease-out !important;
+            transform: translate3d(var(--dial-dx, 0px), var(--dial-dy, 0px), 0) scale(1) !important;
+          }
+          .paladio-speed-dial-label {
+            transition: opacity var(--duration-instant) ease-out !important;
+            transform: none !important;
+          }
+          .paladio-speed-dial-btn {
+            animation: none !important;
+            transition: background-color var(--duration-instant) ease-out, border-color var(--duration-instant) ease-out !important;
+          }
         }
       `}</style>
 
@@ -208,24 +222,28 @@ export function TripSpeedDial({
           return (
             <div
               key={act.id}
+              className="paladio-speed-dial-item"
               style={{
                 position: 'absolute',
                 left: isLeft ? '2px' : 'auto',
                 right: isLeft ? 'auto' : '2px',
                 bottom: '2px',
+                '--dial-dx': `${translateX}px`,
+                '--dial-dy': `${translateY}px`,
                 transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`,
                 opacity,
                 visibility: isOpen ? 'visible' : 'hidden',
-                transition: `transform 0.24s cubic-bezier(0.34, 1.45, 0.64, 1) ${isOpen ? act.delayOpen : act.delayClose}, opacity 0.2s ease ${isOpen ? act.delayOpen : act.delayClose}, visibility 0.24s`,
+                transition: `transform var(--transition-bouncy) ${isOpen ? act.delayOpen : act.delayClose}, opacity var(--duration-snappy) var(--ease-snappy) ${isOpen ? act.delayOpen : act.delayClose}, visibility 0s linear ${isOpen ? '0s' : '240ms'}`,
                 pointerEvents: isOpen ? 'auto' : 'none',
                 zIndex: isHovered ? 1100 : 1060,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: isLeft ? 'flex-start' : 'flex-end',
-              }}
+              } as React.CSSProperties}
             >
               {/* Expandable Label Pill */}
               <div
+                className="paladio-speed-dial-label"
                 style={{
                   position: 'absolute',
                   ...(isLeft
@@ -285,6 +303,7 @@ export function TripSpeedDial({
               {/* Pure Circular Action Button */}
               <button
                 type="button"
+                className="paladio-speed-dial-btn"
                 data-testid={act.testId}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -319,9 +338,8 @@ export function TripSpeedDial({
                   alignItems: 'center',
                   justifyContent: 'center',
                   transition:
-                    'all 0.22s cubic-bezier(0.23, 1, 0.32, 1), background 0.18s ease, border-color 0.18s ease',
-                  animation: act.isActive ? 'activePopPulse 0.32s cubic-bezier(0.34, 1.45, 0.64, 1)' : 'none',
-                  outline: 'none',
+                    'transform var(--transition-snappy), background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast)',
+                  animation: act.isActive ? 'activePopPulse 280ms var(--ease-bouncy)' : 'none',
                   flexShrink: 0,
                 }}
               >

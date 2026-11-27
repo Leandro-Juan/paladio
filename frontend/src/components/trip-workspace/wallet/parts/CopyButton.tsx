@@ -46,18 +46,18 @@ export function CopyButton({ value, text, label, style }: CopyButtonProps) {
         fontFamily: 'var(--font-mono, monospace)',
         fontSize: '10px',
         cursor: 'pointer',
-        transition: 'all 0.15s ease',
-        outline: 'none',
+        transition:
+          'background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast)',
         ...style,
       }}
     >
       {copied ? (
-        <>
+        <span className="paladio-badge-pop" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="20 6 9 17 4 12" />
           </svg>
           <span aria-live="polite">{t('wallet.copied_upper')}</span>
-        </>
+        </span>
       ) : (
         <>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

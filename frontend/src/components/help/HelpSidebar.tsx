@@ -3,12 +3,15 @@
 import React, { useState } from 'react';
 import { HELP_CATEGORIES, HelpCategory, HelpArticle } from './helpData';
 import { useTranslation } from '@/hooks/useTranslation';
+import { Collapsible } from '@/components/common/Collapsible';
+import styles from '@/app/help/help.module.css';
 
 interface HelpSidebarProps {
   selectedCategoryId: string;
   selectedArticleId: string | null;
   onSelectCategory: (categoryId: string) => void;
   onSelectArticle: (article: HelpArticle) => void;
+  isMobileOpen?: boolean;
 }
 
 export function HelpSidebar({
@@ -16,6 +19,7 @@ export function HelpSidebar({
   selectedArticleId,
   onSelectCategory,
   onSelectArticle,
+  isMobileOpen = false,
 }: HelpSidebarProps) {
   const { t } = useTranslation();
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -31,16 +35,7 @@ export function HelpSidebar({
 
   return (
     <aside
-      style={{
-        width: '280px',
-        flexShrink: 0,
-        borderRight: '1px solid var(--color-border, #E2D9CC)',
-        background: 'var(--color-surface-subtle, #FAF6F0)',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        overflowY: 'auto',
-      }}
+      className={`${styles.helpSidebar} ${isMobileOpen ? styles.helpSidebarOpen : ''}`}
     >
       {/* Search Input Box (No K icon, clean input) */}
       <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid var(--color-border-subtle, rgba(0,0,0,0.06))' }}>
@@ -185,7 +180,7 @@ export function HelpSidebar({
                       strokeLinejoin="round"
                       style={{
                         transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.15s ease',
+                        transition: 'transform var(--transition-fast)',
                       }}
                     >
                       <polyline points="6 9 12 15 18 9" />
@@ -208,7 +203,7 @@ export function HelpSidebar({
               </div>
 
               {/* Sub-articles */}
-              {!isCollapsed && (
+              <Collapsible isOpen={!isCollapsed}>
                 <ul
                   style={{
                     listStyle: 'none',
@@ -246,7 +241,7 @@ export function HelpSidebar({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            transition: 'all 0.15s ease',
+                            transition: 'background-color var(--transition-fast), color var(--transition-fast)',
                           }}
                         >
                           <span
@@ -284,7 +279,7 @@ export function HelpSidebar({
                     );
                   })}
                 </ul>
-              )}
+              </Collapsible>
             </div>
           );
         })}
@@ -303,7 +298,7 @@ export function HelpSidebar({
         }}
       >
         <span>{t('help.travel_guides_brand')}</span>
-        <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>v3.0.0</span>
+        <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>v3.0.0</span> {/* x-release-please-version */}
       </div>
     </aside>
   );

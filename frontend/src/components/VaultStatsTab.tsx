@@ -368,7 +368,7 @@ export default function VaultStatsTab({
             justifyContent: 'center',
             cursor: 'pointer',
             color: 'var(--color-accent-primary)',
-            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            transition: 'transform var(--transition-fast), color var(--transition-fast)',
             zIndex: 1060,
           }}
           onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
@@ -403,7 +403,7 @@ export default function VaultStatsTab({
             justifyContent: 'center',
             cursor: 'pointer',
             color: 'var(--color-text-secondary)',
-            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            transition: 'transform var(--transition-fast), color var(--transition-fast)',
             zIndex: 1060,
           }}
           onMouseEnter={(e) => {
@@ -421,12 +421,17 @@ export default function VaultStatsTab({
 
       {/* Slide-out Panel on the Right */}
       <aside
+        className="paladio-drawer-panel"
+        aria-hidden={!isOpen}
         style={{
           pointerEvents: isOpen ? 'auto' : 'none',
           width: isOpen ? 'clamp(320px, 26vw, 400px)' : '0px',
           opacity: isOpen ? 1 : 0,
-          transform: isOpen ? 'translateX(0)' : 'translateX(30px)',
-          transition: 'width 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, transform 0.28s ease',
+          visibility: isOpen ? 'visible' : 'hidden',
+          transform: isOpen ? 'translateX(0)' : 'translateX(24px)',
+          transition: isOpen
+            ? 'transform var(--transition-gentle), opacity var(--transition-snappy), visibility 0s linear 0s, width 0s linear 0s'
+            : 'transform var(--transition-snappy), opacity var(--duration-fast) var(--ease-exit), visibility 0s linear 220ms, width 0s linear 220ms',
           overflow: 'hidden',
           background: 'var(--color-surface-card)',
           backdropFilter: 'blur(16px)',

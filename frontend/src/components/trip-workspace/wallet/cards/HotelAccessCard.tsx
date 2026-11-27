@@ -119,8 +119,8 @@ export function HotelAccessCard({
       {/* Prominent Access Code / PIN Box */}
       <div
         style={{
-          background: '#FFFBEB',
-          border: '1px solid #FDE68A',
+          background: 'var(--color-accent-warning-bg, rgba(226, 179, 60, 0.12))',
+          border: '1px solid var(--color-accent-warning-border, rgba(226, 179, 60, 0.35))',
           borderRadius: '8px',
           padding: '0.65rem 0.85rem',
           display: 'flex',
@@ -128,12 +128,14 @@ export function HotelAccessCard({
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '8px',
+          minWidth: 0,
+          maxWidth: '100%',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <KeyIcon size={18} color="#D97706" />
-          <div>
-            <div className="font-mono" style={{ fontSize: '10px', color: '#B45309', fontWeight: 700 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, maxWidth: '100%', flex: '1 1 auto' }}>
+          <KeyIcon size={18} color="var(--color-accent-warning, #D97706)" style={{ flexShrink: 0 }} />
+          <div style={{ minWidth: 0, maxWidth: '100%', flex: 1 }}>
+            <div className="font-mono" style={{ fontSize: '10px', color: 'var(--color-accent-warning, #B45309)', fontWeight: 700 }}>
               {t('wallet.door_access_code_short')}
             </div>
             {ticket.access_code ? (

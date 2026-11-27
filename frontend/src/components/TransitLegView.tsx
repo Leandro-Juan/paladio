@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { Collapsible } from '@/components/common/Collapsible';
 import { TransitLeg, TransitStep, TransitRecommendation } from '../types/domain';
 import { apiFetch } from '@/utils/api';
 import {
@@ -488,7 +489,7 @@ export function TransitLegView({
                   display: 'inline-flex',
                   alignItems: 'center',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-                  transition: 'transform 0.15s ease, filter 0.15s ease',
+                  transition: 'transform var(--transition-fast), filter var(--transition-fast)',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-1px)';
@@ -595,8 +596,9 @@ export function TransitLegView({
         )}
       </div>
 
+      <Collapsible isOpen={isExpanded}>
       {/* Tactical Transit Stations Route */}
-      {isExpanded && stationFlow && stationFlow.keyStations.length > 0 && (
+      {stationFlow && stationFlow.keyStations.length > 0 && (
         <div
           data-testid="transit-stations-to-go"
           style={{
@@ -789,7 +791,7 @@ export function TransitLegView({
       )}
 
       {/* Expanded Turn-by-Turn Steps */}
-      {isExpanded && steps.length > 0 && (
+      {steps.length > 0 && (
         <div
           data-testid="transit-steps-container"
           style={{
@@ -963,6 +965,7 @@ export function TransitLegView({
           </div>
         </div>
       )}
+      </Collapsible>
     </div>
   );
 }

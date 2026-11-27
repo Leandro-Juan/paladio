@@ -558,6 +558,16 @@ export function PastTripRecap({ trip, onTripUpdated }: PastTripRecapProps) {
             transform: rotate(360deg);
           }
         }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes spinSlow {
+            from {
+              transform: none;
+            }
+            to {
+              transform: none;
+            }
+          }
+        }
         @media (max-width: 960px) {
           .vault-recap-grid {
             grid-template-columns: 1fr !important;

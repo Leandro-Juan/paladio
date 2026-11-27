@@ -108,6 +108,164 @@ EN_TO_LOCAL_VOCAB: dict[str, dict[str, str]] = {
 }
 
 
+_CATEGORY_KEYWORD_PATTERNS: list[tuple[re.Pattern[str], list[str]]] = [
+    (
+        re.compile(
+            r"\b(cafes?|cafés?|coffee|coffeeshops?|bakery|bakeries|patisserie|tea|teahouses?|matcha)\b",
+            re.IGNORECASE,
+        ),
+        ["cafe", "coffee", "bakery", "pastry"],
+    ),
+    (
+        re.compile(
+            r"\b(restaurants?|restaurantes?|dining|dinner|lunch|brunch|bistros?|trattorias?|ramen|sushi|izakaya|tapas|food|eat)\b",
+            re.IGNORECASE,
+        ),
+        ["restaurant", "bistro", "food", "dining"],
+    ),
+    (
+        re.compile(
+            r"\b(bars?|pubs?|cocktails?|nightlife|nightclubs?|wine\s+bars?|breweries)\b",
+            re.IGNORECASE,
+        ),
+        ["bar", "pub", "nightlife", "nightclub"],
+    ),
+    (
+        re.compile(
+            r"\b(museums?|museos?|musées?|galleries|gallery|exhibitions?|arts?\s+centres?)\b",
+            re.IGNORECASE,
+        ),
+        ["museum", "gallery", "exhibition", "arts_centre"],
+    ),
+    (
+        re.compile(
+            r"\b(parks?|parques?|gardens?|jardines?|jardins?|botanical|nature)\b",
+            re.IGNORECASE,
+        ),
+        ["park", "garden", "nature", "nature_reserve"],
+    ),
+    (
+        re.compile(
+            r"\b(monuments?|monumentos?|landmarks?|castles?|palaces?|churches?|iglesias?|cathedrals?|catedrales?|basilicas?|shrines?|temples?|statues?)\b",
+            re.IGNORECASE,
+        ),
+        [
+            "monument",
+            "landmark",
+            "historic",
+            "attraction",
+            "sight",
+            "viewpoint",
+            "artwork",
+        ],
+    ),
+    (
+        re.compile(
+            r"\b(viewpoints?|miradores?|panoramas?|lookouts?|scenic|skyline|sunset)\b",
+            re.IGNORECASE,
+        ),
+        ["viewpoint"],
+    ),
+    (
+        re.compile(
+            r"\b(shops?|tiendas?|shopping|markets?|mercados?|malls?|bookstores?|bookshops?)\b",
+            re.IGNORECASE,
+        ),
+        ["shop", "shopping", "market", "store", "mall"],
+    ),
+]
+
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "with",
+        "for",
+        "in",
+        "on",
+        "at",
+        "to",
+        "of",
+        "from",
+        "by",
+        "near",
+        "around",
+        "good",
+        "best",
+        "great",
+        "nice",
+        "some",
+        "any",
+        "very",
+        "really",
+        "places",
+        "place",
+        "spots",
+        "spot",
+        "things",
+        "thing",
+        "visit",
+        "see",
+        "do",
+        "find",
+        "looking",
+        "day",
+        "de",
+        "la",
+        "el",
+        "los",
+        "las",
+        "un",
+        "una",
+        "con",
+        "para",
+        "por",
+        "en",
+        "y",
+    }
+)
+
+_IRREGULAR_SINGULARS: dict[str, str] = {
+    "galleries": "gallery",
+    "bakeries": "bakery",
+    "breweries": "brewery",
+    "churches": "church",
+    "beaches": "beach",
+}
+
+
+def _extract_target_categories(query: str) -> list[str]:
+    matched: list[str] = []
+    for pattern, cats in _CATEGORY_KEYWORD_PATTERNS:
+        if pattern.search(query):
+            for c in cats:
+                if c not in matched:
+                    matched.append(c)
+    return matched
+
+
+def _extract_lexical_keywords(clean_query: str) -> list[str]:
+    tokens = re.findall(r"[^\W_]+", clean_query.lower())
+    keywords: list[str] = []
+    seen: set[str] = set()
+    for tok in tokens:
+        if len(tok) < 2 or tok in _STOPWORDS:
+            continue
+        variants = [tok]
+        if tok in _IRREGULAR_SINGULARS:
+            variants.append(_IRREGULAR_SINGULARS[tok])
+        elif len(tok) > 4 and tok.endswith("s") and not tok.endswith("ss"):
+            variants.append(tok[:-1])
+        for v in variants:
+            if v not in seen:
+                seen.add(v)
+                keywords.append(v)
+    return keywords
+
+
 @dataclass
 class StructuredQuery:
     raw_query: str
@@ -117,6 +275,8 @@ class StructuredQuery:
     max_cost_eur: float | None = None
     max_tier: int | None = None
     require_rain_friendly: bool = False
+    target_categories: list[str] = field(default_factory=list)
+    lexical_keywords: list[str] = field(default_factory=list)
 
 
 class QueryRewriter:
@@ -235,6 +395,9 @@ class QueryRewriter:
                 seen.add(sq_norm)
                 deduped_subqueries.append(sq.strip())
 
+        target_categories = _extract_target_categories(clean)
+        lexical_keywords = _extract_lexical_keywords(clean)
+
         return StructuredQuery(
             raw_query=query,
             clean_query=clean,
@@ -243,4 +406,6 @@ class QueryRewriter:
             max_cost_eur=max_cost,
             max_tier=max_tier,
             require_rain_friendly=require_rain_friendly,
+            target_categories=target_categories,
+            lexical_keywords=lexical_keywords,
         )

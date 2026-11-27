@@ -19,6 +19,7 @@ import { PoiLocationPickerModal } from './PoiLocationPickerModal';
 import { getApiBaseUrl } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { PoiApiItem } from './TripUnifiedSidebar';
 import { PoiDetail } from '@/types/domain';
 
@@ -41,6 +42,7 @@ const CATEGORY_OPTIONS = [
   { value: 'museum', labelKey: 'add_poi.cat_museum' },
   { value: 'restaurant', labelKey: 'add_poi.cat_restaurant' },
   { value: 'cafe', labelKey: 'add_poi.cat_cafe' },
+  { value: 'bar', labelKey: 'add_poi.cat_bar' },
   { value: 'park', labelKey: 'add_poi.cat_park' },
   { value: 'shopping', labelKey: 'add_poi.cat_shopping' },
   { value: 'viewpoint', labelKey: 'add_poi.cat_viewpoint' },
@@ -156,6 +158,7 @@ export function AddPoiModal({
 }: AddPoiModalProps) {
   const { t } = useTranslation();
   const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
 
   // Core fields
   const [name, setName] = useState('');
@@ -272,12 +275,14 @@ export function AddPoiModal({
     setDuplicateWarning(null);
   };
 
+  const categoryMenuMount = useAnimatedMount(isCategoryMenuOpen, 130);
+
   const handleClose = () => {
     resetForm();
     onClose();
   };
 
-  if (!isOpen || !isMounted) return null;
+  if (!shouldRender || !isMounted) return null;
 
   const selectedCategoryObj =
     CATEGORY_OPTIONS.find((opt) => opt.value === category) || CATEGORY_OPTIONS[0];
@@ -500,6 +505,8 @@ export function AddPoiModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-poi-modal-title"
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       style={{
         position: 'fixed',
         inset: 0,
@@ -522,6 +529,8 @@ export function AddPoiModal({
     >
       <div
         data-testid="add-poi-modal"
+        className="paladio-modal-panel"
+        data-state={dataState}
         style={{
           background: 'var(--color-surface-raised, #FFFFFF)',
           border: '1px solid var(--color-border, #E2D9CC)',
@@ -689,10 +698,13 @@ export function AddPoiModal({
                 </span>
               </button>
 
-              {isCategoryMenuOpen && (
+              {categoryMenuMount.shouldRender && (
                 <div
                   role="listbox"
                   data-testid="add-poi-category-menu"
+                  className="paladio-popover"
+                  data-state={categoryMenuMount.dataState}
+                  data-origin="top-left"
                   style={{
                     position: 'absolute',
                     top: 'calc(100% + 4px)',

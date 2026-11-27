@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { TripTicket, TicketType, TicketStatus } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG, STATUS_BADGE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { CustomSelect } from '../parts/CustomSelect';
@@ -27,6 +28,7 @@ export function TicketFormModal({
   defaultType = 'flight',
 }: TicketFormModalProps) {
   const isMounted = useIsMounted();
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -38,7 +40,7 @@ export function TicketFormModal({
     };
   }, [isOpen]);
 
-  if (!isOpen || !isMounted) return null;
+  if (!shouldRender || !isMounted) return null;
 
   return createPortal(
     <TicketFormDialog
@@ -47,6 +49,7 @@ export function TicketFormModal({
       onSubmit={onSubmit}
       initialTicket={initialTicket}
       defaultType={defaultType}
+      dataState={dataState}
     />,
     document.body
   );
@@ -57,11 +60,13 @@ function TicketFormDialog({
   onSubmit,
   initialTicket,
   defaultType = 'flight',
+  dataState,
 }: {
   onClose: () => void;
   onSubmit: (formData: Record<string, unknown>) => Promise<void>;
   initialTicket?: TripTicket | null;
   defaultType?: TicketType;
+  dataState: 'open' | 'closing';
 }) {
   const { t, locale } = useTranslation();
   const intlLocale = locale === 'en' ? 'en-US' : locale;
@@ -224,6 +229,8 @@ function TicketFormDialog({
     <div
       role="dialog"
       aria-modal="true"
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       style={{
         position: 'fixed',
         inset: 0,
@@ -240,6 +247,8 @@ function TicketFormDialog({
       }}
     >
       <div
+        className="paladio-modal-panel"
+        data-state={dataState}
         style={{
           background: 'var(--color-surface-card)',
           border: '1px solid var(--color-border-subtle)',

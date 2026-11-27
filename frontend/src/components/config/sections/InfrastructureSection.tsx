@@ -307,7 +307,7 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
             ]}
           >
             {vaultSubTab === 'storage' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div key="storage" className="animate-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
                   <div>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
@@ -372,11 +372,13 @@ export function InfrastructureSection(props: InfrastructureSectionProps) {
                 </div>
               </div>
             ) : (
-              <PhotoSyncSettingsCard
-                config={vaultConfig}
-                onChange={handleUpdateVault}
-                isAdmin={isAdmin}
-              />
+              <div key="photo_sync" className="animate-tab-pane">
+                <PhotoSyncSettingsCard
+                  config={vaultConfig}
+                  onChange={handleUpdateVault}
+                  isAdmin={isAdmin}
+                />
+              </div>
             )}
           </SettingsCardFrame>
           </DemoFeatureGate>

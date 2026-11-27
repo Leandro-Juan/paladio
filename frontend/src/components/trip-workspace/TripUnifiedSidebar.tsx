@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { DayOutput, OptimizationResult, ScheduledPoi, PoiDetail } from '@/types/domain';
 import { classifyPoiCategory, getPoiCategoryLabel, isCategoryMatch, PoiCategoryType, isAirportPoi, isHotelPoi } from '@/utils/poiCategory';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { translate } from '@/stores/localeStore';
 import { PoiCategoryIcon, PoiCategoryBadge } from '@/components/PoiCategoryBadge';
 import { MinimalistPoiCard } from './MinimalistPoiCard';
@@ -110,6 +111,7 @@ function SearchPoiThumbnail({ id, name, category, photoUrl, city = '' }: SearchP
         <img
           src={resolvedPhoto}
           alt={name}
+          draggable={false}
           loading="lazy"
           style={{
             width: '100%',
@@ -537,6 +539,7 @@ export function CustomDropdown<T extends string | number>({
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuMount = useAnimatedMount(isOpen, 130);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -602,9 +605,12 @@ export function CustomDropdown<T extends string | number>({
         </span>
       </button>
 
-      {isOpen && (
+      {menuMount.shouldRender && (
         <div
           role="listbox"
+          className="paladio-popover"
+          data-state={menuMount.dataState}
+          data-origin={align === 'right' ? 'top-right' : 'top-left'}
           style={{
             position: 'absolute',
             top: 'calc(100% + 6px)',
@@ -618,7 +624,6 @@ export function CustomDropdown<T extends string | number>({
             boxShadow: '0 14px 34px -4px rgba(15, 76, 92, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06)',
             padding: '6px',
             zIndex: 2500,
-            animation: 'fadeInScale 0.16s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           {options.map((opt) => {
@@ -696,6 +701,7 @@ export function PriceRangeSliderDropdown({ value, onChange, currencySymbol = 'â‚
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuMount = useAnimatedMount(isOpen, 130);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -761,8 +767,11 @@ export function PriceRangeSliderDropdown({ value, onChange, currencySymbol = 'â‚
         </span>
       </button>
 
-      {isOpen && (
+      {menuMount.shouldRender && (
         <div
+          className="paladio-popover"
+          data-state={menuMount.dataState}
+          data-origin="top-left"
           style={{
             position: 'absolute',
             top: 'calc(100% + 6px)',
@@ -913,6 +922,7 @@ export function DurationRangeSliderDropdown({ value, onChange }: DurationRangeSl
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuMount = useAnimatedMount(isOpen, 130);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -966,8 +976,11 @@ export function DurationRangeSliderDropdown({ value, onChange }: DurationRangeSl
         </span>
       </button>
 
-      {isOpen && (
+      {menuMount.shouldRender && (
         <div
+          className="paladio-popover"
+          data-state={menuMount.dataState}
+          data-origin="top-left"
           style={{
             position: 'absolute',
             top: 'calc(100% + 6px)',
@@ -1115,6 +1128,7 @@ export function RatingStarFilterDropdown({ value, onChange }: RatingStarFilterDr
   const [isOpen, setIsOpen] = useState(false);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuMount = useAnimatedMount(isOpen, 130);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -1160,28 +1174,35 @@ export function RatingStarFilterDropdown({ value, onChange }: RatingStarFilterDr
         </span>
       </button>
 
-      {isOpen && (
+      {menuMount.shouldRender && (
         <div
           style={{
             position: 'absolute',
             top: 'calc(100% + 6px)',
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '210px',
-            maxWidth: 'calc(100vw - 32px)',
-            background: 'var(--color-surface-card, #FFFFFF)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            borderRadius: '16px',
-            border: '1px solid var(--color-border)',
-            boxShadow: '0 14px 34px -4px rgba(15, 76, 92, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06)',
-            padding: '14px',
             zIndex: 2500,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
           }}
         >
+          <div
+            className="paladio-popover"
+            data-state={menuMount.dataState}
+            data-origin="top"
+            style={{
+              width: '210px',
+              maxWidth: 'calc(100vw - 32px)',
+              background: 'var(--color-surface-card, #FFFFFF)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              borderRadius: '16px',
+              border: '1px solid var(--color-border)',
+              boxShadow: '0 14px 34px -4px rgba(15, 76, 92, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06)',
+              padding: '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '11.5px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--color-text-primary)' }}>
               {t('sidebar.minimum_rating_upper')}
@@ -1337,6 +1358,7 @@ export function RatingStarFilterDropdown({ value, onChange }: RatingStarFilterDr
 
           <div style={{ textAlign: 'center', fontSize: '11px', color: activeRating > 0 ? '#B45309' : 'var(--color-text-muted)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
             {activeRating > 0 ? t('sidebar.rating_and_above', { value: activeRating.toFixed(1) }) : t('sidebar.any_rating')}
+          </div>
           </div>
         </div>
       )}
@@ -1773,12 +1795,37 @@ export function TripUnifiedSidebar({
 
   // Reset active drop target and clean up drag state if dragging ends anywhere without inserting
   useEffect(() => {
-    const handleDragEnded = () => {
+    let dragEndTimer: number | null = null;
+
+    const handleDragStartCancelTimer = () => {
+      if (dragEndTimer !== null) {
+        window.clearTimeout(dragEndTimer);
+        dragEndTimer = null;
+      }
+    };
+
+    const handleDragEnded = (ev?: Event) => {
+      if (ev?.type === 'mouseup') {
+        const win =
+          typeof window !== 'undefined'
+            ? (window as unknown as { __paladioActivePoi?: unknown; __paladioActiveSearchPoi?: unknown })
+            : null;
+        const hasActiveDrag =
+          Boolean(document.querySelector('[data-paladio-custom-drag-preview]')) ||
+          Boolean(win?.__paladioActivePoi || win?.__paladioActiveSearchPoi);
+        if (!hasActiveDrag) {
+          return;
+        }
+      }
       cleanupCustomDragPreview(false);
       clearDayHoverTimer();
       stopVerticalScroll();
       setActiveDropTarget(null);
-      window.setTimeout(() => {
+      if (dragEndTimer !== null) {
+        window.clearTimeout(dragEndTimer);
+      }
+      dragEndTimer = window.setTimeout(() => {
+        dragEndTimer = null;
         setDraggedPoi(null);
         setIsExternalPoiDragging(false);
         if (typeof window !== 'undefined') {
@@ -1788,11 +1835,17 @@ export function TripUnifiedSidebar({
       }, 120);
     };
 
+    window.addEventListener('dragstart', handleDragStartCancelTimer, true);
     window.addEventListener('dragend', handleDragEnded, true);
     window.addEventListener('mouseup', handleDragEnded, true);
     window.addEventListener('drop', handleDragEnded, false);
     window.addEventListener('paladio:drag-ended', handleDragEnded, true);
     return () => {
+      if (dragEndTimer !== null) {
+        window.clearTimeout(dragEndTimer);
+        dragEndTimer = null;
+      }
+      window.removeEventListener('dragstart', handleDragStartCancelTimer, true);
       window.removeEventListener('dragend', handleDragEnded, true);
       window.removeEventListener('mouseup', handleDragEnded, true);
       window.removeEventListener('drop', handleDragEnded, false);
@@ -2874,8 +2927,6 @@ export function TripUnifiedSidebar({
                 : 'min(520px, calc(100vw - 32px))',
             height: '100%',
             background: 'var(--color-surface-card, #FFFFFF)',
-            backdropFilter: 'blur(28px)',
-            WebkitBackdropFilter: 'blur(28px)',
             borderRadius: '24px',
             border: '1px solid var(--color-border)',
             boxShadow: '0 20px 45px -10px rgba(15, 76, 92, 0.15), 0 0 1px 1px rgba(0, 0, 0, 0.05)',
@@ -2929,7 +2980,7 @@ export function TripUnifiedSidebar({
                       fontSize: '13px',
                       fontWeight: activeTab === 'route' ? 600 : 500,
                       cursor: 'pointer',
-                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                      transition: 'background-color var(--transition-snappy), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast)',
                       boxShadow: activeTab === 'route' ? '0 2px 8px rgba(15, 76, 92, 0.28)' : 'none',
                     }}
                   >
@@ -2968,7 +3019,7 @@ export function TripUnifiedSidebar({
                       fontSize: '13px',
                       fontWeight: activeTab === 'search' ? 600 : 500,
                       cursor: 'pointer',
-                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                      transition: 'background-color var(--transition-snappy), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast)',
                       boxShadow: activeTab === 'search' ? '0 2px 8px rgba(15, 76, 92, 0.28)' : 'none',
                     }}
                   >
@@ -2997,7 +3048,7 @@ export function TripUnifiedSidebar({
                       fontSize: '13px',
                       fontWeight: activeTab === 'transit' ? 600 : 500,
                       cursor: 'pointer',
-                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                      transition: 'background-color var(--transition-snappy), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast)',
                       boxShadow: activeTab === 'transit' ? '0 2px 8px rgba(15, 76, 92, 0.28)' : 'none',
                     }}
                   >
@@ -3033,7 +3084,7 @@ export function TripUnifiedSidebar({
                       fontSize: '13px',
                       fontWeight: activeTab === 'weather' ? 600 : 500,
                       cursor: 'pointer',
-                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                      transition: 'background-color var(--transition-snappy), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast)',
                       boxShadow: activeTab === 'weather' ? '0 2px 8px rgba(15, 76, 92, 0.28)' : 'none',
                     }}
                   >
@@ -3072,7 +3123,7 @@ export function TripUnifiedSidebar({
                       fontSize: '13px',
                       fontWeight: activeTab === 'saved' ? 600 : 500,
                       cursor: 'pointer',
-                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                      transition: 'background-color var(--transition-snappy), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast)',
                       boxShadow: activeTab === 'saved' ? '0 2px 8px rgba(15, 76, 92, 0.28)' : 'none',
                     }}
                   >
@@ -3103,7 +3154,7 @@ export function TripUnifiedSidebar({
                       fontSize: '13px',
                       fontWeight: activeTab === 'agent' ? 600 : 500,
                       cursor: 'pointer',
-                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                      transition: 'background-color var(--transition-snappy), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast)',
                       boxShadow: activeTab === 'agent' ? '0 2px 8px rgba(15, 76, 92, 0.28)' : 'none',
                     }}
                   >
@@ -3212,7 +3263,8 @@ export function TripUnifiedSidebar({
                         whiteSpace: 'nowrap',
                         flexShrink: 0,
                         cursor: 'pointer',
-                        transition: 'all 0.16s ease',
+                        transition:
+                          'background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), border-radius var(--transition-fast)',
                       }}
                     >
                       {t('sidebar.all_days_upper')}
@@ -3278,7 +3330,8 @@ export function TripUnifiedSidebar({
                             flexShrink: 0,
                             opacity: draggedDayTab === d.day ? 0.5 : 1,
                             cursor: isEditMode && days.length > 1 && onReorderDays ? 'grab' : 'pointer',
-                            transition: 'all 0.16s ease',
+                            transition:
+                              'background-color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), border-radius var(--transition-fast)',
                           }}
                         >
                           <button
@@ -3452,6 +3505,7 @@ export function TripUnifiedSidebar({
                 }}
                 style={{
                   flex: 1,
+                  background: 'var(--color-surface-card, #FFFFFF)',
                   overflowY: activeTab === 'agent' ? 'hidden' : 'auto',
                   scrollbarWidth: 'none',
                   msOverflowStyle: 'none',
@@ -3461,6 +3515,7 @@ export function TripUnifiedSidebar({
               >
                 {/* VIEW A: ROUTE TAB CONTENT */}
                 <div
+                  className={activeTab === 'route' ? 'animate-tab-pane' : undefined}
                   style={{
                     display: activeTab === 'route' ? 'flex' : 'none',
                     flexDirection: 'column',
@@ -3954,6 +4009,7 @@ export function TripUnifiedSidebar({
 
                 {/* VIEW B: SEARCH TAB CONTENT (Exact Match to User Reference Layout) */}
                 <div
+                  className={activeTab === 'search' ? 'animate-tab-pane' : undefined}
                   style={
                     activeTab === 'search'
                       ? {
@@ -4220,7 +4276,7 @@ export function TripUnifiedSidebar({
                           ? t('sidebar.zero_places_upper')
                           : searchData?.total != null
                           ? searchData.total > 1000
-                            ? t('sidebar.plus_thousand_places_upper')
+                            ? t('sidebar.plus_places_upper', { count: Math.floor(searchData.total / 500) * 500 })
                             : t('sidebar.places_upper_count', { count: searchData.total })
                           : t('sidebar.places_upper_count', { count: filteredSearchResults.length })}
                       </span>
@@ -4375,8 +4431,13 @@ export function TripUnifiedSidebar({
                             e.dataTransfer.setData('text/plain', serialized);
                             e.dataTransfer.effectAllowed = 'copyMove';
 
-                            // Switch to Route tab automatically so user can drop into any day
-                            window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+                            // Defer switching to Route tab by one animation frame so the browser finishes
+                            // initializing the native HTML5 drag session before this container moves offscreen.
+                            window.requestAnimationFrame(() => {
+                              if ((window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi) {
+                                window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+                              }
+                            });
                           }}
                           onDragEnd={() => {
                             cleanupCustomDragPreview();
@@ -4651,67 +4712,88 @@ export function TripUnifiedSidebar({
 
                 {/* VIEW C: TRANSIT TAB CONTENT */}
                 {activeTab === 'transit' && (
-                  <TripTransitTab
-                    tripId={tripId}
-                    tripStartDate={tripStartDate}
-                    destinationCity={destinationCity}
-                    selectedDay={selectedDay}
-                    tripDays={days.map((d: DayOutput) => ({
-                      day_number: d.day,
-                      pois: (d.itinerary?.path || [])
-                        .filter((s: ScheduledPoi) => Boolean(s?.poi))
-                        .map((s: ScheduledPoi, sIdx: number) => {
-                          const p = s.poi;
-                          const lat = p.location?.latitude ?? (p as unknown as { lat?: number }).lat ?? 0;
-                          const lng = p.location?.longitude ?? (p as unknown as { lng?: number }).lng ?? 0;
-                          return {
-                            id: p.id || `poi-${d.day}-${sIdx}`,
-                            name: p.name || t('poi_detail.waypoint_fallback'),
-                            lat,
-                            lng,
-                            category: p.category || 'attraction',
-                          };
-                        }),
-                    }))}
-                    hotel={hotelAnchor}
-                    airport={airportAnchor}
-                    savedPoiIds={savedPoiIds}
-                    onToggleSavePoi={toggleSavePoi}
-                    onInspectPoi={onInspectPoi}
-                    onFocusFromInspector={onFocusFromInspector}
-                    activeMapPickField={activeMapPickField}
-                    onStartMapPick={onStartMapPick}
-                    onCancelMapPick={onCancelMapPick}
-                    onRouteCalculated={onRouteCalculated}
-                  />
+                  <div
+                    className="animate-tab-pane"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      flex: 1,
+                      minHeight: 0,
+                    }}
+                  >
+                    <TripTransitTab
+                      tripId={tripId}
+                      tripStartDate={tripStartDate}
+                      destinationCity={destinationCity}
+                      selectedDay={selectedDay}
+                      tripDays={days.map((d: DayOutput) => ({
+                        day_number: d.day,
+                        pois: (d.itinerary?.path || [])
+                          .filter((s: ScheduledPoi) => Boolean(s?.poi))
+                          .map((s: ScheduledPoi, sIdx: number) => {
+                            const p = s.poi;
+                            const lat = p.location?.latitude ?? (p as unknown as { lat?: number }).lat ?? 0;
+                            const lng = p.location?.longitude ?? (p as unknown as { lng?: number }).lng ?? 0;
+                            return {
+                              id: p.id || `poi-${d.day}-${sIdx}`,
+                              name: p.name || t('poi_detail.waypoint_fallback'),
+                              lat,
+                              lng,
+                              category: p.category || 'attraction',
+                            };
+                          }),
+                      }))}
+                      hotel={hotelAnchor}
+                      airport={airportAnchor}
+                      savedPoiIds={savedPoiIds}
+                      onToggleSavePoi={toggleSavePoi}
+                      onInspectPoi={onInspectPoi}
+                      onFocusFromInspector={onFocusFromInspector}
+                      activeMapPickField={activeMapPickField}
+                      onStartMapPick={onStartMapPick}
+                      onCancelMapPick={onCancelMapPick}
+                      onRouteCalculated={onRouteCalculated}
+                    />
+                  </div>
                 )}
 
                 {/* VIEW WEATHER: WEATHER TAB CONTENT */}
                 {activeTab === 'weather' && (
-                  <TripWeatherTab
-                    destinationCity={destinationCity || ''}
-                    tripStartDate={tripStartDate}
-                    tripEndDate={tripEndDate}
-                    selectedDay={selectedDay}
-                    onSelectDay={onSelectDay}
-                    coordinates={
-                      hotelAnchor
-                        ? { lat: hotelAnchor.lat, lng: hotelAnchor.lng }
-                        : airportAnchor
-                        ? { lat: airportAnchor.lat, lng: airportAnchor.lng }
-                        : days?.[0]?.itinerary?.path?.[0]?.poi?.location
-                        ? {
-                            lat: days[0].itinerary.path[0].poi.location.latitude,
-                            lng: days[0].itinerary.path[0].poi.location.longitude,
-                          }
-                        : undefined
-                    }
-                    tripDaysCount={days.length || 7}
-                  />
+                  <div
+                    className="animate-tab-pane"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      flex: 1,
+                      minHeight: 0,
+                    }}
+                  >
+                    <TripWeatherTab
+                      destinationCity={destinationCity || ''}
+                      tripStartDate={tripStartDate}
+                      tripEndDate={tripEndDate}
+                      selectedDay={selectedDay}
+                      onSelectDay={onSelectDay}
+                      coordinates={
+                        hotelAnchor
+                          ? { lat: hotelAnchor.lat, lng: hotelAnchor.lng }
+                          : airportAnchor
+                          ? { lat: airportAnchor.lat, lng: airportAnchor.lng }
+                          : days?.[0]?.itinerary?.path?.[0]?.poi?.location
+                          ? {
+                              lat: days[0].itinerary.path[0].poi.location.latitude,
+                              lng: days[0].itinerary.path[0].poi.location.longitude,
+                            }
+                          : undefined
+                      }
+                      tripDaysCount={days.length || 7}
+                    />
+                  </div>
                 )}
 
                 {/* VIEW D: COLLECTIONS TAB CONTENT */}
                 <div
+                  className={activeTab === 'saved' ? 'animate-tab-pane' : undefined}
                   style={
                     activeTab === 'saved'
                       ? {
@@ -4753,6 +4835,7 @@ export function TripUnifiedSidebar({
                 {/* VIEW E: AGENT TAB CONTENT */}
                 {(activeTab === 'agent' || agentTabVisited) && (
                   <div
+                    className={activeTab === 'agent' ? 'animate-tab-pane' : undefined}
                     style={{
                       display: activeTab === 'agent' ? 'flex' : 'none',
                       flexDirection: 'column',

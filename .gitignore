@@ -1,155 +1,141 @@
 # ==========================================
-# Frontend (Node.js & Next.js)
+# Local Workspace, Private Notes & Runtime Data
+# ==========================================
+/.local/
+/data/
+/backend/data/
+
+# ==========================================
+# Secrets & Environment Files
+# ==========================================
+.env
+.env*.local
+!.env.example
+*.pem
+
+# ==========================================
+# AI Agents, Local Rules & Context Tooling
+# ==========================================
+/.agents/
+/AGENTS.md
+/frontend/AGENTS.md
+/docs/explanation/UI_UX_ARCHITECTURE_BIBLE.md
+/repomix.config.json
+/repomix-output.*
+
+# ==========================================
+# Frontend (Node.js, Next.js & Playwright)
 # ==========================================
 node_modules/
 .next/
-out/
-build/
-dist/
+/frontend/out/
+/frontend/build/
+/frontend/.cache/
+/frontend/playwright-report/
+/frontend/playwright/.cache/
+/frontend/test-results/
+/test-results/
 .turbo/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 pnpm-debug.log*
-frontend/playwright-report/
-frontend/test-results/
-frontend/.cache/
 
 # ==========================================
-# Python & Backend
+# Python, Virtual Environments & Backend
 # ==========================================
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 .Python
+.venv/
+.test_venv/
+*venv*/
+/env/
+/ENV/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
-develop-eggs/
-eggs/
-.eggs/
-/parts/
 sdist/
 wheels/
 share/python-wheels/
-backend/import_times.log
 celerybeat-schedule*
 
 # ==========================================
-# C / C++ & CMake
+# C / C++20, CMake & Native Binaries
 # ==========================================
-build/
-bin/
-/lib/
-/lib64/
-cpp_core/lib/
-cpp_core/build/
+/build/
+/cpp_core/build/
+/cpp_core/lib/
+build_*/
 CMakeFiles/
 CMakeCache.txt
 CMakeScripts/
+CMakeUserPresets.json
 Testing/
-Makefile
+/Makefile
 cmake_install.cmake
 install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 _deps/
 paladio_tests
+*.o
+*.obj
+*.a
+*.lib
+*.so
 *.dylib
 *.dll
+*.pyd
 
 # ==========================================
-# Virtual Environments & Secrets
-# ==========================================
-.env
-.env*.local
-.venv/
-env/
-venv/
-ENV/
-*.bak/
-
-# ==========================================
-# Testing & Tooling Caches
+# Testing, Coverage, Docs & Generated Reports
 # ==========================================
 .coverage
 .coverage.*
-.cache/
-.pytest_cache/
-.ruff_cache/
-nosetests.xml
 coverage.xml
+htmlcov/
+nosetests.xml
 *.cover
 *.py,cover
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
 .hypothesis/
+.tox/
+.nox/
+.cache/
 pytestdebug.log
+**/tests/output/
+coverage_report.csv
+/scripts/i18n/untranslated_inventory.json
+/site/
+/cpp_core/site/
 
 # ==========================================
-# IDEs & System Files
+# Demo Mode Snapshot Builder & Artifacts
+# ==========================================
+/scripts/build_demo_server_snapshot.py
+/frontend/src/server/demo-snapshot.raw.json
+/frontend/src/server/demo-snapshot.enc
+
+# ==========================================
+# IDEs, Logs & OS Metadata
 # ==========================================
 .vscode/
-.agents/
-AGENTS.md
-frontend/AGENTS.md
-docs/explanation/UI_UX_ARCHITECTURE_BIBLE.md
-docs/itinerary_v2_see_review.md
-repomix.config.json
+.idea/
+*.iml
 *.swp
 *.swo
+*.orig
 *~
+*.bak/
+*.log
 .DS_Store
 Thumbs.db
-
-# ==========================================
-# Logs, Outputs & Scratchpads
-# ==========================================
-temp/
-tmp/
-*.log
-*.pdf
-!backend/tests/fixtures/**/*.pdf
-future/
-scratch/
-TODO.txt
-prompt.txt
-important.txt
-itinerary_output.json
-real_itinerary_output.json
-*_final.json
-skills-lock.json
-site/
-
-# ==========================================
-# Private Notes
-# ==========================================
-BACKLOG.md
-PLAN.md
-ROADMAP.md
-CONTEXT.md
-comprehensive_audit_report.md
-docs/NOMENCLATURE.md
-
-# Skills backup
-.skills_backup/
-
-data/
-backend/data/
-
-
-# Pacific Jazz UI Baseline & Scratch
-ui-baseline/
-test-results/
-paladio_frontend.txt
-temp_ui_showcase/
-temp_dashboard_concepts/
-
-# ==========================================
-# Demo Mode Snapshot Builder, Snapshots & Local Secrets
-# ==========================================
-scripts/build_demo_server_snapshot.py
-frontend/src/server/demo-snapshot.raw.json
-frontend/src/server/demo-snapshot.enc
-frontend/.env.local
-

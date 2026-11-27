@@ -1,6 +1,6 @@
 /* HotelTicketCard.module.css - Japanese Minimalist Tactical Layout */
 .dealComponentCard {
-  background: #FFFFFF;
+  background: var(--color-surface-raised, #FFFFFF);
   border: 1px solid var(--color-border, #E2E8F0);
   border-radius: 8px;
   padding: 0.875rem 1rem;
@@ -16,7 +16,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding-bottom: 0.375rem;
-  border-bottom: 1px solid rgba(15, 76, 92, 0.08);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(15, 76, 92, 0.08));
 }
 
 .componentTypeTitle {
@@ -25,7 +25,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-accent-primary, #0F4C5C);
+  color: var(--color-accent-teal-mid, var(--color-accent-primary, #0F4C5C));
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
@@ -35,9 +35,9 @@
   font-family: var(--font-mono, monospace);
   font-size: 0.6875rem;
   font-weight: 600;
-  color: #334155;
-  background: #F1F5F9;
-  border: 1px solid #E2E8F0;
+  color: var(--color-text-primary, #334155);
+  background: var(--color-surface-muted, #F1F5F9);
+  border: 1px solid var(--color-border, #E2E8F0);
   padding: 0.15rem 0.45rem;
   border-radius: 4px;
 }
@@ -48,9 +48,9 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #92400E;
-  background: #FEF3C7;
-  border: 1px solid #FDE68A;
+  color: var(--color-accent-warning, #92400E);
+  background: var(--color-accent-warning-bg, #FEF3C7);
+  border: 1px solid var(--color-accent-warning-border, #FDE68A);
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
 }
@@ -69,7 +69,7 @@
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--color-border, #E2E8F0);
-  background: #EEF2F6;
+  background: var(--color-surface-subtle, #EEF2F6);
   position: relative;
   flex-shrink: 0;
 }
@@ -87,8 +87,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94A3B8;
-  background: #F1F5F9;
+  color: var(--color-text-muted, #94A3B8);
+  background: var(--color-surface-subtle, #F1F5F9);
 }
 
 .hotelInfoCol {
@@ -147,8 +147,8 @@
   font-family: var(--font-mono, monospace);
   font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--color-accent-primary, #0F4C5C);
-  background: rgba(15, 76, 92, 0.08);
+  color: var(--color-accent-teal-mid, var(--color-accent-primary, #0F4C5C));
+  background: var(--color-surface-muted, rgba(15, 76, 92, 0.08));
   padding: 0.15rem 0.45rem;
   border-radius: 4px;
 }
@@ -162,15 +162,15 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #0F4C5C;
-  color: #FFFFFF;
+  background: var(--color-accent-primary, #0F4C5C);
+  color: var(--color-text-on-accent, #FFFFFF);
   font-family: var(--font-mono, monospace);
   font-size: 0.5625rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid #FFFFFF;
+  border: 1.5px solid var(--color-surface-raised, #FFFFFF);
   margin-left: -6px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
@@ -185,7 +185,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.6875rem;
-  color: var(--color-text-secondary, #475569);
+  color: var(--color-text-muted, #475569);
 }
 
 .hotelPerkItem {
@@ -202,7 +202,7 @@
   font-family: var(--font-mono, monospace);
   font-size: 0.6875rem;
   font-weight: 600;
-  color: #16A34A;
+  color: var(--color-success, #16A34A);
 }
 
 /* Amenity Icons Row */
@@ -220,10 +220,10 @@
   width: 22px;
   height: 22px;
   border-radius: 4px;
-  background: #FFFFFF;
+  background: var(--color-surface-card, #FFFFFF);
   border: 1px solid var(--color-border, #E2E8F0);
-  color: var(--color-text-secondary, #475569);
-  transition: all 0.12s ease;
+  color: var(--color-text-muted, #475569);
+  transition: border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .amenityIconPill:hover {
@@ -245,24 +245,27 @@
   font-family: var(--font-mono, monospace);
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--color-accent-primary, #0F4C5C);
+  color: var(--color-accent-teal-mid, var(--color-accent-primary, #0F4C5C));
 }
 
 .directLinkBtn {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--color-accent-primary, #0F4C5C);
+  color: var(--color-accent-teal-mid, var(--color-accent-primary, #0F4C5C));
   text-decoration: none;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
-  border: 1px solid #CBD5E1;
-  background: #FFFFFF;
-  transition: all 0.15s ease;
+  border: 1px solid var(--color-border, #CBD5E1);
+  background: var(--color-surface-card, #FFFFFF);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .directLinkBtn:hover {
   background: var(--color-accent-primary, #0F4C5C);
-  color: #FFFFFF;
+  color: var(--color-text-on-accent, #FFFFFF);
   border-color: var(--color-accent-primary, #0F4C5C);
 }
 
@@ -274,6 +277,6 @@
 
 .componentSubText {
   font-size: 0.75rem;
-  color: #64748B;
+  color: var(--color-text-muted, #64748B);
   font-family: var(--font-mono, monospace);
 }

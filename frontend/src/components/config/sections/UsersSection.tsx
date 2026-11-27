@@ -433,6 +433,7 @@ export function UsersSection({
       {/* Provision User Modal */}
       {isModalOpen && (
         <div
+          className="paladio-modal-backdrop"
           style={{
             position: 'fixed',
             inset: 0,
@@ -445,6 +446,7 @@ export function UsersSection({
           }}
         >
           <div
+            className="paladio-modal-panel"
             style={{
               background: 'var(--color-surface-card)',
               borderRadius: '16px',
@@ -614,6 +616,7 @@ export function UsersSection({
       {/* Edit User Profile Modal */}
       {editCandidate && (
         <div
+          className="paladio-modal-backdrop"
           style={{
             position: 'fixed',
             inset: 0,
@@ -627,6 +630,7 @@ export function UsersSection({
         >
           <div
             data-testid="edit-user-modal"
+            className="paladio-modal-panel"
             style={{
               background: 'var(--color-surface-card)',
               borderRadius: '16px',
@@ -920,6 +924,7 @@ export function UsersSection({
       {/* Confirm User Deletion Modal */}
       {deleteCandidate && (
         <div
+          className="paladio-modal-backdrop"
           style={{
             position: 'fixed',
             inset: 0,
@@ -932,6 +937,7 @@ export function UsersSection({
           }}
         >
           <div
+            className="paladio-modal-panel"
             style={{
               background: 'var(--color-surface-card)',
               borderRadius: '16px',

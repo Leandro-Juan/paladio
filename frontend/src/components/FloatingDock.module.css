@@ -72,7 +72,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: all 0.26s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: transform var(--transition-snappy, 200ms cubic-bezier(0.23, 1, 0.32, 1)), box-shadow var(--transition-snappy, 200ms cubic-bezier(0.23, 1, 0.32, 1)), background-color var(--transition-fast, 150ms ease);
 }
 
 [data-theme="dark"] .dock {
@@ -104,7 +104,7 @@
   align-items: center;
   justify-content: center;
   color: #FFFFFF;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
   flex-shrink: 0;
   position: relative;
 }
@@ -143,6 +143,7 @@
 
 /* Navigation List */
 .navList {
+  position: relative;
   list-style: none;
   display: flex;
   align-items: center;
@@ -151,8 +152,22 @@
   padding: 0;
 }
 
+.activePill {
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.32),
+    0 2px 8px rgba(8, 28, 36, 0.2);
+  z-index: 0;
+}
+
+.activePill[data-animate="false"] {
+  transition: none !important;
+}
+
 /* Nav Item Link */
 .navItem {
+  z-index: 1;
   display: flex;
   align-items: center;
   height: 40px;
@@ -162,19 +177,22 @@
   text-decoration: none;
   color: rgba(246, 240, 225, 0.82);
   background: transparent;
-  transition: 
-    background 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+  transition:
+    background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1),
     color 0.2s ease,
     box-shadow 0.2s ease,
-    padding 0.26s cubic-bezier(0.23, 1, 0.32, 1);
+    transform 0.14s cubic-bezier(0.23, 1, 0.32, 1);
   position: relative;
-  outline: none;
   cursor: pointer;
 }
 
 .navItem:hover {
   background: rgba(255, 255, 255, 0.14);
   color: #FFFFFF;
+}
+
+.navItem:active {
+  transform: scale(0.96);
 }
 
 .navItem:focus-visible {
@@ -184,9 +202,12 @@
 
 /* Active State */
 .navItem.active {
-  background: rgba(255, 255, 255, 0.22);
   color: #FFFFFF;
-  box-shadow: 
+}
+
+.navItem.active:not([data-pill-ready="true"]) {
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.32),
     0 2px 8px rgba(8, 28, 36, 0.2);
 }
@@ -250,11 +271,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .dockContainer,
+  .peekBar,
   .dock,
   .navItem,
   .label,
-  .brandLogo {
-    transition: none !important;
+  .brandLogo,
+  .telemetryDot {
+    transition: opacity 90ms ease-out !important;
     animation: none !important;
   }
 }

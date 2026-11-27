@@ -320,3 +320,118 @@ async def test_trip_creation_seeds_scanned_documents(async_client: AsyncClient):
     assert flight_ticket["holder_name"] == "Lynsey-Anne Duncan-Williams"
     assert flight_ticket["seat_or_room"] == "28A"
     assert flight_ticket["status"] == "confirmed"
+
+
+@pytest.mark.asyncio
+async def test_sync_overnight_bare_time_flight_reconciles_seeded_tickets(
+    db_session: AsyncSession,
+):
+    from app.db.models import TripModel
+    from app.wallet.seeding import sync_trip_tickets
+
+    trip_id = f"overnight-{uuid.uuid4().hex[:8]}"
+    trip = TripModel(
+        id=trip_id,
+        destination="Tokyo",
+        start_date="2026-12-08",
+        end_date="2026-12-12",
+        itinerary_data={
+            "days": [
+                {
+                    "day": 1,
+                    "date": "2026-12-08",
+                    "flight_info": {
+                        "origin_iata": "MAD",
+                        "destination_iata": "HND",
+                        "departure_time": "10:15",
+                        "arrival_time": "08:30",
+                        "airline": "ANA",
+                        "flight_number": "NH 206",
+                        "pnr": "TYO88K",
+                    },
+                }
+            ]
+        },
+    )
+    db_session.add(trip)
+    db_session.add(
+        TripTicketModel(
+            id=f"{trip_id}-tkt-1",
+            trip_id=trip_id,
+            ticket_type="flight",
+            title="ANA NH 206 (MAD → HND)",
+            provider="ANA",
+            reference_code="TYO88K",
+            source="itinerary",
+            source_ref=f"{trip_id}-tkt-1",
+            ticket_metadata={
+                "origin_iata": "MAD",
+                "destination_iata": "HND",
+                "flight_number": "NH 206",
+            },
+        )
+    )
+    db_session.add(
+        TripTicketModel(
+            id=f"{trip_id}-tkt-4",
+            trip_id=trip_id,
+            ticket_type="attraction",
+            title="Sensō-ji — Timed Entry",
+            provider="Sensō-ji",
+            reference_code="ENT-TOK-104",
+            source="itinerary",
+            source_ref=f"{trip_id}-tkt-4",
+        )
+    )
+    await db_session.commit()
+
+    res = await sync_trip_tickets(trip, db_session)
+    assert res["created_count"] == 0
+    assert res["updated_count"] == 1
+
+    rows = (
+        (
+            await db_session.execute(
+                select(TripTicketModel).where(TripTicketModel.trip_id == trip_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 2
+    flt = next(r for r in rows if r.ticket_type == "flight")
+    assert flt.start_time is not None and flt.end_time is not None
+    assert flt.end_time >= flt.start_time
+
+
+@pytest.mark.asyncio
+async def test_wallet_storage_blocks_dot_wipe_and_meta_collision(tmp_path, monkeypatch):
+    from app.services import wallet_storage
+
+    base = tmp_path / "wallet_base"
+    temp = base / "temp"
+    base.mkdir()
+    temp.mkdir()
+    monkeypatch.setattr(wallet_storage, "STORAGE_BASE_DIR", base)
+    monkeypatch.setattr(wallet_storage, "TEMP_STORAGE_DIR", temp)
+
+    for bad_part in ("", ".", "..", "../other", "sub/dir"):
+        with pytest.raises(ValueError):
+            wallet_storage._safe_join(base, bad_part)
+
+    with pytest.raises(ValueError):
+        wallet_storage._safe_join(base)
+
+    # Filename colliding with metadata + newline injection in mime_type
+    upload_id = await wallet_storage.save_temp_upload(
+        content=b"PDF_BYTES",
+        filename="meta.json",
+        mime_type="application/pdf\nforged_filename.txt",
+    )
+    loaded = await wallet_storage.get_temp_upload(upload_id)
+    assert loaded is not None
+    content, safe_name, clean_mime = loaded
+    assert content == b"PDF_BYTES"
+    assert safe_name == "upload.bin"
+    assert "\n" not in clean_mime
+    assert "\r" not in clean_mime

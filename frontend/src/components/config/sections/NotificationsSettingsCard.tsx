@@ -269,7 +269,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* 1. Pushify Tab */}
           {subTab === 'pushify' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div key="pushify" className="animate-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
@@ -447,7 +447,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
 
           {/* 2. Pushover & Ntfy Tab */}
           {subTab === 'pushover' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div key="pushover" className="animate-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               {/* Pushover */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingBottom: '16px', borderBottom: '1px solid var(--color-border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -743,7 +743,7 @@ export function NotificationsSettingsCard({ isAdmin, initialSubTab }: Notificati
 
           {/* 3. Custom Webhooks Tab */}
           {subTab === 'webhooks' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div key="webhooks" className="animate-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>

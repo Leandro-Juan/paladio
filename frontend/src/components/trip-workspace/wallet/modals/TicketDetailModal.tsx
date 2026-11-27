@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { TripTicket } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { CodeRenderer } from '../codes/CodeRenderer';
@@ -30,6 +31,12 @@ export function TicketDetailModal({
   const { t, locale } = useTranslation();
   const isMounted = useIsMounted();
   const [wakeLockActive, setWakeLockActive] = useState(false);
+  const [cachedTicket, setCachedTicket] = useState<TripTicket | null>(ticket);
+  if (ticket && ticket !== cachedTicket) {
+    setCachedTicket(ticket);
+  }
+  const activeTicket = ticket ?? cachedTicket;
+  const { shouldRender, dataState } = useAnimatedMount(isOpen && Boolean(activeTicket), 150);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -86,11 +93,11 @@ export function TicketDetailModal({
     };
   }, [isOpen]);
 
-  if (!isOpen || !ticket || !isMounted) return null;
+  if (!shouldRender || !activeTicket || !isMounted) return null;
 
-  const typeConfig = TICKET_TYPE_CONFIG[ticket.ticket_type] || TICKET_TYPE_CONFIG.other;
-  const meta = ticket.metadata || {};
-  const currentIndex = tickets.findIndex((tk) => tk.id === ticket.id);
+  const typeConfig = TICKET_TYPE_CONFIG[activeTicket.ticket_type] || TICKET_TYPE_CONFIG.other;
+  const meta = activeTicket.metadata || {};
+  const currentIndex = tickets.findIndex((tk) => tk.id === activeTicket.id);
 
   let codeSection: React.ReactNode = (
     <div
@@ -112,7 +119,7 @@ export function TicketDetailModal({
     </div>
   );
 
-  if (ticket.barcode_value) {
+  if (activeTicket.barcode_value) {
     codeSection = (
       <div
         style={{
@@ -130,8 +137,8 @@ export function TicketDetailModal({
         }}
       >
         <CodeRenderer
-          value={ticket.barcode_value}
-          format={ticket.barcode_format || 'qr'}
+          value={activeTicket.barcode_value}
+          format={activeTicket.barcode_format || 'qr'}
           size={220}
         />
         <span
@@ -145,7 +152,7 @@ export function TicketDetailModal({
             maxWidth: '280px',
           }}
         >
-          {ticket.barcode_value}
+          {activeTicket.barcode_value}
         </span>
       </div>
     );
@@ -155,6 +162,8 @@ export function TicketDetailModal({
     <div
       role="dialog"
       aria-modal="true"
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       style={{
         position: 'fixed',
         inset: 0,
@@ -171,6 +180,8 @@ export function TicketDetailModal({
       }}
     >
       <div
+        className="paladio-modal-panel"
+        data-state={dataState}
         style={{
           background: 'var(--color-surface-card)',
           border: '1px solid var(--color-border-subtle)',
@@ -278,18 +289,18 @@ export function TicketDetailModal({
         >
           {/* Main Title & Provider */}
           <div style={{ textAlign: 'center', width: '100%' }}>
-            {ticket.provider && (
+            {activeTicket.provider && (
               <div style={{ fontSize: '12px', color: 'var(--color-text-muted, #64748B)', fontWeight: 600, letterSpacing: '0.5px' }}>
-                {ticket.provider.toUpperCase()}
+                {activeTicket.provider.toUpperCase()}
               </div>
             )}
             <h2
               className="font-display"
               style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)', margin: '4px 0 0 0' }}
             >
-              {ticket.title}
+              {activeTicket.title}
             </h2>
-            {ticket.location_or_venue && (
+            {activeTicket.location_or_venue && (
               <div
                 style={{
                   fontSize: '11px',
@@ -301,7 +312,7 @@ export function TicketDetailModal({
                 }}
               >
                 <PinIcon size={12} color="var(--color-text-muted, #64748B)" />
-                {ticket.location_or_venue}
+                {activeTicket.location_or_venue}
               </div>
             )}
           </div>
@@ -322,41 +333,41 @@ export function TicketDetailModal({
               padding: '1rem',
             }}
           >
-            {ticket.seat_or_room && (
+            {activeTicket.seat_or_room && (
               <div>
                 <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.field_seat_room')}</div>
                 <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
-                  {ticket.seat_or_room}
+                  {activeTicket.seat_or_room}
                 </div>
               </div>
             )}
 
-            {ticket.booking_reference && (
+            {activeTicket.booking_reference && (
               <div>
                 <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.field_reference_pnr')}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
-                    {ticket.booking_reference}
+                    {activeTicket.booking_reference}
                   </span>
-                  <CopyButton text={ticket.booking_reference} label={t('wallet.copy_pnr')} size="sm" />
+                  <CopyButton text={activeTicket.booking_reference} label={t('wallet.copy_pnr')} size="sm" />
                 </div>
               </div>
             )}
 
-            {ticket.start_time && (
+            {activeTicket.start_time && (
               <div>
                 <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.field_start_schedule')}</div>
                 <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary, #0F172A)' }}>
-                  {formatTicketDateTime(ticket.start_time, ticket.start_tz, locale)}
+                  {formatTicketDateTime(activeTicket.start_time, activeTicket.start_tz, locale)}
                 </div>
               </div>
             )}
 
-            {ticket.end_time && (
+            {activeTicket.end_time && (
               <div>
                 <div style={{ fontSize: '10px', color: 'var(--color-text-muted, #64748B)' }}>{t('wallet.field_end_expiry')}</div>
                 <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary, #0F172A)' }}>
-                  {formatTicketDateTime(ticket.end_time, ticket.end_tz, locale)}
+                  {formatTicketDateTime(activeTicket.end_time, activeTicket.end_tz, locale)}
                 </div>
               </div>
             )}

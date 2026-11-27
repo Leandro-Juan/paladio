@@ -10,6 +10,7 @@ import re
 from datetime import date, datetime, timezone
 import httpx
 from app.db.models import CityModel, DestinationAirportModel
+from app.engine.market.booking_links import build_hotel_booking_url
 from app.engine.market.ports import LodgingQuote
 from app.engine.market.providers.base import (
     BaseQuoteProvider,
@@ -86,7 +87,13 @@ class BookingScraperProvider(BaseQuoteProvider):
         return code_clean
 
     def _parse_html_offers(
-        self, html: str, destination_code: str, check_in: date, check_out: date
+        self,
+        html: str,
+        destination_code: str,
+        check_in: date,
+        check_out: date,
+        city_name: str | None = None,
+        adults: int = 2,
     ) -> list[LodgingQuote]:
         """
         Parses structured property data (JSON-LD blocks and search result attributes) from HTML.
@@ -155,7 +162,15 @@ class BookingScraperProvider(BaseQuoteProvider):
                                         longitude=None,
                                         taxes_included=True,
                                         estimated_fee_ratio=1.0,
-                                        deep_link=p_url or self.SEARCH_URL,
+                                        deep_link=build_hotel_booking_url(
+                                            destination=destination_code,
+                                            property_name=p_name,
+                                            city_name=city_name,
+                                            check_in=check_in,
+                                            check_out=check_out,
+                                            deep_link=p_url,
+                                            travelers=adults,
+                                        ),
                                         source="booking",
                                         observed_at=now,
                                         is_live=True,
@@ -195,7 +210,14 @@ class BookingScraperProvider(BaseQuoteProvider):
                             longitude=None,
                             taxes_included=True,
                             estimated_fee_ratio=None,
-                            deep_link=self.SEARCH_URL,
+                            deep_link=build_hotel_booking_url(
+                                destination=destination_code,
+                                property_name=title,
+                                city_name=city_name,
+                                check_in=check_in,
+                                check_out=check_out,
+                                travelers=adults,
+                            ),
                             source="booking",
                             observed_at=now,
                             is_live=True,
@@ -305,7 +327,15 @@ class BookingScraperProvider(BaseQuoteProvider):
                     longitude=None,
                     taxes_included=True,
                     estimated_fee_ratio=1.0,
-                    deep_link=link or self.SEARCH_URL,
+                    deep_link=build_hotel_booking_url(
+                        destination=destination_code,
+                        property_name=title,
+                        city_name=city,
+                        check_in=check_in,
+                        check_out=check_out,
+                        deep_link=link,
+                        travelers=adults,
+                    ),
                     source="booking_playwright",
                     observed_at=now,
                     is_live=True,
@@ -366,7 +396,12 @@ class BookingScraperProvider(BaseQuoteProvider):
                     )
 
                 quotes = self._parse_html_offers(
-                    resp.text, destination_code, check_in, check_out
+                    resp.text,
+                    destination_code,
+                    check_in,
+                    check_out,
+                    city_name=city_name,
+                    adults=adults,
                 )
                 if not quotes:
                     return await self._scrape_with_playwright(

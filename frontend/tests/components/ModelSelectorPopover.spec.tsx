@@ -4,50 +4,50 @@ import { LLMConfigResponse } from '@/utils/api';
 
 test.describe('ModelSelectorPopover Component', () => {
   const mockConfig: LLMConfigResponse = {
-    provider: 'google_genai',
-    model: 'gemini-3-flash-preview',
+    provider: 'google',
+    model: 'gemini-3.8-flash',
     base_url: null,
     has_api_key: true,
     masked_api_key: 'AIza...1234',
     supported_providers: {
-      google_genai: {
+      google: {
         name: 'Google Gemini',
-        default_base_url: null,
+        default_base_url: 'https://generativelanguage.googleapis.com',
         requires_key: true,
-        recommended_models: ['gemini-3-flash-preview', 'gemini-3.8-flash'],
-        default_model: 'gemini-3-flash-preview',
+        recommended_models: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'],
+        default_model: 'gemini-3.8-flash',
       },
       anthropic: {
-        name: 'Anthropic Claude',
-        default_base_url: null,
+        name: 'Anthropic (Claude)',
+        default_base_url: 'https://api.anthropic.com',
         requires_key: true,
-        recommended_models: ['claude-3-5-sonnet', 'claude-3-5-haiku'],
-        default_model: 'claude-3-5-sonnet',
+        recommended_models: ['claude-sonnet-5-5', 'claude-haiku-5-5'],
+        default_model: 'claude-sonnet-5-5',
       },
       openai: {
         name: 'OpenAI',
-        default_base_url: null,
+        default_base_url: 'https://api.openai.com/v1',
         requires_key: true,
-        recommended_models: ['gpt-4o', 'gpt-4o-mini'],
-        default_model: 'gpt-4o',
+        recommended_models: ['gpt-6.2-sol', 'gpt-6-luna'],
+        default_model: 'gpt-6.2-sol',
       },
     },
     configured_providers: {
-      google_genai: {
-        provider: 'google_genai',
+      google: {
+        provider: 'google',
         name: 'Google Gemini',
         is_active: true,
-        active_model: 'gemini-3-flash-preview',
-        available_models: ['gemini-3-flash-preview', 'gemini-3.8-flash'],
+        active_model: 'gemini-3.8-flash',
+        available_models: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'],
         masked_key: 'AIza...1234',
         requires_key: true,
       },
       anthropic: {
         provider: 'anthropic',
-        name: 'Anthropic Claude',
+        name: 'Anthropic (Claude)',
         is_active: false,
-        active_model: 'claude-3-5-sonnet',
-        available_models: ['claude-3-5-sonnet', 'claude-3-5-haiku'],
+        active_model: 'claude-sonnet-5-5',
+        available_models: ['claude-sonnet-5-5', 'claude-haiku-5-5'],
         masked_key: 'sk-ant...5678',
         requires_key: true,
       },
@@ -63,8 +63,8 @@ test.describe('ModelSelectorPopover Component', () => {
         isOpen={true}
         onClose={() => {}}
         llmConfig={mockConfig}
-        currentProvider="google_genai"
-        currentModel="gemini-3-flash-preview"
+        currentProvider="google"
+        currentModel="gemini-3.8-flash"
         onSelectModel={(prov, model) => {
           selectedProvider = prov;
           selectedModel = model;
@@ -78,7 +78,7 @@ test.describe('ModelSelectorPopover Component', () => {
 
     // Verify family headers for available providers
     await expect(component.getByText('Google Gemini')).toBeVisible();
-    await expect(component.getByText('Anthropic Claude')).toBeVisible();
+    await expect(component.getByText('Anthropic (Claude)')).toBeVisible();
 
     // Verify unconfigured providers (e.g. OpenAI) are not shown
     await expect(component.getByText('OpenAI')).not.toBeVisible();
@@ -88,18 +88,18 @@ test.describe('ModelSelectorPopover Component', () => {
     await expect(component.getByText(/^ADVANCED$/i)).not.toBeVisible();
 
     // Verify models are displayed
-    await expect(component.getByText('gemini-3-flash-preview')).toBeVisible();
     await expect(component.getByText('gemini-3.8-flash')).toBeVisible();
-    await expect(component.getByText('claude-3-5-sonnet')).toBeVisible();
+    await expect(component.getByText('gemini-3.5-flash-lite')).toBeVisible();
+    await expect(component.getByText('claude-sonnet-5-5')).toBeVisible();
 
     // Search for claude models
     await searchInput.fill('claude');
-    await expect(component.getByText('claude-3-5-sonnet')).toBeVisible();
-    await expect(component.getByText('gemini-3-flash-preview')).not.toBeVisible();
+    await expect(component.getByText('claude-sonnet-5-5')).toBeVisible();
+    await expect(component.getByText('gemini-3.8-flash')).not.toBeVisible();
 
     // Click claude model
-    await component.getByText('claude-3-5-sonnet').click();
+    await component.getByText('claude-sonnet-5-5').click();
     expect(selectedProvider).toBe('anthropic');
-    expect(selectedModel).toBe('claude-3-5-sonnet');
+    expect(selectedModel).toBe('claude-sonnet-5-5');
   });
 });

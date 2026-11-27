@@ -23,6 +23,7 @@ import {
 import { CustomHourPickerModal } from '@/components/trip-creation/CustomHourPickerModal';
 import { useTranslation } from '@/hooks/useTranslation';
 import { translate } from '@/stores/localeStore';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 
 export interface DirectionSite {
   name: string;
@@ -159,6 +160,18 @@ export function TripTransitDirectionsView({
   const [timeValue, setTimeValue] = useState<string>('09:00');
   const [isHourPickerOpen, setIsHourPickerOpen] = useState<boolean>(false);
   const [isDayMenuOpen, setIsDayMenuOpen] = useState<boolean>(false);
+  const { shouldRender: showOriginMenu, isClosing: isOriginMenuClosing } = useAnimatedMount(
+    isOriginMenuOpen,
+    150
+  );
+  const { shouldRender: showDestMenu, isClosing: isDestMenuClosing } = useAnimatedMount(
+    isDestMenuOpen,
+    150
+  );
+  const { shouldRender: showDayMenu, isClosing: isDayMenuClosing } = useAnimatedMount(
+    isDayMenuOpen,
+    150
+  );
 
   // Route Calculation State
   const [isCalculating, setIsCalculating] = useState<boolean>(false);
@@ -1185,7 +1198,7 @@ export function TripTransitDirectionsView({
                 : '1px solid var(--color-border)',
               borderRadius: '9999px',
               padding: '6px 10px 6px 12px',
-              transition: 'all 0.15s ease',
+              transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
             }}
           >
             <span
@@ -1275,8 +1288,11 @@ export function TripTransitDirectionsView({
           </div>
 
           {/* Origin Autocomplete Dropdown */}
-          {isOriginMenuOpen && (
+          {showOriginMenu && (
             <div
+              className="paladio-popover"
+              data-origin="top"
+              data-state={isOriginMenuClosing ? 'closing' : 'open'}
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 6px)',
@@ -1345,7 +1361,7 @@ export function TripTransitDirectionsView({
                 : '1px solid var(--color-border)',
               borderRadius: '9999px',
               padding: '6px 10px 6px 12px',
-              transition: 'all 0.15s ease',
+              transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
             }}
           >
             <span
@@ -1435,8 +1451,11 @@ export function TripTransitDirectionsView({
           </div>
 
           {/* Destination Autocomplete Dropdown */}
-          {isDestMenuOpen && (
+          {showDestMenu && (
             <div
+              className="paladio-popover"
+              data-origin="top"
+              data-state={isDestMenuClosing ? 'closing' : 'open'}
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 6px)',
@@ -1525,7 +1544,7 @@ export function TripTransitDirectionsView({
               fontWeight: 600,
               cursor: 'pointer',
               boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-              transition: 'all 0.15s ease',
+              transition: 'border-color var(--transition-fast), background-color var(--transition-fast)',
             }}
           >
             <span>
@@ -1538,13 +1557,16 @@ export function TripTransitDirectionsView({
               color="var(--color-text-muted)"
               style={{
                 transform: isDayMenuOpen ? 'rotate(180deg)' : 'none',
-                transition: 'transform 0.15s ease',
+                transition: 'transform var(--transition-snappy)',
               }}
             />
           </button>
 
-          {isDayMenuOpen && (
+          {showDayMenu && (
             <div
+              className="paladio-popover"
+              data-origin="top"
+              data-state={isDayMenuClosing ? 'closing' : 'open'}
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 4px)',
@@ -1678,7 +1700,7 @@ export function TripTransitDirectionsView({
               fontWeight: 700,
               cursor: 'pointer',
               boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-              transition: 'all 0.15s ease',
+              transition: 'border-color var(--transition-fast), background-color var(--transition-fast)',
             }}
             title={t('transit.dir_select_time_title')}
           >
@@ -1723,7 +1745,7 @@ export function TripTransitDirectionsView({
             fontSize: '12px',
             fontWeight: 700,
             cursor: !isOriginPinned || !isDestPinned || isCalculating ? 'not-allowed' : 'pointer',
-            transition: 'all 0.15s ease',
+            transition: 'background-color var(--transition-fast), opacity var(--transition-fast)',
           }}
         >
           {isCalculating ? (
@@ -1932,6 +1954,8 @@ export function TripTransitDirectionsView({
 
           {/* Active Route Step-by-Step View */}
           <div
+            key={activeLegView}
+            className="animate-tab-pane"
             style={{
               background: 'var(--color-surface-card)',
               border: '1px solid var(--color-border)',
@@ -2001,7 +2025,7 @@ export function TripTransitDirectionsView({
                 border: '1px solid var(--color-border)',
                 background: 'var(--color-surface-raised)',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                transition: 'border-color var(--transition-fast), background-color var(--transition-fast)',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = 'var(--color-accent-primary)';

@@ -251,6 +251,17 @@ async def ensure_city_ready(city: str, poi_repo: IPoiRepository) -> CityReadines
                 )
 
         final_state = await _count_state(name, poi_repo)
+        if ingested_now:
+            try:
+                from app.tasks import enrich_long_tail_city_pois_task
+
+                enrich_long_tail_city_pois_task.delay(
+                    name, city_id=city_obj.id if city_obj else None
+                )
+            except Exception as exc:
+                logger.debug(
+                    f"Could not queue background Tier 3/4 embedding enrichment for '{name}': {exc}"
+                )
         notes: list[str] = []
         if final_state.dining < MIN_DINING_VENUES:
             notes.append(

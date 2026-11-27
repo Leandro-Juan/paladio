@@ -69,7 +69,7 @@
   color: var(--color-text-muted, #566B76);
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
   letter-spacing: 0.04em;
 }
 
@@ -101,7 +101,7 @@
   color: var(--color-text-muted, #566B76);
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .rangeBtn:hover {
@@ -154,7 +154,7 @@
   border: 1px solid var(--color-border, #E2D9CC);
   border-radius: 4px;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
   line-height: 1;
 }
 
@@ -413,4 +413,14 @@
   background: rgba(15, 76, 92, 0.09);
   border: 1px dashed rgba(15, 76, 92, 0.3);
   border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .corpusBanner,
+  .chartWrapper :global(.recharts-area),
+  .chartWrapper :global(.recharts-reference-line) {
+    animation: none;
+    clip-path: none;
+    opacity: 1;
+  }
 }

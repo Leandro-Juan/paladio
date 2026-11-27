@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { UserIcon, PlusIcon, CloseIcon, CheckIcon, Spinner } from '@/components/icons';
 import { useTrips, CollaboratorOption } from '@/hooks/useTrips';
 
@@ -39,6 +40,7 @@ export function ParticipantsManager({
 
   const { getCollaboratorOptions } = useTrips();
   const modalRef = useRef<HTMLDivElement>(null);
+  const modalMount = useAnimatedMount(isOpen, 150);
 
   const handleOpen = () => {
     if (disabled) return;
@@ -333,8 +335,10 @@ export function ParticipantsManager({
       </div>
 
       {/* ================= MODAL POPOVER FOR ADDING PARTICIPANTS ================= */}
-      {isOpen && (
+      {modalMount.shouldRender && (
         <div
+          className="paladio-modal-backdrop"
+          data-state={modalMount.dataState}
           style={{
             position: 'fixed',
             inset: 0,
@@ -345,11 +349,14 @@ export function ParticipantsManager({
             alignItems: 'center',
             justifyContent: 'center',
             padding: '16px',
-            animation: 'fadeIn 0.15s ease-out',
           }}
         >
           <div
             ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            className="paladio-modal-panel"
+            data-state={modalMount.dataState}
             style={{
               width: '100%',
               maxWidth: '520px',

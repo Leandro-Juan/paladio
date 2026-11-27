@@ -11,7 +11,7 @@
 * **demo:** standalone encrypted `demo` branch with per-user hourly sandboxes, copy-on-write media, and optional Upstash Redis persistence
 * **deploy:** self-hosted installers and automated multi-arch Docker image publishing
 
-## [2.0.0](https://github.com/Leandro-Juan/paladio/compare/paladio-v1.2.0...v2.0.0) (2026-10-04)
+## [2.0.0](https://github.com/Leandro-Juan/paladio/compare/v1.0.0...v2.0.0) (2026-10-04)
 
 ### Features
 
@@ -22,7 +22,7 @@
 * **cpp_core:** C++20 TSPTW solver extension with dynamic arrival times, taxonomy categories, and expansion limiters
 * **auth:** user administration flow, profile management, and collapsible sidebar UserMenu
 
-## [1.2.0](https://github.com/Leandro-Juan/paladio/compare/paladio-v1.1.0...paladio-v1.2.0) (2026-10-02)
+## 1.2.0 (2026-10-02)
 
 
 ### Features

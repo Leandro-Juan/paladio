@@ -324,13 +324,12 @@ function createWaypointCenterIcon(): L.DivIcon {
         user-select: none;
         -webkit-user-drag: none;
       ">
-        <div style="
+        <div class="paladio-ping" style="
           position: absolute;
           width: 32px;
           height: 32px;
           border-radius: 50%;
           background: rgba(15, 76, 92, 0.25);
-          animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
           pointer-events: none;
         "></div>
         <div style="
@@ -780,7 +779,7 @@ function renderTeardropPinHtml({
     : 'rgba(255, 255, 255, 0.45)';
 
   const innerContent = photoUrl
-    ? `<img src="${photoUrl}" alt="${nameSafe}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`
+    ? `<img draggable="false" src="${photoUrl}" alt="${nameSafe}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`
     : `<div style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`;
 
   const stopBadge = typeof stopNumber === 'number'
@@ -1285,6 +1284,9 @@ function MapViewportController({
   // Allow dragging any POI marker directly from the map into route day slots
   useEffect(() => {
     if (!map || readOnly) return;
+    let isMapDragActive = false;
+    let cleanupTimer: number | null = null;
+
     const handleDragStart = (e: DragEvent) => {
       const target = (e.target as HTMLElement)?.closest('[data-paladio-draggable-poi]');
       if (!target) return;
@@ -1297,6 +1299,11 @@ function MapViewportController({
         } catch {
           poiData = JSON.parse(decodeURIComponent(raw));
         }
+        if (cleanupTimer !== null) {
+          window.clearTimeout(cleanupTimer);
+          cleanupTimer = null;
+        }
+        isMapDragActive = true;
         startCustomDragPreview(e, {
           name: poiData.name,
           category: poiData.category,
@@ -1314,7 +1321,11 @@ function MapViewportController({
           e.dataTransfer.setData('text/plain', serialized);
           e.dataTransfer.effectAllowed = 'copyMove';
         }
-        window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+        window.requestAnimationFrame(() => {
+          if ((window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi) {
+            window.dispatchEvent(new CustomEvent('paladio:switch-to-route'));
+          }
+        });
       } catch (err) {
         console.warn('Failed to parse draggable poi payload from map', err);
       }
@@ -1331,8 +1342,24 @@ function MapViewportController({
       if (map && !map.dragging.enabled()) {
         map.dragging.enable();
       }
+      const win =
+        typeof window !== 'undefined'
+          ? (window as unknown as { __paladioActivePoi?: unknown; __paladioActiveSearchPoi?: unknown })
+          : null;
+      const hasActiveDrag =
+        isMapDragActive ||
+        Boolean(document.querySelector('[data-paladio-custom-drag-preview]')) ||
+        Boolean(win?.__paladioActivePoi || win?.__paladioActiveSearchPoi);
+      if (!hasActiveDrag) {
+        return;
+      }
+      isMapDragActive = false;
       cleanupCustomDragPreview(false);
-      window.setTimeout(() => {
+      if (cleanupTimer !== null) {
+        window.clearTimeout(cleanupTimer);
+      }
+      cleanupTimer = window.setTimeout(() => {
+        cleanupTimer = null;
         if (typeof window !== 'undefined') {
           (window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi = null;
           (window as unknown as { __paladioActiveSearchPoi?: unknown }).__paladioActiveSearchPoi = null;
@@ -1357,6 +1384,7 @@ function MapViewportController({
     };
 
     const handlePaladioDragEnded = () => {
+      isMapDragActive = false;
       if (map && !map.dragging.enabled()) {
         map.dragging.enable();
       }
@@ -1371,6 +1399,10 @@ function MapViewportController({
     document.addEventListener('mouseup', handleMouseUp, true);
     window.addEventListener('paladio:drag-ended', handlePaladioDragEnded);
     return () => {
+      if (cleanupTimer !== null) {
+        window.clearTimeout(cleanupTimer);
+        cleanupTimer = null;
+      }
       document.removeEventListener('dragstart', handleDragStart);
       document.removeEventListener('dragend', handleMouseUp, true);
       document.removeEventListener('mousedown', handleMouseDown, true);
@@ -1701,6 +1733,13 @@ export default function TripMapView({
 
   const handleDayHoverStart = useCallback((dayNumber: number) => {
     if (activeDay !== 'all') return;
+    if (
+      typeof window !== 'undefined' &&
+      ((window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi ||
+        document.querySelector('[data-paladio-custom-drag-preview]'))
+    ) {
+      return;
+    }
     if (hoverEndTimerRef.current) {
       clearTimeout(hoverEndTimerRef.current);
       hoverEndTimerRef.current = null;
@@ -1716,6 +1755,13 @@ export default function TripMapView({
 
   const handleDayHoverEnd = useCallback(() => {
     if (activeDay !== 'all') return;
+    if (
+      typeof window !== 'undefined' &&
+      ((window as unknown as { __paladioActivePoi?: unknown }).__paladioActivePoi ||
+        document.querySelector('[data-paladio-custom-drag-preview]'))
+    ) {
+      return;
+    }
     if (hoverEndTimerRef.current) clearTimeout(hoverEndTimerRef.current);
     hoverEndTimerRef.current = setTimeout(() => {
       setHoveredDay(null);
@@ -2223,6 +2269,13 @@ export default function TripMapView({
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1000,
+            pointerEvents: 'none',
+          }}
+        >
+        <div
+          className="paladio-popover"
+          data-origin="top"
+          style={{
             background: 'rgba(15, 76, 92, 0.95)',
             backdropFilter: 'blur(8px)',
             color: '#FFFFFF',
@@ -2263,6 +2316,7 @@ export default function TripMapView({
             <CloseIcon size={10} />
           </button>
         </div>
+        </div>
       )}
 
       {/* Tactical Waypoint Dropping Active Banner */}
@@ -2274,6 +2328,13 @@ export default function TripMapView({
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1000,
+            pointerEvents: 'none',
+          }}
+        >
+        <div
+          className="paladio-popover"
+          data-origin="top"
+          style={{
             background: 'rgba(15, 76, 92, 0.95)',
             backdropFilter: 'blur(8px)',
             color: '#FFFFFF',
@@ -2310,6 +2371,7 @@ export default function TripMapView({
           >
             <CloseIcon size={10} />
           </button>
+        </div>
         </div>
       )}
 
@@ -3533,13 +3595,22 @@ export default function TripMapView({
       {/* Floating Active Transit Line Banner */}
       {activeTransitLine && (
         <div
-          data-testid="active-transit-line-banner"
+          className="paladio-drawer-panel"
           style={{
             position: 'absolute',
             top: '20px',
-            left: isSidebarOpen ? 'calc(50% + 180px)' : '50%',
-            transform: 'translateX(-50%)',
+            left: '50%',
+            transform: isSidebarOpen ? 'translateX(calc(-50% + 180px))' : 'translateX(-50%)',
+            transition: 'transform var(--transition-gentle)',
             zIndex: 900,
+            pointerEvents: 'none',
+          }}
+        >
+        <div
+          data-testid="active-transit-line-banner"
+          className="paladio-popover"
+          data-origin="top"
+          style={{
             background: 'var(--color-surface-card, #FFFFFF)',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
@@ -3553,7 +3624,7 @@ export default function TripMapView({
             fontFamily: 'var(--font-sans, inherit)',
             fontSize: '12px',
             pointerEvents: 'auto',
-            transition: 'all 0.25s ease',
+            transition: 'border-color var(--transition-fast)',
           }}
         >
           <span
@@ -3602,19 +3673,22 @@ export default function TripMapView({
             </button>
           )}
         </div>
+        </div>
       )}
 
       {/* Floating Detailed Transit Route Legend */}
       {transitMode === 'detailed' && (
         <div
           data-testid="detailed-transit-legend"
+          className="paladio-drawer-panel"
           style={{
             position: 'absolute',
             bottom: '28px',
-            left: isSidebarOpen
-              ? `calc(${sidebarTab === 'route' ? 'min(380px, calc(100vw - 32px))' : 'min(520px, calc(100vw - 32px))'} + 84px)`
-              : '84px',
-            transition: 'left 0.28s cubic-bezier(0.23, 1, 0.32, 1)',
+            left: '84px',
+            transform: isSidebarOpen
+              ? `translateX(${sidebarTab === 'route' ? 'min(380px, calc(100vw - 32px))' : 'min(520px, calc(100vw - 32px))'})`
+              : 'translateX(0)',
+            transition: 'transform var(--transition-gentle)',
             zIndex: 900,
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(12px)',

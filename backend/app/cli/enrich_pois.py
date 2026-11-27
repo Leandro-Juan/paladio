@@ -222,8 +222,9 @@ async def enrich_city_pois(city: str | None = None, batch_size: int = 100):
 
             # Controlled Facets & Quality Score
             facets = FacetExtractor.extract_facets(poi_dict)
-            m.controlled_facets = facets.model_dump()
-            m.doc_quality_score = FacetExtractor.compute_doc_quality(
+            m.facets = facets.model_dump()
+            poi_dict["controlled_facets"] = m.facets
+            m.doc_quality = FacetExtractor.compute_doc_quality(
                 poi=poi_dict,
                 has_wikidata=bool(m.wikidata_id),
                 has_wikipedia=bool(m.wikipedia_title),

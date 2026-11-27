@@ -432,3 +432,108 @@ async def test_transit_derivation_full_pipeline(db_session):
             )
         )
         assert len(new_st.scalars().all()) == 3
+
+
+@pytest.mark.asyncio
+async def test_commit_build_rejects_severe_coverage_regression(db_session):
+    import uuid
+
+    suffix = uuid.uuid4().hex[:8]
+    city = f"metrotown_{suffix}"
+    old_build_id = f"old-rich-build-{suffix}"
+    new_build_id = f"new-partial-build-{suffix}"
+    session = db_session
+
+    session.add(
+        TransitCacheModel(
+            city=city,
+            status="READY",
+            gtfs_status="READY",
+            derived_status="READY",
+            active_build_id=old_build_id,
+        )
+    )
+    for i in range(25):
+        session.add(
+            TransitLineModel(
+                build_id=old_build_id,
+                city=city,
+                line_id=f"L{i}",
+                mode="Metro",
+                color="#0F4C5C",
+                text_color="#FFFFFF",
+                color_source="gtfs",
+            )
+        )
+    for i in range(40):
+        session.add(
+            TransitStationModel(
+                build_id=old_build_id,
+                city=city,
+                station_id=f"S{i}",
+                name=f"Station {i}",
+                lat=35.68 + i * 0.001,
+                lon=139.76 + i * 0.001,
+                stop_count=1,
+            )
+        )
+    await session.commit()
+
+    service = TransitDerivationService(session)
+    partial_lines = [
+        TransitLineModel(
+            build_id=new_build_id,
+            city=city,
+            line_id="L0",
+            mode="Metro",
+            color="#0F4C5C",
+            text_color="#FFFFFF",
+            color_source="gtfs",
+        )
+    ]
+    partial_stations = [
+        TransitStationModel(
+            build_id=new_build_id,
+            city=city,
+            station_id="S0",
+            name="Station 0",
+            lat=35.68,
+            lon=139.76,
+            stop_count=1,
+        )
+    ]
+
+    with pytest.raises(ValueError, match="Refusing to overwrite rich transit build"):
+        await service._commit_build(
+            build_id=new_build_id,
+            city_lower=city,
+            agencies=[],
+            lines=partial_lines,
+            stations=partial_stations,
+            patterns=[],
+            pattern_stops=[],
+            pattern_trips=[],
+            station_lines=[],
+            service_summaries=[],
+            service_days={},
+            shapes=[],
+            transfers=[],
+            fares=[],
+            fare_rules=[],
+            capabilities={},
+            quality_report={},
+            feed_valid_from=None,
+            feed_valid_to=None,
+        )
+
+    cache_row = (
+        (
+            await session.execute(
+                select(TransitCacheModel).where(TransitCacheModel.city == city)
+            )
+        )
+        .scalars()
+        .first()
+    )
+    assert cache_row is not None
+    assert cache_row.active_build_id == old_build_id

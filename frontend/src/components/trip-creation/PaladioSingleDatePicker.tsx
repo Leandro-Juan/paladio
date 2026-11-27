@@ -181,7 +181,7 @@ export function PaladioSingleDatePicker({
             justifyContent: 'center',
             cursor: 'pointer',
             color: 'var(--color-text-primary, #1A1A1A)',
-            transition: 'all 0.15s ease',
+            transition: 'background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast)',
           }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -211,7 +211,7 @@ export function PaladioSingleDatePicker({
             justifyContent: 'center',
             cursor: 'pointer',
             color: 'var(--color-text-primary, #1A1A1A)',
-            transition: 'all 0.15s ease',
+            transition: 'background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast)',
           }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -247,6 +247,8 @@ export function PaladioSingleDatePicker({
 
       {/* Days Grid */}
       <div
+        key={`${y}-${m}`}
+        className="animate-tab-pane"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(7, 1fr)',
@@ -299,7 +301,7 @@ export function PaladioSingleDatePicker({
                 fontFamily: 'var(--font-sans)',
                 fontSize: '12px',
                 fontWeight: cellFontWeight,
-                transition: 'all 0.12s ease',
+                transition: 'background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast)',
                 padding: 0,
               }}
             >

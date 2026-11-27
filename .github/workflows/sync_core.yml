@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'cpp_core/**'
-  workflow_dispatch: # Permite disparar la sincronización manualmente si lo necesitas
+  workflow_dispatch: # Allow manually triggering the sync when needed
 
 permissions:
   contents: read
@@ -14,6 +14,7 @@ permissions:
 jobs:
   sync-core:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout Paladio repository
         uses: actions/checkout@v7
@@ -21,7 +22,7 @@ jobs:
           fetch-depth: 0
 
       - name: Push cpp_core to paladio-core
-        uses: s0/git-publish-subdir-action@develop
+        uses: s0/git-publish-subdir-action@ac113f6bfe8896e85a373534242c949a7ea74c98 # develop
         env:
           REPO: git@github.com:Leandro-Juan/paladio-core.git
           BRANCH: main

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMounted } from '@/hooks/useIsMounted';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { TravelDocumentDraft, TicketType } from '@/hooks/useTripTickets';
 import { TICKET_TYPE_CONFIG } from '@/lib/wallet/ticketTypeConfig';
 import { CustomSelect } from '../parts/CustomSelect';
@@ -27,6 +28,12 @@ export function ScanReviewModal({
   onConfirmDrafts,
 }: ScanReviewModalProps) {
   const isMounted = useIsMounted();
+  const [cachedDrafts, setCachedDrafts] = useState<TravelDocumentDraft[]>(drafts);
+  if (drafts.length > 0 && drafts !== cachedDrafts) {
+    setCachedDrafts(drafts);
+  }
+  const activeDrafts = drafts.length > 0 ? drafts : cachedDrafts;
+  const { shouldRender, dataState } = useAnimatedMount(isOpen && activeDrafts.length > 0, 150);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -38,16 +45,17 @@ export function ScanReviewModal({
     };
   }, [isOpen]);
 
-  if (!isOpen || drafts.length === 0 || !isMounted) return null;
+  if (!shouldRender || activeDrafts.length === 0 || !isMounted) return null;
 
   return createPortal(
     <ScanReviewDialog
-      key={uploadId || drafts.map((d) => d.title).join('-')}
+      key={uploadId || activeDrafts.map((d) => d.title).join('-')}
       onClose={onClose}
-      drafts={drafts}
+      drafts={activeDrafts}
       uploadId={uploadId}
       rawTextExcerpt={rawTextExcerpt}
       onConfirmDrafts={onConfirmDrafts}
+      dataState={dataState}
     />,
     document.body
   );
@@ -59,12 +67,14 @@ function ScanReviewDialog({
   uploadId,
   rawTextExcerpt,
   onConfirmDrafts,
+  dataState,
 }: {
   onClose: () => void;
   drafts: TravelDocumentDraft[];
   uploadId?: string;
   rawTextExcerpt?: string;
   onConfirmDrafts: (drafts: TravelDocumentDraft[], uploadId?: string) => Promise<void>;
+  dataState: 'open' | 'closing';
 }) {
   const { t } = useTranslation();
   const [editedDrafts, setEditedDrafts] = useState<TravelDocumentDraft[]>(drafts);
@@ -150,6 +160,8 @@ function ScanReviewDialog({
     <div
       role="dialog"
       aria-modal="true"
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       style={{
         position: 'fixed',
         inset: 0,
@@ -166,6 +178,8 @@ function ScanReviewDialog({
       }}
     >
       <div
+        className="paladio-modal-panel"
+        data-state={dataState}
         style={{
           background: 'var(--color-surface-card)',
           border: '1px solid var(--color-border-subtle)',

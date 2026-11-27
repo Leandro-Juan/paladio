@@ -250,18 +250,18 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
           {[1, 2, 3].map((n) => (
             <div
               key={n}
+              className="paladio-skeleton"
               style={{
                 height: '180px',
-                background: 'var(--color-surface-card, #F8FAFC)',
                 border: '1px solid var(--color-border, #E2E8F0)',
                 borderRadius: '12px',
-                animation: 'pulse 1.5s ease-in-out infinite',
               }}
             />
           ))}
         </div>
       )}
 
+      <div key={category} className="animate-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* SECTION: FLIGHT BOARDING PASSES */}
       {(category === 'all' || category === 'flight') && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -554,6 +554,7 @@ export function TripWalletView({ tripId, itinerary }: TripWalletViewProps) {
           </div>
         </section>
       )}
+      </div>
 
       {/* Transit Pass Cost Solver Advisory Component */}
       <TransitAdvisorySection

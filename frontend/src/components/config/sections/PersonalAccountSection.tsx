@@ -99,6 +99,7 @@ export interface PersonalAccountSectionProps {
   onBackToOverview: () => void;
   currentUser: User | null;
   refreshUser: () => Promise<void>;
+  onProfileUpdated?: () => Promise<void> | void;
   getSafeAvatarUrl: (url: unknown) => string | null;
 }
 
@@ -106,6 +107,7 @@ export function PersonalAccountSection({
   onBackToOverview,
   currentUser,
   refreshUser,
+  onProfileUpdated,
   getSafeAvatarUrl,
 }: PersonalAccountSectionProps) {
   const { locale, t } = useTranslation();
@@ -389,9 +391,12 @@ export function PersonalAccountSection({
           preferences: updatedPrefs,
         });
         await refreshUser();
+        await onProfileUpdated?.();
       }
     } catch (err: unknown) {
       console.error('Failed to auto-save personal profile settings:', err);
+      const msg = err instanceof Error ? err.message : t('config.update_failed_title');
+      notify.error(t('config.update_failed_title'), msg);
     }
   };
 

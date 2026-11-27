@@ -18,10 +18,8 @@ import logging
 import os
 import sys
 import time
-import uuid
 
 import httpx
-import websockets
 
 # Ensure backend root is on sys.path
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -186,8 +184,6 @@ async def execute_frontend_trip_e2e(
     }
     log_step("AUTH", f"Generated authentication token for user '{user_id}'")
 
-    thread_id = f"paladio_{int(time.time())}_{uuid.uuid4().hex[:6]}"
-
     # Simulated flight and hotel anchors matching TripPreparationForm.tsx
     simulated_hotel = {
         "name": f"{destination_city} Center",
@@ -217,9 +213,21 @@ async def execute_frontend_trip_e2e(
         "flight_duration_minutes": 180,
     }
 
-    chat_payload = {
-        "thread_id": thread_id,
-        "message": prompt,
+    generate_payload = {
+        "prompt": prompt,
+        "destination_city": destination_city,
+        "origin_city": origin_city,
+        "start_date": start_date,
+        "end_date": end_date,
+        "budget_usd": budget_usd,
+        "auto_verify": True,
+        "test_mode": True,
+        "booking_anchors": {
+            "hotel": simulated_hotel,
+            "outbound_flight": simulated_outbound_flight,
+            "return_flight": simulated_return_flight,
+        },
+        "meals": active_meals,
         "manual_constraints": {
             "origin_city": origin_city,
             "destination_city": destination_city,
@@ -242,166 +250,69 @@ async def execute_frontend_trip_e2e(
         },
     }
 
-    ws_target_url = f"{ws_url}?token={token}"
-    events_received: list[dict] = []
-    latest_itinerary: dict | None = None
-    inference_complete = False
-
-    log_step("WS", f"Connecting to WebSocket endpoint {ws_target_url}...")
-
-    start_time = time.time()
-    reconnect_attempts = 0
-    max_reconnects = 3
-
-    while not inference_complete and (time.time() - start_time < timeout_seconds):
-        try:
-            async with websockets.connect(
-                ws_target_url, ping_timeout=None, ping_interval=None
-            ) as ws:
-                # Send attach frame matching SocketContext.tsx
-                attach_msg = json.dumps({"action": "attach", "thread_id": thread_id})
-                await ws.send(attach_msg)
-
-                # Send initial chat message on first connect
-                if not events_received:
-                    await ws.send(json.dumps(chat_payload))
-                    log_step(
-                        "TX",
-                        f"Submitted frontend mission payload for thread {thread_id}",
-                    )
-
-                while time.time() - start_time < timeout_seconds:
-                    try:
-                        raw_msg = await asyncio.wait_for(ws.recv(), timeout=25.0)
-                    except asyncio.TimeoutError:
-                        elapsed = int(time.time() - start_time)
-                        log_step(
-                            "HEARTBEAT", f"Waiting on solver... (elapsed: {elapsed}s)"
-                        )
-                        continue
-
-                    try:
-                        msg_json = json.loads(raw_msg)
-                    except Exception:
-                        continue
-
-                    event = msg_json.get("event")
-                    status = msg_json.get("status")
-                    events_received.append(msg_json)
-
-                    log_step("EVENT", f"{event} (status: {status})")
-
-                    # Handle Human-In-The-Loop Verification (Matches engine/page.tsx line 355 & SocketContext.tsx)
-                    if event == "VERIFICATION_REQUIRED":
-                        log_step(
-                            "HITL",
-                            "Verification requested: Auto-approving extracted constraints...",
-                        )
-                        resume_payload = {
-                            "action": "resume",
-                            "thread_id": thread_id,
-                            "approved": True,
-                            "proceed": True,
-                            "answers": {"approved": True, "proceed": True},
-                            "message": json.dumps({"approved": True, "proceed": True}),
-                            "data": {"approved": True, "proceed": True},
-                        }
-                        await ws.send(json.dumps(resume_payload))
-
-                    # Handle Schedule Overlap Warning (Matches engine/page.tsx line 481 & SocketContext.tsx)
-                    elif event == "TRIP_OVERLAP_WARNING":
-                        log_step(
-                            "HITL",
-                            "Trip schedule overlap detected: Auto-approving overlap to proceed...",
-                        )
-                        resume_payload = {
-                            "action": "resume",
-                            "thread_id": thread_id,
-                            "approved": True,
-                            "proceed": True,
-                            "answers": {"approved": True, "proceed": True},
-                            "message": json.dumps({"approved": True, "proceed": True}),
-                            "data": {"approved": True, "proceed": True},
-                        }
-                        await ws.send(json.dumps(resume_payload))
-
-                    # Capture Itinerary Output from EVALUATING_ROUTES
-                    elif event == "EVALUATING_ROUTES":
-                        data = msg_json.get("data")
-                        if isinstance(data, dict) and "days" in data:
-                            latest_itinerary = data
-                            log_step(
-                                "SOLVER",
-                                f"Captured optimized itinerary with {len(data['days'])} days!",
-                            )
-
-                    # Inference Complete
-                    elif event == "DONE":
-                        log_step("ENGINE", "Inference cycle complete (DONE received).")
-                        inference_complete = True
-                        break
-
-                    elif event == "GUARDRAILS_ABORTED":
-                        abort_data = msg_json.get("data")
-                        log_step("ERROR", f"Guardrails aborted trip: {abort_data}")
-                        raise RuntimeError(f"Trip aborted by guardrails: {abort_data}")
-
-                    elif event == "ERROR":
-                        err_msg = msg_json.get("status", "Unknown engine error")
-                        log_step("ERROR", f"Engine emitted error: {err_msg}")
-                        raise RuntimeError(f"Engine emitted error: {err_msg}")
-
-        except (
-            websockets.exceptions.ConnectionClosedError,
-            websockets.exceptions.ConnectionClosedOK,
-        ) as e:
-            if inference_complete or (latest_itinerary and e.code == 1000):
-                break
-            reconnect_attempts += 1
-            if reconnect_attempts > max_reconnects:
-                raise
-            log_step(
-                "WS",
-                f"Connection closed (code: {e.code}). Reconnecting attempt {reconnect_attempts}/{max_reconnects}...",
-            )
-            await asyncio.sleep(1.0)
-
-    assert (
-        latest_itinerary is not None
-    ), "Optimization solver did not produce an itinerary"
-    assert "days" in latest_itinerary, "Produced itinerary lacks 'days' array"
-    assert (
-        len(latest_itinerary["days"]) == duration_days
-    ), f"Expected {duration_days} days, got {len(latest_itinerary['days'])}"
-
-    # Save to Trip Vault via POST /trips/
-    log_step(
-        "VAULT",
-        f"Saving generated itinerary to Trip Vault via POST {api_url}/trips/...",
-    )
-    save_body = {
-        "destination": destination_city,
-        "start_date": f"{start_date}T00:00:00.000Z",
-        "end_date": f"{end_date}T00:00:00.000Z",
-        "itinerary_data": latest_itinerary,
-    }
-
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        save_resp = await client.post(
-            f"{api_url}/trips/",
-            json=save_body,
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        gen_resp = await client.post(
+            f"{api_url}/trips/generate",
+            json=generate_payload,
             headers=auth_headers,
         )
         assert (
-            save_resp.status_code == 201
-        ), f"Failed to save trip: {save_resp.status_code} - {save_resp.text}"
-        saved_trip = save_resp.json()
-        assert "id" in saved_trip, "Saved trip missing ID"
-        trip_id = saved_trip["id"]
-        assert saved_trip["destination"] == destination_city
-        log_step("VAULT", f"Trip successfully saved with ID: {trip_id}")
+            gen_resp.status_code == 202
+        ), f"Failed to start generation job: {gen_resp.status_code} - {gen_resp.text}"
+        job_data = gen_resp.json()
+        job_id = job_data["id"]
+        log_step("JOB", f"Started background generation job {job_id}")
 
-        # Verify Roundtrip Persistence in Database via GET /trips/{id}
+    events_received: list[dict] = []
+    completed_job: dict | None = None
+    start_time = time.time()
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        while time.time() - start_time < timeout_seconds:
+            poll_resp = await client.get(
+                f"{api_url}/trips/generation-jobs/{job_id}",
+                headers=auth_headers,
+            )
+            assert (
+                poll_resp.status_code == 200
+            ), f"Failed to poll job {job_id}: {poll_resp.status_code}"
+            job = poll_resp.json()
+            events_received.append(
+                {"event": job.get("stage"), "status": job.get("status")}
+            )
+
+            j_status = job.get("status")
+            if j_status == "awaiting_input":
+                log_step(
+                    "HITL",
+                    f"Job awaiting input ({job.get('interrupt_type')}): auto-approving...",
+                )
+                res_resp = await client.post(
+                    f"{api_url}/trips/generation-jobs/{job_id}/resume",
+                    json={"approved": True, "proceed": True},
+                    headers=auth_headers,
+                )
+                assert res_resp.status_code == 200
+            elif j_status == "completed":
+                completed_job = job
+                break
+            elif j_status == "aborted":
+                raise RuntimeError(
+                    f"Trip aborted by guardrails: {job.get('guardrail_errors')}"
+                )
+            elif j_status == "failed":
+                raise RuntimeError(f"Engine emitted error: {job.get('error_message')}")
+            elif j_status == "cancelled":
+                raise RuntimeError("Trip generation job was cancelled.")
+
+            await asyncio.sleep(1.5)
+
+    assert completed_job is not None, "Trip generation job timed out before completion"
+    trip_id = completed_job.get("trip_id")
+    assert trip_id is not None, "Completed job is missing persisted trip_id"
+    log_step("VAULT", f"Backend persisted trip ID: {trip_id}")
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
         get_resp = await client.get(
             f"{api_url}/trips/{trip_id}",
             headers=auth_headers,
@@ -412,15 +323,25 @@ async def execute_frontend_trip_e2e(
         fetched_trip = get_resp.json()
         assert fetched_trip["id"] == trip_id
         assert fetched_trip["destination"] == destination_city
+        latest_itinerary = fetched_trip.get("itinerary_data") or {}
+        assert "days" in latest_itinerary, "Produced itinerary lacks 'days' array"
+        assert (
+            len(latest_itinerary["days"]) == duration_days
+        ), f"Expected {duration_days} days, got {len(latest_itinerary['days'])}"
+
+        await client.post(
+            f"{api_url}/trips/generation-jobs/{job_id}/acknowledge",
+            headers=auth_headers,
+        )
         log_step(
             "VAULT",
-            f"Verified roundtrip persistence in database for trip ID: {trip_id}",
+            f"Verified backend-persisted roundtrip in database for trip ID: {trip_id}",
         )
 
     return {
         "trip_id": trip_id,
         "itinerary": latest_itinerary,
-        "saved_trip": saved_trip,
+        "saved_trip": fetched_trip,
         "events": events_received,
     }
 

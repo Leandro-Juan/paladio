@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockAuthenticatedUser } from './test-utils';
+import { getCorsHeaders, mockAuthenticatedUser } from './test-utils';
 
 test.describe('GTFS Sync with Planned Trips Modal', () => {
   test.beforeEach(async ({ page }) => {
@@ -45,9 +45,10 @@ test.describe('GTFS Sync with Planned Trips Modal', () => {
       },
     ];
 
-    await page.route(/.*\/api(\/v1)?\/users.*/, async (route) => {
+    await page.route(/.*\/api(\/v1)?\/users\/?(\?.*)?$/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify([]),
       });
@@ -56,6 +57,7 @@ test.describe('GTFS Sync with Planned Trips Modal', () => {
     await page.route(/.*\/api(\/v1)?\/trips\/transit\/planned-status/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify(mockPlannedTrips),
       });
@@ -65,6 +67,7 @@ test.describe('GTFS Sync with Planned Trips Modal', () => {
       syncPayload = JSON.parse(route.request().postData() || '{}');
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({
           triggered: syncPayload.cities || [],
@@ -78,6 +81,7 @@ test.describe('GTFS Sync with Planned Trips Modal', () => {
     await page.route(/.*\/api(\/v1)?\/trips\/transit\/registry/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({
           has_active_process: false,

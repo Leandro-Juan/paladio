@@ -1,6 +1,10 @@
 <div align="center">
 
-<img src="assets/logo_horizontal_dark.png" width="380" alt="Paladio Core">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo-horizontal-white.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/logo-horizontal.png">
+  <img src="assets/logo-horizontal.png" width="380" alt="Paladio Core">
+</picture>
 
 # Paladio Core (`paladio-core`)
 
@@ -144,7 +148,7 @@ include(FetchContent)
 FetchContent_Declare(
     paladio_core
     GIT_REPOSITORY https://github.com/Leandro-Juan/paladio-core.git
-    GIT_TAG        v1.0.0
+    GIT_TAG        main
 )
 FetchContent_MakeAvailable(paladio_core)
 

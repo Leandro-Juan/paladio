@@ -281,6 +281,7 @@ export function RouteIntakeBar({
           {/* Large IATA Header - Directly Editable Monospace Input */}
           <input
             type="text"
+            data-testid="origin-iata-input"
             value={originIata}
             onChange={handleOriginIataDirectChange}
             disabled={disabled}
@@ -329,6 +330,7 @@ export function RouteIntakeBar({
             <PlaneIcon size={14} color="var(--color-text-muted)" />
             <input
               type="text"
+              data-testid="origin-location-input"
               disabled={disabled}
               value={originQuery}
               onChange={(e) => {
@@ -369,6 +371,7 @@ export function RouteIntakeBar({
           {onDepartureHourChange && (
             <button
               type="button"
+              data-testid="route-dep-hour-btn"
               disabled={disabled}
               onClick={() => setActiveHourPicker('departure')}
               style={{
@@ -451,6 +454,7 @@ export function RouteIntakeBar({
           {/* Large IATA Header - Directly Editable Monospace Input */}
           <input
             type="text"
+            data-testid="dest-iata-input"
             value={destIata}
             onChange={handleDestIataDirectChange}
             disabled={disabled}
@@ -499,6 +503,7 @@ export function RouteIntakeBar({
             <PlaneIcon size={14} color="var(--color-accent-primary, #0F4C5C)" />
             <input
               type="text"
+              data-testid="dest-location-input"
               required
               disabled={disabled}
               value={destinationQuery}
@@ -540,6 +545,7 @@ export function RouteIntakeBar({
           {onArrivalHourChange && (
             <button
               type="button"
+              data-testid="route-ret-hour-btn"
               disabled={disabled}
               onClick={() => setActiveHourPicker('arrival')}
               style={{
@@ -632,6 +638,7 @@ export function RouteIntakeBar({
             {originResults.map((item, idx) => (
               <div
                 key={`${item.city}-${item.airport_iata}-${idx}`}
+                data-testid="origin-location-option"
                 onClick={() => handleSelectOrigin(item)}
                 style={{
                   padding: '8px 10px',
@@ -747,6 +754,7 @@ export function RouteIntakeBar({
             {destinationResults.map((item, idx) => (
               <div
                 key={`${item.city}-${item.airport_iata}-${idx}`}
+                data-testid="dest-location-option"
                 onClick={() => handleSelectDest(item)}
                 style={{
                   padding: '8px 10px',

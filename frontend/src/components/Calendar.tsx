@@ -3,6 +3,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount, useEscapeAndFocusReturn } from '@/hooks/useAnimatedMount';
+import { withViewTransition } from '@/utils/viewTransition';
 import { Trip } from '@/hooks/useTrips';
 import { apiFetch, updatePreferencesApi } from '@/utils/api';
 import { useOptionalAuth } from '@/contexts/AuthContext';
@@ -69,6 +71,16 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
     y: number;
     isAbove: boolean;
   } | null>(null);
+  const { shouldRender: showPopover, isClosing: isPopoverClosing } = useAnimatedMount(
+    Boolean(activePopover),
+    150
+  );
+  const [cachedPopover, setCachedPopover] = useState(activePopover);
+  if (activePopover && activePopover !== cachedPopover) {
+    setCachedPopover(activePopover);
+  }
+  const popoverData = activePopover ?? cachedPopover;
+  useEscapeAndFocusReturn(Boolean(activePopover), () => setActivePopover(null));
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -492,8 +504,10 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
               <button
                 type="button"
                 onClick={() => {
-                  setViewMode('ANNUAL');
-                  setActivePopover(null);
+                  withViewTransition(() => {
+                    setViewMode('ANNUAL');
+                    setActivePopover(null);
+                  });
                 }}
                 className={`${styles.segmentedBtn} ${viewMode === 'ANNUAL' ? styles.segmentedBtnActive : ''}`}
                 aria-label={t('calendar.annual_view_aria')}
@@ -503,8 +517,10 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
               <button
                 type="button"
                 onClick={() => {
-                  setViewMode('MONTH');
-                  setActivePopover(null);
+                  withViewTransition(() => {
+                    setViewMode('MONTH');
+                    setActivePopover(null);
+                  });
                 }}
                 className={`${styles.segmentedBtn} ${viewMode === 'MONTH' ? styles.segmentedBtnActive : ''}`}
                 aria-label={t('calendar.month_view_aria')}
@@ -680,8 +696,10 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                   <button
                     type="button"
                     onClick={() => {
-                      setCurrentDate(new Date(year, m.month, 1));
-                      setViewMode('MONTH');
+                      withViewTransition(() => {
+                        setCurrentDate(new Date(year, m.month, 1));
+                        setViewMode('MONTH');
+                      });
                     }}
                     className={styles.miniMonthFocusBtn}
                     title={t('calendar.focus_on_month', { month: localizedMonthName })}
@@ -949,21 +967,27 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
       </div>
 
       {/* Anchored Day Planning Popover Box */}
-      {activePopover && (
+      {showPopover && popoverData && (
         <>
           <div
             className={styles.popoverOverlay}
             onClick={() => setActivePopover(null)}
           />
           <div
-            className={styles.dayPopover}
             style={{
-              left: `${activePopover.x}px`,
-              top: `${activePopover.y}px`,
-              transform: activePopover.isAbove
+              position: 'fixed',
+              left: `${popoverData.x}px`,
+              top: `${popoverData.y}px`,
+              transform: popoverData.isAbove
                 ? 'translate(-50%, -100%)'
                 : 'translate(-50%, 0)',
+              zIndex: 101,
             }}
+          >
+          <div
+            className={`${styles.dayPopover} paladio-popover`}
+            data-origin={popoverData.isAbove ? 'bottom' : 'top'}
+            data-state={isPopoverClosing ? 'closing' : 'open'}
           >
             <div className={styles.popoverHeader}>
               <span className={styles.popoverTelemetry}>
@@ -978,7 +1002,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 <CloseIcon size={14} />
               </button>
             </div>
-            <h4 className={styles.popoverDateTitle}>{activePopover.dateString}</h4>
+            <h4 className={styles.popoverDateTitle}>{popoverData.dateString}</h4>
             <p className={styles.popoverPrompt}>
               {t('calendar.plan_mission_prompt')}
             </p>
@@ -998,6 +1022,7 @@ export function Calendar({ trips, onSelectDate, onSelectPackage, currency }: Cal
                 {t('common.cancel')}
               </button>
             </div>
+          </div>
           </div>
         </>
       )}

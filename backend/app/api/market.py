@@ -33,6 +33,10 @@ from app.engine.market.baselines import (
     resolve_baseline_median,
     resolve_route_baseline_quantiles,
 )
+from app.engine.market.booking_links import (
+    build_flight_booking_url,
+    build_hotel_booking_url,
+)
 from app.engine.market.config import CORPUS_HORIZON_MONTHS
 from app.engine.market.corpus import backfill_route_corpus, get_route_corpus_status
 from app.engine.market.deal_package_service import deal_package_service
@@ -1597,7 +1601,10 @@ async def get_route_price_history(
             }
 
     stay_n = alert.min_nights or 3
+    hist_city_name = city_obj.name if "city_obj" in locals() and city_obj else None
+    hist_travelers = getattr(alert, "travelers", None) or 1
     for f_date in all_fwd_dates:
+        f_checkout = f_date + timedelta(days=stay_n)
         if f_date in best_props_by_date:
             bp = best_props_by_date[f_date]
             stat = obs_stats_by_date.get(f_date, {})
@@ -1615,7 +1622,15 @@ async def get_route_price_history(
                     stars=bp["stars"],
                     review_score=bp["review_score"],
                     review_count=bp["review_count"],
-                    booking_url=bp["deep_link"],
+                    booking_url=build_hotel_booking_url(
+                        destination=dest_code,
+                        property_name=bp["name"],
+                        city_name=hist_city_name,
+                        check_in=f_date,
+                        check_out=f_checkout,
+                        deep_link=bp["deep_link"],
+                        travelers=hist_travelers,
+                    ),
                     source=bp["provider"],
                     min_eur=rate_val,
                     median_eur=med_val,
@@ -1637,7 +1652,15 @@ async def get_route_price_history(
                     stars=lp["stars"],
                     review_score=lp["review_score"],
                     review_count=lp["review_count"],
-                    booking_url=lp["deep_link"],
+                    booking_url=build_hotel_booking_url(
+                        destination=dest_code,
+                        property_name=lp["name"],
+                        city_name=hist_city_name,
+                        check_in=f_date,
+                        check_out=f_checkout,
+                        deep_link=lp["deep_link"],
+                        travelers=hist_travelers,
+                    ),
                     source=lp["provider"],
                     min_eur=rate_val,
                     median_eur=rate_val,
@@ -1835,6 +1858,18 @@ async def get_route_lodging_for_date(
     ) -> LodgingSummary:
         raw_eur = round(float(nightly_cents_val) / 100.0, 2)
         converted_nightly = _cvt_money(raw_eur, target_currency) or raw_eur
+        check_out_dt = check_in + timedelta(days=nights)
+        alert_travelers = getattr(alert, "travelers", None) or 1
+        resolved_city = city_obj.name if city_obj else None
+        resolved_url = build_hotel_booking_url(
+            destination=dest_code,
+            property_name=p_name,
+            city_name=resolved_city,
+            check_in=check_in,
+            check_out=check_out_dt,
+            deep_link=b_url,
+            travelers=alert_travelers,
+        )
         return LodgingSummary(
             nights=nights,
             price_per_night_eur=converted_nightly,
@@ -1843,7 +1878,7 @@ async def get_route_lodging_for_date(
             stars=p_stars,
             review_score=r_score,
             review_count=r_count,
-            booking_url=b_url,
+            booking_url=resolved_url,
             source=src,
             currency=target_currency,
             value_score=val_score,
@@ -2091,8 +2126,12 @@ async def _fetch_corridor_quotes(
                 "flight_number": fl_num,
                 "duration_mins": dur_mins,
                 "departure_time": dep_time_str,
-                "booking_url": st_meta.get("deep_link")
-                or f"https://www.google.com/travel/flights?q=Flights+from+{origin}+to+{dest}+on+{d_str}",
+                "booking_url": build_flight_booking_url(
+                    origin=origin,
+                    destination=dest,
+                    depart_date=d_str,
+                    deep_link=st_meta.get("deep_link"),
+                ),
                 "carrier": carrier,
             }
 
@@ -2622,9 +2661,19 @@ async def get_route_calendar(
                                     review_count=day_ranked_hotel.candidate.review_count
                                     if day_ranked_hotel
                                     else None,
-                                    booking_url=day_ranked_hotel.candidate.deep_link
-                                    if day_ranked_hotel
-                                    else None,
+                                    booking_url=build_hotel_booking_url(
+                                        destination=dest_code,
+                                        property_name=day_ranked_hotel.candidate.name
+                                        if day_ranked_hotel
+                                        else None,
+                                        city_name=dest_name,
+                                        check_in=date_str,
+                                        check_out=best_ret_date_str,
+                                        deep_link=day_ranked_hotel.candidate.deep_link
+                                        if day_ranked_hotel
+                                        else None,
+                                        travelers=cal_travelers,
+                                    ),
                                     source=day_ranked_hotel.candidate.provider
                                     if day_ranked_hotel
                                     else None,
@@ -2982,7 +3031,10 @@ async def get_route_events(
                 result=ev.status.upper(),
                 timestamp=ev.alerted_at.strftime("%H:%M UTC (%Y-%m-%d)"),
                 details=f"Status: {ev.status}",
-                booking_url=f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={alert.origin_iata}&destinationIata={dest_code}",
+                booking_url=build_flight_booking_url(
+                    origin=alert.origin_iata,
+                    destination=dest_code,
+                ),
             )
         )
 
@@ -3001,6 +3053,7 @@ async def get_route_events(
         ticks = t_res.scalars().all()
         for t in ticks:
             fare = round(t.base_price_cents / 100.0, 2)
+            t_meta = t.metadata_json if isinstance(t.metadata_json, dict) else {}
             items.append(
                 RouteEventItem(
                     id=t.id,
@@ -3009,7 +3062,12 @@ async def get_route_events(
                     result=f"€{fare:.2f}",
                     timestamp=t.observed_at.strftime("%H:%M UTC (%Y-%m-%d)"),
                     details=f"Observed via {t.source} for flight on {t.depart_date.isoformat()}",
-                    booking_url=f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={alert.origin_iata}&destinationIata={dest_code}",
+                    booking_url=build_flight_booking_url(
+                        origin=alert.origin_iata,
+                        destination=dest_code,
+                        depart_date=t.depart_date,
+                        deep_link=t_meta.get("deep_link"),
+                    ),
                 )
             )
 

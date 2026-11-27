@@ -4,7 +4,7 @@
 
 ## Build options and packaging
 
-`cpp_core/CMakeLists.txt` (`PaladioEngine` v2.0.0) compiles pure C++20 (`-Wall -Wextra -Werror`) into `paladio_engine_static` (`paladio::engine`) and the `paladio_core` Python extension module, while `cpp_core/pyproject.toml` builds PEP 517 Python wheels through `scikit-build-core` (`numpy>=1.20.0`).
+`cpp_core/CMakeLists.txt` (`PaladioEngine` v3.0.0) compiles pure C++20 (`-Wall -Wextra -Werror`) into `paladio_engine_static` (`paladio::engine`) and the `paladio_core` Python extension module, while `cpp_core/pyproject.toml` builds PEP 517 Python wheels through `scikit-build-core` (`numpy>=1.20.0`).
 
 | CMake option | Default | Purpose |
 | :--- | :---: | :--- |

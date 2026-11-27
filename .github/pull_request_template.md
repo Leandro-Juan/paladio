@@ -21,8 +21,7 @@ Provide a clear and concise summary of the changes in this pull request and the 
 
 ## Architectural & Quality Checklist
 
-- [ ] **Sovereignty**: No cloud LLM APIs introduced (100% local inference via Ollama / vLLM).
-- [ ] **Determinism**: Arithmetic, routing, and combinatorial optimization remain deterministic (C++ core), with LLMs strictly limited to semantic NLP.
+- [ ] **Self-Hosted & Deterministic**: Trip generation stays deterministic without requiring a cloud LLM; any optional AI assistant providers go through `LLMService`, and arithmetic/routing stay in the C++ core.
 - [ ] **Formatting**: Linting and formatting pass cleanly (`ruff check .`, `npm run lint`, `clang-format`).
 - [ ] **Testing**: Automated unit/integration tests added or updated (`pytest backend/tests/`, `ctest` for C++).
 - [ ] **DCO 1.1 Sign-Off**: All commits are signed off (`git commit -s`) per [CONTRIBUTING.md](CONTRIBUTING.md).

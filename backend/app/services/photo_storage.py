@@ -5,11 +5,15 @@ import struct
 import uuid
 from pathlib import Path
 from typing import Any
+
+from app.core.paths import resolve_runtime_data_dir
 from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-STORAGE_BASE_DIR = Path(os.getenv("PHOTO_STORAGE_DIR", "data/trip_photos")).resolve()
+STORAGE_BASE_DIR = Path(
+    os.getenv("PHOTO_STORAGE_DIR") or (resolve_runtime_data_dir() / "trip_photos")
+).resolve()
 
 STORAGE_BASE_DIR.mkdir(parents=True, exist_ok=True)
 

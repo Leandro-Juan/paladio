@@ -67,7 +67,7 @@ body:
       placeholder: |
         - OS: Linux (Ubuntu/Debian/Arch) / macOS / Windows WSL2
         - Docker version: 27.x
-        - Local LLM: Ollama / vLLM
+        - Chat LLM Provider (optional): None / Ollama / OpenAI / Anthropic / Gemini / ...
         - Hardware: CPU / GPU (CUDA)
   - type: checkboxes
     id: terms

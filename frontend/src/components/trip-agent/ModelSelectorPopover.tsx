@@ -77,9 +77,15 @@ export function ModelSelectorPopover({
         if (isAvailable) {
           const meta = supported[provKey];
           const models = provKey === 'ollama' && confInfo.available_models && confInfo.available_models.length > 0
-            ? confInfo.available_models
+            ? Array.from(
+                new Set([
+                  ...(confInfo.active_model ? [confInfo.active_model] : []),
+                  ...confInfo.available_models,
+                ])
+              )
             : Array.from(
                 new Set([
+                  ...(confInfo.active_model ? [confInfo.active_model] : []),
                   ...(confInfo.available_models || []),
                   ...(meta?.recommended_models || []),
                   ...(meta?.default_model ? [meta.default_model] : []),
@@ -100,15 +106,20 @@ export function ModelSelectorPopover({
     }
 
     // Fallback if configured_providers not yet loaded or returned:
-    const activeProv = llmConfig?.provider || currentProvider || 'google';
-    const activeName = supported[activeProv]?.name || (activeProv.includes('google') ? 'Google Gemini' : activeProv);
-    const activeModels = supported[activeProv]?.recommended_models || [currentModel || 'gemini-3.8-flash'];
+    const activeProv = llmConfig?.provider || currentProvider || 'ollama';
+    const activeName = supported[activeProv]?.name || activeProv;
+    const activeModels = Array.from(
+      new Set([
+        ...(currentModel ? [currentModel] : []),
+        ...(supported[activeProv]?.recommended_models || []),
+      ])
+    );
 
     const fallbackList = [
       {
         provKey: activeProv,
         name: activeName,
-        models: activeModels,
+        models: activeModels.length > 0 ? activeModels : ['default'],
       },
     ];
 
@@ -208,9 +219,7 @@ export function ModelSelectorPopover({
                   {fam.models.map((modelName) => {
                     const isProviderMatch =
                       llmConfig?.provider === fam.provKey ||
-                      currentProvider === fam.provKey ||
-                      ((fam.provKey === 'google' || fam.provKey === 'google_genai') &&
-                        (currentProvider === 'google' || currentProvider === 'google_genai' || llmConfig?.provider === 'google' || llmConfig?.provider === 'google_genai'));
+                      currentProvider === fam.provKey;
 
                     const isSelected =
                       isProviderMatch &&

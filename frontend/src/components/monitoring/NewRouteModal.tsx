@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { translate } from '@/stores/localeStore';
+import { useAnimatedMount, useEscapeAndFocusReturn } from '@/hooks/useAnimatedMount';
 import { CloseIcon, Spinner, SettingsIcon, CalendarIcon } from '@/components/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCurrencyInfo } from '@/utils/currencyResolver';
@@ -140,7 +141,10 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
     }
   }, [user, participants.length]);
 
-  if (!isOpen) return null;
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
+  useEscapeAndFocusReturn(isOpen, handleClose);
+
+  if (!shouldRender) return null;
 
   const travelersCount = Math.max(1, participants.length);
 
@@ -224,8 +228,8 @@ export function NewRouteModal({ isOpen, onClose, userDefaultCurrency, existingRo
   };
 
   return (
-    <div className={styles.backdrop} onClick={handleClose} role="dialog" aria-modal="true">
-      <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.backdrop} data-state={dataState} onClick={handleClose} role="dialog" aria-modal="true">
+      <div className={styles.modalCard} data-state={dataState} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h3 className={styles.modalTitle}>{t('monitoring.track_new_route')}</h3>
           <button

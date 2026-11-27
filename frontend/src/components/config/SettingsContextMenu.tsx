@@ -1,6 +1,7 @@
 'use strict';
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 
 export interface ContextMenuItem {
   id: string;
@@ -28,6 +29,7 @@ export function SettingsContextMenu({
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuMount = useAnimatedMount(isOpen, 130);
   const resolvedAriaLabel = ariaLabel ? t(ariaLabel) : t('config.options_menu');
 
   useEffect(() => {
@@ -75,8 +77,7 @@ export function SettingsContextMenu({
           backgroundColor: isOpen ? 'var(--color-surface-hover, rgba(0, 0, 0, 0.04))' : 'var(--color-surface-card, #FFFFFF)',
           color: 'var(--color-text-muted, #718096)',
           cursor: 'pointer',
-          transition: 'all 0.15s ease',
-          outline: 'none',
+          transition: 'background-color var(--transition-fast, 150ms ease), border-color var(--transition-fast, 150ms ease), color var(--transition-fast, 150ms ease)',
         }}
       >
         {triggerLabel ? (
@@ -90,9 +91,12 @@ export function SettingsContextMenu({
         )}
       </button>
 
-      {isOpen && (
+      {menuMount.shouldRender && (
         <div
           role="menu"
+          className="paladio-popover"
+          data-state={menuMount.dataState}
+          data-origin={align === 'right' ? 'top-right' : 'top-left'}
           style={{
             position: 'absolute',
             top: 'calc(100% + 6px)',
@@ -105,7 +109,6 @@ export function SettingsContextMenu({
             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
             backdropFilter: 'blur(16px)',
             padding: '6px',
-            animation: 'fadeInMenu 0.14s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           {items.map((item) => (

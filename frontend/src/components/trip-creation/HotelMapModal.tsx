@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { HotelIcon, PinIcon, CheckIcon } from '@/components/icons';
 import { getApiBaseUrl } from '@/utils/api';
 
@@ -400,10 +402,15 @@ export function HotelMapModal({
     onClose();
   };
 
-  if (!isOpen) return null;
+  const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
 
-  return (
+  if (!shouldRender || typeof document === 'undefined') return null;
+
+  return createPortal(
+    (
     <div
+      className="paladio-modal-backdrop"
+      data-state={dataState}
       style={{
         position: 'fixed',
         inset: 0,
@@ -414,11 +421,14 @@ export function HotelMapModal({
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1.25rem',
-        animation: 'fadeIn 0.15s ease',
       }}
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        className="paladio-modal-panel"
+        data-state={dataState}
         style={{
           background: 'var(--color-surface-raised, #FFFFFF)',
           border: '1px solid var(--color-border)',
@@ -808,5 +818,7 @@ export function HotelMapModal({
         </div>
       </div>
     </div>
+    ),
+    document.body
   );
 }

@@ -349,6 +349,7 @@ export function HotelStayAnchorBar({
         {/* Locate on Map Trigger Button */}
         <button
           type="button"
+          data-testid="locate-hotel-map-btn"
           disabled={disabled}
           onClick={() => {
             setIsMenuOpen(false);

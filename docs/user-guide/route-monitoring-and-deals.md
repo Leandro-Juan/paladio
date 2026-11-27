@@ -2,6 +2,9 @@
 
 Monitor round-trip flight and lodging corridors continuously at `/monitoring`, evaluate fare drops against 10th-percentile (`P10`) quantile baselines, inspect multi-month bidirectional calendars, and convert verified packages directly into trips in `/engine`.
 
+!!! warning "Experimental data scraping"
+    The underlying flight and lodging **data scraping** in Route Monitoring is currently experimental. External provider scrapers and rate feeds may be unstable or incomplete depending on upstream changes and configured API keys.
+
 ![Paladio Route Price & Tariff Telemetry](../assets/screenshots/monitoring.png)
 
 ## Fleet KPI cards and monitored routes table

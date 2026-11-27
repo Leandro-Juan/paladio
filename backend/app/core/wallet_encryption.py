@@ -1,9 +1,51 @@
 import base64
 import hashlib
 import os
+import time
+from pathlib import Path
+
 from cryptography.fernet import Fernet
 
+from app.core.paths import resolve_runtime_data_dir
+
 _fernet_instance: Fernet | None = None
+
+
+def _load_or_generate_wallet_key() -> str:
+    env_key = os.getenv("WALLET_ENCRYPTION_KEY")
+    if env_key and env_key.strip():
+        return env_key.strip()
+
+    env = os.getenv("ENVIRONMENT", "development").lower()
+    app_env = os.getenv("APP_ENV", "").lower()
+
+    key_file = Path(
+        os.getenv("WALLET_ENCRYPTION_KEY_PATH")
+        or (resolve_runtime_data_dir() / ".wallet_key")
+    )
+    try:
+        key_file.parent.mkdir(parents=True, exist_ok=True)
+        generated = Fernet.generate_key().decode("utf-8")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        try:
+            with os.fdopen(os.open(key_file, flags, 0o600), "w", encoding="utf-8") as f:
+                f.write(generated)
+            return generated
+        except FileExistsError:
+            for _ in range(5):
+                content = key_file.read_text(encoding="utf-8").strip()
+                if content:
+                    return content
+                time.sleep(0.05)
+            raise RuntimeError("Existing wallet encryption key file is empty.")
+    except Exception:
+        if env == "production" or app_env == "production":
+            raise RuntimeError(
+                "WALLET_ENCRYPTION_KEY must be explicitly configured or data volume must be writable."
+            )
+        # Deterministic 32-byte key for dev/test fallback
+        derived = hashlib.sha256(b"paladio-dev-wallet-encryption-key-seed").digest()
+        return base64.urlsafe_b64encode(derived).decode("utf-8")
 
 
 def get_fernet() -> Fernet:
@@ -11,18 +53,7 @@ def get_fernet() -> Fernet:
     if _fernet_instance is not None:
         return _fernet_instance
 
-    key = os.getenv("WALLET_ENCRYPTION_KEY")
-    env = os.getenv("ENVIRONMENT", "development").lower()
-    app_env = os.getenv("APP_ENV", "").lower()
-
-    if not key:
-        if env == "production" or app_env == "production":
-            raise RuntimeError(
-                "WALLET_ENCRYPTION_KEY must be explicitly configured in production environment."
-            )
-        # Deterministic 32-byte key for dev/test
-        derived = hashlib.sha256(b"paladio-dev-wallet-encryption-key-seed").digest()
-        key = base64.urlsafe_b64encode(derived).decode("utf-8")
+    key = _load_or_generate_wallet_key()
 
     try:
         _fernet_instance = Fernet(key.encode("utf-8") if isinstance(key, str) else key)

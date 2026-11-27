@@ -1001,6 +1001,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {/* Tab 1: Plan (Full-bleed 3-panel map workspace) */}
         <div
+          className="paladio-drawer-panel"
           style={{
             position: 'absolute',
             inset: 0,
@@ -1008,7 +1009,8 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
             pointerEvents: activeTab === 'plan' ? 'auto' : 'none',
             opacity: activeTab === 'plan' ? 1 : 0,
             transform: activeTab === 'plan' ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.996)',
-            transition: 'opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+            transition:
+              'opacity var(--transition-snappy), transform var(--transition-snappy)',
             willChange: 'opacity, transform',
           }}
         >
@@ -1129,6 +1131,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
           {/* Right Floating POI Details Drawer with External Arrow Tab */}
           {renderedPoi && (
             <div
+              className="paladio-drawer-panel"
               style={{
                 position: 'absolute',
                 top: '16px',
@@ -1140,7 +1143,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                 alignItems: 'flex-start',
                 pointerEvents: 'none',
                 transform: isInspectorOpen ? 'translateX(0)' : 'translateX(calc(100% - 10px))',
-                transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
+                transition: 'transform var(--transition-gentle)',
               }}
             >
               {/* External Arrow Tab on the left to Close or Open POI Details */}
@@ -1173,7 +1176,7 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   justifyContent: 'center',
                   cursor: 'pointer',
                   color: isInspectorOpen ? 'var(--color-text-secondary)' : 'var(--color-accent-primary)',
-                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                  transition: 'color var(--transition-fast), background-color var(--transition-fast)',
                   zIndex: 1050,
                 }}
                 onMouseEnter={(e) => {
@@ -1196,8 +1199,6 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   minWidth: 0,
                   maxHeight: '100%',
                   background: 'var(--color-surface-card, #FFFFFF)',
-                  backdropFilter: 'blur(28px)',
-                  WebkitBackdropFilter: 'blur(28px)',
                   borderRadius: '24px',
                   border: '1px solid var(--color-border)',
                   boxShadow: '0 20px 45px -10px rgba(15, 76, 92, 0.15), 0 0 1px 1px rgba(0, 0, 0, 0.05)',

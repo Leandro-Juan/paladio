@@ -176,6 +176,9 @@ function ConfigPageInner() {
   const handleSelectTab = (tab: SettingsTabId, subTab?: string) => {
     setActionError(null);
     setActionSuccess(null);
+    if (tab === 'profile') {
+      void refreshUser();
+    }
     if (tab === 'overview' || (!isAdmin && !NON_ADMIN_TABS.has(tab))) {
       router.push('/config', { scroll: false });
     } else {
@@ -439,13 +442,16 @@ function ConfigPageInner() {
     }
   }, [isAdmin]);
 
+  const hasLoadedUsersRef = useRef(false);
   useEffect(() => {
     if (!isAdmin) return;
+    if (hasLoadedUsersRef.current && activeTab !== 'users') return;
     let ignore = false;
     async function load() {
       try {
         const data = await listUsersApi();
         if (!ignore) {
+          hasLoadedUsersRef.current = true;
           setUsers(data);
         }
       } catch (err: unknown) {
@@ -459,7 +465,12 @@ function ConfigPageInner() {
     return () => {
       ignore = true;
     };
-  }, [isAdmin]);
+  }, [isAdmin, activeTab]);
+
+  const mergedUsers = useMemo(() => {
+    if (!currentUser) return users;
+    return users.map((u) => (u.id === currentUser.id ? { ...u, ...currentUser } : u));
+  }, [users, currentUser]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -875,6 +886,7 @@ function ConfigPageInner() {
         )}
 
         {/* View Switcher */}
+        <div key={activeTab} className="animate-tab-pane">
         {activeTab === 'overview' && (
           <SettingsOverview
             onSelectTab={handleSelectTab}
@@ -890,6 +902,7 @@ function ConfigPageInner() {
             onBackToOverview={() => handleSelectTab('overview')}
             currentUser={currentUser}
             refreshUser={refreshUser}
+            onProfileUpdated={fetchUsers}
             getSafeAvatarUrl={getSafeAvatarUrl}
           />
         )}
@@ -936,7 +949,7 @@ function ConfigPageInner() {
 
             isAdmin={isAdmin}
             currentUser={currentUser}
-            users={users}
+            users={mergedUsers}
             isFetchingUsers={isFetchingUsers}
             isModalOpen={isModalOpen}
             setIsModalOpen={setIsModalOpen}
@@ -999,6 +1012,7 @@ function ConfigPageInner() {
             onBackToOverview={() => handleSelectTab('overview')}
           />
         )}
+        </div>
       </main>
       </div>
     </div>

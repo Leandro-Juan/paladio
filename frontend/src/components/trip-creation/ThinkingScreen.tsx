@@ -6,6 +6,11 @@ import { useTranslation } from '@/hooks/useTranslation';
 interface ThinkingScreenProps {
   message: string;
   subMessage?: string;
+  helperText?: string;
+  onContinueInBackground?: () => void;
+  continueInBackgroundLabel?: string;
+  onCancel?: () => void;
+  cancelLabel?: string;
   error?: string | null;
   onDismissError?: () => void;
 }
@@ -13,12 +18,18 @@ interface ThinkingScreenProps {
 export function ThinkingScreen({
   message,
   subMessage,
+  helperText,
+  onContinueInBackground,
+  continueInBackgroundLabel,
+  onCancel,
+  cancelLabel,
   error,
   onDismissError,
 }: ThinkingScreenProps) {
   const { t } = useTranslation();
   return (
     <div
+      className="paladio-thinking-root"
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -28,7 +39,6 @@ export function ThinkingScreen({
         width: '100%',
         padding: '2rem 1rem',
         textAlign: 'center',
-        animation: 'paladioFadeIn 0.35s ease-out',
       }}
     >
       {!error ? (
@@ -78,6 +88,72 @@ export function ThinkingScreen({
             >
               {subMessage}
             </p>
+          )}
+
+          {helperText && (
+            <p
+              style={{
+                margin: '0.85rem 0 0 0',
+                fontSize: '0.875rem',
+                color: 'var(--color-text-muted, #566B76)',
+                maxWidth: '480px',
+                lineHeight: 1.5,
+              }}
+            >
+              {helperText}
+            </p>
+          )}
+
+          {(onContinueInBackground || onCancel) && (
+            <div
+              style={{
+                marginTop: '1.75rem',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem',
+              }}
+            >
+              {onContinueInBackground && (
+                <button
+                  type="button"
+                  onClick={onContinueInBackground}
+                  style={{
+                    background: 'var(--color-surface-card, #FAF6F0)',
+                    color: 'var(--color-text-primary, #1A2B32)',
+                    border: '1px solid var(--color-border-bold, rgba(15, 76, 92, 0.2))',
+                    borderRadius: '9999px',
+                    padding: '0.65rem 1.35rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s ease, border-color 0.15s ease',
+                  }}
+                >
+                  {continueInBackgroundLabel || t('engine.continue_in_background')}
+                </button>
+              )}
+
+              {onCancel && (
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  style={{
+                    background: 'transparent',
+                    color: 'var(--color-text-muted, #566B76)',
+                    border: '1px solid transparent',
+                    borderRadius: '9999px',
+                    padding: '0.65rem 1.1rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {cancelLabel || t('engine.cancel_generation')}
+                </button>
+              )}
+            </div>
           )}
         </>
       ) : (
@@ -157,6 +233,10 @@ export function ThinkingScreen({
       )}
 
       <style jsx>{`
+        .paladio-thinking-root {
+          animation: paladioThinkingEnter var(--duration-gentle) var(--ease-snappy);
+        }
+
         .paladio-thinking-dot {
           width: 13px;
           height: 13px;
@@ -188,7 +268,7 @@ export function ThinkingScreen({
           }
         }
 
-        @keyframes paladioFadeIn {
+        @keyframes paladioThinkingEnter {
           from {
             opacity: 0;
             transform: translateY(10px);
@@ -196,6 +276,16 @@ export function ThinkingScreen({
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .paladio-thinking-root {
+            animation: none !important;
+          }
+          .paladio-thinking-dot {
+            animation: none !important;
+            opacity: 0.7;
           }
         }
       `}</style>

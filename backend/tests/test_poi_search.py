@@ -448,3 +448,172 @@ async def test_poi_search_erased_city_and_download_flow(async_client: AsyncClien
     finally:
         r.delete("paladio:city_hydration_active:atlantisghostcity")
         r.delete("paladio:lock:hydrate_city:atlantisghostcity")
+
+
+@pytest.mark.asyncio
+async def test_poi_search_natural_language_without_embeddings(
+    async_client: AsyncClient, db_session: AsyncSession
+):
+    """Natural language descriptive search must return relevant category/keyword matches even when embeddings are NULL."""
+    existing_city = await db_session.get(CityModel, "osaka_jp")
+    if not existing_city:
+        db_session.add(
+            CityModel(
+                id="osaka_jp",
+                name="Osaka",
+                country_code="JP",
+                center_lat=34.6937,
+                center_lon=135.5023,
+                bbox=[135.4, 34.6, 135.6, 34.8],
+                radius_km=15.0,
+                timezone="Asia/Tokyo",
+                currency="JPY",
+                aliases=["osaka", "Osaka"],
+                profile={},
+            )
+        )
+
+    unembedded = [
+        AttractionModel(
+            id="OSM-node-osaka-cafe-1",
+            city="Osaka",
+            city_id="osaka_jp",
+            name="Lilo Coffee Roasters",
+            category="cafe",
+            embedding=None,
+            location={"latitude": 34.6725, "longitude": 135.4980},
+            scoring={"google_rating": 4.7},
+            metadata_field={"source": "test"},
+            tier=2,
+            iconicity_score=0.72,
+            duration_mins=40,
+            cost_eur=6.0,
+        ),
+        AttractionModel(
+            id="OSM-node-osaka-museum-1",
+            city="Osaka",
+            city_id="osaka_jp",
+            name="Osaka Castle Museum",
+            category="museum",
+            embedding=None,
+            location={"latitude": 34.6873, "longitude": 135.5262},
+            scoring={"google_rating": 4.5},
+            metadata_field={"source": "test"},
+            tier=1,
+            iconicity_score=0.95,
+            duration_mins=90,
+            cost_eur=10.0,
+        ),
+    ]
+    for a in unembedded:
+        await db_session.merge(a)
+    await db_session.commit()
+
+    mock_vec = [0.0] * 768
+    mock_vec[4] = 1.0
+    with patch(
+        "app.api.pois.OnnxEmbeddingProvider.embed_text",
+        new=AsyncMock(return_value=mock_vec),
+    ):
+        resp = await async_client.get(
+            "/api/pois/search",
+            params={"city": "Osaka", "query": "cozy cafes with charm", "limit": 10},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["results"]) >= 1
+        assert data["results"][0]["category"] == "cafe"
+        assert data["results"][0]["name"] == "Lilo Coffee Roasters"
+        assert data["results"][0]["similarity"] > 0.1
+        assert data["total"] >= 1
+
+        # Descriptive query with no explicit category keyword must still fall back to top recommendations
+        resp_generic = await async_client.get(
+            "/api/pois/search",
+            params={
+                "city": "Osaka",
+                "query": "hidden relaxing weekend vibe",
+                "limit": 10,
+            },
+        )
+        assert resp_generic.status_code == 200
+        generic_data = resp_generic.json()
+        assert len(generic_data["results"]) >= 1
+        assert generic_data["results"][0]["similarity"] > 0.1
+
+
+@pytest.mark.asyncio
+async def test_poi_search_natural_language_partial_embeddings_prefers_target_category(
+    async_client: AsyncClient, db_session: AsyncSession
+):
+    """When only non-matching landmarks are embedded and cafes are unembedded, 'cozy cafes with charm' still surfaces cafes first."""
+    existing_city = await db_session.get(CityModel, "valencia_es")
+    if not existing_city:
+        db_session.add(
+            CityModel(
+                id="valencia_es",
+                name="Valencia",
+                country_code="ES",
+                center_lat=39.4699,
+                center_lon=-0.3763,
+                bbox=[-0.45, 39.4, -0.3, 39.55],
+                radius_km=12.0,
+                timezone="Europe/Madrid",
+                currency="EUR",
+                aliases=["valencia", "Valencia"],
+                profile={},
+            )
+        )
+
+    vec_shop = [0.0] * 768
+    vec_shop[7] = 1.0
+
+    await db_session.merge(
+        AttractionModel(
+            id="OSM-node-valencia-shop",
+            city="Valencia",
+            city_id="valencia_es",
+            name="FNAC Valencia",
+            category="shop",
+            embedding=vec_shop,
+            location={"latitude": 39.4697, "longitude": -0.3768},
+            scoring={"google_rating": 4.1},
+            metadata_field={"source": "test"},
+            tier=1,
+            iconicity_score=0.80,
+            duration_mins=45,
+            cost_eur=0.0,
+        )
+    )
+    await db_session.merge(
+        AttractionModel(
+            id="OSM-node-valencia-cafe",
+            city="Valencia",
+            city_id="valencia_es",
+            name="Bluebell Coffee",
+            category="cafe",
+            embedding=None,
+            location={"latitude": 39.4620, "longitude": -0.3735},
+            scoring={"google_rating": 4.8},
+            metadata_field={"source": "test"},
+            tier=3,
+            iconicity_score=0.45,
+            duration_mins=40,
+            cost_eur=6.0,
+        )
+    )
+    await db_session.commit()
+
+    with patch(
+        "app.api.pois.OnnxEmbeddingProvider.embed_text",
+        new=AsyncMock(return_value=vec_shop),
+    ):
+        resp = await async_client.get(
+            "/api/pois/search",
+            params={"city": "Valencia", "query": "cozy cafes with charm", "limit": 10},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["results"]) >= 1
+        assert data["results"][0]["category"] == "cafe"
+        assert data["results"][0]["name"] == "Bluebell Coffee"

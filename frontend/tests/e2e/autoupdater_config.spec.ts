@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockAuthenticatedUser } from './test-utils';
+import { getCorsHeaders, mockAuthenticatedUser } from './test-utils';
 import type { SystemUpdateStatus } from '../../src/utils/api';
 
 test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () => {
@@ -32,6 +32,7 @@ test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () =
     await page.route(/.*\/api(\/v1)?\/system\/update\/status/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify(mockStatus),
       });
@@ -45,6 +46,7 @@ test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () =
       };
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({ status: 'success', config: mockStatus }),
       });
@@ -62,6 +64,7 @@ test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () =
       };
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({ status: 'success', telemetry: mockStatus }),
       });
@@ -77,15 +80,17 @@ test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () =
       };
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({ status: 'success', download: mockStatus }),
       });
     });
 
-    // Mock other config page dependencies to prevent unhandled errors
-    await page.route(/.*\/api(\/v1)?\/users.*/, async (route) => {
+    // Mock other config page dependencies without shadowing /api/users/me
+    await page.route(/.*\/api(\/v1)?\/users\/?(\?.*)?$/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify([]),
       });
@@ -94,6 +99,7 @@ test.describe('Configuration Page - Auto-Updater and Stop Updates Control', () =
     await page.route(/.*\/api(\/v1)?\/trips\/transit\/?$/, async (route) => {
       await route.fulfill({
         status: 200,
+        headers: getCorsHeaders(route),
         contentType: 'application/json',
         body: JSON.stringify({
           has_active_process: false,

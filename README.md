@@ -1,12 +1,12 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-horizontal-dark.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-horizontal-white.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-horizontal.png">
   <img alt="Paladio" src="docs/assets/logo-horizontal.png" width="300">
 </picture>
 
-### A trip agency at home.
+### A travel agency at home.
 
 Plan realistic trips tailored to your tastes, catch genuine flight and hotel deals, and keep every ticket private on your own server.
 
@@ -17,7 +17,13 @@ Plan realistic trips tailored to your tastes, catch genuine flight and hotel dea
 
 </div>
 
-<!-- Demo visual (GIF / video) will be added here -->
+<div align="center">
+  <a href="./docs/assets/paladio-promo.mp4">
+    <img alt="Paladio Product Tour — Watch Full Video" src="docs/assets/paladio-promo-preview.webp" width="860">
+  </a>
+  <br/>
+  <sub><b>▶ <a href="./docs/assets/paladio-promo.mp4">Watch the full product tour (720p MP4)</a></b></sub>
+</div>
 
 ## Your Private Travel Agency
 
@@ -45,22 +51,31 @@ Planning a great trip usually means juggling messy spreadsheets, cloud travel ap
 
 ### <img src="docs/assets/readme/icon-discovery.svg" width="18" height="18" alt=""> Discovery
 
-- **Your 8-axis Taste Star**: Answer a quick visual calibration when you start, then let Paladio adapt naturally from your trips, bookmarks, and preferences (you can export or reset your taste profile anytime).
+- **Your 8-axis Taste Star**: Answer a quick visual calibration when you start, then let Paladio adapt naturally from your trips, bookmarks, and preferences (you can reset your taste profile anytime).
+- **Places you'll actually enjoy**: Smart search with natural language across sights, museums, food spots, and hidden gems ranked by how well they match your style.
 - **Group taste blending**: Traveling with friends or family? Paladio blends everyone's preferences so the trip works for the whole group.
-- **Places you'll actually enjoy**: Smart search across sights, museums, food spots, and hidden gems ranked by how well they match your style.
 - **Saved collections & imports**: Keep reusable place wishlists, drop custom pins on the map, or import your existing Google Maps, GPX, KML, and KMZ lists.
+
+### <img src="docs/assets/readme/icon-deals.svg" width="18" height="18" alt=""> Deals
+
+- **24/7 price watching** _(experimental)_: Track your favorite flight and hotel routes automatically in the background (flight and hotel price scraping is currently experimental).
+- **Only real price drops**: Compares fares against long-term historical prices and filters out awkward overnight flights, short ground stays, and poorly rated hotels so you only hear about genuine bargains.
+- **Visual fare calendars**: Browse multi-month outbound, inbound, and round-trip calendars and pair deals with your country's public holidays.
+- **Deal to trip in one click**: Turn a verified flight + hotel deal straight into a full day-by-day trip plan.
 
 ### <img src="docs/assets/readme/icon-maps.svg" width="18" height="18" alt=""> Maps
 
-- **Clean architectural maps**: Switch between clutter-free vector maps, standard street maps, dark mode, and satellite imagery.
 - **Neighborhood exploration**: Drop a pin and radius circle anywhere on the map to browse nearby sights, restaurants, and transit stops.
-- **Weather & climate**: Check daily forecasts and air quality for upcoming trips, or typical seasonal weather when planning months ahead.
 - **One-tap navigation**: Send any stop straight to Google Maps, Apple Maps, Organic Maps / CoMaps, OsmAnd, Waze, or Citymapper, with photos and optional on-demand place translation.
+
+- **Clean architectural maps**: Switch between clutter-free vector maps, standard street maps, dark mode, and satellite imagery.
+- **Weather & climate**: Check daily forecasts and air quality for upcoming trips, or typical seasonal weather when planning months ahead.
 
 ### <img src="docs/assets/readme/icon-transit.svg" width="18" height="18" alt=""> Transit
 
-- **Local walking & road routing**: Realistic door-to-door walking, cycling, and driving times calculated privately on your own server.
 - **Public transit & departures**: Step-by-step metro, rail, tram, and bus directions, interactive transit line overlays, and nearby station departure boards.
+
+- **Local walking & road routing**: Realistic door-to-door walking calculated privately on your own server.
 - **Fare & pass advice**: Estimates trip transit costs and tells you when a daily pass beats buying single tickets.
 
 ### <img src="docs/assets/readme/icon-wallet.svg" width="18" height="18" alt=""> Wallet
@@ -69,13 +84,6 @@ Planning a great trip usually means juggling messy spreadsheets, cloud travel ap
 - **Dedicated pass cards**: Clean cards for flights, stays, attractions, and transit, with an "Up Next" countdown for your next travel step.
 - **Private access codes**: Keeps hotel door PINs and Wi-Fi passwords encrypted at rest behind masked one-click copy fields.
 - **Gate-ready & synced**: Pop open crisp fullscreen barcodes at airport security or museum gates, and sync your wallet bookings straight into your itinerary.
-
-### <img src="docs/assets/readme/icon-deals.svg" width="18" height="18" alt=""> Deals
-
-- **24/7 price watching**: Track your favorite flight and hotel routes automatically in the background.
-- **Only real price drops**: Compares fares against long-term historical prices and filters out awkward overnight flights, short ground stays, and poorly rated hotels so you only hear about genuine bargains.
-- **Visual fare calendars**: Browse multi-month outbound, inbound, and round-trip calendars and pair deals with your country's public holidays.
-- **Deal to trip in one click**: Turn a verified flight + hotel deal straight into a full day-by-day trip plan.
 
 ### <img src="docs/assets/readme/icon-budget.svg" width="18" height="18" alt=""> Budget
 
@@ -109,18 +117,19 @@ Planning a great trip usually means juggling messy spreadsheets, cloud travel ap
 
 All you need is [Docker and Docker Compose](https://docs.docker.com/engine/install/) (8 GB RAM minimum, 12–16 GB recommended).
 
-```bash
-git clone https://github.com/Leandro-Juan/paladio.git
-cd paladio
-./install.sh   # Windows PowerShell: .\install.ps1
-```
-
-The installer checks Docker, creates secure random credentials, starts Paladio, and waits until the app is ready. On a fresh install, initialize the database and transit fare catalog:
+**Linux / macOS:**
 
 ```bash
-docker compose exec api alembic upgrade head
-docker compose exec api python scripts/migrate_verified_fares_to_quotes.py
+curl -fsSL https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.sh | bash
 ```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.ps1 | iex
+```
+
+The installer checks Docker and RAM, downloads `docker-compose.yml` into `~/paladio`, generates secure random credentials in `.env`, pulls the prebuilt multi-arch images, runs database migrations and verified transit fare seeding automatically via `migrate`, and waits until the Web UI and API are healthy.
 
 Open **[`http://localhost:3000`](http://localhost:3000)**, create your account, and start planning your first trip — no API keys required.
 
@@ -128,9 +137,9 @@ Open **[`http://localhost:3000`](http://localhost:3000)**, create your account, 
 <summary><strong>System requirements, manual setup & local development</strong></summary>
 
 - **Recommended hardware**: 8 GB RAM / 4 CPU cores / 20 GB disk minimum; 12–16 GB RAM / 6+ cores / 50 GB+ disk recommended for local maps, transit schedules, and search models.
-- **Manual setup**: Copy `.env.example` to `.env`, set random secrets for `POSTGRES_PASSWORD` and `JWT_SECRET_KEY` (`openssl rand -hex 32`), and run `docker compose up -d --build`.
-- **What runs inside Docker**: Web app (`:3000`), API server (`:8000`), PostgreSQL database, Redis, local Valhalla map router, and background workers for price alerts, maps, and transit.
-- **Developing locally**: See [Install with Docker](./docs/getting-started/installation.md) and [Local Development](./docs/getting-started/local-development.md) to build the C++ route solver and run services natively.
+- **Manual setup (no installer script)**: Download `docker-compose.yml` and `.env.example` (rename to `.env`), replace the placeholder `POSTGRES_PASSWORD` and `JWT_SECRET_KEY` (and optionally set `WALLET_ENCRYPTION_KEY`, which otherwise auto-generates into `/data/.wallet_key`), and run `docker compose pull && docker compose up -d`. The `migrate` container automatically applies Alembic migrations and seeds the verified transit fare catalog before `api` starts.
+- **What runs inside Docker**: Web app (`:3000`), API server (`:8000`), PostgreSQL + TimescaleDB/pgvector, Redis, local Valhalla map router, one-shot `migrate`, and Celery `worker`/`beat` containers.
+- **Developing locally**: Clone the repository and run `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build` (backend hot reload + local port bindings; rebuild with `--build` or run `npm run dev` on the host for frontend edits). See [Install with Docker](./docs/getting-started/installation.md) and [Local Development](./docs/getting-started/local-development.md).
 
 </details>
 
@@ -189,13 +198,13 @@ Then ask things like _"Check my Kyoto trip for tight transfers or missing meals"
   - [Installation](./docs/getting-started/installation.md) · [Quickstart](./docs/getting-started/quickstart.md) · [User Guide](./docs/user-guide/trip-workspace.md) · [Self-Hosting](./docs/self-hosting/configuration.md) · [Architecture](./docs/architecture/system-overview.md) · [REST API](./docs/reference/rest-api.md) · [MCP Server (82 Tools)](./docs/reference/mcp-server.md)
 - **GitHub Wiki:** [github.com/Leandro-Juan/paladio/wiki](https://github.com/Leandro-Juan/paladio/wiki)
 - **In-App Help Center:** Available at `/help` inside any running instance (22 guides across 10 languages)
-- **Standalone Route Solver:** [`Leandro-Juan/paladio-core`](https://github.com/Leandro-Juan/paladio-core) (mirrored from [`cpp_core/`](./cpp_core/))
+- **Standalone Route Solver:** [`Leandro-Juan/paladio-core`](https://github.com/Leandro-Juan/paladio-core) (Apache-2.0, mirrored from [`cpp_core/`](./cpp_core/))
 
 ## Contributing, License & Contact
 
-- **Contributing:** Pull requests and bug reports are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) (commits require DCO sign-off via `git commit -s`), [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md), and the [Developer Guide](./docs/contributing/developer-guide.md).
+- **Contributing:** Pull requests and bug reports are welcome — see [`CONTRIBUTING.md`](./.github/CONTRIBUTING.md) (commits require DCO sign-off via `git commit -s`), [`CODE_OF_CONDUCT.md`](./.github/CODE_OF_CONDUCT.md), and the [Developer Guide](./docs/contributing/developer-guide.md).
 - **License:** Released under the [GNU Affero General Public License v3.0 (AGPLv3)](./LICENSE). Created and maintained by [Leandro Juan](https://github.com/Leandro-Juan); original copyright and UI attribution notices must remain intact per AGPLv3 Sections 4 & 7.
-- **Contact & Security:** Ask questions in [GitHub Discussions](https://github.com/Leandro-Juan/paladio/discussions), file bugs in [GitHub Issues](https://github.com/Leandro-Juan/paladio/issues), and report security issues privately via [`SECURITY.md`](./SECURITY.md).
+- **Contact & Security:** Ask questions in [GitHub Discussions](https://github.com/Leandro-Juan/paladio/discussions), file bugs in [GitHub Issues](https://github.com/Leandro-Juan/paladio/issues), and report security issues privately via [`SECURITY.md`](./.github/SECURITY.md).
 
 <div align="center">
     <br/>

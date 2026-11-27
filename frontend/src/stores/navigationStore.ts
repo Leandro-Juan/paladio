@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { withViewTransition } from '@/utils/viewTransition';
 
 export type NavigationStyle = 'sidebar' | 'dock';
 
@@ -32,12 +33,20 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     try {
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(STORAGE_KEY, style);
-        document.documentElement.setAttribute('data-nav-style', style);
       }
     } catch {
       // ignore
     }
-    set({ navStyle: style });
+    withViewTransition(() => {
+      try {
+        if (typeof document !== 'undefined') {
+          document.documentElement.setAttribute('data-nav-style', style);
+        }
+      } catch {
+        // ignore
+      }
+      set({ navStyle: style });
+    });
   },
   toggleNavStyle: () =>
     set((state) => {
@@ -45,11 +54,19 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
       try {
         if (typeof window !== 'undefined') {
           window.localStorage.setItem(STORAGE_KEY, next);
-          document.documentElement.setAttribute('data-nav-style', next);
         }
       } catch {
         // ignore
       }
+      withViewTransition(() => {
+        try {
+          if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute('data-nav-style', next);
+          }
+        } catch {
+          // ignore
+        }
+      });
       return { navStyle: next };
     }),
 }));

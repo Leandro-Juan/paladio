@@ -8,6 +8,7 @@ import logging
 from datetime import date, datetime, timezone
 from typing import Any
 import httpx
+from app.engine.market.booking_links import build_flight_booking_url
 from app.engine.market.config import config
 from app.engine.market.ports import FareObservation, FlightQuote
 from app.engine.market.providers.base import (
@@ -143,7 +144,12 @@ class RyanairProvider(BaseQuoteProvider):
                             carrier=carrier_name,
                             flight_number=fl_num,
                             stops=0,
-                            deep_link=f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin_iata}&destinationIata={dest_iata}&dateOut={dep_dt.date().isoformat()}",
+                            deep_link=build_flight_booking_url(
+                                origin=origin_iata,
+                                destination=dest_iata,
+                                depart_date=dep_dt.date(),
+                                deep_link=f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin_iata}&destinationIata={dest_iata}&dateOut={dep_dt.date().isoformat()}",
+                            ),
                             source="ryanair",
                             observed_at=datetime.now(timezone.utc),
                             is_live=True,
@@ -254,7 +260,12 @@ class RyanairProvider(BaseQuoteProvider):
                     carrier="Ryanair",
                     flight_number=f.get("flightNumber"),
                     stops=0,
-                    deep_link=f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin_iata}&destinationIata={dest_iata}&dateOut={day_str}",
+                    deep_link=build_flight_booking_url(
+                        origin=origin_iata,
+                        destination=dest_iata,
+                        depart_date=day_str,
+                        deep_link=f"https://www.ryanair.com/gb/en/trip/flights/select?originIata={origin_iata}&destinationIata={dest_iata}&dateOut={day_str}",
+                    ),
                     source="ryanair",
                     source_class="cache",
                     observed_at=datetime.now(timezone.utc),

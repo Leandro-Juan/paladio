@@ -7,27 +7,75 @@ test.describe('Engine Cockpit - Guardrails Abort Red Modal', () => {
   });
 
   test('displays red popup window with violation details when GUARDRAILS_ABORTED is received', async ({ page }) => {
-    // Intercept websocket and send GUARDRAILS_ABORTED event on message
+    let activeSocket: { send: (data: string) => void } | null = null;
+    let isAborted = false;
+    const violations = [
+      'Departure date 2020-01-01 is in the past. Real-world trips cannot begin in the past.',
+      'Trip duration of 45 days exceeds maximum limit of 30 days.',
+    ];
+
     await page.routeWebSocket(/.*\/api(\/v1)?\/ws\/stream.*/, (ws) => {
-      ws.onMessage((msg) => {
-        try {
-          const parsed = JSON.parse(typeof msg === 'string' ? msg : msg.toString());
-          if (parsed.action === 'chat') {
-            ws.send(
-              JSON.stringify({
-                event: 'GUARDRAILS_ABORTED',
-                status: 'aborted',
-                data: [
-                  'Departure date 2020-01-01 is in the past. Real-world trips cannot begin in the past.',
-                  'Trip duration of 45 days exceeds maximum limit of 30 days.',
-                ],
-              })
-            );
-          }
-        } catch {
-          // ignore
-        }
+      activeSocket = ws;
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/generation-jobs\/[^/]+\/acknowledge\/?$/, async (route) => {
+      isAborted = false;
+      await route.fulfill({ status: 204, body: '' });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/generation-jobs\/?$/, async (route) => {
+      const nowIso = new Date().toISOString();
+      const jobs = isAborted
+        ? [
+            {
+              id: 'job-abort-1',
+              thread_id: 'paladio_job-abort-1',
+              destination: 'Paris',
+              title: 'Trip to Paris',
+              status: 'aborted',
+              stage: 'GUARDRAILS_ABORTED',
+              prompt: 'Test trip',
+              guardrail_errors: violations,
+              acknowledged: false,
+              created_at: nowIso,
+              updated_at: nowIso,
+              completed_at: nowIso,
+            },
+          ]
+        : [];
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(jobs) });
+    });
+
+    await page.route(/.*\/api(\/v1)?\/trips\/generate\/?$/, async (route) => {
+      isAborted = true;
+      const nowIso = new Date().toISOString();
+      await route.fulfill({
+        status: 202,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'job-abort-1',
+          thread_id: 'paladio_job-abort-1',
+          destination: 'Paris',
+          title: 'Trip to Paris',
+          status: 'running',
+          stage: 'STARTING_INFERENCE',
+          prompt: 'Test trip',
+          acknowledged: false,
+          created_at: nowIso,
+          updated_at: nowIso,
+        }),
       });
+      setTimeout(() => {
+        activeSocket?.send(
+          JSON.stringify({
+            event: 'TRIP_JOB_ABORTED',
+            status: 'aborted',
+            job_id: 'job-abort-1',
+            destination: 'Paris',
+            guardrail_errors: violations,
+          })
+        );
+      }, 100);
     });
 
     await page.goto('/engine');

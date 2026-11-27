@@ -14,6 +14,7 @@ import {
   ChevronRightIcon,
 } from '@/components/icons';
 import { HotelTicketCard } from '@/components/monitoring/HotelTicketCard';
+import { Modal } from '@/components/Modal';
 import { formatCurrencyAmount } from '@/utils/currencyResolver';
 import { prepareDealTripNavigation } from '@/utils/dealToTrip';
 import { PaladioLoader } from '@/components/common/PaladioLoader';
@@ -57,8 +58,20 @@ function MonitoringPageInner() {
   const [filterTab, setFilterTab] = useState<'ALL' | 'DEAL' | 'ACTIVE' | 'PAUSED'>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isNewModalOpen, setIsNewModalOpen] = useState<boolean>(false);
+  const [isExperimentalModalOpen, setIsExperimentalModalOpen] = useState<boolean>(false);
   const [activeHistoryRange, setActiveHistoryRange] = useState<'24h' | '7d' | '30d' | '90d'>('30d');
   const [activeMonthsCount, setActiveMonthsCount] = useState<number>(4);
+
+  useEffect(() => {
+    if (!isExperimentalModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsExperimentalModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isExperimentalModalOpen]);
 
   // Synchronize corridor selection with URL query parameter
   useEffect(() => {
@@ -166,7 +179,15 @@ function MonitoringPageInner() {
         <div className={styles.headerTitleGroup}>
           <div className={styles.titleWithBadge}>
             <h1 className={styles.pageTitle}>{t('monitoring.page_title')}</h1>
-            <span className={styles.experimentalBadge}>{t('monitoring.experimental_badge')}</span>
+            <button
+              type="button"
+              className={styles.experimentalBadge}
+              onClick={() => setIsExperimentalModalOpen(true)}
+              aria-haspopup="dialog"
+              title={t('monitoring.experimental_badge_tooltip')}
+            >
+              {t('monitoring.experimental_badge')}
+            </button>
           </div>
         </div>
 
@@ -656,6 +677,16 @@ function MonitoringPageInner() {
         onSubmit={async (data) => {
           await createRoute(data);
         }}
+      />
+
+      <Modal
+        isOpen={isExperimentalModalOpen}
+        title="monitoring.experimental_modal_title"
+        message="monitoring.experimental_modal_message"
+        confirmText="monitoring.experimental_modal_ack"
+        cancelText=""
+        onConfirm={() => setIsExperimentalModalOpen(false)}
+        onCancel={() => setIsExperimentalModalOpen(false)}
       />
     </div>
   );

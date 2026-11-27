@@ -391,6 +391,7 @@ function ModeToggle({ mode, onChange }: ModeToggleProps) {
 
       <button
         type="button"
+        data-testid="costs-fx-toggle-btn"
         onClick={() => onChange('fx')}
         title={t('costs.mode_fx_title')}
         style={{
@@ -1258,6 +1259,7 @@ function CurrencyConverterDoubleCard({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
                 type="button"
+                data-testid="costs-currency-dial-btn"
                 onClick={onOpenWheelPicker}
                 title={t('costs.spin_currency_dial_title')}
                 style={{

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 
 export interface CustomSelectOption<T extends string = string> {
   value: T;
@@ -36,6 +37,7 @@ export function CustomSelect<T extends string = string>({
   const resolvedPlaceholder = placeholder ?? t('wallet.select_placeholder');
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuMount = useAnimatedMount(isOpen, 130);
 
   const selectedOption = options.find((opt) => opt.value === value);
 
@@ -45,9 +47,20 @@ export function CustomSelect<T extends string = string>({
         setIsOpen(false);
       }
     }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
   return (
     <div
@@ -78,9 +91,8 @@ export function CustomSelect<T extends string = string>({
           color: 'var(--color-text-primary)',
           fontSize: '12px',
           cursor: disabled ? 'not-allowed' : 'pointer',
-          outline: 'none',
           boxShadow: isOpen ? '0 0 0 2px var(--color-focus-ring)' : 'none',
-          transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+          transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
           opacity: disabled ? 0.6 : 1,
           ...buttonStyle,
         }}
@@ -102,7 +114,7 @@ export function CustomSelect<T extends string = string>({
           strokeLinejoin="round"
           style={{
             transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.15s ease',
+            transition: 'transform var(--transition-snappy)',
             flexShrink: 0,
             marginLeft: '6px',
           }}
@@ -111,9 +123,12 @@ export function CustomSelect<T extends string = string>({
         </svg>
       </button>
 
-      {isOpen && (
+      {menuMount.shouldRender && (
         <ul
           role="listbox"
+          className="paladio-popover"
+          data-state={menuMount.dataState}
+          data-origin="top-left"
           style={{
             position: 'absolute',
             top: 'calc(100% + 4px)',

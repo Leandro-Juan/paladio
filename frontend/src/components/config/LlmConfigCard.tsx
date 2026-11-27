@@ -6,6 +6,8 @@ import {
   fetchLlmConfigApi,
   updateLlmConfigApi,
   testLlmConfigApi,
+  fetchProviderModelsApi,
+  deleteLlmProviderApi,
   LLMConfigResponse,
   SupportedProviderMeta,
   TestLLMConnectionResponse,
@@ -23,6 +25,8 @@ export function LlmConfigCard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [removingKey, setRemovingKey] = useState(false);
   const [testResult, setTestResult] = useState<TestLLMConnectionResponse | null>(null);
 
   const [activeConfig, setActiveConfig] = useState<LLMConfigResponse | null>(null);
@@ -34,28 +38,32 @@ export function LlmConfigCard() {
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
   const [baseUrl, setBaseUrl] = useState<string>('');
   const [openMenuProvider, setOpenMenuProvider] = useState<string | null>(null);
+  const [liveModelsByProvider, setLiveModelsByProvider] = useState<Record<string, string[]>>({});
+  const liveModelsRef = useRef<Record<string, string[]>>({});
+  useEffect(() => {
+    liveModelsRef.current = liveModelsByProvider;
+  }, [liveModelsByProvider]);
 
-  const loadConfig = useCallback(async () => {
-    try {
-      const data = await fetchLlmConfigApi();
-      setActiveConfig(data);
-      setSelectedProvider(data.provider);
-      setSelectedModel(data.model);
-      setBaseUrl(data.base_url || '');
+  const applyConfigResponse = useCallback((data: LLMConfigResponse) => {
+    setActiveConfig(data);
+    setSelectedProvider(data.provider);
+    setSelectedModel(data.model);
 
-      const meta = data.supported_providers?.[data.provider];
-      const isKnownModel = meta?.recommended_models?.includes(data.model);
-      if (!isKnownModel && data.model) {
-        setIsCustomModelMode(true);
-        setCustomModel(data.model);
-      } else {
-        setIsCustomModelMode(false);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : tRef.current('config.llm_load_failed');
-      notify.error(tRef.current('config.llm_config_error'), msg);
-    } finally {
-      setLoading(false);
+    const meta = data.supported_providers?.[data.provider];
+    const configured = data.configured_providers?.[data.provider];
+    setBaseUrl(data.base_url || configured?.base_url || meta?.default_base_url || '');
+
+    const knownModels = new Set([
+      ...(liveModelsRef.current[data.provider] || []),
+      ...(configured?.available_models || []),
+      ...(meta?.recommended_models || []),
+    ]);
+    if (data.model && !knownModels.has(data.model)) {
+      setIsCustomModelMode(true);
+      setCustomModel(data.model);
+    } else {
+      setIsCustomModelMode(false);
+      setCustomModel('');
     }
   }, []);
 
@@ -64,19 +72,7 @@ export function LlmConfigCard() {
     fetchLlmConfigApi()
       .then((data) => {
         if (!ignore) {
-          setActiveConfig(data);
-          setSelectedProvider(data.provider);
-          setSelectedModel(data.model);
-          setBaseUrl(data.base_url || '');
-
-          const meta = data.supported_providers?.[data.provider];
-          const isKnownModel = meta?.recommended_models?.includes(data.model);
-          if (!isKnownModel && data.model) {
-            setIsCustomModelMode(true);
-            setCustomModel(data.model);
-          } else {
-            setIsCustomModelMode(false);
-          }
+          applyConfigResponse(data);
           setLoading(false);
         }
       })
@@ -90,7 +86,7 @@ export function LlmConfigCard() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [applyConfigResponse]);
 
   // Close custom model dropdown on outside click or Escape
   useEffect(() => {
@@ -116,6 +112,7 @@ export function LlmConfigCard() {
   const handleActivateModel = async (provKey: string, modelName: string) => {
     setSelectedProvider(provKey);
     setSelectedModel(modelName);
+    setApiKey('');
     setOpenMenuProvider(null);
     setTestResult(null);
 
@@ -130,7 +127,7 @@ export function LlmConfigCard() {
           t('config.llm_saved_title'),
           t('config.llm_active_provider_msg', { provider: provKey.toUpperCase(), model: modelName })
         );
-        await loadConfig();
+        applyConfigResponse(res.config);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('config.llm_switch_failed');
@@ -140,85 +137,142 @@ export function LlmConfigCard() {
     }
   };
 
-  const handleProviderSelect = async (provKey: string) => {
+  const handleProviderSelect = (provKey: string) => {
     setSelectedProvider(provKey);
+    setApiKey('');
+    setShowApiKey(false);
     setTestResult(null);
     setOpenMenuProvider(null);
 
     const configured = activeConfig?.configured_providers?.[provKey];
-    if (configured) {
-      const targetModel =
-        configured.active_model ||
-        configured.available_models[0] ||
-        activeConfig?.supported_providers?.[provKey]?.default_model ||
-        selectedModel;
-      setSelectedModel(targetModel);
-      setIsCustomModelMode(false);
-      setCustomModel('');
-      setBaseUrl(activeConfig?.supported_providers?.[provKey]?.default_base_url || '');
-
-      setSaving(true);
-      try {
-        const res = await updateLlmConfigApi({
-          provider: provKey,
-          model: targetModel,
-        });
-        if (res.status === 'success') {
-          notify.success(
-            t('config.llm_saved_title'),
-            t('config.llm_active_provider_msg', { provider: provKey.toUpperCase(), model: targetModel })
-          );
-          await loadConfig();
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : t('config.llm_save_failed');
-        notify.error(t('config.save_failed_title'), msg);
-      } finally {
-        setSaving(false);
-      }
-      return;
-    }
-
     const meta = activeConfig?.supported_providers?.[provKey];
-    if (meta) {
-      setSelectedModel(meta.default_model);
+    const targetModel =
+      (activeConfig?.provider === provKey ? activeConfig.model : undefined) ||
+      configured?.active_model ||
+      configured?.available_models?.[0] ||
+      meta?.default_model ||
+      '';
+    const targetBaseUrl =
+      (activeConfig?.provider === provKey ? activeConfig.base_url : null) ||
+      configured?.base_url ||
+      meta?.default_base_url ||
+      '';
+
+    setSelectedModel(targetModel);
+    setBaseUrl(targetBaseUrl);
+
+    const knownModels = new Set([
+      ...(liveModelsRef.current[provKey] || []),
+      ...(configured?.available_models || []),
+      ...(meta?.recommended_models || []),
+    ]);
+    if (targetModel && !knownModels.has(targetModel)) {
+      setIsCustomModelMode(true);
+      setCustomModel(targetModel);
+    } else {
       setIsCustomModelMode(false);
       setCustomModel('');
-      setBaseUrl(meta.default_base_url || '');
     }
   };
 
-  const handleAutoSaveUnconfigured = async (newKey?: string, newModel?: string, newUrl?: string) => {
-    const k = (newKey !== undefined ? newKey : apiKey).trim();
-    const m = (newModel !== undefined ? newModel : (isCustomModelMode ? customModel : selectedModel)).trim();
-    const u = (newUrl !== undefined ? newUrl : baseUrl).trim();
+  const handleSaveConfig = async () => {
+    const effectiveModel = (isCustomModelMode ? customModel : selectedModel).trim();
+    if (!effectiveModel) {
+      notify.error(t('config.llm_missing_model_title'), t('config.llm_missing_model_msg'));
+      return;
+    }
 
-    if (!m) return;
-    const reqKey = activeConfig?.supported_providers?.[selectedProvider]?.requires_key ?? true;
-    if (reqKey && !k) return;
+    const k = apiKey.trim();
+    const u = baseUrl.trim();
 
     setSaving(true);
     try {
       const res = await updateLlmConfigApi({
         provider: selectedProvider,
-        model: m,
+        model: effectiveModel,
         api_key: k ? k : null,
-        base_url: u ? u : null,
+        base_url: u,
       });
 
       if (res.status === 'success') {
         notify.success(
           t('config.llm_saved_title'),
-          t('config.llm_active_provider_msg', { provider: selectedProvider.toUpperCase(), model: m })
+          t('config.llm_active_provider_msg', { provider: selectedProvider.toUpperCase(), model: effectiveModel })
         );
         setApiKey('');
-        await loadConfig();
+        setTestResult(null);
+        applyConfigResponse(res.config);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('config.llm_save_failed');
       notify.error(t('config.save_failed_title'), msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleFetchModels = async () => {
+    setFetchingModels(true);
+    try {
+      const res = await fetchProviderModelsApi({
+        provider: selectedProvider,
+        api_key: apiKey.trim() ? apiKey.trim() : null,
+        base_url: baseUrl.trim() ? baseUrl.trim() : null,
+      });
+      if (!res.success) {
+        notify.error(
+          t('config.llm_fetch_models_failed_title'),
+          res.error || t('config.llm_rejected_msg')
+        );
+        return;
+      }
+      if (res.models.length === 0) {
+        notify.error(t('config.llm_fetch_models_failed_title'), t('config.llm_no_models_returned'));
+        return;
+      }
+      setLiveModelsByProvider((prev) => ({
+        ...prev,
+        [selectedProvider]: res.models,
+      }));
+      if (isCustomModelMode && res.models.includes(customModel.trim())) {
+        setIsCustomModelMode(false);
+        setSelectedModel(customModel.trim());
+        setCustomModel('');
+      } else if (!selectedModel.trim()) {
+        setIsCustomModelMode(false);
+        setSelectedModel(res.models[0]);
+      }
+      notify.success(
+        t('config.llm_models_fetched_title'),
+        t('config.llm_models_fetched_msg', { count: res.models.length })
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t('config.llm_test_error');
+      notify.error(t('config.llm_fetch_models_failed_title'), msg);
+    } finally {
+      setFetchingModels(false);
+    }
+  };
+
+  const handleRemoveKey = async () => {
+    setRemovingKey(true);
+    try {
+      const res = await deleteLlmProviderApi(selectedProvider);
+      if (res.status === 'success') {
+        const providerLabel = activeProviderMeta?.name || selectedProvider.toUpperCase();
+        notify.success(
+          t('config.llm_key_removed_title'),
+          t('config.llm_key_removed_msg', { provider: providerLabel })
+        );
+        setApiKey('');
+        setTestResult(null);
+        applyConfigResponse(res.config);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t('config.llm_save_failed');
+      notify.error(t('config.llm_remove_key_failed_title'), msg);
+    } finally {
+      setRemovingKey(false);
     }
   };
 
@@ -230,12 +284,11 @@ export function LlmConfigCard() {
     } else {
       setIsCustomModelMode(false);
       setSelectedModel(val);
-      void handleAutoSaveUnconfigured(apiKey, val, baseUrl);
     }
   };
 
   const handleTestConnection = async () => {
-    const effectiveModel = isCustomModelMode ? customModel.trim() : selectedModel.trim();
+    const effectiveModel = (isCustomModelMode ? customModel : selectedModel).trim();
     if (!effectiveModel) {
       notify.error(t('config.llm_missing_model_title'), t('config.llm_missing_model_msg'));
       return;
@@ -256,9 +309,6 @@ export function LlmConfigCard() {
           t('config.connection_successful_title'),
           t('config.llm_latency_response', { latency: result.latency_ms ?? 0, response: result.response ?? '' })
         );
-        if (apiKey.trim() || baseUrl.trim() || !activeConfig?.configured_providers?.[selectedProvider]) {
-          void handleAutoSaveUnconfigured(apiKey, effectiveModel, baseUrl);
-        }
       } else {
         notify.error(t('config.connection_failed_title'), result.error || t('config.llm_rejected_msg'));
       }
@@ -278,6 +328,7 @@ export function LlmConfigCard() {
 
   const activeProviderMeta: SupportedProviderMeta | undefined =
     activeConfig?.supported_providers?.[selectedProvider];
+  const configuredMeta = activeConfig?.configured_providers?.[selectedProvider];
 
   const requiresKey = activeProviderMeta ? activeProviderMeta.requires_key : selectedProvider !== 'ollama';
 
@@ -296,6 +347,27 @@ export function LlmConfigCard() {
 
   const supportedMap = activeConfig?.supported_providers || {};
   const providerList = Object.entries(supportedMap);
+  const liveModels = liveModelsByProvider[selectedProvider] || [];
+  const presetModels = Array.from(
+    new Set([
+      ...(configuredMeta?.available_models || []),
+      ...(activeProviderMeta?.recommended_models || []),
+      ...(selectedModel ? [selectedModel] : []),
+    ])
+  );
+  const extraPresets =
+    liveModels.length > 0
+      ? presetModels.filter((m) => !liveModels.includes(m))
+      : presetModels;
+  const effectiveModel = (isCustomModelMode ? customModel : selectedModel).trim();
+  const hasExistingKey =
+    Boolean(configuredMeta?.masked_key) ||
+    (activeConfig?.provider === selectedProvider && Boolean(activeConfig?.has_api_key));
+  const canSave =
+    !saving &&
+    !removingKey &&
+    Boolean(effectiveModel) &&
+    (!requiresKey || Boolean(apiKey.trim()) || hasExistingKey);
 
   return (
     <div className="bg-surface border-subtle" style={{ borderRadius: '10px', padding: '1.5rem', marginBottom: '2rem' }}>
@@ -438,10 +510,18 @@ export function LlmConfigCard() {
                               ? 'var(--color-accent-teal, #0D9488)'
                               : 'var(--color-text-muted)',
                           cursor: 'pointer',
-                          transition: 'all 0.15s ease',
+                          transition: 'background-color var(--transition-fast), color var(--transition-fast)',
                         }}
                       >
-                        <ChevronDownIcon size={12} />
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            transform: openMenuProvider === key ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform var(--transition-snappy)',
+                          }}
+                        >
+                          <ChevronDownIcon size={12} />
+                        </span>
                       </button>
                     )}
                   </div>
@@ -467,6 +547,8 @@ export function LlmConfigCard() {
                 {isConfigured && openMenuProvider === key && (
                   <div
                     data-llm-dropdown
+                    className="paladio-popover"
+                    data-origin="top-left"
                     style={{
                       position: 'absolute',
                       top: 'calc(100% + 4px)',
@@ -541,31 +623,32 @@ export function LlmConfigCard() {
         </div>
       </div>
 
-      {/* Configuration Form Rows - only displayed for providers that are not yet configured */}
-      {!activeConfig?.configured_providers?.[selectedProvider] && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '1rem',
-            background: 'var(--color-surface-card)',
-            padding: '1.25rem',
-            borderRadius: '8px',
-            border: '1px solid var(--color-border-subtle)',
-            marginBottom: '1.25rem',
-          }}
-        >
-          {/* Model Selection */}
-          <div>
-            <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
-              {t('config.llm_model_identifier_label')}
-            </label>
+      {/* Configuration Form Rows - always visible for editing model, API key, or endpoint */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '1rem',
+          background: 'var(--color-surface-card)',
+          padding: '1.25rem',
+          borderRadius: '8px',
+          border: '1px solid var(--color-border-subtle)',
+          marginBottom: '1.25rem',
+        }}
+      >
+        {/* Model Selection */}
+        <div>
+          <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+            {t('config.llm_model_identifier_label')}
+          </label>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             {!isCustomModelMode ? (
               <select
                 value={selectedModel}
                 onChange={handleModelSelectChange}
                 style={{
-                  width: '100%',
+                  flex: 1,
+                  minWidth: 0,
                   padding: '8px 12px',
                   borderRadius: '6px',
                   border: '1px solid var(--color-border-subtle)',
@@ -575,23 +658,44 @@ export function LlmConfigCard() {
                   fontSize: '13px',
                 }}
               >
-                {(activeProviderMeta?.recommended_models || [selectedModel]).map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
+                {liveModels.length > 0 ? (
+                  <>
+                    <optgroup label={t('config.llm_live_models_group')}>
+                      {liveModels.map((m) => (
+                        <option key={`live-${m}`} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </optgroup>
+                    {extraPresets.length > 0 && (
+                      <optgroup label={t('config.llm_recommended_models_group')}>
+                        {extraPresets.map((m) => (
+                          <option key={`preset-${m}`} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </>
+                ) : (
+                  presetModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))
+                )}
                 <option value="__custom__">{t('config.llm_custom_model_option')}</option>
               </select>
             ) : (
-              <div style={{ display: 'flex', gap: '6px' }}>
+              <>
                 <input
                   type="text"
                   value={customModel}
                   onChange={(e) => setCustomModel(e.target.value)}
-                  onBlur={() => void handleAutoSaveUnconfigured(apiKey, customModel, baseUrl)}
                   placeholder={t('config.llm_custom_model_placeholder')}
                   style={{
                     flex: 1,
+                    minWidth: 0,
                     padding: '8px 12px',
                     borderRadius: '6px',
                     border: '1px solid var(--color-border-subtle)',
@@ -605,7 +709,7 @@ export function LlmConfigCard() {
                   type="button"
                   onClick={() => setIsCustomModelMode(false)}
                   style={{
-                    padding: '8px 12px',
+                    padding: '8px 10px',
                     borderRadius: '6px',
                     border: '1px solid var(--color-border-subtle)',
                     background: 'var(--color-surface)',
@@ -613,116 +717,74 @@ export function LlmConfigCard() {
                     fontFamily: 'var(--font-mono)',
                     fontSize: '11px',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {t('config.llm_presets_btn')}
                 </button>
-              </div>
+              </>
             )}
-            <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
-              {t('config.llm_default_model_hint', {
-                provider: activeProviderMeta?.name || selectedProvider,
-                model: activeProviderMeta?.default_model || t('config.llm_default_fallback'),
-              })}
-            </span>
-          </div>
-
-          {/* API Key Input */}
-          <div>
-            <div style={{ marginBottom: '6px' }}>
-              <label className="font-mono text-xs text-muted" style={{ fontWeight: 600 }}>
-                {requiresKey ? t('config.llm_api_key_required_label') : t('config.llm_api_key_optional_label')}
-              </label>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type={showApiKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={
-                  activeConfig?.configured_providers?.[selectedProvider]?.masked_key
-                    ? t('config.llm_keeping_saved_key', {
-                        key: activeConfig.configured_providers[selectedProvider].masked_key ?? '',
-                      })
-                    : activeConfig?.has_api_key && activeConfig.provider === selectedProvider
-                    ? t('config.llm_keeping_current_key', {
-                        key: activeConfig.masked_api_key ?? '',
-                      })
-                    : requiresKey
-                    ? t('config.llm_api_key_placeholder_req')
-                    : t('config.llm_api_key_placeholder_opt')
-                }
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-border-subtle)',
-                  background: 'var(--color-surface)',
-                  color: 'var(--color-text-primary)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '13px',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowApiKey(!showApiKey)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-border-subtle)',
-                  backgroundColor: 'var(--color-surface-hover)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
-              >
-                {showApiKey ? t('config.hide_upper') : t('config.show_upper')}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleAutoSaveUnconfigured(apiKey, undefined, baseUrl)}
-                disabled={saving || !apiKey.trim()}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'var(--color-accent-teal, #0D9488)',
-                  color: '#FFFFFF',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: saving || !apiKey.trim() ? 'not-allowed' : 'pointer',
-                  opacity: saving || !apiKey.trim() ? 0.6 : 1,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {saving && <Spinner size={12} color="#FFFFFF" />}
-                <span>{t('config.save_key_upper')}</span>
-              </button>
-            </div>
-            <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
-              {t('config.llm_key_storage_hint')}
-            </span>
-          </div>
-
-          {/* Custom Base URL Input */}
-          <div>
-            <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
-              {t('config.llm_base_url_label')}
-            </label>
-            <input
-              type="text"
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-              onBlur={() => void handleAutoSaveUnconfigured(apiKey, undefined, baseUrl)}
-              placeholder={activeProviderMeta?.default_base_url || 'https://api.example.com/v1'}
+            <button
+              type="button"
+              onClick={() => void handleFetchModels()}
+              disabled={fetchingModels || saving || testing}
               style={{
-                width: '100%',
+                padding: '8px 10px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border-subtle)',
+                background: 'var(--color-surface-hover)',
+                color: 'var(--color-text-primary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: fetchingModels || saving || testing ? 'not-allowed' : 'pointer',
+                opacity: fetchingModels || saving || testing ? 0.65 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {fetchingModels && <Spinner size={11} />}
+              <span>{fetchingModels ? t('config.llm_fetching_models_btn') : t('config.llm_fetch_models_btn')}</span>
+            </button>
+          </div>
+          <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
+            {t('config.llm_default_model_hint', {
+              provider: activeProviderMeta?.name || selectedProvider,
+              model: activeProviderMeta?.default_model || t('config.llm_default_fallback'),
+            })}
+          </span>
+        </div>
+
+        {/* API Key Input */}
+        <div>
+          <div style={{ marginBottom: '6px' }}>
+            <label className="font-mono text-xs text-muted" style={{ fontWeight: 600 }}>
+              {requiresKey ? t('config.llm_api_key_required_label') : t('config.llm_api_key_optional_label')}
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type={showApiKey ? 'text' : 'password'}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={
+                configuredMeta?.masked_key
+                  ? t('config.llm_keeping_saved_key', {
+                      key: configuredMeta.masked_key ?? '',
+                    })
+                  : activeConfig?.has_api_key && activeConfig.provider === selectedProvider
+                  ? t('config.llm_keeping_current_key', {
+                      key: activeConfig.masked_api_key ?? '',
+                    })
+                  : requiresKey
+                  ? t('config.llm_api_key_placeholder_req')
+                  : t('config.llm_api_key_placeholder_opt')
+              }
+              style={{
+                flex: 1,
+                minWidth: 0,
                 padding: '8px 12px',
                 borderRadius: '6px',
                 border: '1px solid var(--color-border-subtle)',
@@ -732,12 +794,56 @@ export function LlmConfigCard() {
                 fontSize: '13px',
               }}
             />
-            <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
-              {t('config.llm_base_url_hint')}
-            </span>
+            <button
+              type="button"
+              onClick={() => setShowApiKey(!showApiKey)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border-subtle)',
+                backgroundColor: 'var(--color-surface-hover)',
+                color: 'var(--color-text-primary)',
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                cursor: 'pointer',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {showApiKey ? t('config.hide_upper') : t('config.show_upper')}
+            </button>
           </div>
+          <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
+            {t('config.llm_key_storage_hint')}
+          </span>
         </div>
-      )}
+
+        {/* Custom Base URL Input */}
+        <div>
+          <label className="font-mono text-xs text-muted" style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+            {t('config.llm_base_url_label')}
+          </label>
+          <input
+            type="text"
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder={activeProviderMeta?.default_base_url || 'https://api.example.com/v1'}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-text-primary)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '13px',
+            }}
+          />
+          <span className="font-mono text-muted" style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}>
+            {t('config.llm_base_url_hint')}
+          </span>
+        </div>
+      </div>
 
       {/* Test Result Feedback Box (if any) */}
       {testResult && (
@@ -821,28 +927,81 @@ export function LlmConfigCard() {
       )}
 
       {/* Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          onClick={handleTestConnection}
-          disabled={testing || saving}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '6px',
-            border: '1px solid var(--color-border-subtle)',
-            background: 'var(--color-surface-card)',
-            color: 'var(--color-text-primary)',
-            fontSize: '12px',
-            fontFamily: 'var(--font-mono)',
-            cursor: testing ? 'not-allowed' : 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          {testing && <Spinner size={12} />}
-          {testing ? t('config.llm_testing_btn') : t('config.llm_test_connection_btn')}
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div>
+          {configuredMeta?.has_saved_key && (
+            <button
+              type="button"
+              onClick={() => void handleRemoveKey()}
+              disabled={removingKey || saving || testing}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-danger, #ef4444)',
+                background: 'var(--color-danger-soft, rgba(239, 68, 68, 0.08))',
+                color: 'var(--color-danger, #ef4444)',
+                fontSize: '12px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
+                cursor: removingKey || saving || testing ? 'not-allowed' : 'pointer',
+                opacity: removingKey || saving || testing ? 0.6 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              {removingKey && <Spinner size={12} />}
+              <span>{removingKey ? t('config.llm_removing_key_btn') : t('config.llm_remove_key_btn')}</span>
+            </button>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={handleTestConnection}
+            disabled={testing || saving || removingKey}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: '1px solid var(--color-border-subtle)',
+              background: 'var(--color-surface-card)',
+              color: 'var(--color-text-primary)',
+              fontSize: '12px',
+              fontFamily: 'var(--font-mono)',
+              cursor: testing || saving || removingKey ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            {testing && <Spinner size={12} />}
+            {testing ? t('config.llm_testing_btn') : t('config.llm_test_connection_btn')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSaveConfig()}
+            disabled={!canSave}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: 'none',
+              background: 'var(--color-accent-teal, #0D9488)',
+              color: '#FFFFFF',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: canSave ? 'pointer' : 'not-allowed',
+              opacity: canSave ? 1 : 0.6,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {saving && <Spinner size={12} color="#FFFFFF" />}
+            <span>{saving ? t('config.llm_saving_btn') : t('config.llm_save_activate_btn')}</span>
+          </button>
+        </div>
       </div>
     </div>
   );

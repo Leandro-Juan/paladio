@@ -1,55 +1,23 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-paladio}
+  POSTGRES_HOST: db
+  REDIS_URL: redis://redis:6379/0
+  FASTEMBED_CACHE_PATH: /opt/models/fastembed
+  FASTEMBED_THREADS: "2"
+  VALHALLA_URL: http://valhalla:8002
+  PALADIO_DATA_DIR: /data
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+
 services:
-  api:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-      target: dev
-    ports:
-      - "${API_PORT:-8000}:8000"
-    volumes:
-      - ./backend:/app
-      - /app/.venv
-      - valhalladata:/custom_files
-      - gtfsdata:/gtfs_feeds
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-paladio}
-      - POSTGRES_HOST=db
-      - REDIS_URL=redis://redis:6379/0
-      - FASTEMBED_CACHE_PATH=/opt/models/fastembed
-      - FASTEMBED_THREADS=2
-      - VALHALLA_URL=http://valhalla:8002
-      - NODE_ENV=development
-    env_file:
-      - path: .env
-        required: false
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app
-    mem_limit: 2048m
-    mem_reservation: 512m
-    security_opt:
-      - no-new-privileges:true
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
-    depends_on:
-      api:
-        condition: service_started
-    security_opt:
-      - no-new-privileges:true
-
   db:
-    image: timescale/timescaledb:latest-pg16
-    ports:
-      - "127.0.0.1:5432:5432" # Exposed only to localhost for admin, tailscale
+    image: timescale/timescaledb:2.30.2-pg16
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -57,102 +25,191 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER:-postgres}\" -d \"$${POSTGRES_DB:-paladio}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
     security_opt:
       - no-new-privileges:true
+    logging: *default-logging
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "127.0.0.1:6379:6379"
+  migrate:
+    image: ${PALADIO_API_IMAGE:-ghcr.io/leandro-juan/paladio-api}:${PALADIO_VERSION:-latest}
+    user: "0:0"
+    restart: "no"
     volumes:
-      - redisdata:/data
+      - appdata:/data
+      - valhalladata:/custom_files
+      - gtfsdata:/gtfs_feeds
+    environment:
+      <<: *backend-env
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - "chown -R 10001:10001 /data /custom_files /gtfs_feeds && chmod 750 /data && chmod 775 /custom_files /gtfs_feeds && exec setpriv --reuid=10001 --regid=10001 --clear-groups env HOME=/tmp sh -c 'alembic upgrade head && python scripts/migrate_verified_fares_to_quotes.py'"
+    healthcheck:
+      disable: true
     security_opt:
       - no-new-privileges:true
+    logging: *default-logging
 
   valhalla:
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    user: "10001:10001"
     restart: unless-stopped
     shm_size: 512m
     mem_limit: 3072m
     mem_reservation: 1024m
     cpus: 2.0
-    ports:
-      - "127.0.0.1:8002:8002"
     volumes:
       - valhalladata:/custom_files
       - gtfsdata:/gtfs_feeds
     environment:
-      - serve_rst=True
-      - server_threads=2
-      - use_tiles_ignore_pbf=True
-      - force_rebuild=False
-      - build_elevation=False
-      - build_transit=False
-      
-  worker:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-      target: dev
+      serve_tiles: "True"
+      server_threads: "2"
+      use_tiles_ignore_pbf: "True"
+      force_rebuild: "False"
+      build_elevation: "False"
+      build_transit: "False"
+      tile_urls: ${VALHALLA_TILE_URLS:-https://download.geofabrik.de/europe/monaco-latest.osm.pbf}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:8002/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  api:
+    image: ${PALADIO_API_IMAGE:-ghcr.io/leandro-juan/paladio-api}:${PALADIO_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - appdata:/data
+      - valhalladata:/custom_files
+      - gtfsdata:/gtfs_feeds
+    environment:
+      <<: *backend-env
+      API_WORKERS: ${API_WORKERS:-1}
+      FRONTEND_PORT: ${FRONTEND_PORT:-3000}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     mem_limit: 2048m
     mem_reservation: 512m
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  worker:
+    image: ${PALADIO_API_IMAGE:-ghcr.io/leandro-juan/paladio-api}:${PALADIO_VERSION:-latest}
+    restart: unless-stopped
     volumes:
-      - ./backend:/app
-      - /app/.venv
+      - appdata:/data
       - valhalladata:/custom_files
       - gtfsdata:/gtfs_feeds
-      - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-paladio}
-      - POSTGRES_HOST=db
-      - REDIS_URL=redis://redis:6379/0
-      - FASTEMBED_CACHE_PATH=/opt/models/fastembed
-      - FASTEMBED_THREADS=2
-      - NODE_ENV=development
+      <<: *backend-env
     env_file:
       - path: .env
         required: false
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
-        condition: service_started
-    command: celery -A app.celery_app worker --loglevel=info -Q celery,transit_build,poi_hydration -c 2 --prefetch-multiplier=1 --max-memory-per-child=350000 --max-tasks-per-child=50
+        condition: service_healthy
+    command: ["celery", "-A", "app.celery_app", "worker", "--loglevel=info", "-Q", "celery,transit_build,poi_hydration", "-c", "2", "--prefetch-multiplier=1", "--max-memory-per-child=1024000", "--max-tasks-per-child=50"]
+    healthcheck:
+      disable: true
+    mem_limit: 3072m
+    mem_reservation: 512m
     security_opt:
       - no-new-privileges:true
+    logging: *default-logging
 
   beat:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-      target: dev
-    mem_limit: 512m
-    mem_reservation: 128m
+    image: ${PALADIO_API_IMAGE:-ghcr.io/leandro-juan/paladio-api}:${PALADIO_VERSION:-latest}
+    restart: unless-stopped
     volumes:
-      - ./backend:/app
-      - /app/.venv
+      - appdata:/data
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-paladio}
-      - POSTGRES_HOST=db
-      - REDIS_URL=redis://redis:6379/0
-      - NODE_ENV=development
+      <<: *backend-env
     env_file:
       - path: .env
         required: false
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
-        condition: service_started
-    command: celery -A app.celery_app beat --loglevel=info
+        condition: service_healthy
+    command: ["celery", "-A", "app.celery_app", "beat", "--loglevel=info", "--schedule", "/data/celerybeat-schedule"]
+    healthcheck:
+      disable: true
+    mem_limit: 512m
+    mem_reservation: 128m
     security_opt:
       - no-new-privileges:true
+    logging: *default-logging
+
+  frontend:
+    image: ${PALADIO_FRONTEND_IMAGE:-ghcr.io/leandro-juan/paladio-frontend}:${PALADIO_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      API_PORT: ${API_PORT:-8000}
+      PALADIO_PUBLIC_API_URL: ${PALADIO_PUBLIC_API_URL:-}
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      api:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
 
 volumes:
+  appdata:
   pgdata:
   redisdata:
   valhalladata:
