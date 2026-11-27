@@ -68,11 +68,11 @@ async def test_check_for_updates_when_stopped_does_not_download(db_session):
     await UpdaterService.update_config(db_session, auto_update_enabled=False)
 
     fake_release = {
-        "tag_name": "v3.0.0",
-        "name": "Paladio 3.0.0 Release",
+        "tag_name": "v99.0.0",
+        "name": "Paladio 99.0.0 Release",
         "body": "Exciting new features and fixes.",
-        "html_url": "https://github.com/Leandro-Juan/paladio/releases/tag/v3.0.0",
-        "tarball_url": "https://api.github.com/repos/Leandro-Juan/paladio/tarball/v3.0.0",
+        "html_url": "https://github.com/Leandro-Juan/paladio/releases/tag/v99.0.0",
+        "tarball_url": "https://api.github.com/repos/Leandro-Juan/paladio/tarball/v99.0.0",
         "assets": [],
     }
 
@@ -90,7 +90,7 @@ async def test_check_for_updates_when_stopped_does_not_download(db_session):
         client=mock_client,
     )
 
-    assert state["latest_version"] == "3.0.0"
+    assert state["latest_version"] == "99.0.0"
     assert state["update_available"] is True
     # Because auto-updates are STOPPED, status should remain idle (no auto-download)
     assert state["download_status"] == "idle"
@@ -132,6 +132,21 @@ async def test_download_update_streams_file(db_session, tmp_path, monkeypatch):
     assert state["downloaded_file"] is not None
     assert (tmp_path / "paladio-3.0.0.tar.gz").exists()
     assert (tmp_path / "paladio-3.0.0.tar.gz").read_bytes() == fake_archive_bytes
+
+
+@pytest.mark.asyncio
+async def test_download_update_rejects_untrusted_urls(db_session):
+    for bad_url in (
+        "http://169.254.169.254/latest/meta-data/",
+        "http://github.com/Leandro-Juan/paladio/archive/refs/tags/v3.0.0.tar.gz",
+        "https://evil.example/paladio.tar.gz",
+    ):
+        with pytest.raises(ValueError, match="official HTTPS GitHub"):
+            await UpdaterService.download_update(
+                session=db_session,
+                download_url=bad_url,
+                version="3.0.1",
+            )
 
 
 @pytest.mark.asyncio

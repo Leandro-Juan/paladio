@@ -134,6 +134,9 @@ PYBIND11_MODULE(paladio_core, m) {
       "solve_tsp_tour",
       [](py::array_t<int, py::array::c_style | py::array::forcecast> durations, int n,
          int start_node, int end_node, bool fixed_end) -> std::vector<int> {
+        if (n < 0) {
+          throw std::invalid_argument("n must be non-negative.");
+        }
         py::buffer_info dur_buf = durations.request();
         if (dur_buf.ndim != 1) {
           throw py::value_error("Transit duration matrix must be a flattened 1D array.");
@@ -163,6 +166,9 @@ PYBIND11_MODULE(paladio_core, m) {
          py::array_t<int, py::array::c_style | py::array::forcecast> window_starts,
          py::array_t<int, py::array::c_style | py::array::forcecast> window_ends, int start_node,
          int end_node, bool fixed_end, double penalty_weight) -> std::vector<int> {
+        if (n < 0) {
+          throw std::invalid_argument("n must be non-negative.");
+        }
         py::buffer_info dur_buf = durations.request();
         py::buffer_info dwell_buf = dwell_times.request();
         py::buffer_info win_s_buf = window_starts.request();
@@ -170,6 +176,10 @@ PYBIND11_MODULE(paladio_core, m) {
 
         if (dur_buf.ndim != 1) {
           throw py::value_error("Transit duration matrix must be a flattened 1D array.");
+        }
+        if (dwell_buf.ndim != 1 || win_s_buf.ndim != 1 || win_e_buf.ndim != 1) {
+          throw std::invalid_argument(
+              "dwell_times, window_starts, and window_ends must be 1D arrays.");
         }
         size_t expected_size = static_cast<size_t>(n) * static_cast<size_t>(n);
         if (dur_buf.shape[0] != static_cast<py::ssize_t>(expected_size)) {

@@ -19,6 +19,7 @@ from app.api.weather import router as weather_router
 from app.api.websockets import router as websockets_router
 from app.infrastructure.scoring.hybrid_scorer import HybridSovereignScorer
 from app.services.trip_generation_manager import TripGenerationManager
+from app.services.updater_service import get_current_installed_version
 from app.swarm.graph import create_swarm
 from app.agent import trip_agent_router
 
@@ -130,7 +131,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Paladio Semantic Gateway",
     description="Gateway for the Continuous Sovereign Travel Optimization Engine",
-    version="1.0.0",
+    version=get_current_installed_version(),
     lifespan=lifespan,
 )
 

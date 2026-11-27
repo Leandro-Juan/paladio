@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import os
+import time
 from pathlib import Path
 
 from cryptography.fernet import Fernet
@@ -23,16 +24,20 @@ def _load_or_generate_wallet_key() -> str:
         or (resolve_runtime_data_dir() / ".wallet_key")
     )
     try:
-        if key_file.exists():
-            content = key_file.read_text(encoding="utf-8").strip()
-            if content:
-                return content
         key_file.parent.mkdir(parents=True, exist_ok=True)
         generated = Fernet.generate_key().decode("utf-8")
-        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-        with os.fdopen(os.open(key_file, flags, 0o600), "w", encoding="utf-8") as f:
-            f.write(generated)
-        return generated
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        try:
+            with os.fdopen(os.open(key_file, flags, 0o600), "w", encoding="utf-8") as f:
+                f.write(generated)
+            return generated
+        except FileExistsError:
+            for _ in range(5):
+                content = key_file.read_text(encoding="utf-8").strip()
+                if content:
+                    return content
+                time.sleep(0.05)
+            raise RuntimeError("Existing wallet encryption key file is empty.")
     except Exception:
         if env == "production" or app_env == "production":
             raise RuntimeError(

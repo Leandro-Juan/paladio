@@ -402,3 +402,36 @@ async def test_sync_overnight_bare_time_flight_reconciles_seeded_tickets(
     flt = next(r for r in rows if r.ticket_type == "flight")
     assert flt.start_time is not None and flt.end_time is not None
     assert flt.end_time >= flt.start_time
+
+
+@pytest.mark.asyncio
+async def test_wallet_storage_blocks_dot_wipe_and_meta_collision(tmp_path, monkeypatch):
+    from app.services import wallet_storage
+
+    base = tmp_path / "wallet_base"
+    temp = base / "temp"
+    base.mkdir()
+    temp.mkdir()
+    monkeypatch.setattr(wallet_storage, "STORAGE_BASE_DIR", base)
+    monkeypatch.setattr(wallet_storage, "TEMP_STORAGE_DIR", temp)
+
+    for bad_part in ("", ".", "..", "../other", "sub/dir"):
+        with pytest.raises(ValueError):
+            wallet_storage._safe_join(base, bad_part)
+
+    with pytest.raises(ValueError):
+        wallet_storage._safe_join(base)
+
+    # Filename colliding with metadata + newline injection in mime_type
+    upload_id = await wallet_storage.save_temp_upload(
+        content=b"PDF_BYTES",
+        filename="meta.json",
+        mime_type="application/pdf\nforged_filename.txt",
+    )
+    loaded = await wallet_storage.get_temp_upload(upload_id)
+    assert loaded is not None
+    content, safe_name, clean_mime = loaded
+    assert content == b"PDF_BYTES"
+    assert safe_name == "upload.bin"
+    assert "\n" not in clean_mime
+    assert "\r" not in clean_mime

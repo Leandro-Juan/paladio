@@ -47,6 +47,7 @@ COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.
 COPY --from=deps /usr/local/bin /usr/local/bin
 COPY --chown=appuser:appgroup --from=deps /opt/models/fastembed /opt/models/fastembed
 ENV FASTEMBED_CACHE_PATH=/opt/models/fastembed \
+    PALADIO_DATA_DIR=/data \
     ENVIRONMENT=production \
     API_WORKERS=1 \
     PYTHONDONTWRITEBYTECODE=1 \

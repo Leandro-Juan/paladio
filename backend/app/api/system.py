@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-from app.api.deps import get_current_admin_user, get_optional_user
+from app.api.deps import get_current_admin_user, get_current_user, get_optional_user
 from app.db.models import UserModel
 from app.db.session import get_db
 from app.services.llm_service import (
@@ -44,7 +44,7 @@ class ManualDownloadPayload(BaseModel):
 @router.get("/update/status")
 async def get_update_status(
     session: AsyncSession = Depends(get_db),
-    _user: UserModel | None = Depends(get_optional_user),
+    _user: UserModel = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Retrieve the current software version, update telemetry, and auto-updater settings."""
     try:
@@ -61,10 +61,10 @@ async def get_update_status(
 async def update_updater_configuration(
     payload: UpdateConfigPayload,
     session: AsyncSession = Depends(get_db),
-    _user: UserModel | None = Depends(get_optional_user),
+    _admin: UserModel = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
     """
-    Update auto-updater preferences, including the option to stop/disable automatic updates.
+    Update auto-updater preferences, including the option to stop/disable automatic updates (Admin Only).
     """
     try:
         updated = await UpdaterService.update_config(
@@ -74,6 +74,11 @@ async def update_updater_configuration(
             github_repo=payload.github_repo,
         )
         return {"status": "success", "config": updated}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
     except Exception as e:
         logger.exception(f"Failed to update updater configuration: {e}")
         raise HTTPException(
@@ -86,10 +91,10 @@ async def update_updater_configuration(
 async def trigger_update_check(
     force_download: bool = False,
     session: AsyncSession = Depends(get_db),
-    _user: UserModel | None = Depends(get_optional_user),
+    _admin: UserModel = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
     """
-    Manually check GitHub for the latest release/tag.
+    Manually check GitHub for the latest release/tag (Admin Only).
     If force_download is True or auto_update_enabled is True and a newer version exists,
     automatically triggers download.
     """
@@ -111,10 +116,10 @@ async def trigger_update_check(
 async def trigger_update_download(
     payload: ManualDownloadPayload | None = None,
     session: AsyncSession = Depends(get_db),
-    _user: UserModel | None = Depends(get_optional_user),
+    _admin: UserModel = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
     """
-    Manually download the latest release archive from GitHub.
+    Manually download the latest release archive from GitHub (Admin Only).
     """
     try:
         download_url = payload.download_url if payload else None
@@ -125,6 +130,11 @@ async def trigger_update_download(
             version=version,
         )
         return {"status": "success", "download": result}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
     except Exception as e:
         logger.exception(f"Error downloading update: {e}")
         raise HTTPException(
@@ -173,7 +183,7 @@ def _build_llm_config_payload(
 @router.get("/llm/config")
 async def get_llm_configuration(
     session: AsyncSession = Depends(get_db),
-    _user: UserModel | None = Depends(get_optional_user),
+    _user: UserModel = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Retrieve current LLM provider configuration and catalog of supported providers."""
     try:
@@ -193,9 +203,9 @@ async def get_llm_configuration(
 async def update_llm_configuration(
     payload: UpdateLLMConfigPayload,
     session: AsyncSession = Depends(get_db),
-    _user: UserModel | None = Depends(get_optional_user),
+    _admin: UserModel = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
-    """Update active LLM provider, model, API key, or custom endpoint URL."""
+    """Update active LLM provider, model, API key, or custom endpoint URL (Admin Only)."""
     try:
         saved = await LLMService.save_config(
             session=session,
@@ -222,9 +232,9 @@ async def update_llm_configuration(
 async def test_llm_connection(
     payload: TestLLMConnectionPayload,
     session: AsyncSession = Depends(get_db),
-    _user: UserModel | None = Depends(get_optional_user),
+    _admin: UserModel = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
-    """Test connectivity and authentication against an LLM provider."""
+    """Test connectivity and authentication against an LLM provider (Admin Only)."""
     try:
         result = await LLMService.test_connection(
             provider=payload.provider,
@@ -248,9 +258,9 @@ async def test_llm_connection(
 async def list_llm_provider_models(
     payload: ListLLMModelsPayload,
     session: AsyncSession = Depends(get_db),
-    _user: UserModel | None = Depends(get_optional_user),
+    _admin: UserModel = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
-    """Fetch live model IDs from the designated LLM provider API."""
+    """Fetch live model IDs from the designated LLM provider API (Admin Only)."""
     try:
         return await LLMService.list_provider_models(
             provider=payload.provider,
@@ -272,9 +282,9 @@ async def list_llm_provider_models(
 async def delete_llm_provider_credentials(
     provider: str,
     session: AsyncSession = Depends(get_db),
-    _user: UserModel | None = Depends(get_optional_user),
+    _admin: UserModel = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
-    """Delete stored API credentials, base URL, and saved model for a provider."""
+    """Delete stored API credentials, base URL, and saved model for a provider (Admin Only)."""
     try:
         active = await LLMService.delete_provider_credentials(
             session=session,
@@ -303,7 +313,7 @@ class UnloadModelPayload(BaseModel):
 @router.post("/llm/unload")
 async def unload_local_model(
     payload: UnloadModelPayload | None = None,
-    _user: UserModel | None = Depends(get_optional_user),
+    _admin: UserModel = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
     """Unload resident local Ollama model to immediately reclaim system memory."""
     target_model = payload.model if payload else None
@@ -476,7 +486,7 @@ async def test_notification_relay_endpoint(
 async def relay_notification_endpoint(
     payload: NotificationRelayPayload,
     session: AsyncSession = Depends(get_db),
-    _user: UserModel | None = Depends(get_optional_user),
+    _admin: UserModel = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
     """Dispatch a notification event to all configured notification relays."""
     return await NotificationRelayService.dispatch(
@@ -946,11 +956,7 @@ async def get_taste_profile(
 
     prof = await TasteService.get_or_create_profile(session, _user.id)
     embedding = prof.embedding
-    if (
-        embedding is None
-        or len(embedding) == 0
-        or (prof.is_neutral and prof.event_count == 0)
-    ):
+    if embedding is None or len(embedding) == 0:
         return {
             "status": "success",
             "active": False,

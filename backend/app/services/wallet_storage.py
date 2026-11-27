@@ -1,5 +1,7 @@
 import hashlib
+import json
 import os
+import re
 import shutil
 import uuid
 from pathlib import Path
@@ -22,13 +24,28 @@ TEMP_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 def _safe_join(base_dir: str | Path, *parts: str) -> Path:
     """
-    Safely join paths, stripping path traversal sequences and enforcing
-    that the normalized path remains strictly within base_dir.
+    Safely join paths, rejecting traversal or empty/dot segments and enforcing
+    that the resolved path remains strictly inside base_dir.
     """
-    base_path = os.path.abspath(str(base_dir))
-    safe_parts = [os.path.basename(p.strip()) for p in parts if p and p.strip()]
-    fullpath = os.path.normpath(os.path.join(base_path, *safe_parts))
-    if not fullpath.startswith(base_path + os.sep) and fullpath != base_path:
+    if not parts:
+        raise ValueError("Path traversal attempt detected: empty path segment")
+    base_path = os.path.realpath(str(base_dir))
+    safe_parts: list[str] = []
+    for raw_part in parts:
+        if not isinstance(raw_part, str):
+            raise ValueError("Path traversal attempt detected: invalid segment")
+        stripped = raw_part.strip()
+        if not stripped or stripped in (".", ".."):
+            raise ValueError("Path traversal attempt detected: invalid segment")
+        if "/" in stripped or "\\" in stripped:
+            raise ValueError("Path traversal attempt detected: separator in segment")
+        safe_name = os.path.basename(stripped)
+        if not safe_name or safe_name in (".", ".."):
+            raise ValueError("Path traversal attempt detected: invalid segment")
+        safe_parts.append(safe_name)
+
+    fullpath = os.path.realpath(os.path.join(base_path, *safe_parts))
+    if not fullpath.startswith(base_path + os.sep):
         raise ValueError("Path traversal attempt detected")
     return Path(fullpath)
 
@@ -44,12 +61,22 @@ async def save_temp_upload(content: bytes, filename: str, mime_type: str) -> str
     temp_dir = _safe_join(TEMP_STORAGE_DIR, upload_id)
     temp_dir.mkdir(parents=True, exist_ok=True)
 
-    safe_name = os.path.basename(filename) or "upload.bin"
-    file_path = _safe_join(temp_dir, safe_name)
-    file_path.write_bytes(content)
+    safe_name = os.path.basename((filename or "").strip()) or "upload.bin"
+    if safe_name in (".", "..", "meta.json", "meta.txt", "payload.bin"):
+        safe_name = "upload.bin"
+    clean_mime = (
+        re.sub(r"[\r\n\x00-\x1f\x7f]+", " ", mime_type or "").strip()
+        or "application/octet-stream"
+    )
 
-    meta_path = _safe_join(temp_dir, "meta.txt")
-    meta_path.write_text(f"{mime_type}\n{safe_name}", encoding="utf-8")
+    payload_path = _safe_join(temp_dir, "payload.bin")
+    payload_path.write_bytes(content)
+
+    meta_path = _safe_join(temp_dir, "meta.json")
+    meta_path.write_text(
+        json.dumps({"mime_type": clean_mime, "filename": safe_name}),
+        encoding="utf-8",
+    )
     return upload_id
 
 
@@ -62,20 +89,20 @@ async def get_temp_upload(upload_id: str) -> tuple[bytes, str, str] | None:
     if not temp_dir.exists() or not temp_dir.is_dir():
         return None
 
-    meta_path = _safe_join(temp_dir, "meta.txt")
-    if not meta_path.exists():
-        return None
+    meta_json_path = _safe_join(temp_dir, "meta.json")
+    if meta_json_path.exists():
+        try:
+            meta = json.loads(meta_json_path.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        mime_type = str(meta.get("mime_type") or "application/octet-stream")
+        safe_filename = os.path.basename(str(meta.get("filename") or "document"))
+        file_path = _safe_join(temp_dir, "payload.bin")
+        if not file_path.exists():
+            return None
+        return file_path.read_bytes(), safe_filename, mime_type
 
-    lines = meta_path.read_text(encoding="utf-8").splitlines()
-    mime_type = lines[0] if len(lines) > 0 else "application/octet-stream"
-    raw_filename = lines[1] if len(lines) > 1 else "document"
-    safe_filename = os.path.basename(raw_filename)
-
-    file_path = _safe_join(temp_dir, safe_filename)
-    if not file_path.exists():
-        return None
-
-    return file_path.read_bytes(), safe_filename, mime_type
+    return None
 
 
 async def promote_temp_upload(
@@ -159,11 +186,11 @@ async def delete_ticket_attachments_files(
     )
     res = await session.execute(stmt)
     attachments = res.scalars().all()
-    base_path = os.path.abspath(str(STORAGE_BASE_DIR))
+    base_path = os.path.realpath(str(STORAGE_BASE_DIR))
     for att in attachments:
         try:
             if att.storage_path:
-                norm_path = os.path.normpath(att.storage_path)
+                norm_path = os.path.realpath(att.storage_path)
                 if norm_path.startswith(base_path + os.sep):
                     p = Path(norm_path)
                     if p.exists() and p.is_file():

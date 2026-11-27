@@ -1015,8 +1015,16 @@ class LLMService:
         clean_provider = provider.lower().strip()
         meta = SUPPORTED_PROVIDERS.get(clean_provider, {})
 
-        effective_key = None if _is_masked_key(api_key) else api_key.strip()  # type: ignore[union-attr]
-        effective_base_url = base_url.strip() if base_url and base_url.strip() else None
+        effective_key = (
+            api_key.strip()
+            if isinstance(api_key, str) and not _is_masked_key(api_key)
+            else None
+        )
+        explicit_key = effective_key is not None
+        explicit_base_url = (
+            base_url.strip() if isinstance(base_url, str) and base_url.strip() else None
+        )
+        effective_base_url = explicit_base_url
 
         db_val: Dict[str, Any] = {}
         if session is not None and (not effective_key or not effective_base_url):
@@ -1028,9 +1036,43 @@ class LLMService:
             if record and record.value:
                 db_val = dict(record.value)
 
-        if not effective_key:
+        provider_base_urls = db_val.get("provider_base_urls") or {}
+        active_db_prov = str(db_val.get("provider", "")).lower().strip()
+        saved_base_url = (
+            provider_base_urls.get(clean_provider)
+            or (db_val.get("base_url") if active_db_prov == clean_provider else None)
+            or (
+                cls._cached_config.base_url
+                if cls._cached_config
+                and cls._cached_config.provider.lower().strip() == clean_provider
+                else None
+            )
+        )
+
+        if not effective_base_url:
+            effective_base_url = saved_base_url or meta.get("default_base_url")
+
+        if clean_provider == "ollama":
+            effective_base_url = resolve_ollama_base_url(effective_base_url)
+
+        # Prevent stored/env API keys from being sent to an arbitrary caller-supplied base_url
+        allow_stored_key = True
+        if explicit_base_url and not explicit_key:
+            norm_requested = (effective_base_url or "").rstrip("/")
+            known_urls = {
+                str(u).strip().rstrip("/")
+                for u in (saved_base_url, meta.get("default_base_url"))
+                if u and str(u).strip()
+            }
+            if clean_provider == "ollama":
+                known_urls = {
+                    resolve_ollama_base_url(u).rstrip("/") for u in known_urls
+                }
+            if norm_requested not in known_urls:
+                allow_stored_key = False
+
+        if not effective_key and allow_stored_key:
             provider_keys = db_val.get("provider_keys") or {}
-            active_db_prov = str(db_val.get("provider", "")).lower().strip()
             effective_key = (
                 provider_keys.get(clean_provider)
                 or (db_val.get("api_key") if active_db_prov == clean_provider else None)
@@ -1042,26 +1084,14 @@ class LLMService:
                 )
                 or _get_env_api_key(clean_provider)
             )
-
-        if not effective_base_url:
-            provider_base_urls = db_val.get("provider_base_urls") or {}
-            active_db_prov = str(db_val.get("provider", "")).lower().strip()
-            effective_base_url = (
-                provider_base_urls.get(clean_provider)
-                or (
-                    db_val.get("base_url") if active_db_prov == clean_provider else None
-                )
-                or (
-                    cls._cached_config.base_url
-                    if cls._cached_config
-                    and cls._cached_config.provider.lower().strip() == clean_provider
-                    else None
-                )
-                or meta.get("default_base_url")
+        elif (
+            not effective_key
+            and not allow_stored_key
+            and meta.get("requires_key", True)
+        ):
+            raise ValueError(
+                "Explicit API key is required when querying a custom base URL."
             )
-
-        if clean_provider == "ollama":
-            effective_base_url = resolve_ollama_base_url(effective_base_url)
 
         return effective_key, effective_base_url
 

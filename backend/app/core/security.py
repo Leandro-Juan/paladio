@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import os
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -23,17 +24,23 @@ def _load_or_generate_secret_key() -> str:
         os.getenv("JWT_SECRET_PATH") or (resolve_runtime_data_dir() / ".jwt_secret")
     )
     try:
-        if secret_file.exists():
-            content = secret_file.read_text(encoding="utf-8").strip()
-            if content:
-                return content
         secret_file.parent.mkdir(parents=True, exist_ok=True)
         generated = secrets.token_hex(32)
-        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
         mode = 0o600
-        with os.fdopen(os.open(secret_file, flags, mode), "w", encoding="utf-8") as f:
-            f.write(generated)
-        return generated
+        try:
+            with os.fdopen(
+                os.open(secret_file, flags, mode), "w", encoding="utf-8"
+            ) as f:
+                f.write(generated)
+            return generated
+        except FileExistsError:
+            for _ in range(5):
+                content = secret_file.read_text(encoding="utf-8").strip()
+                if content:
+                    return content
+                time.sleep(0.05)
+            raise RuntimeError("Existing JWT secret file is empty.")
     except Exception:
         if ENVIRONMENT == "production" or APP_ENV == "production":
             raise RuntimeError(
@@ -93,13 +100,14 @@ def create_access_token(
     else:
         expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode = {
-        "sub": str(subject),
-        "iat": int(now.timestamp()),
-        "exp": int(expire.timestamp()),
-    }
-    if extra_claims:
-        to_encode.update(extra_claims)
+    to_encode: dict[str, Any] = dict(extra_claims) if extra_claims else {}
+    to_encode.update(
+        {
+            "sub": str(subject),
+            "iat": int(now.timestamp()),
+            "exp": int(expire.timestamp()),
+        }
+    )
 
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
