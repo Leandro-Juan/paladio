@@ -2653,11 +2653,11 @@
     "stop_of_total": "Parada {current} de {total}",
     "target_waypoint_fallback": "Punto de Ruta Objetivo",
     "transfer_station": "Estación de Transbordo",
-    "transit_approx_mins": "Tránsito (~{mins}m)",
     "transit_fallback": "Tránsito",
     "transit_line_fallback": "línea de tránsito",
     "transit_maneuver": "Maniobra de tránsito",
-    "walk_approx_mins": "A pie (~{mins}m)"
+    "transit_approx_duration": "Tránsito (~{duration})",
+    "walk_approx_duration": "A pie (~{duration})"
   },
   "monitoring": {
     "accommodation": "Alojamiento",
@@ -3457,8 +3457,8 @@
     "conflict_exit_before_entry": "La salida ({end}) es anterior a la entrada ({start})",
     "conflict_overlaps_next": "Se solapa con la parada siguiente (empieza a las {start})",
     "conflict_overlaps_prev": "Se solapa con la parada anterior (termina a las {end})",
-    "conflict_transit_next": "Deja < {mins}m de tránsito antes de la siguiente parada ({start})",
-    "conflict_transit_prev": "Entra en conflicto con {mins}m de tránsito desde la parada anterior (termina a las {end})",
+    "conflict_transit_next": "Deja < {duration} de tránsito antes de la siguiente parada ({start})",
+    "conflict_transit_prev": "Entra en conflicto con {duration} de tránsito desde la parada anterior (termina a las {end})",
     "custom_only_btn": "Solo Personalizados",
     "custom_only_tooltip_off": "Mostrar solo lugares personalizados",
     "custom_only_tooltip_on": "Mostrando solo lugares personalizados (haz clic para mostrar todos)",

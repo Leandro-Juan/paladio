@@ -8,7 +8,7 @@ import L from 'leaflet';
 import { classifyPoiCategory, isCategoryMatch, PoiCategoryType } from '@/utils/poiCategory';
 import { computeClusterPolygon, computeCentroid, LatLngPoint } from '@/utils/clusterHull';
 import { TransitLeg, TransitStep } from '@/types/domain';
-import { formatPoiTime } from '@/utils/date';
+import { formatPoiTime, formatTransitDuration } from '@/utils/date';
 import { VectorBasemap } from '@/components/VectorBasemap';
 import { InfoIcon, CrosshairIcon, CloseIcon, RadarIcon } from '@/components/icons';
 import { createRouteCardDragImage, startCustomDragPreview, cleanupCustomDragPreview, MainTabType } from './TripUnifiedSidebar';
@@ -1949,8 +1949,12 @@ export default function TripMapView({
               isDashed: style.isDashed,
               weight: style.weight,
               instruction: isWalk
-                ? t('map.walk_approx_mins', { mins: leg.duration_mins || 0 })
-                : t('map.transit_approx_mins', { mins: leg.duration_mins || 0 }),
+                ? t('map.walk_approx_duration', {
+                    duration: formatTransitDuration(leg.duration_mins || 0, { variant: 'short', t }),
+                  })
+                : t('map.transit_approx_duration', {
+                    duration: formatTransitDuration(leg.duration_mins || 0, { variant: 'short', t }),
+                  }),
               type: leg.mode || 'transit',
               durationMins: leg.duration_mins,
               distanceKm: 0,
@@ -2022,8 +2026,12 @@ export default function TripMapView({
             isDashed: style.isDashed,
             weight: style.weight,
             instruction: isWalk
-              ? t('map.walk_approx_mins', { mins: leg.duration_mins || 0 })
-              : t('map.transit_approx_mins', { mins: leg.duration_mins || 0 }),
+              ? t('map.walk_approx_duration', {
+                  duration: formatTransitDuration(leg.duration_mins || 0, { variant: 'short', t }),
+                })
+              : t('map.transit_approx_duration', {
+                  duration: formatTransitDuration(leg.duration_mins || 0, { variant: 'short', t }),
+                }),
             type: leg.mode || 'transit',
             durationMins: leg.duration_mins,
             distanceKm: 0,
@@ -2590,7 +2598,7 @@ export default function TripMapView({
                     {seg.transitLine ? `${t('map.line_bracket', { line: seg.transitLine })} ` : ''}
                     {seg.instruction}
                     {typeof seg.durationMins === 'number' && seg.durationMins > 0
-                      ? ` · ${t('collections.duration_short', { mins: seg.durationMins })}`
+                      ? ` · ${formatTransitDuration(seg.durationMins, { variant: 'short', t })}`
                       : ''}
                     {seg.transitLine ? (
                       <span style={{ display: 'block', fontSize: '9px', color: '#64748B', marginTop: '2px' }}>
@@ -2615,7 +2623,9 @@ export default function TripMapView({
                         {seg.transitLine ? t('map.line_upper', { line: seg.transitLine }) : seg.type.toUpperCase()}
                       </span>
                       {typeof seg.durationMins === 'number' && seg.durationMins > 0 && (
-                        <span style={{ color: '#64748B' }}>{t('map.mins_upper', { count: seg.durationMins })}</span>
+                        <span style={{ color: '#64748B' }}>
+                          {formatTransitDuration(seg.durationMins, { variant: 'upper', t })}
+                        </span>
                       )}
                     </div>
                     <div style={{ color: '#0F172A', fontWeight: 600 }}>{seg.instruction}</div>

@@ -2653,11 +2653,11 @@
     "stop_of_total": "Tappa {current} di {total}",
     "target_waypoint_fallback": "Tappa Obiettivo",
     "transfer_station": "Stazione di Cambio",
-    "transit_approx_mins": "Trasporto (~{mins}m)",
     "transit_fallback": "Trasporti",
     "transit_line_fallback": "linea trasporti",
     "transit_maneuver": "Manovra di transito",
-    "walk_approx_mins": "A piedi (~{mins}m)"
+    "transit_approx_duration": "Trasporto (~{duration})",
+    "walk_approx_duration": "A piedi (~{duration})"
   },
   "monitoring": {
     "accommodation": "Alloggio",
@@ -3457,8 +3457,8 @@
     "conflict_exit_before_entry": "L'uscita ({end}) precede l'ingresso ({start})",
     "conflict_overlaps_next": "Si sovrappone alla tappa successiva (inizia alle {start})",
     "conflict_overlaps_prev": "Si sovrappone alla tappa precedente (termina alle {end})",
-    "conflict_transit_next": "Lascia meno di {mins}m di transito prima della tappa successiva ({start})",
-    "conflict_transit_prev": "Conflitto con {mins}m di transito dalla tappa precedente (termina alle {end})",
+    "conflict_transit_next": "Lascia meno di {duration} di transito prima della tappa successiva ({start})",
+    "conflict_transit_prev": "Conflitto con {duration} di transito dalla tappa precedente (termina alle {end})",
     "custom_only_btn": "Solo Personalizzati",
     "custom_only_tooltip_off": "Mostra solo luoghi personalizzati",
     "custom_only_tooltip_on": "Visualizzazione solo luoghi personalizzati (clicca per mostrare tutti)",

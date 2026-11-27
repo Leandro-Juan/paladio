@@ -2653,11 +2653,11 @@
     "stop_of_total": "المحطة {current} من {total}",
     "target_waypoint_fallback": "نقطة التوقف المستهدفة",
     "transfer_station": "محطة تحويل",
-    "transit_approx_mins": "نقل عام (~{mins} د)",
     "transit_fallback": "النقل العام",
     "transit_line_fallback": "خط نقل عام",
     "transit_maneuver": "مناورة النقل العام",
-    "walk_approx_mins": "مشي (~{mins} د)"
+    "transit_approx_duration": "نقل عام (~{duration})",
+    "walk_approx_duration": "مشي (~{duration})"
   },
   "monitoring": {
     "accommodation": "الإقامة",
@@ -3457,8 +3457,8 @@
     "conflict_exit_before_entry": "وقت المغادرة ({end}) يسبق وقت الدخول ({start})",
     "conflict_overlaps_next": "يتداخل مع المحطة التالية (تبدأ {start})",
     "conflict_overlaps_prev": "يتداخل مع المحطة السابقة (تنتهي {end})",
-    "conflict_transit_next": "يترك أقل من {mins} د للتنقل قبل المحطة التالية ({start})",
-    "conflict_transit_prev": "يتعارض مع تنقل مدته {mins} د من المحطة السابقة (تنتهي {end})",
+    "conflict_transit_next": "يترك أقل من {duration} للتنقل قبل المحطة التالية ({start})",
+    "conflict_transit_prev": "يتعارض مع تنقل مدته {duration} من المحطة السابقة (تنتهي {end})",
     "custom_only_btn": "المخصصة فقط",
     "custom_only_tooltip_off": "عرض الأماكن المخصصة فقط",
     "custom_only_tooltip_on": "يتم عرض الأماكن المخصصة فقط (انقر لعرض الكل)",

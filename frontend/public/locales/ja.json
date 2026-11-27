@@ -2653,11 +2653,11 @@
     "stop_of_total": "{total}カ所中 {current}カ所目",
     "target_waypoint_fallback": "対象地点",
     "transfer_station": "乗換駅",
-    "transit_approx_mins": "交通機関（約{mins}分）",
     "transit_fallback": "公共交通",
     "transit_line_fallback": "交通路線",
     "transit_maneuver": "乗り換え案内",
-    "walk_approx_mins": "徒歩（約{mins}分）"
+    "transit_approx_duration": "交通機関（約{duration}）",
+    "walk_approx_duration": "徒歩（約{duration}）"
   },
   "monitoring": {
     "accommodation": "宿泊施設",
@@ -3457,8 +3457,8 @@
     "conflict_exit_before_entry": "終了時刻 ({end}) が開始時刻 ({start}) より前です",
     "conflict_overlaps_next": "次のスポットと時間が重複しています ({start} 開始)",
     "conflict_overlaps_prev": "前のスポットと時間が重複しています ({end} 終了)",
-    "conflict_transit_next": "次のスポット ({start}) までの移動時間が {mins}分未満です",
-    "conflict_transit_prev": "前のスポット ({end} 終了) からの移動時間 {mins}分と競合しています",
+    "conflict_transit_next": "次のスポット ({start}) までの移動時間が {duration}未満です",
+    "conflict_transit_prev": "前のスポット ({end} 終了) からの移動時間 {duration}と競合しています",
     "custom_only_btn": "カスタムのみ",
     "custom_only_tooltip_off": "カスタムスポットのみ表示",
     "custom_only_tooltip_on": "カスタムスポットのみ表示中（クリックで全表示）",
