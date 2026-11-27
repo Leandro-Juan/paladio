@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   GtfsRegistryResponse,
@@ -72,13 +72,29 @@ export function EngineSection({
     };
   }, []);
 
-  const handleSaveEngineConfig = async (patch: Partial<EngineConfigData>) => {
+  const pendingPatchRef = useRef<Partial<EngineConfigData>>({});
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const engineConfigRef = useRef<EngineConfigData>(engineConfig);
+
+  useEffect(() => {
+    engineConfigRef.current = engineConfig;
+  }, [engineConfig]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleSaveEngineConfig = useCallback(async (patch: Partial<EngineConfigData>) => {
     if (!isAdmin) {
       notify.error(t('config.admin_required_title'), t('config.admin_required_engine_msg'));
       return;
     }
-    const previous = engineConfig;
-    const updated = { ...engineConfig, ...patch };
+    const previous = engineConfigRef.current;
+    const updated = { ...previous, ...patch };
     setEngineConfig(updated);
     try {
       const res = await updateDomainSettingsApi<EngineConfigData>('engine', patch);
@@ -90,7 +106,25 @@ export function EngineSection({
       setEngineConfig(previous);
       notify.error(t('config.persistence_error_title'), t('config.engine_persist_failed'));
     }
-  };
+  }, [isAdmin, t]);
+
+  const scheduleEngineConfigSave = useCallback((patch: Partial<EngineConfigData>) => {
+    if (!isAdmin) {
+      notify.error(t('config.admin_required_title'), t('config.admin_required_engine_msg'));
+      return;
+    }
+    setEngineConfig((prev) => ({ ...prev, ...patch }));
+    pendingPatchRef.current = { ...pendingPatchRef.current, ...patch };
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = setTimeout(() => {
+      const coalesced = pendingPatchRef.current;
+      pendingPatchRef.current = {};
+      saveTimerRef.current = null;
+      void handleSaveEngineConfig(coalesced);
+    }, 450);
+  }, [isAdmin, handleSaveEngineConfig, t]);
 
   if (subTab === 'transit') {
     return (
@@ -187,7 +221,7 @@ export function EngineSection({
                   step="0.5"
                   disabled={!isAdmin}
                   value={engineConfig.default_max_walking_km}
-                  onChange={(e) => handleSaveEngineConfig({ default_max_walking_km: parseFloat(e.target.value) })}
+                  onChange={(e) => scheduleEngineConfigSave({ default_max_walking_km: parseFloat(e.target.value) })}
                   aria-label={t('config.max_daily_walking_aria')}
                   style={{ width: '160px', accentColor: 'var(--color-accent-coral, #C86D51)' }}
                 />
@@ -249,7 +283,7 @@ export function EngineSection({
                 value={engineConfig.attraction_burnout_limit}
                 onChange={(e) => {
                   const val = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 6));
-                  handleSaveEngineConfig({ attraction_burnout_limit: val });
+                  scheduleEngineConfigSave({ attraction_burnout_limit: val });
                 }}
                 aria-label={t('config.fatigue_threshold_aria')}
                 style={{
@@ -304,7 +338,7 @@ export function EngineSection({
                           const parsed = parseInt(e.target.value, 10);
                           if (Number.isNaN(parsed)) return;
                           const clamped = Math.max(meal.min, Math.min(meal.max, parsed));
-                          handleSaveEngineConfig({
+                          scheduleEngineConfigSave({
                             meal_windows: {
                               ...engineConfig.meal_windows,
                               [meal.key]: clamped,

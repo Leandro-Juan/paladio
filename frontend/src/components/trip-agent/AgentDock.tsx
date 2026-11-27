@@ -211,7 +211,7 @@ export function AgentDock({ tripId, uiContext, onTripUpdated }: AgentDockProps) 
             isOpen={isSwitcherOpen}
             onClose={() => setIsSwitcherOpen(false)}
             llmConfig={llmConfig}
-            currentProvider={llmConfig?.provider || 'google_genai'}
+            currentProvider={llmConfig?.provider || ''}
             currentModel={llmConfig?.model || ''}
             onSelectModel={handleSwitchEngine}
             isSwitching={switching}
