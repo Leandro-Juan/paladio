@@ -99,7 +99,7 @@ def get_current_installed_version() -> str:
         except Exception as e:
             logger.warning(f"Failed to read version from frontend package.json: {e}")
 
-    return "3.0.0"  # x-release-please-version
+    return "3.1.0"  # x-release-please-version
 
 
 def parse_semver(v: str) -> tuple[int, ...]:
