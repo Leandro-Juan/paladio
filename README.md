@@ -108,7 +108,7 @@ Planning a great trip usually means juggling messy spreadsheets, cloud travel ap
 
 ### <img src="docs/assets/readme/icon-planning.svg" width="18" height="18" alt=""> Planning
 
-- **Automatic or blank trips**: Describe the kind of trip you want and let Paladio build every day automatically, or start from a blank canvas and craft it by hand.
+- **Automatic or blank trips**: Describe the kind of trip you want and let Paladio build every day automatically, or start from a blank canvas and craft it by hand dragging and dropping the places.
 - **Built around real logistics**: Respects your flight arrival and departure windows, hotel location, opening hours, meal times, walking pace, and daily budget — solving a typical city day in ~1.3 ms ([benchmarks](./cpp_core/docs/benchmarks.md)).
 - **Built-in sanity checks**: Warns you if dates overlap an existing trip, spots overly packed or zigzagging days, and explains why any omitted place didn't fit.
 - **Interactive editing**: Drag to reorder stops, lock fixed reservations (like timed museum tickets or dinner bookings), and hit **Solve** to re-optimize the rest of the day around them — with full revision history to undo anytime.
