@@ -205,7 +205,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    Leandro-Juan/Paladio
+    Leandro-Juan/paladio
   </div>
 </a>
       </div>
@@ -402,7 +402,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    Leandro-Juan/Paladio
+    Leandro-Juan/paladio
   </div>
 </a>
     </div>
@@ -2013,21 +2013,21 @@
 </tr>
 <tr>
 <td style="text-align: left;"><code>ENVIRONMENT</code></td>
-<td style="text-align: left;"><code>development</code></td>
+<td style="text-align: left;"><code>development</code> (<code>production</code> in Compose/installer)</td>
 <td style="text-align: left;">Set <code>production</code></td>
-<td style="text-align: left;">Controls strict production checks for <code>JWT_SECRET_KEY</code> and <code>WALLET_ENCRYPTION_KEY</code></td>
+<td style="text-align: left;">Controls strict production checks when <code>.jwt_secret</code> / <code>.wallet_key</code> cannot be persisted</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>JWT_SECRET_KEY</code></td>
 <td style="text-align: left;">Persisted <code>.local/data/.jwt_secret</code> (local) / <code>/data/.jwt_secret</code> (Docker)</td>
-<td style="text-align: left;">Yes</td>
+<td style="text-align: left;">Yes (or writable <code>/data</code>)</td>
 <td style="text-align: left;">HS256 signing secret (generate with <code>openssl rand -hex 32</code>)</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>JWT_SECRET_PATH</code></td>
 <td style="text-align: left;"><code>.local/data/.jwt_secret</code> (local) / <code>/data/.jwt_secret</code> (Docker)</td>
 <td style="text-align: left;">No</td>
-<td style="text-align: left;">Fallback secret file path (<code>0600</code>) when <code>JWT_SECRET_KEY</code> is unset outside production</td>
+<td style="text-align: left;">Fallback secret file path (<code>0600</code>) when <code>JWT_SECRET_KEY</code> is unset</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>ACCESS_TOKEN_EXPIRE_MINUTES</code></td>
@@ -2037,21 +2037,33 @@
 </tr>
 <tr>
 <td style="text-align: left;"><code>WALLET_ENCRYPTION_KEY</code></td>
-<td style="text-align: left;">Dev seed only</td>
-<td style="text-align: left;">Yes</td>
+<td style="text-align: left;">Persisted <code>.local/data/.wallet_key</code> (local) / <code>/data/.wallet_key</code> (Docker)</td>
+<td style="text-align: left;">Yes (or writable <code>/data</code>)</td>
 <td style="text-align: left;">Fernet symmetric key protecting Bookings Wallet secrets (<code>access_code</code>, Wi-Fi keys)</td>
 </tr>
 <tr>
+<td style="text-align: left;"><code>WALLET_ENCRYPTION_KEY_PATH</code></td>
+<td style="text-align: left;"><code>.local/data/.wallet_key</code> (local) / <code>/data/.wallet_key</code> (Docker)</td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Fallback Fernet key file path (<code>0600</code>) when <code>WALLET_ENCRYPTION_KEY</code> is unset</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>API_WORKERS</code></td>
+<td style="text-align: left;"><code>1</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Uvicorn worker count for the prebuilt <code>api</code> image (keep <code>1</code> on 8 GB hosts to avoid duplicating ONNX memory)</td>
+</tr>
+<tr>
 <td style="text-align: left;"><code>ALLOWED_ORIGINS</code></td>
-<td style="text-align: left;"><code>http://localhost:3000,http://127.0.0.1:3000</code></td>
-<td style="text-align: left;">Yes (custom domain)</td>
-<td style="text-align: left;">Comma-separated CORS allowlist for the FastAPI gateway</td>
+<td style="text-align: left;">Dynamic localhost + RFC-1918 LAN / <code>.local</code> regex</td>
+<td style="text-align: left;">Yes (custom public domain)</td>
+<td style="text-align: left;">Comma-separated CORS allowlist overriding the default local/LAN origin rules</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>ALLOW_PUBLIC_REGISTRATION</code></td>
 <td style="text-align: left;"><code>false</code></td>
 <td style="text-align: left;">No</td>
-<td style="text-align: left;">Enables self-signup at <code>/register</code> after the initial admin exists</td>
+<td style="text-align: left;">Enables public signup via <code>POST /api/auth/register</code> after the initial admin exists</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>PALADIO_API_TOKEN</code></td>
@@ -2063,17 +2075,47 @@
 <td style="text-align: left;"><code>API_PORT</code> / <code>FRONTEND_PORT</code></td>
 <td style="text-align: left;"><code>8000</code> / <code>3000</code></td>
 <td style="text-align: left;">No</td>
-<td style="text-align: left;">Host port overrides consumed by <code>docker-compose.yml</code></td>
+<td style="text-align: left;">Host port overrides read at runtime by <code>docker-compose.yml</code> and Next.js <code>RootLayout</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PALADIO_PUBLIC_API_URL</code></td>
+<td style="text-align: left;">Unset (auto-derived from browser host + <code>API_PORT</code>)</td>
+<td style="text-align: left;">Reverse proxy setups</td>
+<td style="text-align: left;">Full public API base URL injected at runtime (e.g. <code>https://paladio.example.com/api</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PALADIO_VERSION</code></td>
+<td style="text-align: left;"><code>latest</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Image tag for <code>paladio-api</code> and <code>paladio-frontend</code> in <code>docker-compose.yml</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PALADIO_API_IMAGE</code> / <code>PALADIO_FRONTEND_IMAGE</code></td>
+<td style="text-align: left;"><code>ghcr.io/leandro-juan/paladio-api</code> / <code>ghcr.io/leandro-juan/paladio-frontend</code></td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Registry image overrides for <code>migrate</code>/<code>api</code>/<code>worker</code>/<code>beat</code> and <code>frontend</code> in <code>docker-compose.yml</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>VALHALLA_TILE_URLS</code></td>
+<td style="text-align: left;">Monaco Geofabrik seed extract</td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Initial <code>.osm.pbf</code> URL(s) compiled by <code>valhalla</code> when <code>/custom_files</code> is empty</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PALADIO_DATA_DIR</code></td>
+<td style="text-align: left;"><code>.local/data</code> (repo) / <code>/data</code> (Docker <code>appdata</code> volume)</td>
+<td style="text-align: left;">No</td>
+<td style="text-align: left;">Base runtime directory for <code>.jwt_secret</code>, <code>.wallet_key</code>, <code>trip_photos</code>, <code>wallet_attachments</code>, and Celery Beat schedule</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>PHOTO_STORAGE_DIR</code></td>
-<td style="text-align: left;"><code>data/trip_photos</code></td>
+<td style="text-align: left;"><code>$PALADIO_DATA_DIR/trip_photos</code> (<code>/data/trip_photos</code> in Docker)</td>
 <td style="text-align: left;">No</td>
 <td style="text-align: left;">Disk directory for uploaded trip gallery photos</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>WALLET_STORAGE_DIR</code></td>
-<td style="text-align: left;"><code>data/wallet_attachments</code></td>
+<td style="text-align: left;"><code>$PALADIO_DATA_DIR/wallet_attachments</code> (<code>/data/wallet_attachments</code> in Docker)</td>
 <td style="text-align: left;">No</td>
 <td style="text-align: left;">Disk directory for uploaded boarding pass PDFs and images</td>
 </tr>

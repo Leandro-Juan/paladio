@@ -205,7 +205,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    Leandro-Juan/Paladio
+    Leandro-Juan/paladio
   </div>
 </a>
       </div>
@@ -402,7 +402,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    Leandro-Juan/Paladio
+    Leandro-Juan/paladio
   </div>
 </a>
     </div>
@@ -1908,14 +1908,16 @@
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>ctest<span class="w"> </span>--test-dir<span class="w"> </span>cpp_core/build-asan<span class="w"> </span>--output-on-failure
 </span></code></pre></div>
 <ol>
-<li>Install <code>paladio_core</code> into your active Python virtual environment via <code>scikit-build-core</code>:</li>
+<li>Create and activate your Python virtual environment (reused for the backend below), then install <code>paladio_core</code> via <code>scikit-build-core</code>:</li>
 </ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>./cpp_core<span class="w"> </span>--no-build-isolation
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pytest<span class="w"> </span>cpp_core/tests/python/test_engine.py<span class="w"> </span>-q
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>./cpp_core
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>pytest<span class="w"> </span>cpp_core/tests/python/test_engine.py<span class="w"> </span>-q
 </span></code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Standalone <code>paladio_core</code> build flags</p>
-<p>Pass <code>-DPALADIO_ENABLE_NATIVE=ON</code> in Release builds to add <code>-march=native</code> alongside <code>-O3 -DNDEBUG</code>, or <code>-DPALADIO_BUILD_PYTHON=OFF</code> when embedding only the <code>paladio::engine</code> C++ static target.</p>
+<p>Pass <code>-DPALADIO_ENABLE_NATIVE=ON</code> in Release builds to add <code>-march=native</code> alongside <code>-O3 -DNDEBUG</code>, or <code>-DPALADIO_BUILD_PYTHON=OFF</code> when embedding only the <code>paladio::engine</code> C++ static target. You can pass <code>--no-build-isolation</code> to <code>pip install -e ./cpp_core</code> only if <code>scikit-build-core</code> and <code>pybind11</code> are already installed in the active virtual environment.</p>
 </div>
 <h2 id="run-the-fastapi-backend-and-celery-workers">Run the FastAPI backend and Celery workers<a class="headerlink" href="#run-the-fastapi-backend-and-celery-workers" title="Permanent link">&para;</a></h2>
 <p>The backend requires Python 3.10+ (Docker uses Python 3.12), PostgreSQL 16 with <code>timescaledb</code> and <code>vector</code> extensions, Redis 7, Valhalla (optional for local unit tests), Tesseract OCR, and Poppler utilities.</p>
@@ -1923,25 +1925,26 @@
 <li>Install OS packages required for boarding pass and receipt OCR on Debian/Ubuntu:</li>
 </ol>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>tesseract-ocr<span class="w"> </span>tesseract-ocr-eng<span class="w"> </span>tesseract-ocr-spa<span class="w"> </span>poppler-utils<span class="w"> </span>fonts-liberation
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>tesseract-ocr<span class="w"> </span>tesseract-ocr-eng<span class="w"> </span>tesseract-ocr-spa<span class="w"> </span>poppler-utils<span class="w"> </span>fonts-liberation<span class="w"> </span>fonts-dejavu-core
 </span></code></pre></div>
 <ol>
-<li>Create a Python virtual environment, install <code>backend</code> with dev extras, and ensure <code>paladio_core*.so</code> is importable in <code>backend/</code>:</li>
+<li>Activate <code>.venv</code> (or create it if you skipped step 4 above), install <code>backend</code> with dev extras, and ensure <code>paladio_core</code> is installed in the same environment:</li>
 </ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">"./backend[dev]"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">"./backend[dev]"</span>
 </span></code></pre></div>
 <ol>
-<li>Start PostgreSQL, Redis, and Valhalla via Docker Compose while running Python processes natively on your host, then apply Alembic migrations and verified fare quotes:</li>
+<li>Start PostgreSQL, Redis, and Valhalla via Docker Compose while running Python processes natively on your host. Include <code>docker-compose.dev.yml</code> so <code>db</code>, <code>redis</code>, and <code>valhalla</code> bind <code>127.0.0.1</code> ports (<code>5432</code>, <code>6379</code>, <code>8002</code>), and pass <code>--no-deps</code> so <code>valhalla</code> does not trigger the Docker <code>migrate</code> service. Because the backend does not auto-load <code>.env</code> and Celery defaults <code>REDIS_URL</code> to <code>redis://redis:6379/0</code>, export <code>DATABASE_URL</code> and <code>REDIS_URL</code> before running Alembic migrations and verified fare quotes (adjusting the password in <code>DATABASE_URL</code> if your <code>.env</code> sets a custom <code>POSTGRES_PASSWORD</code>):</li>
 </ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>db<span class="w"> </span>redis<span class="w"> </span>valhalla
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">cd</span><span class="w"> </span>backend
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>alembic<span class="w"> </span>upgrade<span class="w"> </span>head
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>python<span class="w"> </span>scripts/migrate_verified_fares_to_quotes.py
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.dev.yml<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--no-deps<span class="w"> </span>db<span class="w"> </span>redis<span class="w"> </span>valhalla
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">DATABASE_URL</span><span class="o">=</span><span class="s2">"postgresql+asyncpg://postgres:postgres@localhost:5432/paladio"</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">REDIS_URL</span><span class="o">=</span><span class="s2">"redis://localhost:6379/0"</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="nb">cd</span><span class="w"> </span>backend
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>alembic<span class="w"> </span>upgrade<span class="w"> </span>head
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>python<span class="w"> </span>scripts/migrate_verified_fares_to_quotes.py
 </span></code></pre></div>
 <ol>
-<li>Launch FastAPI, the Celery worker across all three queues (<code>celery</code>, <code>transit_build</code>, <code>poi_hydration</code>), and Celery Beat in separate terminals:</li>
+<li>Launch FastAPI, the Celery worker across all three queues (<code>celery</code>, <code>transit_build</code>, <code>poi_hydration</code>), and Celery Beat in separate terminals (with <code>.venv</code> activated and <code>DATABASE_URL</code> / <code>REDIS_URL</code> exported; <code>VALHALLA_URL</code> already defaults to <code>http://localhost:8002</code>):</li>
 </ol>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uvicorn<span class="w"> </span>app.main:app<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--port<span class="w"> </span><span class="m">8000</span><span class="w"> </span>--reload<span class="w"> </span>--reload-dir<span class="w"> </span>app
 </span></code></pre></div>
@@ -1951,9 +1954,11 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>celery<span class="w"> </span>-A<span class="w"> </span>app.celery_app<span class="w"> </span>beat<span class="w"> </span>--loglevel<span class="o">=</span>info
 </span></code></pre></div>
 <ol>
-<li>Run targeted backend tests (<code>backend/tests/conftest.py</code> installs a Python fallback mock only if compiled <code>paladio_core</code> is missing, so test with compiled <code>paladio_core</code> whenever verifying solver output):</li>
+<li>Run targeted backend tests (<code>backend/tests/conftest.py</code> forces a Python mock for <code>paladio_core</code> by default via <code>MOCK_PALADIO_CORE=1</code>; pass <code>MOCK_PALADIO_CORE=0</code> whenever verifying compiled <code>paladio_core</code> output):</li>
 </ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>pytest<span class="w"> </span>backend/tests/test_bridge.py<span class="w"> </span>-k<span class="w"> </span>test_bridge_solver<span class="w"> </span>-q
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>pytest<span class="w"> </span>backend/tests/test_bridge.py<span class="w"> </span>-k<span class="w"> </span>test_bridge_64_pois<span class="w"> </span>-q
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="c1"># Or against the compiled C++20 extension:</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="nv">MOCK_PALADIO_CORE</span><span class="o">=</span><span class="m">0</span><span class="w"> </span>pytest<span class="w"> </span>backend/tests/test_bridge.py<span class="w"> </span>-k<span class="w"> </span>test_bridge_64_pois<span class="w"> </span>-q
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Optional Playwright scraping dependency</p>

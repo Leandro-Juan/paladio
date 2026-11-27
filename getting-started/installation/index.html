@@ -205,7 +205,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    Leandro-Juan/Paladio
+    Leandro-Juan/paladio
   </div>
 </a>
       </div>
@@ -402,7 +402,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    Leandro-Juan/Paladio
+    Leandro-Juan/paladio
   </div>
 </a>
     </div>
@@ -582,10 +582,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#install-from-a-cloned-repository" class="md-nav__link">
+  <a href="#single-command-install-recommended" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Install from a cloned repository
+        Single-command install (recommended)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributor-development-stack-local-builds-backend-hot-reload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributor development stack (local builds + backend hot reload)
       
     </span>
   </a>
@@ -1870,10 +1881,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#install-from-a-cloned-repository" class="md-nav__link">
+  <a href="#single-command-install-recommended" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Install from a cloned repository
+        Single-command install (recommended)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributor-development-stack-local-builds-backend-hot-reload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributor development stack (local builds + backend hot reload)
       
     </span>
   </a>
@@ -1928,7 +1950,7 @@
 
 
 <h1 id="install-paladio-with-docker">Install Paladio with Docker<a class="headerlink" href="#install-paladio-with-docker" title="Permanent link">&para;</a></h1>
-<p>Deploy the full 7-container Paladio stack (<code>api</code>, <code>frontend</code>, <code>db</code>, <code>redis</code>, <code>valhalla</code>, <code>worker</code>, <code>beat</code>) using Docker Compose, generate bootstrap secrets in <code>.env</code>, verify <code>GET /health</code>, and provision your first administrator account at <code>/setup</code>.</p>
+<p>Deploy the full Paladio stack (<code>api</code>, <code>frontend</code>, <code>db</code>, <code>redis</code>, <code>valhalla</code>, <code>worker</code>, <code>beat</code>, plus one-shot <code>migrate</code>) using prebuilt multi-arch (<code>amd64</code>/<code>arm64</code>) Docker images, auto-generated bootstrap secrets in <code>.env</code>, automatic migrations and fare seeding, and first-run administrator provisioning at <code>/setup</code>.</p>
 <h2 id="prerequisites-and-hardware-sizing">Prerequisites and hardware sizing<a class="headerlink" href="#prerequisites-and-hardware-sizing" title="Permanent link">&para;</a></h2>
 <p>Paladio runs locally on Linux, macOS, or Windows with Docker Engine and Docker Compose v2 installed, and needs enough RAM to keep PostgreSQL, Valhalla street graphs, and CPU ONNX embeddings responsive concurrently.</p>
 <table>
@@ -1951,24 +1973,24 @@
 <td style="text-align: left;"><strong>CPU</strong></td>
 <td style="text-align: left;">4 cores</td>
 <td style="text-align: left;">6+ cores</td>
-<td style="text-align: left;">In-process CPU ONNX inference (<code>FASTEMBED_THREADS=2</code>), C++20 <code>paladio_core</code> compilation, and Valhalla routing tiles (<code>cpus: 2.0</code>)</td>
+<td style="text-align: left;">In-process CPU ONNX inference (<code>FASTEMBED_THREADS=2</code>), C++20 <code>paladio_core</code> routing, and Valhalla routing tiles (<code>cpus: 2.0</code>)</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>Disk</strong></td>
 <td style="text-align: left;">20 GB free</td>
 <td style="text-align: left;">50 GB+ free</td>
-<td style="text-align: left;">Docker images, <code>/opt/models/fastembed</code> ONNX weights, <code>pgdata</code>, <code>valhalladata</code> OSM extracts, and <code>gtfsdata</code> transit feeds</td>
+<td style="text-align: left;">Prebuilt images, <code>/opt/models/fastembed</code> ONNX weights, <code>pgdata</code>, <code>valhalladata</code> OSM extracts, and <code>gtfsdata</code> transit feeds</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>Software</strong></td>
 <td style="text-align: left;">Docker + Compose v2</td>
 <td style="text-align: left;">Docker Engine 24+</td>
-<td style="text-align: left;"><code>scripts/install/install.sh</code> and <code>scripts/install/install.ps1</code> abort if <code>docker</code>, the Docker daemon, or <code>docker compose version</code> is unavailable</td>
+<td style="text-align: left;"><code>scripts/install/install.sh</code> and <code>scripts/install/install.ps1</code> verify <code>docker</code>, daemon connectivity, and <code>docker compose version</code>, and warn if RAM is below 7.5 GB</td>
 </tr>
 </tbody>
 </table>
 <h2 id="services-and-persistent-volumes">Services and persistent volumes<a class="headerlink" href="#services-and-persistent-volumes" title="Permanent link">&para;</a></h2>
-<p><code>docker-compose.yml</code> defines seven coordinated services and four named volumes so your trips, wallet attachments, OSM tiles, and GTFS feeds survive container upgrades.</p>
+<p><code>docker-compose.yml</code> defines seven long-running services, a one-shot <code>migrate</code> service, and five named volumes so your secrets, trips, wallet attachments, OSM tiles, and GTFS feeds survive container upgrades.</p>
 <table>
 <thead>
 <tr>
@@ -1983,91 +2005,83 @@
 <td style="text-align: left;"><code>api</code></td>
 <td style="text-align: left;">FastAPI gateway, WebSockets, MCP <code>/mcp</code> server</td>
 <td style="text-align: left;"><code>${API_PORT:-8000}:8000</code></td>
-<td style="text-align: left;"><code>valhalladata</code>, <code>gtfsdata</code>, <code>./backend:/app</code>, <code>/var/run/docker.sock</code></td>
+<td style="text-align: left;"><code>appdata</code>, <code>valhalladata</code>, <code>gtfsdata</code></td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>frontend</code></td>
-<td style="text-align: left;">Next.js 16 standalone web UI</td>
+<td style="text-align: left;">Next.js 16 standalone web UI (runtime API port config)</td>
 <td style="text-align: left;"><code>${FRONTEND_PORT:-3000}:3000</code></td>
 <td style="text-align: left;">None</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>db</code></td>
-<td style="text-align: left;">PostgreSQL 16 (<code>timescale/timescaledb:latest-pg16</code>) + <code>pgvector</code></td>
-<td style="text-align: left;"><code>127.0.0.1:5432:5432</code></td>
+<td style="text-align: left;">PostgreSQL 16 (<code>timescale/timescaledb:2.30.2-pg16</code>) + <code>pgvector</code></td>
+<td style="text-align: left;">Internal network only</td>
 <td style="text-align: left;"><code>pgdata</code></td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>redis</code></td>
-<td style="text-align: left;">Celery broker, pub/sub events, turn locks, caches</td>
-<td style="text-align: left;"><code>127.0.0.1:6379:6379</code></td>
+<td style="text-align: left;">Celery broker, pub/sub events, turn locks, caches (<code>redis:7.4-alpine</code>)</td>
+<td style="text-align: left;">Internal network only</td>
 <td style="text-align: left;"><code>redisdata</code></td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>valhalla</code></td>
-<td style="text-align: left;">Self-hosted OSM road, foot, bike, and transit graph router</td>
-<td style="text-align: left;"><code>127.0.0.1:8002:8002</code></td>
+<td style="text-align: left;">Rootless self-hosted OSM road, foot, bike, and transit graph router</td>
+<td style="text-align: left;">Internal network only</td>
 <td style="text-align: left;"><code>valhalladata</code>, <code>gtfsdata</code></td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>worker</code></td>
 <td style="text-align: left;">Celery worker (<code>celery</code>, <code>transit_build</code>, <code>poi_hydration</code> queues)</td>
 <td style="text-align: left;">None</td>
-<td style="text-align: left;"><code>valhalladata</code>, <code>gtfsdata</code>, <code>./backend:/app</code>, <code>/var/run/docker.sock</code></td>
+<td style="text-align: left;"><code>appdata</code>, <code>valhalladata</code>, <code>gtfsdata</code></td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>beat</code></td>
 <td style="text-align: left;">Celery Beat scheduler (market sweeps, taste retraining, update checks)</td>
 <td style="text-align: left;">None</td>
-<td style="text-align: left;"><code>./backend:/app</code></td>
+<td style="text-align: left;"><code>appdata</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>migrate</code></td>
+<td style="text-align: left;">One-shot init running <code>alembic upgrade head</code> + transit fare catalog seed</td>
+<td style="text-align: left;">None</td>
+<td style="text-align: left;"><code>appdata</code>, <code>valhalladata</code>, <code>gtfsdata</code></td>
 </tr>
 </tbody>
 </table>
-<div class="admonition warning">
-<p class="admonition-title">Docker socket mount on api and worker</p>
-<p>Both <code>api</code> and <code>worker</code> mount <code>/var/run/docker.sock</code> so the transit pipeline can signal or restart the <code>valhalla</code> container after compiling new city map extracts or GTFS feeds. Only run Paladio on trusted host infrastructure.</p>
-</div>
-<h2 id="install-from-a-cloned-repository">Install from a cloned repository<a class="headerlink" href="#install-from-a-cloned-repository" title="Permanent link">&para;</a></h2>
-<p>Cloning the repository is the supported installation path because <code>docker-compose.yml</code> currently builds <code>backend/Dockerfile</code> (<code>target: dev</code>) and <code>frontend/Dockerfile</code> from your local workspace.</p>
-<ol>
-<li>Clone the repository and enter the project directory:</li>
-</ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/Leandro-Juan/paladio.git
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>paladio
-</span></code></pre></div>
-<ol>
-<li>Run the bootstrap installer or create <code>.env</code> from <code>.env.example</code> to generate a random <code>POSTGRES_PASSWORD</code> and <code>JWT_SECRET_KEY</code>:</li>
-</ol>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Linux / macOS (automated)</label><label for="__tabbed_1_2">Windows PowerShell (automated)</label><label for="__tabbed_1_3">Manual .env setup</label></div>
+<h2 id="single-command-install-recommended">Single-command install (recommended)<a class="headerlink" href="#single-command-install-recommended" title="Permanent link">&para;</a></h2>
+<p>For consuming Paladio directly without cloning the source code, the installer downloads <code>docker-compose.yml</code> into <code>~/paladio</code> (<code>%USERPROFILE%\paladio</code> on Windows), generates cryptographic bootstrap keys in <code>.env</code>, pulls the multi-arch GHCR images, starts the stack, and polls both the API and Web UI until healthy:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Linux / macOS</label><label for="__tabbed_1_2">Windows (PowerShell)</label><label for="__tabbed_1_3">Manual docker-compose.yml setup</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>./scripts/install/install.sh
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">.\</span><span class="n">scripts</span><span class="p">\</span><span class="n">install</span><span class="p">\</span><span class="n">install</span><span class="p">.</span><span class="n">ps1</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">irm </span><span class="n">https</span><span class="p">://</span><span class="n">raw</span><span class="p">.</span><span class="n">githubusercontent</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">Leandro-Juan</span><span class="p">/</span><span class="n">paladio</span><span class="p">/</span><span class="n">main</span><span class="p">/</span><span class="n">scripts</span><span class="p">/</span><span class="n">install</span><span class="p">/</span><span class="n">install</span><span class="p">.</span><span class="n">ps1</span> <span class="p">|</span> <span class="nb">iex</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cp<span class="w"> </span>.env.example<span class="w"> </span>.env
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="c1"># Replace POSTGRES_PASSWORD and JWT_SECRET_KEY with random secrets:</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">32</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>~/paladio<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>~/paladio
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>curl<span class="w"> </span>-fsSLO<span class="w"> </span>https://raw.githubusercontent.com/Leandro-Juan/paladio/main/docker-compose.yml
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://raw.githubusercontent.com/Leandro-Juan/paladio/main/.env.example<span class="w"> </span>-o<span class="w"> </span>.env
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Replace POSTGRES_PASSWORD and JWT_SECRET_KEY in .env (e.g. openssl rand -hex 32)</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># WALLET_ENCRYPTION_KEY auto-generates into /data/.wallet_key if left unset, or can be set explicitly</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>docker<span class="w"> </span>compose<span class="w"> </span>pull<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
 </span></code></pre></div>
 </div>
 </div>
 </div>
-<ol>
-<li>The automated installers (<code>install.sh</code> and <code>install.ps1</code>) automatically apply database migrations and seed the verified transit fare catalog once the backend is healthy. If you used <strong>Manual <code>.env</code> setup</strong> (or are upgrading an existing installation), verify health checks, apply migrations, and seed the transit fare catalog manually:</li>
-</ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>curl<span class="w"> </span>-fs<span class="w"> </span>http://127.0.0.1:8000/health
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>api<span class="w"> </span>alembic<span class="w"> </span>upgrade<span class="w"> </span>head
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>api<span class="w"> </span>python<span class="w"> </span>scripts/migrate_verified_fares_to_quotes.py
+<p>The <code>migrate</code> service automatically runs <code>alembic upgrade head</code> and seeds the verified transit fare catalog (<code>scripts/migrate_verified_fares_to_quotes.py</code>) before <code>api</code>, <code>worker</code>, <code>beat</code>, and <code>valhalla</code> start.</p>
+<h2 id="contributor-development-stack-local-builds-backend-hot-reload">Contributor development stack (local builds + backend hot reload)<a class="headerlink" href="#contributor-development-stack-local-builds-backend-hot-reload" title="Permanent link">&para;</a></h2>
+<p>If you are actively editing backend, C++20, or frontend code from a cloned repository, combine <code>docker-compose.yml</code> with the explicit contributor overlay <code>docker-compose.dev.yml</code>. This switches backend services (<code>migrate</code>, <code>api</code>, <code>worker</code>, <code>beat</code>) to <code>target: dev</code>, enables <code>uvicorn --reload</code>, bind-mounts <code>./backend:/app</code>, and exposes <code>db</code>, <code>redis</code>, and <code>valhalla</code> on <code>127.0.0.1</code>. Because <code>frontend</code> still builds the standalone production image (<code>frontend/Dockerfile</code>) without a bind mount, re-run with <code>--build</code> after frontend or <code>cpp_core</code> edits (or run <code>npm run dev</code> on the host per <a href="../local-development/">Local development setup</a>):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/Leandro-Juan/paladio.git
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">cd</span><span class="w"> </span>paladio
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>cp<span class="w"> </span>.env.example<span class="w"> </span>.env
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>docker-compose.dev.yml<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
 </span></code></pre></div>
-<div class="admonition info">
-<p class="admonition-title">About the one-line remote installer scripts</p>
-<p><code>scripts/install/install.sh</code> and <code>scripts/install/install.ps1</code> support piping directly from GitHub (<code>curl -fsSL https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.sh | bash</code>), which downloads <code>docker-compose.yml</code> into <code>$HOME/paladio</code>. Because the current <code>docker-compose.yml</code> references local <code>build:</code> contexts (<code>backend/Dockerfile</code> and <code>frontend/Dockerfile</code>) instead of prebuilt GitHub Container Registry images (<code>ghcr.io/leandro-juan/paladio-api</code> and <code>ghcr.io/leandro-juan/paladio-frontend</code>), always clone the repository first before running <code>./scripts/install/install.sh</code> or <code>.\scripts\install\install.ps1</code>.</p>
-</div>
 <h2 id="first-run-administrator-provisioning">First-run administrator provisioning<a class="headerlink" href="#first-run-administrator-provisioning" title="Permanent link">&para;</a></h2>
 <p>When you open <code>http://localhost:3000</code> on a fresh database with zero user accounts, <code>AuthGuard</code> queries <code>GET /api/auth/setup-status</code> and routes you automatically to <code>/setup</code>.</p>
 <ol>
@@ -2077,17 +2091,17 @@
 </ol>
 <div class="admonition tip">
 <p class="admonition-title">Public registration is disabled by default</p>
-<p>After the first admin account exists, <code>/register</code> and <code>POST /api/auth/register</code> stay locked unless you set <code>ALLOW_PUBLIC_REGISTRATION=true</code> in the environment. Administrators can provision additional user accounts inside <strong>Settings</strong> (<code>/config</code> under <strong>Authorized Users</strong>).</p>
+<p>After the first admin account exists, <code>POST /api/auth/register</code> stays locked unless you set <code>ALLOW_PUBLIC_REGISTRATION=true</code> in the environment. Administrators can provision additional user accounts inside <strong>Settings</strong> (<code>/config</code> under <strong>Authorized Users</strong>).</p>
 </div>
 <h2 id="troubleshooting-installation-startup">Troubleshooting installation startup<a class="headerlink" href="#troubleshooting-installation-startup" title="Permanent link">&para;</a></h2>
-<p>If containers fail to start or <code>/health</code> times out after 60s, inspect service logs to isolate build, memory, or port conflicts:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>ps
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>--tail<span class="o">=</span><span class="m">100</span><span class="w"> </span>api<span class="w"> </span>worker<span class="w"> </span>db<span class="w"> </span>valhalla
+<p>If containers fail to start or <code>/health</code> times out after 180s, inspect service logs to isolate memory, pull, or port conflicts:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>ps<span class="w"> </span>-a
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>--tail<span class="o">=</span><span class="m">100</span><span class="w"> </span>migrate<span class="w"> </span>api<span class="w"> </span>worker<span class="w"> </span>db<span class="w"> </span>valhalla
 </span></code></pre></div>
 <ul>
-<li><strong>Port 3000 or 8000 already in use</strong>: Set <code>API_PORT</code> or <code>FRONTEND_PORT</code> in <code>.env</code> and restart with <code>docker compose up -d</code>.</li>
-<li><strong>Missing pgvector or timescaledb extension</strong>: Verify the <code>db</code> service uses <code>timescale/timescaledb:latest-pg16</code> and run <code>docker compose exec db psql -U postgres -d paladio -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS timescaledb;"</code>.</li>
-<li><strong>Out-of-memory kills during first build</strong>: Ensure Docker Desktop or your Linux VM has at least 8 GB of RAM assigned before building <code>cpp_core</code> and downloading <code>nomic-ai/nomic-embed-text-v1.5-Q</code> into <code>/opt/models/fastembed</code>.</li>
+<li><strong>Port 3000 or 8000 already in use</strong>: On an existing install, set <code>API_PORT</code> or <code>FRONTEND_PORT</code> in <code>.env</code> and restart with <code>docker compose up -d</code> (the frontend reads <code>API_PORT</code> at runtime—no image rebuild needed). On a fresh one-liner install where <code>.env</code> does not exist yet, pass them to the shell process—for example <code>curl -fsSL https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.sh | API_PORT=8080 FRONTEND_PORT=3001 bash</code> on Linux/macOS, or <code>$env:API_PORT="8080"; $env:FRONTEND_PORT="3001"; irm https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.ps1 | iex</code> on PowerShell.</li>
+<li><strong>Missing pgvector or timescaledb extension</strong>: Verify the <code>db</code> service uses <code>timescale/timescaledb:2.30.2-pg16</code> and run <code>docker compose exec db psql -U postgres -d paladio -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS timescaledb;"</code>.</li>
+<li><strong>Out-of-memory kills</strong>: Ensure Docker Desktop or your Linux VM has at least 8 GB of RAM assigned, and keep <code>API_WORKERS=1</code> for personal/homelab installs so ONNX embedding weights are only loaded once in the API container.</li>
 </ul>
 <p>Next, complete your initial taste profile and generate your first deterministic itinerary in <a href="../quickstart/">Quickstart: plan your first trip</a>.</p>
 

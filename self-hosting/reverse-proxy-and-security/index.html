@@ -205,7 +205,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    Leandro-Juan/Paladio
+    Leandro-Juan/paladio
   </div>
 </a>
       </div>
@@ -402,7 +402,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    Leandro-Juan/Paladio
+    Leandro-Juan/paladio
   </div>
 </a>
     </div>
@@ -1888,15 +1888,11 @@
 <h2 id="production-security-checklist">Production security checklist<a class="headerlink" href="#production-security-checklist" title="Permanent link">&para;</a></h2>
 <p>Running Paladio on a LAN or public domain with <code>ENVIRONMENT=production</code> activates strict startup and encryption invariants across <code>backend/app/core/</code>.</p>
 <ol>
-<li><strong>Generate dedicated secrets</strong>: Set high-entropy values for <code>POSTGRES_PASSWORD</code>, <code>JWT_SECRET_KEY</code> (<code>openssl rand -hex 32</code>), and <code>WALLET_ENCRYPTION_KEY</code> (valid 32-byte URL-safe base64 Fernet key generated via <code>python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"</code>). In production, <code>get_fernet()</code> refuses to start if <code>WALLET_ENCRYPTION_KEY</code> is missing.</li>
-<li><strong>Restrict CORS origins</strong>: Set <code>ALLOWED_ORIGINS</code> to your exact HTTPS origin (<code>https://paladio.example.com</code>) so browser requests from unknown origins are rejected.</li>
+<li><strong>Generate dedicated secrets</strong>: Set high-entropy values for <code>POSTGRES_PASSWORD</code>, <code>JWT_SECRET_KEY</code> (<code>openssl rand -hex 32</code>), and <code>WALLET_ENCRYPTION_KEY</code> (valid 32-byte URL-safe base64 Fernet key generated via <code>openssl rand 32 | openssl base64 -A | tr '+/' '-_'</code>). If <code>JWT_SECRET_KEY</code> or <code>WALLET_ENCRYPTION_KEY</code> is omitted, Paladio auto-generates and persists <code>0600</code> keys in <code>/data/.jwt_secret</code> and <code>/data/.wallet_key</code> when the <code>/data</code> volume is writable, and fails fast in <code>ENVIRONMENT=production</code> if <code>/data</code> is not writable.</li>
+<li><strong>Restrict CORS origins &amp; configure public API URL</strong>: When exposing Paladio at a public domain behind TLS, set <code>ALLOWED_ORIGINS=https://paladio.example.com</code> on <code>api</code> and <code>PALADIO_PUBLIC_API_URL=https://paladio.example.com/api</code> on <code>frontend</code>.</li>
 <li><strong>Keep public registration closed</strong>: Leave <code>ALLOW_PUBLIC_REGISTRATION=false</code> (the default) and create household or team accounts from <strong>Settings</strong> (<code>/config</code> under <strong>Authorized Users</strong>).</li>
-<li><strong>Bind internal services locally</strong>: <code>docker-compose.yml</code> binds PostgreSQL (<code>5432</code>), Redis (<code>6379</code>), and Valhalla (<code>8002</code>) strictly to <code>127.0.0.1</code> so only <code>frontend</code> (<code>3000</code>) and <code>api</code> (<code>8000</code>) accept external proxy traffic.</li>
+<li><strong>Keep internal services off the host</strong>: <code>docker-compose.yml</code> keeps PostgreSQL (<code>5432</code>), Redis (<code>6379</code>), and Valhalla (<code>8002</code>) strictly on the internal Docker network so only <code>frontend</code> (<code>3000</code>) and <code>api</code> (<code>8000</code>) bind host ports (add <code>docker-compose.dev.yml</code> if you need localhost DB/Redis/Valhalla ports for development).</li>
 </ol>
-<div class="admonition warning">
-<p class="admonition-title">Dockerfile production target healthcheck note</p>
-<p>The <code>production</code> target in <code>backend/Dockerfile</code> defines <code>HEALTHCHECK CMD curl -f http://localhost:8000/health || exit 1</code> on <code>python:3.12-slim</code> without installing <code>curl</code> in that stage. When running the published GHCR <code>paladio-api</code> image in Compose or Kubernetes, override the healthcheck with Python (<code>python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"</code>) or HTTP liveness probes.</p>
-</div>
 <h2 id="reverse-proxy-configurations-with-websockets">Reverse proxy configurations (with WebSockets)<a class="headerlink" href="#reverse-proxy-configurations-with-websockets" title="Permanent link">&para;</a></h2>
 <p>Route <code>/api/*</code> and <code>/mcp</code> to <code>127.0.0.1:8000</code> (backend FastAPI) and all remaining traffic to <code>127.0.0.1:3000</code> (Next.js frontend), preserving <code>Upgrade</code> and <code>Connection</code> headers for <code>/api/ws/stream</code> and <code>/api/ws/trip-agent/{trip_id}</code>.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Caddy</label><label for="__tabbed_1_2">Nginx</label><label for="__tabbed_1_3">Traefik (Docker labels)</label></div>
