@@ -1199,8 +1199,6 @@ export function TripWorkspace({ trip, onTripUpdated }: TripWorkspaceProps) {
                   minWidth: 0,
                   maxHeight: '100%',
                   background: 'var(--color-surface-card, #FFFFFF)',
-                  backdropFilter: 'blur(28px)',
-                  WebkitBackdropFilter: 'blur(28px)',
                   borderRadius: '24px',
                   border: '1px solid var(--color-border)',
                   boxShadow: '0 20px 45px -10px rgba(15, 76, 92, 0.15), 0 0 1px 1px rgba(0, 0, 0, 0.05)',

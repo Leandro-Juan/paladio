@@ -2927,8 +2927,6 @@ export function TripUnifiedSidebar({
                 : 'min(520px, calc(100vw - 32px))',
             height: '100%',
             background: 'var(--color-surface-card, #FFFFFF)',
-            backdropFilter: 'blur(28px)',
-            WebkitBackdropFilter: 'blur(28px)',
             borderRadius: '24px',
             border: '1px solid var(--color-border)',
             boxShadow: '0 20px 45px -10px rgba(15, 76, 92, 0.15), 0 0 1px 1px rgba(0, 0, 0, 0.05)',
@@ -3507,6 +3505,7 @@ export function TripUnifiedSidebar({
                 }}
                 style={{
                   flex: 1,
+                  background: 'var(--color-surface-card, #FFFFFF)',
                   overflowY: activeTab === 'agent' ? 'hidden' : 'auto',
                   scrollbarWidth: 'none',
                   msOverflowStyle: 'none',
@@ -4277,7 +4276,7 @@ export function TripUnifiedSidebar({
                           ? t('sidebar.zero_places_upper')
                           : searchData?.total != null
                           ? searchData.total > 1000
-                            ? t('sidebar.plus_thousand_places_upper')
+                            ? t('sidebar.plus_places_upper', { count: Math.floor(searchData.total / 500) * 500 })
                             : t('sidebar.places_upper_count', { count: searchData.total })
                           : t('sidebar.places_upper_count', { count: filteredSearchResults.length })}
                       </span>

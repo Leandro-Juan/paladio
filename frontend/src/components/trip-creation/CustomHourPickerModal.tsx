@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAnimatedMount } from '@/hooks/useAnimatedMount';
 import { ChevronUpIcon, ChevronDownIcon, ClockIcon } from '@/components/icons';
@@ -106,7 +107,7 @@ export function CustomHourPickerModal({
 
   const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
 
-  if (!shouldRender) return null;
+  if (!shouldRender || typeof document === 'undefined') return null;
 
   const handleHourChange = (newH: number) => {
     const normalizedH = clampHour(newH);
@@ -140,7 +141,8 @@ export function CustomHourPickerModal({
   const hourOffsets = [-2, -1, 0, 1, 2];
   const minuteOffsets = [-2, -1, 0, 1, 2];
 
-  return (
+  return createPortal(
+    (
     <div
       className="paladio-modal-backdrop"
       data-state={dataState}
@@ -458,5 +460,7 @@ export function CustomHourPickerModal({
         </button>
       </div>
     </div>
+    ),
+    document.body
   );
 }

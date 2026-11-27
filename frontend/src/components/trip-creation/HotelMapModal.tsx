@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAnimatedMount } from '@/hooks/useAnimatedMount';
@@ -403,9 +404,10 @@ export function HotelMapModal({
 
   const { shouldRender, dataState } = useAnimatedMount(isOpen, 150);
 
-  if (!shouldRender) return null;
+  if (!shouldRender || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
+    (
     <div
       className="paladio-modal-backdrop"
       data-state={dataState}
@@ -816,5 +818,7 @@ export function HotelMapModal({
         </div>
       </div>
     </div>
+    ),
+    document.body
   );
 }

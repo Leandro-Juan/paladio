@@ -42,6 +42,7 @@ const CATEGORY_OPTIONS = [
   { value: 'museum', labelKey: 'add_poi.cat_museum' },
   { value: 'restaurant', labelKey: 'add_poi.cat_restaurant' },
   { value: 'cafe', labelKey: 'add_poi.cat_cafe' },
+  { value: 'bar', labelKey: 'add_poi.cat_bar' },
   { value: 'park', labelKey: 'add_poi.cat_park' },
   { value: 'shopping', labelKey: 'add_poi.cat_shopping' },
   { value: 'viewpoint', labelKey: 'add_poi.cat_viewpoint' },

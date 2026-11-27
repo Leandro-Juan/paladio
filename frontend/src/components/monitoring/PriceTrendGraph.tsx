@@ -268,7 +268,7 @@ export function PriceTrendGraph({
         {d.nightlyPrice !== null && (
           <div className={styles.tooltipLodgingSection}>
             <div className={styles.tooltipRow}>
-              <span style={{ color: '#0F4C5C', fontWeight: 600 }}>{t('monitoring.hotel_rate_colon')}</span>
+              <span style={{ color: 'var(--color-accent-teal-mid, #0F4C5C)', fontWeight: 600 }}>{t('monitoring.hotel_rate_colon')}</span>
               <span className={styles.tooltipVal}>
                 {t('monitoring.price_per_night_compact', { price: `${symbol}${d.nightlyPrice.toFixed(2)}` })}
               </span>
@@ -279,7 +279,7 @@ export function PriceTrendGraph({
               </div>
             )}
             {d.nProperties > 1 && (
-              <div className={styles.tooltipCarrierText} style={{ marginTop: '2px', color: '#0F4C5C' }}>
+              <div className={styles.tooltipCarrierText} style={{ marginTop: '2px', color: 'var(--color-accent-teal-mid, #0F4C5C)' }}>
                 {t('monitoring.verified_properties_scanned', { count: d.nProperties })}
               </div>
             )}

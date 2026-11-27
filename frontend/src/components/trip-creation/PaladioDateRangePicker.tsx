@@ -414,6 +414,7 @@ export function PaladioDateRangePicker({
               <button
                 key={dateStr}
                 type="button"
+                data-date={dateStr}
                 disabled={isDisabled}
                 onClick={() => handleDayClick(dateStr)}
                 onMouseEnter={() => !isDisabled && selectingStep === 'end' && setHoverDate(dateStr)}
@@ -510,6 +511,7 @@ export function PaladioDateRangePicker({
 
         <button
           type="button"
+          data-testid="date-picker-next-month"
           onClick={handleNextMonth}
           aria-label={t('calendar.next_month')}
           style={{
