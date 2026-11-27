@@ -7,27 +7,21 @@ from fastapi.testclient import TestClient
 class MockSwarmSession(ISwarmSession):
     def __init__(self, events_to_yield):
         self.events_to_yield = events_to_yield
+        self.calls = []
 
     async def process_message(
         self, action: str, data: dict, user_msg: str, thread_id: str
     ):
+        self.calls.append({"action": action, "data": data, "user_msg": user_msg})
         for event in self.events_to_yield:
             yield event
 
 
 @pytest.fixture
 def client():
-    # No need to mock create_swarm since we mock the session directly
     app.state.swarm_session = MockSwarmSession(
         [
-            {"event": "STARTING_INFERENCE", "status": "running"},
-            {
-                "event": "RETRIEVING_CONTEXT",
-                "status": "completed",
-                "data": "dummy context",
-            },
-            {"event": "EVALUATING_ROUTES", "status": "completed", "data": {"days": []}},
-            {"event": "DONE", "status": "completed"},
+            {"event": "FEEDBACK_PROCESSED", "status": "completed"},
         ]
     )
 
@@ -38,71 +32,52 @@ def client():
         delattr(app.state, "swarm_session")
 
 
-def test_websocket_stream_sends_progress_events(client):
+def test_websocket_stream_handles_feedback_action(client):
     with client.websocket_connect("/api/ws/stream") as websocket:
-        websocket.send_text("I want to go to Rome")
-        events = []
-        try:
-            while True:
-                data = websocket.receive_json()
-                events.append(data.get("event"))
-                if data.get("event") in ["DONE", "ERROR"]:
-                    break
-        except Exception:
-            pass
-
-    assert "STARTING_INFERENCE" in events
-    assert "RETRIEVING_CONTEXT" in events
-    assert "EVALUATING_ROUTES" in events
-    assert "DONE" in events
-
-
-def test_websocket_stream_handles_malformed_json(client):
-    invalid_json = "this is not json"
-    with client.websocket_connect("/api/ws/stream") as websocket:
-        websocket.send_text(invalid_json)
+        websocket.send_json(
+            {
+                "action": "feedback",
+                "poi": {"name": "Sagrada Familia"},
+                "target_score": 90,
+            }
+        )
         response = websocket.receive_json()
-    assert response.get("event") == "STARTING_INFERENCE"
+        assert response["event"] == "FEEDBACK_PROCESSED"
+        assert response["status"] == "completed"
 
 
-def test_websocket_stream_handles_missing_fields(client):
-    payload_missing_keys = {"message": "A trip to Rome"}
+def test_websocket_stream_handles_malformed_json_and_ping(client):
     with client.websocket_connect("/api/ws/stream") as websocket:
-        websocket.send_json(payload_missing_keys)
+        websocket.send_text("this is not json")
+        websocket.send_json({"action": "ping"})
         response = websocket.receive_json()
-    assert response.get("event") == "STARTING_INFERENCE"
+    assert response.get("event") == "PONG"
+
+
+def test_websocket_stream_handles_missing_fields_without_crashing(client):
+    with client.websocket_connect("/api/ws/stream") as websocket:
+        websocket.send_json({"message": "A trip to Rome"})
+        websocket.send_json({"action": "ping"})
+        response = websocket.receive_json()
+    assert response.get("event") == "PONG"
 
 
 def test_websocket_stream_resists_abrupt_disconnect(client):
     try:
         with client.websocket_connect("/api/ws/stream") as websocket:
-            websocket.send_json({"message": "Test prompt"})
+            websocket.send_json({"action": "ping"})
     except Exception as e:
         pytest.fail(f"Server crashed upon abrupt client disconnect: {e}")
 
 
-def test_websocket_rag_handles_none_context(client):
-    # Overwrite the session to return none context
+def test_websocket_feedback_handles_empty_payload(client):
     client.app.state.swarm_session = MockSwarmSession(
         [
-            {"event": "STARTING_INFERENCE", "status": "running"},
-            {"event": "RETRIEVING_CONTEXT", "status": "completed", "data": ""},
-            {"event": "DONE", "status": "completed"},
+            {"event": "FEEDBACK_PROCESSED", "status": "completed"},
         ]
     )
 
-    try:
-        with client.websocket_connect("/api/ws/stream") as websocket:
-            websocket.send_text("hello")
-
-            response1 = websocket.receive_json()
-            assert response1["event"] == "STARTING_INFERENCE"
-
-            response2 = websocket.receive_json()
-            assert response2["event"] == "RETRIEVING_CONTEXT"
-            assert response2["data"] == ""
-
-            response3 = websocket.receive_json()
-            assert response3["event"] == "DONE"
-    except Exception as e:
-        pytest.fail(f"WebSocket closed unexpectedly: {e}")
+    with client.websocket_connect("/api/ws/stream") as websocket:
+        websocket.send_json({"action": "feedback"})
+        response = websocket.receive_json()
+        assert response["event"] == "FEEDBACK_PROCESSED"

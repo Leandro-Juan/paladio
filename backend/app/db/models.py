@@ -310,6 +310,43 @@ class TripRevisionModel(Base):
     trip = relationship("TripModel", back_populates="revisions")
 
 
+class TripGenerationJobModel(Base):
+    __tablename__ = "trip_generation_jobs"
+
+    id = Column(String(64), primary_key=True, index=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    thread_id = Column(String(128), nullable=False, unique=True, index=True)
+    destination = Column(String, nullable=False)
+    title = Column(String, nullable=True)
+    status = Column(
+        String(32), nullable=False, default="running", index=True
+    )  # running, awaiting_input, completed, aborted, failed, cancelled
+    stage = Column(String(64), nullable=False, default="STARTING_INFERENCE")
+    stage_message = Column(Text, nullable=True)
+    prompt = Column(Text, nullable=False)
+    request_payload = Column(JSONB, nullable=False, default=dict)
+    interrupt_type = Column(String(64), nullable=True)
+    interrupt_payload = Column(JSONB, nullable=True)
+    guardrail_errors = Column(JSONB, nullable=True)
+    error_message = Column(Text, nullable=True)
+    trip_id = Column(
+        String, ForeignKey("trips.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    acknowledged = Column(Boolean, nullable=False, default=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        onupdate=func.now(),
+        server_default=func.now(),
+        nullable=False,
+    )
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+
 class AgentActionModel(Base):
     __tablename__ = "agent_actions"
 

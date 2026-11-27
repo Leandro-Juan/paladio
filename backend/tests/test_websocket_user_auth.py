@@ -15,7 +15,7 @@ class MockSwarmSession(ISwarmSession):
         self.received_actions.append(
             {"action": action, "data": data, "user_msg": user_msg}
         )
-        yield {"event": "DONE", "status": "completed"}
+        yield {"event": "FEEDBACK_PROCESSED", "status": "completed"}
 
 
 @pytest.fixture
@@ -35,11 +35,12 @@ def test_websocket_token_query_param_auth(mock_ws_client):
     token = create_access_token(subject="user-uuid-999")
 
     with client.websocket_connect(f"/api/ws/stream?token={token}") as ws:
-        ws.send_json({"action": "chat", "message": "Trip to Paris"})
+        ws.send_json(
+            {"action": "feedback", "poi": {"name": "Louvre"}, "target_score": 80}
+        )
         res = ws.receive_json()
-        assert res["event"] == "DONE"
+        assert res["event"] == "FEEDBACK_PROCESSED"
 
-    # Verify user_id was extracted from token into data payload
     assert len(mock_session.received_actions) == 1
     action_data = mock_session.received_actions[0]["data"]
     assert action_data.get("user_id") == "user-uuid-999"
@@ -50,9 +51,16 @@ def test_websocket_token_payload_auth(mock_ws_client):
     token = create_access_token(subject="user-uuid-888")
 
     with client.websocket_connect("/api/ws/stream") as ws:
-        ws.send_json({"action": "chat", "message": "Trip to Tokyo", "token": token})
+        ws.send_json(
+            {
+                "action": "feedback",
+                "poi": {"name": "Prado"},
+                "target_score": 95,
+                "token": token,
+            }
+        )
         res = ws.receive_json()
-        assert res["event"] == "DONE"
+        assert res["event"] == "FEEDBACK_PROCESSED"
 
     assert len(mock_session.received_actions) == 1
     action_data = mock_session.received_actions[0]["data"]
@@ -63,13 +71,14 @@ def test_websocket_unauthenticated_fallback(mock_ws_client):
     client, mock_session = mock_ws_client
 
     with client.websocket_connect("/api/ws/stream") as ws:
-        ws.send_json({"action": "chat", "message": "Trip to Berlin"})
+        ws.send_json(
+            {"action": "feedback", "poi": {"name": "Park"}, "target_score": 70}
+        )
         res = ws.receive_json()
-        assert res["event"] == "DONE"
+        assert res["event"] == "FEEDBACK_PROCESSED"
 
     assert len(mock_session.received_actions) == 1
     action_data = mock_session.received_actions[0]["data"]
-    # If no token and no user_id specified, remains absent or default
     assert (
         action_data.get("user_id") is None
         or action_data.get("user_id") == "default_user"

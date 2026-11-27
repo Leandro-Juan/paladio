@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import json
 import logging
@@ -44,11 +45,12 @@ from fastapi import (
     Form,
     HTTPException,
     Query,
+    Request,
     UploadFile,
     status,
 )
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import delete, func, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -330,6 +332,45 @@ class TripResponse(TripCreate):
     corridor: str | None = None
     status: str = "active"
     revision: int = 0
+
+
+class TripGenerateRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    prompt: str
+    destination_city: str | None = None
+    title: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    budget: float | int | None = None
+    budget_usd: float | int | None = None
+    currency: str | None = None
+    auto_verify: bool = True
+
+
+class TripGenerationResumeRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class TripGenerationJobResponse(BaseModel):
+    id: str
+    user_id: str | None = None
+    thread_id: str
+    destination: str
+    title: str | None = None
+    status: str
+    stage: str
+    stage_message: str | None = None
+    prompt: str
+    interrupt_type: str | None = None
+    interrupt_payload: dict[str, Any] | None = None
+    guardrail_errors: list[str] | None = None
+    error_message: str | None = None
+    trip_id: str | None = None
+    acknowledged: bool = False
+    created_at: str
+    updated_at: str
+    completed_at: str | None = None
 
 
 class TripPhotoResponse(BaseModel):
@@ -1405,16 +1446,19 @@ async def scan_new_trip_boarding_pass(
     )
 
 
-@router.post("/", response_model=TripResponse, status_code=status.HTTP_201_CREATED)
-async def create_trip(
-    trip: TripCreate,
-    current_user: UserModel | None = Depends(get_optional_user),
-    session: AsyncSession = Depends(get_db),
-):
-    itin_data = trip.itinerary_data
+async def persist_trip_record(
+    session: AsyncSession,
+    destination: str,
+    start_date: str,
+    end_date: str,
+    itinerary_data: dict[str, Any],
+    current_user: UserModel | None = None,
+) -> TripModel:
+    """Persist a new trip record, seed participants/tickets, and trigger background hydration."""
+    itin_data = itinerary_data
     try:
-        itin_data = _populate_initial_anchors(
-            itin_data, trip.destination, trip.start_date, trip.end_date
+        itin_data = await asyncio.to_thread(
+            _populate_initial_anchors, itin_data, destination, start_date, end_date
         )
     except Exception as e:
         logger.warning(f"Could not populate initial anchors in create_trip: {e}")
@@ -1424,13 +1468,15 @@ async def create_trip(
             from app.services.transit_service import ensure_walking_legs_populated
 
             itin_data = await ensure_walking_legs_populated(
-                itin_data, city=trip.destination or ""
+                itin_data, city=destination or ""
             )
         except Exception as e:
             logger.warning(f"Could not ensure walking legs in create_trip: {e}")
 
     try:
-        itin_data = _populate_corridor_constraints(itin_data, trip.destination)
+        itin_data = await asyncio.to_thread(
+            _populate_corridor_constraints, itin_data, destination
+        )
     except Exception as e:
         logger.warning(f"Could not populate corridor constraints in create_trip: {e}")
 
@@ -1438,9 +1484,9 @@ async def create_trip(
     db_trip = TripModel(
         id=new_id,
         user_id=current_user.id if current_user else None,
-        destination=trip.destination,
-        start_date=trip.start_date,
-        end_date=trip.end_date,
+        destination=destination,
+        start_date=start_date,
+        end_date=end_date,
         itinerary_data=itin_data,
     )
     session.add(db_trip)
@@ -1464,9 +1510,14 @@ async def create_trip(
     session.add(first_p)
 
     # Seed any additional participants chosen at trip creation
-    raw_participants = itin_data.get("participants") or itin_data.get(
-        "travel_constraints", {}
-    ).get("participants", [])
+    raw_participants = (
+        (
+            itin_data.get("participants")
+            or itin_data.get("travel_constraints", {}).get("participants", [])
+        )
+        if isinstance(itin_data, dict)
+        else []
+    )
     if isinstance(raw_participants, list):
         for p in raw_participants:
             if not isinstance(p, dict):
@@ -1535,34 +1586,135 @@ async def create_trip(
         except Exception as e:
             logger.warning(f"Could not auto-seed POIs for {db_trip.destination}: {e}")
 
-    t_count = await _get_trip_tickets_count(db_trip.id, session)
+    await session.refresh(db_trip)
+    return db_trip
 
-    all_p_res = await session.execute(
-        select(TripParticipantModel)
-        .where(TripParticipantModel.trip_id == db_trip.id)
-        .order_by(TripParticipantModel.created_at.asc())
-    )
-    all_p = all_p_res.scalars().all()
 
-    orig_iata, dest_iata, corridor = _resolve_trip_corridor(db_trip)
-    return TripResponse(
-        id=db_trip.id,
-        user_id=db_trip.user_id,
-        destination=db_trip.destination,
-        start_date=db_trip.start_date,
-        end_date=db_trip.end_date,
-        itinerary_data=db_trip.itinerary_data,
-        created_at=db_trip.created_at.isoformat()
-        if db_trip.created_at
-        else datetime.now(timezone.utc).isoformat(),
-        participants=[_participant_to_response(p) for p in all_p],
-        tickets_count=t_count,
-        destination_timezone=_resolve_trip_timezone(db_trip),
-        origin_iata=orig_iata,
-        destination_iata=dest_iata,
-        corridor=corridor,
-        status=getattr(db_trip, "status", "active") or "active",
+def _get_trip_generation_manager(request: Request):
+    manager = getattr(request.app.state, "trip_generation_manager", None)
+    if manager is None:
+        from app.services.trip_generation_manager import TripGenerationManager
+
+        manager = TripGenerationManager(request.app)
+        request.app.state.trip_generation_manager = manager
+    return manager
+
+
+@router.post(
+    "/generate",
+    response_model=TripGenerationJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def start_trip_generation(
+    req: TripGenerateRequest,
+    request: Request,
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    manager = _get_trip_generation_manager(request)
+    payload = req.model_dump()
+    prompt = str(payload.pop("prompt", "") or "")
+    user_id = current_user.id if current_user else None
+    return await manager.start_job(prompt=prompt, extras=payload, user_id=user_id)
+
+
+@router.get("/generation-jobs", response_model=list[TripGenerationJobResponse])
+async def list_trip_generation_jobs(
+    request: Request,
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    manager = _get_trip_generation_manager(request)
+    user_id = current_user.id if current_user else None
+    return await manager.list_jobs(user_id=user_id)
+
+
+@router.get("/generation-jobs/{job_id}", response_model=TripGenerationJobResponse)
+async def get_trip_generation_job(
+    job_id: str,
+    request: Request,
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    manager = _get_trip_generation_manager(request)
+    user_id = current_user.id if current_user else None
+    job = await manager.get_job(job_id=job_id, user_id=user_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Trip generation job not found")
+    return job
+
+
+@router.post(
+    "/generation-jobs/{job_id}/resume",
+    response_model=TripGenerationJobResponse,
+)
+async def resume_trip_generation_job(
+    job_id: str,
+    req: TripGenerationResumeRequest,
+    request: Request,
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    manager = _get_trip_generation_manager(request)
+    user_id = current_user.id if current_user else None
+    outcome, job = await manager.resume_job(
+        job_id=job_id, resume_data=req.model_dump(), user_id=user_id
     )
+    if outcome == "not_found" or job is None:
+        raise HTTPException(status_code=404, detail="Trip generation job not found")
+    if outcome == "invalid_state":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Trip generation job is not awaiting input (status: {job.get('status')})",
+        )
+    return job
+
+
+@router.post(
+    "/generation-jobs/{job_id}/cancel",
+    response_model=TripGenerationJobResponse,
+)
+async def cancel_trip_generation_job(
+    job_id: str,
+    request: Request,
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    manager = _get_trip_generation_manager(request)
+    user_id = current_user.id if current_user else None
+    job = await manager.cancel_job(job_id=job_id, user_id=user_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Trip generation job not found")
+    return job
+
+
+@router.post(
+    "/generation-jobs/{job_id}/acknowledge",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def acknowledge_trip_generation_job(
+    job_id: str,
+    request: Request,
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    manager = _get_trip_generation_manager(request)
+    user_id = current_user.id if current_user else None
+    ok = await manager.acknowledge_job(job_id=job_id, user_id=user_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Trip generation job not found")
+    return None
+
+
+@router.post("/", response_model=TripResponse, status_code=status.HTTP_201_CREATED)
+async def create_trip(
+    trip: TripCreate,
+    current_user: UserModel | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+):
+    db_trip = await persist_trip_record(
+        session=session,
+        destination=trip.destination,
+        start_date=trip.start_date,
+        end_date=trip.end_date,
+        itinerary_data=trip.itinerary_data,
+        current_user=current_user,
+    )
+    return await _build_trip_response(db_trip, session)
 
 
 router.include_router(collections_router)
@@ -2628,7 +2780,6 @@ async def get_trip(
         if has_missing_geom:
             try:
                 from app.services.transit_service import ensure_walking_legs_populated
-                import copy
 
                 cloned_itin = copy.deepcopy(trip.itinerary_data)
                 updated_itin = await ensure_walking_legs_populated(
