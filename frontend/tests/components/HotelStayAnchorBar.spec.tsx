@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/experimental-ct-react';
 import { HotelStayAnchorBar } from '../../src/components/trip-creation/HotelStayAnchorBar';
 
 test.describe('HotelStayAnchorBar Check-In & Check-Out Controls', () => {
-  test('renders static trip start/end dates (no date inputs) and supports dial + manual time entry', async ({ mount }) => {
+  test('renders static trip start/end dates (no date inputs) and supports dial + manual time entry', async ({ mount, page }) => {
     test.setTimeout(30000);
     let latestCheckInHour = '';
     let latestCheckOutHour = '';
@@ -32,17 +32,17 @@ test.describe('HotelStayAnchorBar Check-In & Check-Out Controls', () => {
     await expect(cinTimeBtn).toContainText('15:00');
     await expect(coutTimeBtn).toContainText('11:00');
 
-    // Dial selection
+    // Dial selection (modal renders via React Portal into document.body)
     await cinTimeBtn.click();
-    await expect(component.getByText('Hotel Check-In Time')).toBeVisible();
-    await component.getByRole('button', { name: '16', exact: true }).first().click();
+    await expect(page.getByText('Hotel Check-In Time')).toBeVisible();
+    await page.getByRole('button', { name: '16', exact: true }).first().click();
     expect(latestCheckInHour).toBe('16:00');
-    await component.getByRole('button', { name: 'Confirm Time' }).click();
+    await page.getByRole('button', { name: 'Confirm Time' }).click();
 
     // Manual time entry
     await coutTimeBtn.click();
-    await expect(component.getByText('Hotel Check-Out Time')).toBeVisible();
-    const manualInput = component.getByTestId('manual-time-input');
+    await expect(page.getByText('Hotel Check-Out Time')).toBeVisible();
+    const manualInput = page.getByTestId('manual-time-input');
     await manualInput.fill('09:37');
     await manualInput.press('Enter');
     expect(latestCheckOutHour).toBe('09:37');

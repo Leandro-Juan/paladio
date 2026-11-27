@@ -22,27 +22,36 @@ def test_haversine_distance():
 
 
 def test_extract_gtfs_expiry_from_feed_info():
+    future_dt = datetime.now(timezone.utc) + timedelta(days=30)
     with tempfile.TemporaryDirectory() as tmpdir:
         feed_info_path = os.path.join(tmpdir, "feed_info.txt")
         with open(feed_info_path, "w", encoding="utf-8") as f:
-            f.write("feed_publisher_name,feed_end_date\nCRTM,20261130\n")
+            f.write(
+                f"feed_publisher_name,feed_end_date\nCRTM,{future_dt.strftime('%Y%m%d')}\n"
+            )
 
         expiry = extract_gtfs_expiry(tmpdir)
-        assert expiry.year == 2026
-        assert expiry.month == 11
-        assert expiry.day == 30
+        assert expiry.year == future_dt.year
+        assert expiry.month == future_dt.month
+        assert expiry.day == future_dt.day
 
 
 def test_extract_gtfs_expiry_from_calendar():
+    past_dt = datetime.now(timezone.utc) - timedelta(days=30)
+    future_dt = datetime.now(timezone.utc) + timedelta(days=45)
     with tempfile.TemporaryDirectory() as tmpdir:
         calendar_path = os.path.join(tmpdir, "calendar.txt")
         with open(calendar_path, "w", encoding="utf-8") as f:
-            f.write("service_id,monday,end_date\n1,1,20261015\n2,1,20261201\n")
+            f.write(
+                "service_id,monday,end_date\n"
+                f"1,1,{past_dt.strftime('%Y%m%d')}\n"
+                f"2,1,{future_dt.strftime('%Y%m%d')}\n"
+            )
 
         expiry = extract_gtfs_expiry(tmpdir)
-        assert expiry.year == 2026
-        assert expiry.month == 12
-        assert expiry.day == 1
+        assert expiry.year == future_dt.year
+        assert expiry.month == future_dt.month
+        assert expiry.day == future_dt.day
 
 
 def test_extract_gtfs_expiry_fallback():
