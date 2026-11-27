@@ -222,6 +222,19 @@ export async function handleTripsRoutes(
     return blockedRes('Importing trips and scanning external documents');
   }
 
+  // --- Generation Jobs (/api/trips/generation-jobs...) ---
+  if (segments[0] === 'generation-jobs') {
+    if (segments.length === 1 && method === 'GET') {
+      return jsonRes([]);
+    }
+    if (segments.length === 2 && method === 'GET') {
+      return errRes('Generation job not found', 404);
+    }
+    if (method === 'POST' || method === 'DELETE') {
+      return jsonRes({ status: 'ok' });
+    }
+  }
+
   // --- Transit Status Helper Endpoints (/api/trips/transit...) ---
   if (segments[0] === 'transit' || segments[0] === 'transit-status') {
     if (segments[0] === 'transit-status') {
