@@ -321,12 +321,27 @@ class HybridRetriever:
         w_vec: float = 0.50,
         w_fts: float = 0.30,
         w_trgm: float = 0.20,
+        w_cat: float = 0.35,
+        target_categories: list[str] | None = None,
+        lexical_keywords: list[str] | None = None,
+        fallback_to_top: bool = False,
         apply_mmr: bool = True,
         mmr_lambda: float = 0.70,
     ) -> list[dict[str, Any]]:
-        """Searches POIs combining Vector + FTS + Trigram via SQL CTE with pgvector iterative scan."""
+        """Searches POIs combining Vector + FTS + Trigram + Category RRF via SQL CTE with pgvector iterative scan."""
         has_vec = query_vec is not None and len(query_vec) == 768
         has_text = bool(clean_query and clean_query.strip())
+        norm_target_cats = [
+            c.strip().lower() for c in (target_categories or []) if c and c.strip()
+        ]
+        has_target_cats = bool(norm_target_cats)
+
+        clean_keywords = [
+            k.strip() for k in (lexical_keywords or []) if k and k.strip()
+        ][:8]
+        fts_query = (
+            " OR ".join(clean_keywords) if clean_keywords else clean_query.strip()
+        )
 
         # Optimize pgvector 0.8+ query execution
         try:
@@ -364,18 +379,18 @@ class HybridRetriever:
           SELECT id,
                  ts_rank_cd(
                    to_tsvector('simple', immutable_unaccent(coalesce(name,'') || ' ' || coalesce(neighborhood,'') || ' ' || coalesce(description,''))),
-                   websearch_to_tsquery('simple', immutable_unaccent(CAST(:clean_query AS text)))
+                   websearch_to_tsquery('simple', immutable_unaccent(CAST(:fts_query AS text)))
                  ) AS fts_score,
                  ROW_NUMBER() OVER (
                    ORDER BY ts_rank_cd(
                      to_tsvector('simple', immutable_unaccent(coalesce(name,'') || ' ' || coalesce(neighborhood,'') || ' ' || coalesce(description,''))),
-                     websearch_to_tsquery('simple', immutable_unaccent(CAST(:clean_query AS text)))
+                     websearch_to_tsquery('simple', immutable_unaccent(CAST(:fts_query AS text)))
                    ) DESC
                  ) AS r_fts
           FROM city_scope
           WHERE CAST(:has_text AS boolean) = TRUE
             AND to_tsvector('simple', immutable_unaccent(coalesce(name,'') || ' ' || coalesce(neighborhood,'') || ' ' || coalesce(description,'')))
-                @@ websearch_to_tsquery('simple', immutable_unaccent(CAST(:clean_query AS text)))
+                @@ websearch_to_tsquery('simple', immutable_unaccent(CAST(:fts_query AS text)))
           LIMIT 100
         ),
         trgm_rank AS (
@@ -397,6 +412,21 @@ class HybridRetriever:
               OR EXISTS (SELECT 1 FROM unnest(coalesce(aliases, ARRAY[]::varchar[])) a WHERE immutable_unaccent(lower(a)) % immutable_unaccent(lower(CAST(:clean_query AS text))))
             )
           LIMIT 50
+        ),
+        category_rank AS (
+          SELECT id,
+                 ROW_NUMBER() OVER (
+                   ORDER BY tier ASC,
+                            coalesce(iconicity_score, 0.0) DESC,
+                            (CASE WHEN description IS NOT NULL AND length(description) > 0 THEN 1 ELSE 0 END) DESC
+                 ) AS r_cat
+          FROM city_scope
+          WHERE CAST(:has_target_cats AS boolean) = TRUE
+            AND lower(category) = ANY(CAST(:target_categories AS text[]))
+          ORDER BY tier ASC,
+                   coalesce(iconicity_score, 0.0) DESC,
+                   (CASE WHEN description IS NOT NULL AND length(description) > 0 THEN 1 ELSE 0 END) DESC
+          LIMIT 150
         )
         SELECT c.*,
                COALESCE(s.vec_sim, 0.0) AS vec_sim,
@@ -404,14 +434,16 @@ class HybridRetriever:
                (
                  COALESCE(1.0 / (60 + s.r_vec), 0.0) * CAST(:w_vec AS float) +
                  COALESCE(1.0 / (60 + f.r_fts), 0.0) * CAST(:w_fts AS float) +
-                 COALESCE(1.0 / (60 + t.r_trgm), 0.0) * CAST(:w_trgm AS float)
+                 COALESCE(1.0 / (60 + t.r_trgm), 0.0) * CAST(:w_trgm AS float) +
+                 COALESCE(1.0 / (60 + cat.r_cat), 0.0) * CAST(:w_cat AS float)
                ) AS rrf_score
         FROM city_scope c
         LEFT JOIN semantic_rank s ON c.id = s.id
         LEFT JOIN fts_rank f ON c.id = f.id
         LEFT JOIN trgm_rank t ON c.id = t.id
-        WHERE (CAST(:has_vec AS boolean) = FALSE AND CAST(:has_text AS boolean) = FALSE)
-           OR s.id IS NOT NULL OR f.id IS NOT NULL OR t.id IS NOT NULL
+        LEFT JOIN category_rank cat ON c.id = cat.id
+        WHERE (CAST(:has_vec AS boolean) = FALSE AND CAST(:has_text AS boolean) = FALSE AND CAST(:has_target_cats AS boolean) = FALSE)
+           OR s.id IS NOT NULL OR f.id IS NOT NULL OR t.id IS NOT NULL OR cat.id IS NOT NULL
         ORDER BY rrf_score DESC, c.iconicity_score DESC
         LIMIT 200;
         """)
@@ -421,8 +453,11 @@ class HybridRetriever:
             "city_id": city_id,
             "has_vec": has_vec,
             "has_text": has_text,
+            "has_target_cats": has_target_cats,
+            "target_categories": norm_target_cats,
             "query_vec": vec_str,
             "clean_query": clean_query.strip(),
+            "fts_query": fts_query,
             "max_tier": max_tier,
             "max_cost_eur": max_cost_eur,
             "require_rain_friendly": require_rain_friendly,
@@ -430,28 +465,50 @@ class HybridRetriever:
             "w_vec": w_vec if has_vec else 0.0,
             "w_fts": w_fts if has_text else 0.0,
             "w_trgm": w_trgm if has_text else 0.0,
+            "w_cat": w_cat if has_target_cats else 0.0,
         }
 
         res = await session.execute(sql_query, params)
         rows = res.mappings().all()
 
         candidates: list[dict[str, Any]] = [dict(row) for row in rows]
+        if not candidates and fallback_to_top:
+            fallback_sql = text("""
+            SELECT *, 0.0 AS vec_sim, 0.0 AS trgm_sim, 0.0 AS rrf_score
+            FROM attractions
+            WHERE (CAST(:city_id AS text) IS NOT NULL AND city_id = CAST(:city_id AS text) OR lower(city) = lower(CAST(:city AS text)))
+              AND (CAST(:max_tier AS integer) IS NULL OR tier <= CAST(:max_tier AS integer))
+              AND (CAST(:max_cost_eur AS float) IS NULL OR cost_eur <= CAST(:max_cost_eur AS float))
+              AND (CAST(:require_rain_friendly AS boolean) = FALSE OR (facets->>'rain_friendly')::boolean IS NOT FALSE)
+              AND (CAST(:exclude_transit AS boolean) = FALSE OR (lower(category) NOT IN ('transit', 'metro', 'train', 'bus_stop', 'tram', 'subway') AND id NOT LIKE 'OSM-transit-%'))
+            ORDER BY tier ASC, coalesce(iconicity_score, 0.0) DESC
+            LIMIT :fallback_limit;
+            """)
+            fb_res = await session.execute(
+                fallback_sql,
+                {
+                    "city": city,
+                    "city_id": city_id,
+                    "max_tier": max_tier,
+                    "max_cost_eur": max_cost_eur,
+                    "require_rain_friendly": require_rain_friendly,
+                    "exclude_transit": exclude_transit,
+                    "fallback_limit": max(limit, 50),
+                },
+            )
+            candidates = [dict(row) for row in fb_res.mappings().all()]
+
         if not candidates:
             return []
 
         # 2. Composite Reranking
         rrf_scores = [c.get("rrf_score", 0.0) for c in candidates]
         max_rrf = max(rrf_scores) if rrf_scores else 1.0
-        min_rrf = min(rrf_scores) if rrf_scores else 0.0
-        range_rrf = max_rrf - min_rrf
+        target_cats_set = set(norm_target_cats)
 
         for c in candidates:
             raw_rrf = c.get("rrf_score", 0.0)
-            norm_rrf = (
-                (raw_rrf - min_rrf) / range_rrf
-                if range_rrf > 1e-6
-                else (1.0 if raw_rrf > 0 else 0.0)
-            )
+            norm_rrf = raw_rrf / max_rrf if max_rrf > 1e-9 else 0.0
 
             iconicity = float(c.get("iconicity_score") or 0.0)
             facet_match = compute_facet_match_score(
@@ -460,13 +517,27 @@ class HybridRetriever:
             doc_bonus = compute_doc_quality_bonus(c.get("doc_quality"))
             richness = compute_info_richness_score(c)
 
-            # Composite Score formula: query relevance (48%), iconicity (34%), facet match (10%), info richness (8%)
-            comp_score = (
-                0.48 * norm_rrf
-                + 0.34 * iconicity
-                + 0.10 * facet_match
-                + 0.08 * richness
-            )
+            if target_cats_set:
+                cat_match = (
+                    1.0
+                    if str(c.get("category") or "").lower() in target_cats_set
+                    else 0.0
+                )
+                comp_score = (
+                    0.36 * norm_rrf
+                    + 0.22 * iconicity
+                    + 0.26 * cat_match
+                    + 0.08 * facet_match
+                    + 0.08 * richness
+                )
+            else:
+                # Composite Score formula: query relevance (48%), iconicity (34%), facet match (10%), info richness (8%)
+                comp_score = (
+                    0.48 * norm_rrf
+                    + 0.34 * iconicity
+                    + 0.10 * facet_match
+                    + 0.08 * richness
+                )
             c["composite_score"] = round(comp_score, 4)
             c["norm_rrf"] = round(norm_rrf, 4)
             c["facet_match"] = round(facet_match, 4)

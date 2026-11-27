@@ -36,6 +36,14 @@ def test_query_rewriter_multilingual_expansion():
     sq_top = QueryRewriter.rewrite_query("must-see famous landmarks", "Lisbon")
     assert sq_top.max_tier == 1
 
+    # Test category and lexical keyword extraction for natural-language queries
+    sq_cafes = QueryRewriter.rewrite_query("cozy cafes with charm", "Tokyo")
+    assert "cafe" in sq_cafes.target_categories
+    assert "cafe" in sq_cafes.lexical_keywords
+    assert "with" not in sq_cafes.lexical_keywords
+    assert "cozy" in sq_cafes.lexical_keywords
+    assert "charm" in sq_cafes.lexical_keywords
+
 
 def test_facet_match_and_doc_quality():
     poi_facets = {
