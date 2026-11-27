@@ -1965,9 +1965,9 @@
 <tbody>
 <tr>
 <td style="text-align: left;"><strong>RAM</strong></td>
+<td style="text-align: left;">4 GB</td>
 <td style="text-align: left;">8 GB</td>
-<td style="text-align: left;">12 GB to 16 GB</td>
-<td style="text-align: left;"><code>valhalla</code> reserves up to 3,072 MB (<code>mem_limit: 3072m</code>), <code>api</code> and <code>worker</code> allow up to 2,048 MB each, and <code>beat</code> allows 512 MB</td>
+<td style="text-align: left;">Steady-state footprint is ~1.5–2.5 GB across all 7 containers (<code>mem_reservation</code>s reserve 1,024 MB for <code>valhalla</code>, 512 MB each for <code>api</code> and <code>worker</code>, and 128 MB for <code>beat</code>); <code>mem_limit</code> ceilings allow bursts up to 3,072 MB each on <code>valhalla</code> and <code>worker</code>, 2,048 MB on <code>api</code>, and 512 MB on <code>beat</code> during regional OSM/GTFS builds. Add 4+ GB extra (12–16 GB total) only if running a local Ollama LLM alongside Paladio</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>CPU</strong></td>
@@ -1985,7 +1985,7 @@
 <td style="text-align: left;"><strong>Software</strong></td>
 <td style="text-align: left;">Docker + Compose v2</td>
 <td style="text-align: left;">Docker Engine 24+</td>
-<td style="text-align: left;"><code>scripts/install/install.sh</code> and <code>scripts/install/install.ps1</code> verify <code>docker</code>, daemon connectivity, and <code>docker compose version</code>, and warn if RAM is below 7.5 GB</td>
+<td style="text-align: left;"><code>scripts/install/install.sh</code> and <code>scripts/install/install.ps1</code> verify <code>docker</code>, daemon connectivity, and <code>docker compose version</code>, and warn if host RAM is below 7.5 GB (below the 8 GB recommended tier)</td>
 </tr>
 </tbody>
 </table>
@@ -2101,7 +2101,7 @@
 <ul>
 <li><strong>Port 3000 or 8000 already in use</strong>: Both <code>scripts/install/install.sh</code> and <code>scripts/install/install.ps1</code> automatically detect occupied host ports during installation, select the next available <code>API_PORT</code> / <code>FRONTEND_PORT</code>, and save the resolved ports into <code>.env</code> (while leaving ports already bound by Paladio's own Compose containers untouched). If you run <code>docker compose up -d</code> manually or want a specific port on an existing install, set <code>API_PORT</code> or <code>FRONTEND_PORT</code> in <code>.env</code> and restart with <code>docker compose up -d</code> (the frontend reads <code>API_PORT</code> at runtime—no image rebuild needed). You can also pre-select preferred ports on a one-liner install—for example <code>curl -fsSL https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.sh | API_PORT=8080 FRONTEND_PORT=3001 bash</code> on Linux/macOS, or <code>$env:API_PORT="8080"; $env:FRONTEND_PORT="3001"; irm https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.ps1 | iex</code> on PowerShell.</li>
 <li><strong>Missing pgvector or timescaledb extension</strong>: Verify the <code>db</code> service uses <code>timescale/timescaledb:2.30.2-pg16</code> and run <code>docker compose exec db psql -U postgres -d paladio -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS timescaledb;"</code>.</li>
-<li><strong>Out-of-memory kills</strong>: Ensure Docker Desktop or your Linux VM has at least 8 GB of RAM assigned, and keep <code>API_WORKERS=1</code> for personal/homelab installs so ONNX embedding weights are only loaded once in the API container.</li>
+<li><strong>Out-of-memory kills</strong>: Ensure Docker Desktop or your Linux VM has at least 4 GB of RAM assigned (6–8 GB recommended when compiling large regional OSM extracts), enable swap on 4 GB hosts, keep <code>API_WORKERS=1</code> for personal/homelab installs so ONNX embedding weights are only loaded once in the API container, and optionally set <code>FASTEMBED_IDLE_TIMEOUT_SECONDS=300</code> to reclaim ~300 MB of ONNX memory when idle.</li>
 </ul>
 <p>Next, complete your initial taste profile and generate your first deterministic itinerary in <a href="../quickstart/">Quickstart: plan your first trip</a>.</p>
 
