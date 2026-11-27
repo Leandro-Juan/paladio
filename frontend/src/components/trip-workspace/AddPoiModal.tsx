@@ -1585,7 +1585,7 @@ export function AddPoiModal({
             {photos.length > 0 && (
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {photos.map((ph) => {
-                  const safePhotoUrl = sanitizeImageUrl(ph.url);
+                  const hasValidPhoto = Boolean(sanitizeImageUrl(ph.url));
                   return (
                   <div
                     key={ph.id}
@@ -1598,9 +1598,9 @@ export function AddPoiModal({
                       border: '1px solid var(--color-border)',
                     }}
                   >
-                    {safePhotoUrl ? (
+                    {hasValidPhoto ? (
                       <SanitizedImage
-                        src={safePhotoUrl}
+                        src={ph.url}
                         alt={ph.caption || t('add_poi.place_photo_alt')}
                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                       />

@@ -859,7 +859,7 @@ export function TripConfigView({ trip, onTripUpdated }: TripConfigViewProps) {
           >
             {photoUrl && !photoPreviewError && sanitizeImageUrl(resolveApiMediaUrl(photoUrl)) ? (
               <SanitizedImage
-                src={sanitizeImageUrl(resolveApiMediaUrl(photoUrl))}
+                src={resolveApiMediaUrl(photoUrl)}
                 alt={t('workspace.photo_preview')}
                 onError={() => setPhotoPreviewError(true)}
                 style={{

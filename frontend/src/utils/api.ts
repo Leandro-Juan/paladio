@@ -41,15 +41,19 @@ export const getWsBaseUrl = (): string => {
 
 const SAFE_DATA_IMAGE_RE = /^data:image\/(png|jpeg|jpg|webp|gif|avif);base64,([A-Za-z0-9+/=]+)$/i;
 
-export const sanitizeImageUrl = (raw: string | null | undefined): string => {
+const SAFE_IMAGE_MIME_TYPES: Record<string, string> = {
+  png: 'image/png',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  avif: 'image/avif',
+};
+
+export const sanitizeHttpImageUrl = (raw: string | null | undefined): string => {
   if (!raw || typeof raw !== 'string') return '';
   const trimmed = raw.trim();
   if (!trimmed) return '';
-  const dataMatch = SAFE_DATA_IMAGE_RE.exec(trimmed);
-  if (dataMatch) {
-    const cleanPayload = dataMatch[2].replace(/[^A-Za-z0-9+/=]/g, '');
-    return `data:image/${dataMatch[1].toLowerCase()};base64,${encodeURI(cleanPayload)}`;
-  }
   try {
     const parsed = new URL(trimmed, 'https://paladio.invalid');
     let candidate = '';
@@ -76,6 +80,37 @@ export const sanitizeImageUrl = (raw: string | null | undefined): string => {
   } catch {
     return '';
   }
+};
+
+export const dataImageToObjectUrl = (raw: string | null | undefined): string | null => {
+  if (typeof window === 'undefined' || !raw || typeof raw !== 'string') return null;
+  const match = SAFE_DATA_IMAGE_RE.exec(raw.trim());
+  if (!match) return null;
+  const mime = SAFE_IMAGE_MIME_TYPES[match[1].toLowerCase()];
+  if (!mime) return null;
+  try {
+    const binary = window.atob(match[2]);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return URL.createObjectURL(new Blob([bytes], { type: mime }));
+  } catch {
+    return null;
+  }
+};
+
+export const sanitizeImageUrl = (raw: string | null | undefined): string => {
+  if (!raw || typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const dataMatch = SAFE_DATA_IMAGE_RE.exec(trimmed);
+  if (dataMatch) {
+    const mime = SAFE_IMAGE_MIME_TYPES[dataMatch[1].toLowerCase()];
+    if (!mime) return '';
+    return `data:${mime};base64,${dataMatch[2]}`;
+  }
+  return sanitizeHttpImageUrl(trimmed);
 };
 
 export const resolveApiMediaUrl = (url: string): string => {
