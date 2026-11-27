@@ -1,6 +1,6 @@
 # System architecture overview
 
-Paladio separates deterministic travel planning, mathematical route optimization, and local semantic search from optional conversational Large Language Model (LLM) interfaces across a 7-container self-hosted stack and a Clean Architecture backend.
+Paladio separates deterministic travel planning, mathematical route optimization, and local semantic search from optional conversational Large Language Model (LLM) interfaces across a self-hosted Docker Compose stack (7 long-running services plus one-shot `migrate`) and a Clean Architecture backend.
 
 ## Why deterministic planning replaces end-to-end LLM chains
 

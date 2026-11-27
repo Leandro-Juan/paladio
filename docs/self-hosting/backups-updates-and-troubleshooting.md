@@ -12,10 +12,10 @@ Back up the PostgreSQL database (`pgdata`), photo uploads (`PHOTO_STORAGE_DIR`),
 docker compose exec -T db pg_dump -U postgres -Fc paladio > paladio_$(date +%Y%m%d).dump
 ```
 
-2. Archive user-uploaded photos and encrypted wallet ticket attachments from the `api` container (skipping `valhalladata` and `gtfsdata` if desired because both can be re-derived from OSM and GTFS):
+2. Archive user-uploaded photos and encrypted wallet ticket attachments from `/data` inside the `api` container (backed by the `appdata` named volume; skipping `valhalladata` and `gtfsdata` if desired because both can be re-derived from OSM and GTFS):
 
 ```bash
-docker compose exec -T api tar -czf - data/trip_photos data/wallet_attachments > paladio_media_$(date +%Y%m%d).tar.gz
+docker compose exec -T api tar -czf - -C /data trip_photos wallet_attachments > paladio_media_$(date +%Y%m%d).tar.gz
 ```
 
 3. Restore a database dump into a fresh `db` container:
@@ -31,12 +31,18 @@ docker compose exec -T db pg_restore -U postgres -d paladio --clean --if-exists 
 Celery Beat checks GitHub releases every 6 hours (`periodic_autoupdate_check_task`) and reports release notes in **Settings** (`/config` under **System Updates**).
 
 - **In-app release check**: Open **Settings -> System Updates** to toggle auto-update checks, inspect changelog notes, or download updates (`POST /api/system/update/check` and `/api/system/update/download`).
-- **Docker Compose upgrade**: Pull the latest git commits, back up your database first, rebuild changed images, and apply Alembic migrations:
+- **Docker Compose upgrade (prebuilt images)**: Back up your database first, pull the latest GHCR images, and recreate containers—the one-shot `migrate` service automatically runs `alembic upgrade head` and `scripts/migrate_verified_fares_to_quotes.py` before `api`, `worker`, `beat`, and `valhalla` start:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+- **Contributor source-build upgrade**: If running from a cloned repository with `docker-compose.dev.yml`, pull updates and rebuild:
 
 ```bash
 git pull origin main
-docker compose up -d --build
-docker compose exec api alembic upgrade head
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
 ## Troubleshooting common self-hosted issues

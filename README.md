@@ -45,9 +45,9 @@ Planning a great trip usually means juggling messy spreadsheets, cloud travel ap
 
 ### <img src="docs/assets/readme/icon-discovery.svg" width="18" height="18" alt=""> Discovery
 
-- **Your 8-axis Taste Star**: Answer a quick visual calibration when you start, then let Paladio adapt naturally from your trips, bookmarks, and preferences (you can export or reset your taste profile anytime).
+- **Your 8-axis Taste Star**: Answer a quick visual calibration when you start, then let Paladio adapt naturally from your trips, bookmarks, and preferences (you can reset your taste profile anytime).
+  - **Places you'll actually enjoy**: Smart search with natural language across sights, museums, food spots, and hidden gems ranked by how well they match your style.
 - **Group taste blending**: Traveling with friends or family? Paladio blends everyone's preferences so the trip works for the whole group.
-- **Places you'll actually enjoy**: Smart search across sights, museums, food spots, and hidden gems ranked by how well they match your style.
 - **Saved collections & imports**: Keep reusable place wishlists, drop custom pins on the map, or import your existing Google Maps, GPX, KML, and KMZ lists.
 
 ### <img src="docs/assets/readme/icon-deals.svg" width="18" height="18" alt=""> Deals
@@ -59,15 +59,17 @@ Planning a great trip usually means juggling messy spreadsheets, cloud travel ap
 
 ### <img src="docs/assets/readme/icon-maps.svg" width="18" height="18" alt=""> Maps
 
+    - **Neighborhood exploration**: Drop a pin and radius circle anywhere on the map to browse nearby sights, restaurants, and transit stops.
+    - **One-tap navigation**: Send any stop straight to Google Maps, Apple Maps, Organic Maps / CoMaps, OsmAnd, Waze, or Citymapper, with photos and optional on-demand place translation.
+
 - **Clean architectural maps**: Switch between clutter-free vector maps, standard street maps, dark mode, and satellite imagery.
-- **Neighborhood exploration**: Drop a pin and radius circle anywhere on the map to browse nearby sights, restaurants, and transit stops.
 - **Weather & climate**: Check daily forecasts and air quality for upcoming trips, or typical seasonal weather when planning months ahead.
-- **One-tap navigation**: Send any stop straight to Google Maps, Apple Maps, Organic Maps / CoMaps, OsmAnd, Waze, or Citymapper, with photos and optional on-demand place translation.
 
 ### <img src="docs/assets/readme/icon-transit.svg" width="18" height="18" alt=""> Transit
 
-- **Local walking & road routing**: Realistic door-to-door walking, cycling, and driving times calculated privately on your own server.
-- **Public transit & departures**: Step-by-step metro, rail, tram, and bus directions, interactive transit line overlays, and nearby station departure boards.
+    - **Public transit & departures**: Step-by-step metro, rail, tram, and bus directions, interactive transit line overlays, and nearby station departure boards.
+
+- **Local walking & road routing**: Realistic door-to-door walking calculated privately on your own server.
 - **Fare & pass advice**: Estimates trip transit costs and tells you when a daily pass beats buying single tickets.
 
 ### <img src="docs/assets/readme/icon-wallet.svg" width="18" height="18" alt=""> Wallet
@@ -109,13 +111,19 @@ Planning a great trip usually means juggling messy spreadsheets, cloud travel ap
 
 All you need is [Docker and Docker Compose](https://docs.docker.com/engine/install/) (8 GB RAM minimum, 12–16 GB recommended).
 
+**Linux / macOS:**
+
 ```bash
-git clone https://github.com/Leandro-Juan/paladio.git
-cd paladio
-./scripts/install/install.sh   # Windows PowerShell: .\scripts\install\install.ps1
+curl -fsSL https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.sh | bash
 ```
 
-The installer checks Docker, creates secure random credentials, starts Paladio, waits until the app is ready, and initializes the database schema and transit fare catalog automatically.
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.ps1 | iex
+```
+
+The installer checks Docker and RAM, downloads `docker-compose.yml` into `~/paladio`, generates secure random credentials in `.env`, pulls the prebuilt multi-arch images, runs database migrations and verified transit fare seeding automatically via `migrate`, and waits until the Web UI and API are healthy.
 
 Open **[`http://localhost:3000`](http://localhost:3000)**, create your account, and start planning your first trip — no API keys required.
 
@@ -123,9 +131,9 @@ Open **[`http://localhost:3000`](http://localhost:3000)**, create your account, 
 <summary><strong>System requirements, manual setup & local development</strong></summary>
 
 - **Recommended hardware**: 8 GB RAM / 4 CPU cores / 20 GB disk minimum; 12–16 GB RAM / 6+ cores / 50 GB+ disk recommended for local maps, transit schedules, and search models.
-- **Manual setup**: Copy `.env.example` to `.env`, set random secrets for `POSTGRES_PASSWORD` and `JWT_SECRET_KEY` (`openssl rand -hex 32`), run `docker compose up -d --build`, and initialize the database and transit fare catalog with `docker compose exec api alembic upgrade head` and `docker compose exec api python scripts/migrate_verified_fares_to_quotes.py`.
-- **What runs inside Docker**: Web app (`:3000`), API server (`:8000`), PostgreSQL database, Redis, local Valhalla map router, and background workers for price alerts, maps, and transit.
-- **Developing locally**: See [Install with Docker](./docs/getting-started/installation.md) and [Local Development](./docs/getting-started/local-development.md) to build the C++ route solver and run services natively.
+- **Manual setup (no installer script)**: Download `docker-compose.yml` and `.env.example` (rename to `.env`), replace the placeholder `POSTGRES_PASSWORD` and `JWT_SECRET_KEY` (and optionally set `WALLET_ENCRYPTION_KEY`, which otherwise auto-generates into `/data/.wallet_key`), and run `docker compose pull && docker compose up -d`. The `migrate` container automatically applies Alembic migrations and seeds the verified transit fare catalog before `api` starts.
+- **What runs inside Docker**: Web app (`:3000`), API server (`:8000`), PostgreSQL + TimescaleDB/pgvector, Redis, local Valhalla map router, one-shot `migrate`, and Celery `worker`/`beat` containers.
+- **Developing locally**: Clone the repository and run `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build` (backend hot reload + local port bindings; rebuild with `--build` or run `npm run dev` on the host for frontend edits). See [Install with Docker](./docs/getting-started/installation.md) and [Local Development](./docs/getting-started/local-development.md).
 
 </details>
 

@@ -21,7 +21,7 @@ cmake -S cpp_core -B cpp_core/build -DPALADIO_BUILD_TESTS=ON
 cmake --build cpp_core/build -j4 && ctest --test-dir cpp_core/build --output-on-failure
 
 # 2. Scoped backend pytest run
-pytest backend/tests/test_bridge.py -k test_bridge_solver -q
+pytest backend/tests/test_bridge.py -k test_bridge_64_pois -q
 
 # 3. Frontend lint, component tests, and scoped Playwright E2E
 cd frontend && npm run lint && npm run test:ct && npx playwright test tests/e2e/engine.spec.ts

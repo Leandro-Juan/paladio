@@ -6,13 +6,10 @@ Expose Paladio safely behind **Caddy**, **Nginx**, or **Traefik** with WebSocket
 
 Running Paladio on a LAN or public domain with `ENVIRONMENT=production` activates strict startup and encryption invariants across `backend/app/core/`.
 
-1. **Generate dedicated secrets**: Set high-entropy values for `POSTGRES_PASSWORD`, `JWT_SECRET_KEY` (`openssl rand -hex 32`), and `WALLET_ENCRYPTION_KEY` (valid 32-byte URL-safe base64 Fernet key generated via `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`). In production, `get_fernet()` refuses to start if `WALLET_ENCRYPTION_KEY` is missing.
-2. **Restrict CORS origins**: Set `ALLOWED_ORIGINS` to your exact HTTPS origin (`https://paladio.example.com`) so browser requests from unknown origins are rejected.
+1. **Generate dedicated secrets**: Set high-entropy values for `POSTGRES_PASSWORD`, `JWT_SECRET_KEY` (`openssl rand -hex 32`), and `WALLET_ENCRYPTION_KEY` (valid 32-byte URL-safe base64 Fernet key generated via `openssl rand 32 | openssl base64 -A | tr '+/' '-_'`). If `JWT_SECRET_KEY` or `WALLET_ENCRYPTION_KEY` is omitted, Paladio auto-generates and persists `0600` keys in `/data/.jwt_secret` and `/data/.wallet_key` when the `/data` volume is writable, and fails fast in `ENVIRONMENT=production` if `/data` is not writable.
+2. **Restrict CORS origins & configure public API URL**: When exposing Paladio at a public domain behind TLS, set `ALLOWED_ORIGINS=https://paladio.example.com` on `api` and `PALADIO_PUBLIC_API_URL=https://paladio.example.com/api` on `frontend`.
 3. **Keep public registration closed**: Leave `ALLOW_PUBLIC_REGISTRATION=false` (the default) and create household or team accounts from **Settings** (`/config` under **Authorized Users**).
-4. **Bind internal services locally**: `docker-compose.yml` binds PostgreSQL (`5432`), Redis (`6379`), and Valhalla (`8002`) strictly to `127.0.0.1` so only `frontend` (`3000`) and `api` (`8000`) accept external proxy traffic.
-
-!!! warning "Dockerfile production target healthcheck note"
-    The `production` target in `backend/Dockerfile` defines `HEALTHCHECK CMD curl -f http://localhost:8000/health || exit 1` on `python:3.12-slim` without installing `curl` in that stage. When running the published GHCR `paladio-api` image in Compose or Kubernetes, override the healthcheck with Python (`python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"`) or HTTP liveness probes.
+4. **Keep internal services off the host**: `docker-compose.yml` keeps PostgreSQL (`5432`), Redis (`6379`), and Valhalla (`8002`) strictly on the internal Docker network so only `frontend` (`3000`) and `api` (`8000`) bind host ports (add `docker-compose.dev.yml` if you need localhost DB/Redis/Valhalla ports for development).
 
 ## Reverse proxy configurations (with WebSockets)
 

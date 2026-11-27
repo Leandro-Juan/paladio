@@ -70,16 +70,16 @@ Signed-off-by: Jane Developer <jane@example.com>
 
 ### 3.1. Code Quality & Formatting
 We maintain strict production standards across all languages:
-- **Python (3.11+):**
+- **Python (3.10+; Docker uses 3.12):**
   - Formatted and linted with **Ruff**:
     ```bash
     ruff check .
     ruff format --check .
     ```
   - Full type annotations enforced (`from typing import ...`).
-- **Frontend (Next.js 15 / React / TypeScript):**
+- **Frontend (Next.js 16 / React 19 / TypeScript):**
   - Strict TypeScript compliance (`npm run build` or `npm run lint`).
-  - Styled with modern Tailwind CSS and Lucide icons.
+  - Styled with CSS Modules and Paladio's design token system.
 - **C++20 Combinatorial Engine (`cpp_core/`):**
   - Formatted with `.clang-format` (LLVM/Google style).
   - Note: `cpp_core/` is mirrored automatically to the standalone repository [`paladio-core`](https://github.com/Leandro-Juan/paladio-core) via GitHub Actions.
@@ -91,7 +91,7 @@ Before opening a pull request, ensure the test suite passes locally:
 pytest backend/tests/
 
 # C++ core unit tests (if modifying cpp_core)
-cmake -S cpp_core -B cpp_core/build
+cmake -S cpp_core -B cpp_core/build -DPALADIO_BUILD_TESTS=ON
 cmake --build cpp_core/build -j $(nproc)
 ctest --test-dir cpp_core/build --output-on-failure
 ```
