@@ -24,7 +24,7 @@ from app.db.models import (
     TransitTransferModel,
 )
 from app.services.gtfs_translation_helper import GTFSTranslationHelper
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -1308,6 +1308,40 @@ class TransitDerivationService:
         )
         cache_row = query_cache.scalars().first()
         old_build_id = cache_row.active_build_id if cache_row else None
+
+        if old_build_id and old_build_id != build_id:
+            old_lines = (
+                await self.db.execute(
+                    select(func.count())
+                    .select_from(TransitLineModel)
+                    .where(
+                        TransitLineModel.city == city_lower,
+                        TransitLineModel.build_id == old_build_id,
+                    )
+                )
+            ).scalar() or 0
+            old_stations = (
+                await self.db.execute(
+                    select(func.count())
+                    .select_from(TransitStationModel)
+                    .where(
+                        TransitStationModel.city == city_lower,
+                        TransitStationModel.build_id == old_build_id,
+                    )
+                )
+            ).scalar() or 0
+            if (
+                old_lines >= 20
+                and len(lines) < old_lines * 0.5
+                and len(stations) < old_stations * 0.5
+            ):
+                msg = (
+                    f"Refusing to overwrite rich transit build {old_build_id} for '{city_lower}' "
+                    f"({old_lines} lines, {old_stations} stations) with reduced build {build_id} "
+                    f"({len(lines)} lines, {len(stations)} stations)"
+                )
+                logger.warning(msg)
+                raise ValueError(msg)
 
         # Bulk write new records
         batch_collections = [

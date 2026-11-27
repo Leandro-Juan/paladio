@@ -208,6 +208,8 @@ async def test_run_enrich_tier12_city_pois():
         assert fake_model.hydration_status == "EMBEDDED"
         assert fake_model.embedding_version == PoiDocumentBuilder.VERSION
         assert fake_model.embedding == fake_vector
+        assert isinstance(fake_model.facets, dict)
+        assert fake_model.facets.get("indoor_outdoor") == "indoor"
         mock_session.commit.assert_awaited()
         assert mock_pub.call_count >= 2
 
@@ -270,6 +272,8 @@ async def test_run_enrich_long_tail_city_pois():
         assert fake_model.hydration_status == "EMBEDDED"
         assert fake_model.embedding_version == PoiDocumentBuilder.VERSION
         assert fake_model.embedding == fake_vector
+        assert isinstance(fake_model.facets, dict)
+        assert fake_model.facets.get("indoor_outdoor") == "indoor"
         mock_session.commit.assert_awaited()
         assert mock_pub.call_count >= 2
 

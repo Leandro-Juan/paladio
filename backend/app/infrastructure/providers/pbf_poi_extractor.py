@@ -7,15 +7,15 @@ using stratified 6-stream extraction with signal gates and spatial deduplication
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import math
 import os
 import re
-import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
+
+import httpx
 
 try:
     import osmium
@@ -655,7 +655,20 @@ class PbfPoiExtractor:
                 f"Downloading OSM PBF for '{city_name}' from {url} to temporary file {temp_path}..."
             )
             try:
-                await asyncio.to_thread(urllib.request.urlretrieve, url, temp_path)
+                from app.infrastructure.providers.osm_http_client import USER_AGENT
+
+                timeout = httpx.Timeout(30.0, read=120.0)
+                async with httpx.AsyncClient(
+                    follow_redirects=True,
+                    headers={"User-Agent": USER_AGENT},
+                    timeout=timeout,
+                ) as client:
+                    async with client.stream("GET", url) as resp:
+                        resp.raise_for_status()
+                        with open(temp_path, "wb") as fh:
+                            async for chunk in resp.aiter_bytes(chunk_size=1024 * 1024):
+                                if chunk:
+                                    fh.write(chunk)
                 if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
                     os.replace(temp_path, dest_path)
                     logger.info(

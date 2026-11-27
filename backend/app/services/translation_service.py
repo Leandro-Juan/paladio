@@ -404,26 +404,13 @@ class TranslationService:
 
         try:
             from pydantic_ai import Agent
-            from app.db.models import SystemConfigModel
             from app.services.llm_service import (
-                CONFIG_KEY,
                 LLMService,
                 SUPPORTED_PROVIDERS,
             )
 
-            stmt = select(SystemConfigModel).where(SystemConfigModel.key == CONFIG_KEY)
-            res = await session.execute(stmt)
-            record = res.scalar_one_or_none()
-            if not record or not isinstance(record.value, dict):
-                return None
-
-            provider = str(record.value.get("provider") or "").lower()
-            api_key = record.value.get("api_key")
-            meta = SUPPORTED_PROVIDERS.get(provider, {})
-            if meta.get("requires_key", True) and not api_key:
-                return None
-
             cfg = await LLMService.get_config_from_db(session)
+            meta = SUPPORTED_PROVIDERS.get(cfg.provider, {})
             if meta.get("requires_key", True) and not cfg.api_key:
                 return None
 
