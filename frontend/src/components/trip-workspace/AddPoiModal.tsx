@@ -17,6 +17,7 @@ import { PoiCategoryIcon } from '@/components/PoiCategoryBadge';
 import { CustomHourPickerModal } from '@/components/trip-creation/CustomHourPickerModal';
 import { PoiLocationPickerModal } from './PoiLocationPickerModal';
 import { getApiBaseUrl, sanitizeImageUrl } from '@/utils/api';
+import { SanitizedImage } from '@/components/common/SanitizedImage';
 import { notify } from '@/utils/notify';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAnimatedMount } from '@/hooks/useAnimatedMount';
@@ -1598,7 +1599,7 @@ export function AddPoiModal({
                     }}
                   >
                     {safePhotoUrl ? (
-                      <img
+                      <SanitizedImage
                         src={safePhotoUrl}
                         alt={ph.caption || t('add_poi.place_photo_alt')}
                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
