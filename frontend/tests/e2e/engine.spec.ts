@@ -558,6 +558,97 @@ test.describe('Engine Trip Preparation Cockpit', () => {
     expect(saved.departure_hour).toBe('09:15');
     expect(saved.arrival_hour).toBe('19:45');
   });
+
+  test('blank Rome trip from deal URL anchors hotel in Italy even if search returns homonymous US results', async ({ page }) => {
+    let capturedTripPost: Record<string, unknown> | null = null;
+
+    await page.route(/.*\/api(\/v1)?\/trips\/generation-jobs.*/, async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+    await page.route(/.*\/api(\/v1)?\/locations\/resolve-airport.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        contentType: 'application/json',
+        body: JSON.stringify({
+          iata: 'FCO',
+          icao: 'LIRF',
+          name: 'Leonardo Da Vinci (Fiumicino) International Airport',
+          city: 'Rome',
+          country: 'IT',
+          latitude: 41.8045,
+          longitude: 12.2508,
+        }),
+      });
+    });
+    await page.route(/.*\/api(\/v1)?\/locations\/search.*/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            city: 'Rome',
+            country: 'US',
+            airport_iata: 'REO',
+            latitude: 42.57766,
+            longitude: -117.88543,
+          },
+          {
+            city: 'Rome',
+            country: 'IT',
+            airport_iata: 'FCO',
+            latitude: 41.89193,
+            longitude: 12.51133,
+          },
+        ]),
+      });
+    });
+    await page.route(/.*\/api(\/v1)?\/trips\/rome-blank-1\/?$/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'rome-blank-1',
+          destination: 'Rome',
+          start_date: '2027-07-07T00:00:00.000Z',
+          end_date: '2027-07-12T00:00:00.000Z',
+          itinerary_data: { days: [{ day: 1, date: '2027-07-07', itinerary: { path: [] } }] },
+        }),
+      });
+    });
+    await page.route(/.*\/api(\/v1)?\/trips\/?$/, async (route) => {
+      if (route.request().method() === 'POST') {
+        capturedTripPost = route.request().postDataJSON() as Record<string, unknown>;
+        await route.fulfill({
+          status: 201,
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 'rome-blank-1', ...capturedTripPost }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.goto('/engine?destination=Rome&origin=Alicante&origin_iata=ALC&dest_iata=FCO&start_date=2027-07-07&end_date=2027-07-12&budget=156&source=deal');
+    await page.getByRole('button', { name: /Blank Trip/i }).click();
+    await page.getByRole('button', { name: /Create Blank Canvas Trip/i }).click();
+
+    await page.waitForURL(/\/trips\/rome-blank-1/, { timeout: 10000 });
+    expect(capturedTripPost).not.toBeNull();
+    const itin = (capturedTripPost!.itinerary_data || {}) as { hotel?: { lat: number; lng: number } };
+    expect(itin.hotel?.lat).toBeGreaterThan(41);
+    expect(itin.hotel?.lat).toBeLessThan(43);
+    expect(itin.hotel?.lng).toBeGreaterThan(11);
+    expect(itin.hotel?.lng).toBeLessThan(14);
+  });
 });
 
 

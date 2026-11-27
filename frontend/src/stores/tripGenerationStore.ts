@@ -381,6 +381,7 @@ export const useTripGenerationStore = create<TripGenerationStoreState>((set, get
         const baseUrl = getApiBaseUrl();
         let cityFallbackLat = 0;
         let cityFallbackLng = 0;
+        let resolvedCountry = '';
 
         try {
           const apRes = await fetch(
@@ -391,6 +392,9 @@ export const useTripGenerationStore = create<TripGenerationStoreState>((set, get
             if (typeof apData?.latitude === 'number' && typeof apData?.longitude === 'number') {
               cityFallbackLat = apData.latitude;
               cityFallbackLng = apData.longitude;
+            }
+            if (typeof apData?.country === 'string') {
+              resolvedCountry = apData.country.trim().toUpperCase();
             }
             if (!effectiveIata && apData?.iata) {
               effectiveIata = apData.iata;
@@ -418,6 +422,41 @@ export const useTripGenerationStore = create<TripGenerationStoreState>((set, get
         } catch {
           // fallback
         }
+        if (!airportPoi && userSpecifiedIata) {
+          try {
+            const iataRes = await fetch(
+              `${baseUrl}/locations/resolve-airport?city=${encodeURIComponent(userSpecifiedIata)}`
+            );
+            if (iataRes.ok) {
+              const iataData = await iataRes.json();
+              if (typeof iataData?.latitude === 'number' && typeof iataData?.longitude === 'number') {
+                cityFallbackLat = iataData.latitude;
+                cityFallbackLng = iataData.longitude;
+              }
+              if (typeof iataData?.country === 'string') {
+                resolvedCountry = iataData.country.trim().toUpperCase();
+              }
+              if (iataData?.iata) {
+                airportPoi = {
+                  id: `airport-${String(iataData.iata).toLowerCase()}`,
+                  name:
+                    iataData.name ||
+                    translate('engine.airport_suffix_name', { name: iataData.iata }),
+                  city: iataData.city || destClean,
+                  category: 'AIRPORT',
+                  duration_mins: 120,
+                  cost_eur: 0,
+                  location: {
+                    latitude: typeof iataData.latitude === 'number' ? iataData.latitude : 0,
+                    longitude: typeof iataData.longitude === 'number' ? iataData.longitude : 0,
+                  },
+                };
+              }
+            }
+          } catch {
+            // fallback
+          }
+        }
         if (!airportPoi && !effectiveIata) {
           effectiveIata = (await resolveAirportIata(destClean)) || '';
         }
@@ -435,6 +474,16 @@ export const useTripGenerationStore = create<TripGenerationStoreState>((set, get
           };
         }
 
+        const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+          const toRad = (deg: number) => (deg * Math.PI) / 180;
+          const dLat = toRad(lat2 - lat1);
+          const dLon = toRad(lon2 - lon1);
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        };
+
         let resolvedHotelLat = typeof params.hotelLat === 'number' ? params.hotelLat : 0;
         let resolvedHotelLng = typeof params.hotelLng === 'number' ? params.hotelLng : 0;
         if (resolvedHotelLat === 0 && resolvedHotelLng === 0) {
@@ -443,17 +492,35 @@ export const useTripGenerationStore = create<TripGenerationStoreState>((set, get
               ? `${params.hotelArea.trim()} ${destClean}`
               : destClean;
             const locRes = await fetch(
-              `${baseUrl}/locations/search?q=${encodeURIComponent(locQuery)}&limit=1`
+              `${baseUrl}/locations/search?q=${encodeURIComponent(locQuery)}&limit=5`
             );
             if (locRes.ok) {
               const locItems = await locRes.json();
               if (Array.isArray(locItems) && locItems.length > 0) {
-                if (
-                  typeof locItems[0].latitude === 'number' &&
-                  typeof locItems[0].longitude === 'number'
-                ) {
-                  resolvedHotelLat = locItems[0].latitude;
-                  resolvedHotelLng = locItems[0].longitude;
+                const apLat = airportPoi.location.latitude;
+                const apLng = airportPoi.location.longitude;
+                const hasApCoords = apLat !== 0 || apLng !== 0;
+
+                const matchedItem = locItems.find((item) => {
+                  if (typeof item?.latitude !== 'number' || typeof item?.longitude !== 'number') {
+                    return false;
+                  }
+                  if (
+                    resolvedCountry &&
+                    typeof item?.country === 'string' &&
+                    item.country.trim().toUpperCase() !== resolvedCountry
+                  ) {
+                    return false;
+                  }
+                  if (hasApCoords && haversineKm(apLat, apLng, item.latitude, item.longitude) > 250) {
+                    return false;
+                  }
+                  return true;
+                });
+
+                if (matchedItem) {
+                  resolvedHotelLat = matchedItem.latitude;
+                  resolvedHotelLng = matchedItem.longitude;
                 }
               }
             }
@@ -704,7 +771,8 @@ export const useTripGenerationStore = create<TripGenerationStoreState>((set, get
               itinerary_data: blankItineraryData,
             }),
           });
-        } catch {
+        } catch (err) {
+          console.error('Blank trip creation API request failed:', err);
           createdTrip = null;
         }
 

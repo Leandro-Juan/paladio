@@ -645,6 +645,9 @@ class AirportService:
                     )
 
         # 2. Direct airport name match (e.g. 'Heathrow', 'Barajas', 'Charles de Gaulle')
+        is_known_city_query = (
+            norm_query in gc_index or norm_query in self._city_to_airports
+        )
         ap_by_name = self.get_airport_by_name(raw_query)
         ap_candidate_secondary = None
         if ap_by_name:
@@ -664,13 +667,17 @@ class AirportService:
                 "latitude": getattr(ap_by_name, "latitude", None),
                 "longitude": getattr(ap_by_name, "longitude", None),
             }
-            if norm_ap.startswith(norm_query) or norm_query in (
+            if (
+                not is_known_city_query and norm_ap.startswith(norm_query)
+            ) or norm_query in (
                 "heathrow",
                 "gatwick",
                 "schiphol",
                 "barajas",
                 "haneda",
                 "narita",
+                "fiumicino",
+                "ciampino",
             ):
                 key = f"{city_name.lower()}::{ap_by_name.iata}"
                 if key not in seen_keys:
@@ -686,20 +693,55 @@ class AirportService:
         # 2.5 Multi-airport city lookup (e.g. 'Paris' -> CDG, ORY; 'London' -> LHR, LGW; 'Tokyo' -> HND, NRT)
         if norm_query in self._city_to_airports:
             city_aps = self._city_to_airports[norm_query]
-            sorted_city_aps = sorted(
-                city_aps,
-                key=lambda a: (
+            city_gc_matches = gc_index.get(norm_query) or []
+
+            def _match_city_for_ap(ap: AirportInfo) -> tuple[_GeoCity | None, float]:
+                country_cities = [
+                    c for c in city_gc_matches if c.countrycode == ap.country
+                ]
+                if not country_cities:
+                    return None, 9999.0
+                if ap.latitude is not None and ap.longitude is not None:
+                    with_coords = [
+                        (
+                            haversine_distance_km(
+                                ap.latitude,
+                                ap.longitude,
+                                float(c.latitude),
+                                float(c.longitude),
+                            ),
+                            c,
+                        )
+                        for c in country_cities
+                        if c.latitude is not None and c.longitude is not None
+                    ]
+                    if with_coords:
+                        best_dist, best_c = min(
+                            with_coords, key=lambda pair: (pair[0], -pair[1].population)
+                        )
+                        return best_c, best_dist
+                best_c = max(country_cities, key=lambda c: c.population)
+                return best_c, 0.0
+
+            ap_city_map = {ap.iata: _match_city_for_ap(ap) for ap in city_aps}
+            capital_cc = capitals_lookup.get(norm_query)
+
+            def _city_ap_rank(ap: AirportInfo) -> tuple:
+                mc, d_km = ap_city_map[ap.iata]
+                is_cap = 0 if (capital_cc and ap.country == capital_cc) else 1
+                pop = mc.population if mc else 0
+                is_intl = (
                     0
                     if any(
-                        k in a.name.lower()
+                        k in ap.name.lower()
                         for k in ("international", "intercontinental")
                     )
-                    else 1,
-                    0 if "airport" in a.name.lower() else 1,
-                    -(a.elevation or 0.0),
-                ),
-            )
-            city_gc_matches = gc_index.get(norm_query) or []
+                    else 1
+                )
+                has_ap = 0 if "airport" in ap.name.lower() else 1
+                return (is_cap, -pop, is_intl, has_ap, d_km, -(ap.elevation or 0.0))
+
+            sorted_city_aps = sorted(city_aps, key=_city_ap_rank)
             for ap in sorted_city_aps:
                 if len(results) >= limit:
                     break
@@ -709,18 +751,21 @@ class AirportService:
                 c_name = country_names.get(ap.country, ap.country)
                 seen_keys.add(f"{city_name.lower()}::{ap.iata}")
                 seen_iatas.add(ap.iata)
-                matched_city = next(
-                    (c for c in city_gc_matches if c.countrycode == ap.country),
-                    city_gc_matches[0] if city_gc_matches else None,
+                matched_city, match_dist_km = ap_city_map[ap.iata]
+                use_city_coords = (
+                    matched_city is not None
+                    and matched_city.latitude is not None
+                    and matched_city.longitude is not None
+                    and match_dist_km <= 150.0
                 )
                 lat = (
                     float(matched_city.latitude)
-                    if matched_city and matched_city.latitude is not None
+                    if use_city_coords
                     else getattr(ap, "latitude", None)
                 )
                 lon = (
                     float(matched_city.longitude)
-                    if matched_city and matched_city.longitude is not None
+                    if use_city_coords
                     else getattr(ap, "longitude", None)
                 )
                 results.append(
