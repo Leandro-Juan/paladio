@@ -5,6 +5,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { Collapsible } from '@/components/common/Collapsible';
 import { TransitLeg, TransitStep, TransitRecommendation } from '../types/domain';
 import { apiFetch } from '@/utils/api';
+import { formatTransitDuration } from '@/utils/date';
 import {
   TransitIcon,
   WalkIcon,
@@ -449,7 +450,9 @@ export function TransitLegView({
             {isTransit ? t('transit.public_transit_label') : t('transit.walk_label')}
           </span>
           <span style={{ color: 'var(--color-text-muted)' }}>·</span>
-          <span style={{ color: 'var(--color-text-muted)' }}>{t('transit.mins_upper', { count: duration_mins })}</span>
+          <span style={{ color: 'var(--color-text-muted)' }}>
+            {formatTransitDuration(duration_mins, { variant: 'upper', t })}
+          </span>
 
           {/* Transit Line Chips */}
           {transitLines.map((line, idx) => {
@@ -834,7 +837,8 @@ export function TransitLegView({
                   >
                     {step.duration_mins > 0 && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                        <StopwatchIcon size={11} color="var(--color-text-muted)" /> {step.duration_mins}m
+                        <StopwatchIcon size={11} color="var(--color-text-muted)" />{' '}
+                        {formatTransitDuration(step.duration_mins, { variant: 'short', t })}
                       </span>
                     )}
                     {step.distance_km > 0 && (

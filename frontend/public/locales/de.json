@@ -2653,11 +2653,11 @@
     "stop_of_total": "Halt {current} von {total}",
     "target_waypoint_fallback": "Ziel-Wegpunkt",
     "transfer_station": "Umsteigehaltestelle",
-    "transit_approx_mins": "ÖPNV (~{mins} Min.)",
     "transit_fallback": "ÖPNV",
     "transit_line_fallback": "ÖPNV-Linie",
     "transit_maneuver": "ÖPNV-Abschnitt",
-    "walk_approx_mins": "Fußweg (~{mins} Min.)"
+    "transit_approx_duration": "ÖPNV (~{duration})",
+    "walk_approx_duration": "Fußweg (~{duration})"
   },
   "monitoring": {
     "accommodation": "Unterkunft",
@@ -3458,8 +3458,8 @@
     "conflict_exit_before_entry": "Ende ({end}) liegt vor Beginn ({start})",
     "conflict_overlaps_next": "Überschneidet sich mit nächstem Stopp (Beginn {start})",
     "conflict_overlaps_prev": "Überschneidet sich mit vorherigem Stopp (Ende {end})",
-    "conflict_transit_next": "Lässt < {mins} Min. Transitzeit vor nächstem Stopp ({start})",
-    "conflict_transit_prev": "Konflikt mit {mins} Min. Transitzeit ab vorherigem Stopp (Ende {end})",
+    "conflict_transit_next": "Lässt < {duration} Transitzeit vor nächstem Stopp ({start})",
+    "conflict_transit_prev": "Konflikt mit {duration} Transitzeit ab vorherigem Stopp (Ende {end})",
     "custom_only_btn": "Nur eigene",
     "custom_only_tooltip_off": "Nur benutzerdefinierte Orte anzeigen",
     "custom_only_tooltip_on": "Zeigt nur benutzerdefinierte Orte (klicken für alle)",

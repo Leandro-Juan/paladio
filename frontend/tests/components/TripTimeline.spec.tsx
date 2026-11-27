@@ -468,3 +468,79 @@ test('renders estimated fare badge when transit price is estimated in TripTimeli
   await expect(transitLeg.getByTestId('estimated-fare-badge')).toBeVisible();
   await expect(transitLeg.getByTestId('estimated-fare-badge')).toHaveText('ESTIMATED FARE');
 });
+
+test('formats transit duration in hours when over 59 minutes and minutes otherwise', async ({ mount }) => {
+  const mockLongTransitItinerary: OptimizationResult = {
+    metadata: { engine: 'BranchAndBound', version: '2.0', nodes_evaluated: 4 },
+    travel_constraints: { destination_city: 'Rome' },
+    total_trip_cost: 9,
+    days: [
+      {
+        day: 1,
+        theme: 'Long Transit Formatting',
+        itinerary: {
+          day_index: 0,
+          total_cost_eur: 0,
+          total_time_mins: 300,
+          path: [
+            {
+              poi: { id: 'p1', name: 'Airport', city: 'Rome', category: 'airport', duration_mins: 60, cost_eur: 0, location: { latitude: 41.8, longitude: 12.25 } },
+              scheduled_start: '09:00',
+            },
+            {
+              poi: { id: 'p2', name: 'Suburb Stop', city: 'Rome', category: 'attraction', duration_mins: 60, cost_eur: 0, location: { latitude: 41.85, longitude: 12.4 } },
+              scheduled_start: '10:00',
+              transit_from_previous: {
+                duration_mins: 59,
+                cost_eur: 1.5,
+                cost_is_estimated: false,
+                mode: 'transit',
+                steps: [
+                  { type: 'transit', instruction: 'Regional bus', duration_mins: 59, distance_km: 15 },
+                ],
+              },
+            },
+            {
+              poi: { id: 'p3', name: 'Exact Hour Stop', city: 'Rome', category: 'attraction', duration_mins: 60, cost_eur: 0, location: { latitude: 41.88, longitude: 12.48 } },
+              scheduled_start: '12:00',
+              transit_from_previous: {
+                duration_mins: 60,
+                cost_eur: 3.0,
+                cost_is_estimated: false,
+                mode: 'transit',
+                steps: [
+                  { type: 'transit', instruction: 'Express train', duration_mins: 60, distance_km: 25 },
+                ],
+              },
+            },
+            {
+              poi: { id: 'p4', name: 'City Center', city: 'Rome', category: 'hotel', duration_mins: 0, cost_eur: 0, location: { latitude: 41.9, longitude: 12.5 } },
+              scheduled_start: '14:15',
+              transit_from_previous: {
+                duration_mins: 75,
+                cost_eur: 4.5,
+                cost_is_estimated: false,
+                mode: 'transit',
+                steps: [
+                  { type: 'walk', instruction: 'Walk to station', duration_mins: 10, distance_km: 0.7 },
+                  { type: 'transit', instruction: 'Intercity rail', duration_mins: 65, distance_km: 40 },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  const component = await mount(<TripTimeline itinerary={mockLongTransitItinerary} />);
+  const legs = component.getByTestId('transit-leg-view');
+  await expect(legs).toHaveCount(3);
+  await expect(legs.nth(0).getByText('59 MINS')).toBeVisible();
+  await expect(legs.nth(1).getByText('1H')).toBeVisible();
+  await expect(legs.nth(2).getByText('1H 15M')).toBeVisible();
+
+  await legs.nth(2).click();
+  await expect(legs.nth(2).getByText('10m')).toBeVisible();
+  await expect(legs.nth(2).getByText('1h 5m')).toBeVisible();
+});

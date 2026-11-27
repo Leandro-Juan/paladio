@@ -2653,11 +2653,11 @@
     "stop_of_total": "第 {current} / {total} 站",
     "target_waypoint_fallback": "目标探索点",
     "transfer_station": "换乘站",
-    "transit_approx_mins": "公交（约{mins}分钟）",
     "transit_fallback": "公交",
     "transit_line_fallback": "公交线路",
     "transit_maneuver": "公交换乘指引",
-    "walk_approx_mins": "步行（约{mins}分钟）"
+    "transit_approx_duration": "公交（约{duration}）",
+    "walk_approx_duration": "步行（约{duration}）"
   },
   "monitoring": {
     "accommodation": "住宿",
@@ -3458,8 +3458,8 @@
     "conflict_exit_before_entry": "离开时间（{end}）早于到达时间（{start}）",
     "conflict_overlaps_next": "与下一停靠点冲突（开始于 {start}）",
     "conflict_overlaps_prev": "与上一停靠点冲突（结束于 {end}）",
-    "conflict_transit_next": "距离下一停靠点（{start}）预留接驳时间不足 {mins} 分钟",
-    "conflict_transit_prev": "与来自上一停靠点（结束于 {end}）的 {mins} 分钟接驳耗时冲突",
+    "conflict_transit_next": "距离下一停靠点（{start}）预留接驳时间不足 {duration}",
+    "conflict_transit_prev": "与来自上一停靠点（结束于 {end}）的 {duration}接驳耗时冲突",
     "custom_only_btn": "仅显示自定义",
     "custom_only_tooltip_off": "仅显示自定义地点",
     "custom_only_tooltip_on": "当前仅显示自定义地点（点击显示全部）",

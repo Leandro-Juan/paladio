@@ -912,6 +912,59 @@ def hydrate_city_pipeline_task(self, city_name: str, force: bool = False):
             pass
 
 
+async def _run_prepare_trip_city_resources(
+    city_name: str, trip_id: str | None = None
+) -> dict[str, Any]:
+    """Triggers GTFS transit download and ensures city POI readiness in background."""
+    from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
+    from app.engine.city_readiness import ensure_city_ready
+
+    session_maker, task_engine = _get_task_session_maker()
+    gtfs_triggered = False
+    poi_ready = False
+    try:
+        async with session_maker() as session:
+            try:
+                gtfs_triggered = await async_trigger_city_gtfs_download_if_needed(
+                    city_name=city_name,
+                    trip_id=trip_id,
+                    session=session,
+                )
+            except Exception as gtfs_err:
+                logger.warning(
+                    f"Background GTFS check failed for '{city_name}': {gtfs_err}"
+                )
+
+            try:
+                poi_repo = SqlPoiRepository(session)
+                await ensure_city_ready(city_name, poi_repo)
+                poi_ready = True
+            except Exception as poi_err:
+                logger.warning(
+                    f"Background city readiness check failed for '{city_name}': {poi_err}"
+                )
+    finally:
+        await task_engine.dispose()
+        _release_worker_memory()
+
+    return {
+        "city": city_name,
+        "trip_id": trip_id,
+        "gtfs_triggered": gtfs_triggered,
+        "poi_ready": poi_ready,
+    }
+
+
+@app.task(
+    bind=True,
+    name="app.tasks.prepare_trip_city_resources_task",
+    queue="poi_hydration",
+)
+def prepare_trip_city_resources_task(self, city_name: str, trip_id: str | None = None):
+    """Background Celery task to trigger GTFS + city POI seeding after trip creation."""
+    return _run_async(_run_prepare_trip_city_resources(city_name, trip_id=trip_id))
+
+
 @app.task(bind=True, name="app.tasks.refresh_city_pois_task", queue="poi_hydration")
 def refresh_city_pois_task(self, city_name: str):
     """Backwards-compatible wrapper delegating to hydrate_city_pipeline_task."""

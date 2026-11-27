@@ -1282,6 +1282,7 @@ async def ensure_walking_legs_populated(
     itinerary: dict[str, Any],
     city: str = "",
     target_day: int | str | None = None,
+    skip_transit_lookup: bool = False,
 ) -> dict[str, Any]:
     """
     Enriches all walkable legs in an itinerary with real turn-by-turn pedestrian routing
@@ -1363,19 +1364,20 @@ async def ensure_walking_legs_populated(
                     path[k]["transit_from_previous"] = synth.model_dump(mode="json")
             else:
                 # Public transit leg: retrieve real multimodal transit from Transitous (MOTIS v2)
-                # or fallback dynamically to Valhalla / GTFS routing
+                # or fallback dynamically to Valhalla / GTFS routing unless deferred during fast trip creation
                 resolved_leg = None
-                try:
-                    resolved_leg = await get_detailed_transit_leg(
-                        origin=prev_poi,
-                        destination=curr_poi,
-                        is_airport_leg=is_airport_leg,
-                        city=city,
-                    )
-                except Exception as transit_err:
-                    logger.warning(
-                        f"Could not fetch real transit leg between '{prev_poi.get('name')}' and '{curr_poi.get('name')}': {transit_err}. Using fallback synthesis."
-                    )
+                if not skip_transit_lookup:
+                    try:
+                        resolved_leg = await get_detailed_transit_leg(
+                            origin=prev_poi,
+                            destination=curr_poi,
+                            is_airport_leg=is_airport_leg,
+                            city=city,
+                        )
+                    except Exception as transit_err:
+                        logger.warning(
+                            f"Could not fetch real transit leg between '{prev_poi.get('name')}' and '{curr_poi.get('name')}': {transit_err}. Using fallback synthesis."
+                        )
 
                 if resolved_leg and resolved_leg.steps:
                     path[k]["transit_from_previous"] = resolved_leg.model_dump(

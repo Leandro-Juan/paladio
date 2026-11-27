@@ -718,7 +718,10 @@ def _populate_initial_anchors(
             h_lat is None or h_lng is None or (h_lat == 0.0 and h_lng == 0.0)
         ) and destination:
             try:
-                from app.services.airport_service import get_airport_service
+                from app.services.airport_service import (
+                    get_airport_service,
+                    haversine_distance_km,
+                )
 
                 clean_dest = destination.split(",")[0].strip()
                 query_str = (
@@ -726,12 +729,50 @@ def _populate_initial_anchors(
                     if h_name == "Accommodation / Hotel"
                     else f"{h_name} {clean_dest}"
                 )
-                locs = get_airport_service().search_locations(query_str, limit=1)
+                ap_country = (
+                    ap_info.country.upper()
+                    if "ap_info" in locals()
+                    and ap_info
+                    and getattr(ap_info, "country", None)
+                    else None
+                )
+                ap_lat = airport_poi["location"]["latitude"] if airport_poi else 0.0
+                ap_lng = airport_poi["location"]["longitude"] if airport_poi else 0.0
+                has_ap_coords = ap_lat != 0.0 or ap_lng != 0.0
+
+                svc_loc = get_airport_service()
+                locs = svc_loc.search_locations(query_str, limit=5)
                 if not locs and query_str != clean_dest:
-                    locs = get_airport_service().search_locations(clean_dest, limit=1)
-                if locs:
-                    h_lat = locs[0].get("latitude")
-                    h_lng = locs[0].get("longitude")
+                    locs = svc_loc.search_locations(clean_dest, limit=5)
+
+                chosen_loc = None
+                for cand in locs or []:
+                    c_lat = cand.get("latitude")
+                    c_lng = cand.get("longitude")
+                    if c_lat is None or c_lng is None:
+                        continue
+                    if (
+                        ap_country
+                        and str(cand.get("country", "")).upper() != ap_country
+                    ):
+                        continue
+                    if (
+                        has_ap_coords
+                        and haversine_distance_km(
+                            ap_lat, ap_lng, float(c_lat), float(c_lng)
+                        )
+                        > 250.0
+                    ):
+                        continue
+                    chosen_loc = cand
+                    break
+
+                if chosen_loc:
+                    h_lat = chosen_loc.get("latitude")
+                    h_lng = chosen_loc.get("longitude")
+                elif has_ap_coords:
+                    h_lat = ap_lat
+                    h_lng = ap_lng
             except Exception:
                 pass
 
@@ -1453,6 +1494,7 @@ async def persist_trip_record(
     end_date: str,
     itinerary_data: dict[str, Any],
     current_user: UserModel | None = None,
+    defer_city_hydration: bool = False,
 ) -> TripModel:
     """Persist a new trip record, seed participants/tickets, and trigger background hydration."""
     itin_data = itinerary_data
@@ -1468,7 +1510,9 @@ async def persist_trip_record(
             from app.services.transit_service import ensure_walking_legs_populated
 
             itin_data = await ensure_walking_legs_populated(
-                itin_data, city=destination or ""
+                itin_data,
+                city=destination or "",
+                skip_transit_lookup=defer_city_hydration,
             )
         except Exception as e:
             logger.warning(f"Could not ensure walking legs in create_trip: {e}")
@@ -1561,30 +1605,55 @@ async def persist_trip_record(
     except Exception as e:
         logger.warning(f"Could not auto-seed tickets for trip {db_trip.id}: {e}")
 
-    # Auto-trigger GTFS download for trip destination if needed
+    # Auto-trigger GTFS download & city POI readiness for trip destination
     if db_trip.destination:
-        try:
-            from app.tasks import async_trigger_city_gtfs_download_if_needed
+        if defer_city_hydration:
+            if os.getenv("TESTING") != "1":
+                try:
+                    from app.tasks import prepare_trip_city_resources_task
 
-            await async_trigger_city_gtfs_download_if_needed(
-                city_name=db_trip.destination,
-                trip_id=db_trip.id,
-                session=session,
-            )
-        except Exception as e:
-            logger.warning(
-                f"Could not auto-trigger GTFS download for {db_trip.destination}: {e}"
-            )
+                    prepare_trip_city_resources_task.delay(
+                        city_name=db_trip.destination,
+                        trip_id=db_trip.id,
+                    )
+                except Exception as celery_err:
+                    logger.warning(
+                        f"Could not queue background city preparation for {db_trip.destination}: {celery_err}. Falling back to async task."
+                    )
+                    from app.tasks import _run_prepare_trip_city_resources
 
-        # Auto-seed city POIs if needed (for blank trips or newly planned destinations)
-        try:
-            from app.adapters.repositories.sql_poi_repository import SqlPoiRepository
-            from app.engine.city_readiness import ensure_city_ready
+                    asyncio.create_task(
+                        _run_prepare_trip_city_resources(
+                            db_trip.destination, trip_id=db_trip.id
+                        )
+                    )
+        else:
+            try:
+                from app.tasks import async_trigger_city_gtfs_download_if_needed
 
-            poi_repo = SqlPoiRepository(session)
-            await ensure_city_ready(db_trip.destination, poi_repo)
-        except Exception as e:
-            logger.warning(f"Could not auto-seed POIs for {db_trip.destination}: {e}")
+                await async_trigger_city_gtfs_download_if_needed(
+                    city_name=db_trip.destination,
+                    trip_id=db_trip.id,
+                    session=session,
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Could not auto-trigger GTFS download for {db_trip.destination}: {e}"
+                )
+
+            # Auto-seed city POIs if needed (for newly planned destinations)
+            try:
+                from app.adapters.repositories.sql_poi_repository import (
+                    SqlPoiRepository,
+                )
+                from app.engine.city_readiness import ensure_city_ready
+
+                poi_repo = SqlPoiRepository(session)
+                await ensure_city_ready(db_trip.destination, poi_repo)
+            except Exception as e:
+                logger.warning(
+                    f"Could not auto-seed POIs for {db_trip.destination}: {e}"
+                )
 
     await session.refresh(db_trip)
     return db_trip
@@ -1713,6 +1782,7 @@ async def create_trip(
         end_date=trip.end_date,
         itinerary_data=trip.itinerary_data,
         current_user=current_user,
+        defer_city_hydration=True,
     )
     return await _build_trip_response(db_trip, session)
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch, getApiBaseUrl } from '@/utils/api';
-import { getTripDayDate } from '@/utils/date';
+import { formatTransitDuration, getTripDayDate } from '@/utils/date';
 import { TransitLeg } from '@/types/domain';
 import { TransitLegView } from '@/components/TransitLegView';
 import {
@@ -1991,7 +1991,7 @@ export function TripTransitDirectionsView({
                   color: 'var(--color-accent-primary)',
                 }}
               >
-                {t('transit.min_upper', { count: activeDisplayLeg.duration_mins })}
+                {formatTransitDuration(activeDisplayLeg.duration_mins, { variant: 'upper_singular', t })}
                 {activeDisplayLeg.cost_eur > 0 && ` • €${activeDisplayLeg.cost_eur.toFixed(2)}`}
               </span>
             </div>
@@ -2054,12 +2054,12 @@ export function TripTransitDirectionsView({
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
                     {activeLegView === 'primary'
-                      ? `${t('workspace.duration_minutes', { duration: routeResult.alternative_leg.duration_mins })} • ${
+                      ? `${formatTransitDuration(routeResult.alternative_leg.duration_mins, { variant: 'long', t })} • ${
                           routeResult.alternative_leg.cost_eur > 0
                             ? `€${routeResult.alternative_leg.cost_eur.toFixed(2)}`
                             : '0€'
                         }`
-                      : `${t('workspace.duration_minutes', { duration: routeResult.primary_leg.duration_mins })} • ${
+                      : `${formatTransitDuration(routeResult.primary_leg.duration_mins, { variant: 'long', t })} • ${
                           routeResult.primary_leg.cost_eur > 0
                             ? `€${routeResult.primary_leg.cost_eur.toFixed(2)}`
                             : '0€'

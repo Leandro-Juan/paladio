@@ -2653,11 +2653,11 @@
     "stop_of_total": "{total}개 중 {current}번째 정거장",
     "target_waypoint_fallback": "대상 경유지",
     "transfer_station": "환승역",
-    "transit_approx_mins": "대중교통 (약 {mins}분)",
     "transit_fallback": "대중교통",
     "transit_line_fallback": "대중교통 노선",
     "transit_maneuver": "대중교통 환승",
-    "walk_approx_mins": "도보 (약 {mins}분)"
+    "transit_approx_duration": "대중교통 (약 {duration})",
+    "walk_approx_duration": "도보 (약 {duration})"
   },
   "monitoring": {
     "accommodation": "숙박",
@@ -3458,8 +3458,8 @@
     "conflict_exit_before_entry": "퇴장 시간({end})이 입장 시간({start})보다 빠릅니다",
     "conflict_overlaps_next": "다음 경유지와 겹칩니다 ({start} 시작)",
     "conflict_overlaps_prev": "이전 경유지와 겹칩니다 ({end} 종료)",
-    "conflict_transit_next": "다음 경유지({start}) 전 이동 시간이 {mins}분 미만입니다",
-    "conflict_transit_prev": "이전 경유지({end} 종료)에서의 이동 시간 {mins}분과 충돌합니다",
+    "conflict_transit_next": "다음 경유지({start}) 전 이동 시간이 {duration} 미만입니다",
+    "conflict_transit_prev": "이전 경유지({end} 종료)에서의 이동 시간 {duration}과 충돌합니다",
     "custom_only_btn": "사용자 지정만",
     "custom_only_tooltip_off": "사용자 지정 장소만 표시",
     "custom_only_tooltip_on": "사용자 지정 장소만 표시 중 (클릭하여 전체 보기)",

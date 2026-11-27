@@ -6,7 +6,7 @@ import { Trip, TripExpense, TripSettlement, useTrips } from '@/hooks/useTrips';
 import { TripTicket } from '@/hooks/useTripTickets';
 import { apiFetch, resolveApiMediaUrl } from '@/utils/api';
 import { extractTripTitle, countWaypoints, extractTotalCost } from '@/utils/tripParser';
-import { getScheduledPoiTimes } from '@/utils/date';
+import { formatTransitDuration, getScheduledPoiTimes } from '@/utils/date';
 import { BarcodeStripe } from '@/components/past-trip/BarcodeStripe';
 import { CodeRenderer } from '@/components/trip-workspace/wallet/codes/CodeRenderer';
 
@@ -953,7 +953,7 @@ export function TripPrintDossier({ trip }: TripPrintDossierProps) {
                             </span>
                             <span style={{ fontWeight: 600 }}>
                               {transit.duration_mins
-                                ? t('workspace.duration_minutes', { duration: transit.duration_mins })
+                                ? formatTransitDuration(transit.duration_mins, { variant: 'long', t })
                                 : t('print.duration_short_fallback')}
                             </span>
                             {transit.steps && transit.steps.length > 0 && transit.steps[0].instruction && (

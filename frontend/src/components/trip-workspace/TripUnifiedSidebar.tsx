@@ -22,7 +22,7 @@ import { getApiBaseUrl, getAuthToken, downloadCityPoisApi, fetchCityPoisStatusAp
 import { hydrateDayTransitIndices } from '@/utils/transitFetch';
 import { autoFillDayItineraryHours } from '@/utils/itinerarySchedule';
 import { notify } from '@/utils/notify';
-import { getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
+import { formatTransitDuration, getScheduledPoiTimes, getPoiOpeningHours } from '@/utils/date';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useDestinationCurrency, getCurrencyInfo } from '@/utils/currencyResolver';
@@ -2509,7 +2509,10 @@ export function TripUnifiedSidebar({
             return t('sidebar.conflict_overlaps_prev', { end: prevEnd });
           }
           if (transitMins > 0 && startMins < prevEndMins + transitMins) {
-            return t('sidebar.conflict_transit_prev', { mins: transitMins, end: prevEnd });
+            return t('sidebar.conflict_transit_prev', {
+              duration: formatTransitDuration(transitMins, { variant: 'short', t }),
+              end: prevEnd,
+            });
           }
         }
       }
@@ -2523,7 +2526,10 @@ export function TripUnifiedSidebar({
             return t('sidebar.conflict_overlaps_next', { start: nextStart });
           }
           if (nextTransitMins > 0 && endMins + nextTransitMins > nextStartMins) {
-            return t('sidebar.conflict_transit_next', { mins: nextTransitMins, start: nextStart });
+            return t('sidebar.conflict_transit_next', {
+              duration: formatTransitDuration(nextTransitMins, { variant: 'short', t }),
+              start: nextStart,
+            });
           }
         }
       }

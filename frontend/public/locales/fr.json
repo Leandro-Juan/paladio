@@ -2653,11 +2653,11 @@
     "stop_of_total": "Arrêt {current} sur {total}",
     "target_waypoint_fallback": "Étape Cible",
     "transfer_station": "Station de Correspondance",
-    "transit_approx_mins": "Transit (~{mins} min)",
     "transit_fallback": "Transit",
     "transit_line_fallback": "ligne de transit",
     "transit_maneuver": "Correspondance transit",
-    "walk_approx_mins": "Marche (~{mins} min)"
+    "transit_approx_duration": "Transit (~{duration})",
+    "walk_approx_duration": "Marche (~{duration})"
   },
   "monitoring": {
     "accommodation": "Hébergement",
@@ -3458,8 +3458,8 @@
     "conflict_exit_before_entry": "La sortie ({end}) précède l'entrée ({start})",
     "conflict_overlaps_next": "Chevauche l'arrêt suivant (début {start})",
     "conflict_overlaps_prev": "Chevauche l'arrêt précédent (fin {end})",
-    "conflict_transit_next": "Laisse moins de {mins} min de transit avant l'arrêt suivant ({start})",
-    "conflict_transit_prev": "En conflit avec {mins} min de transit depuis l'arrêt précédent (fin {end})",
+    "conflict_transit_next": "Laisse moins de {duration} de transit avant l'arrêt suivant ({start})",
+    "conflict_transit_prev": "En conflit avec {duration} de transit depuis l'arrêt précédent (fin {end})",
     "custom_only_btn": "Personnalisés Uniquement",
     "custom_only_tooltip_off": "Afficher uniquement les lieux personnalisés",
     "custom_only_tooltip_on": "Affichage des lieux personnalisés uniquement (cliquer pour tout afficher)",

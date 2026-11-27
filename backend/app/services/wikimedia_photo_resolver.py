@@ -211,6 +211,91 @@ def _normalize_text(text: str) -> str:
     return " ".join(cleaned.split())
 
 
+_GENERIC_VENUE_TOKENS = frozenset(
+    {
+        "accommodation",
+        "accommodations",
+        "hotel",
+        "hotels",
+        "hostel",
+        "hostels",
+        "resort",
+        "resorts",
+        "lodging",
+        "stay",
+        "inn",
+        "motel",
+        "suites",
+        "guesthouse",
+        "depot",
+        "base",
+        "camp",
+        "airport",
+        "aeropuerto",
+        "aeroport",
+        "flughafen",
+        "station",
+        "terminal",
+        "restaurant",
+        "cafe",
+        "bar",
+        "pub",
+        "museum",
+        "museo",
+        "gallery",
+        "park",
+        "garden",
+        "gardens",
+        "church",
+        "cathedral",
+        "temple",
+        "palace",
+        "castle",
+        "bridge",
+        "tower",
+        "square",
+        "plaza",
+        "market",
+        "alojamiento",
+        "hebergement",
+        "unterkunft",
+        "alloggio",
+        "hospedagem",
+        "숙박",
+        "ホテル",
+        "宿泊施設",
+        "酒店",
+        "住宿",
+        "إقامة",
+        "فندق",
+    }
+)
+
+_SHARED_GENERIC_POI_IDS = frozenset({"hotel-base", "hotel", "airport-dest"})
+
+
+def is_generic_placeholder_poi(name: str | None, poi_id: str | None = None) -> bool:
+    """Returns True when a POI name is a synthetic generic anchor label rather than a real venue."""
+    if not name or not str(name).strip():
+        return True
+    norm_name = _normalize_text(str(name))
+    if not norm_name:
+        return True
+    if re.fullmatch(r"[a-z]{3}\s+airport", norm_name):
+        return True
+    tokens = norm_name.split()
+    return bool(tokens) and all(tok in _GENERIC_VENUE_TOKENS for tok in tokens)
+
+
+def effective_poi_cache_key(poi_id: str, name: str = "", city: str = "") -> str:
+    """Scopes Redis cache keys for shared synthetic IDs like 'hotel-base' by venue name and city."""
+    if poi_id in _SHARED_GENERIC_POI_IDS:
+        norm_name = _normalize_text(name)
+        norm_city = _normalize_text(city)
+        return f"{poi_id}:{norm_name}:{norm_city}"
+    return poi_id
+
+
 def _is_title_relevant(
     candidate_title: str,
     target_name: str,
@@ -224,6 +309,9 @@ def _is_title_relevant(
     - Completely unrelated articles (e.g. music albums, band tours, voice actresses)
     """
     if not candidate_title or not target_name:
+        return False
+
+    if is_generic_placeholder_poi(target_name) and not aliases:
         return False
 
     cand_lower = candidate_title.lower()
@@ -260,11 +348,16 @@ def _is_title_relevant(
             continue
         tgt_tokens = set(norm_tgt.split())
 
-        # Exact normalized match or full substring containment
-        if norm_tgt == norm_cand or norm_tgt in norm_cand or norm_cand in norm_tgt:
+        # Exact normalized match or full substring containment (skip for purely generic names)
+        has_distinctive_tgt = any(
+            len(t) > 2 and t not in _GENERIC_VENUE_TOKENS for t in tgt_tokens
+        )
+        if norm_tgt == norm_cand:
+            return True
+        if has_distinctive_tgt and (norm_tgt in norm_cand or norm_cand in norm_tgt):
             return True
 
-        # Token overlap: if target has multiple words, check overlap
+        # Token overlap: require at least one distinctive non-generic token to match
         if tgt_tokens and cand_tokens:
             common = tgt_tokens & cand_tokens
             stops = {
@@ -289,6 +382,11 @@ def _is_title_relevant(
             }
             sig_common = {w for w in common if len(w) > 2 and w not in stops}
             sig_tgt = {w for w in tgt_tokens if len(w) > 2 and w not in stops}
+            distinctive_tgt = {w for w in sig_tgt if w not in _GENERIC_VENUE_TOKENS}
+            if distinctive_tgt and not (sig_common & distinctive_tgt):
+                continue
+            if not distinctive_tgt:
+                continue
             if sig_tgt and len(sig_common) / len(sig_tgt) >= 0.5:
                 return True
 
@@ -461,10 +559,20 @@ class WikimediaPhotoResolver:
         """
         target_lang_clean = (target_lang or "en").lower().split("-")[0]
 
+        if (
+            not wikipedia_title
+            and not wikidata_id
+            and not osm_tags
+            and is_generic_placeholder_poi(name, poi_id)
+        ):
+            return [], None
+
+        cache_id = effective_poi_cache_key(poi_id, name, city)
+
         # 1. Check Redis Cache
-        cached_photos = await cls.get_cached_photos(poi_id)
+        cached_photos = await cls.get_cached_photos(cache_id)
         cached_extract = await cls.get_cached_extract(
-            poi_id, target_lang=target_lang_clean
+            cache_id, target_lang=target_lang_clean
         )
         if cached_photos is not None and cached_extract is not None:
             return cached_photos, cached_extract
@@ -916,10 +1024,10 @@ class WikimediaPhotoResolver:
             serialized = cached_photos
 
         if serialized:
-            await cls.set_cached_photos(poi_id, serialized)
+            await cls.set_cached_photos(cache_id, serialized)
         if lead_extract:
             await cls.set_cached_extract(
-                poi_id, lead_extract, target_lang=target_lang_clean
+                cache_id, lead_extract, target_lang=target_lang_clean
             )
 
         return serialized, lead_extract

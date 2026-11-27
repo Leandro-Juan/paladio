@@ -210,3 +210,46 @@ export function getTripDayDate(startDate?: string | null, selectedDay?: number |
   }
   return new Date().toISOString().slice(0, 10);
 }
+
+/**
+ * Formats a transit duration (in minutes) into a localized label.
+ * Durations over 59 minutes (>= 60m) are displayed in hours (e.g. "1h", "1h 15m").
+ */
+export function formatTransitDuration(
+  mins?: number | null,
+  options?: {
+    variant?: 'short' | 'long' | 'upper' | 'upper_singular';
+    t?: (key: string, params?: Record<string, string | number>) => string;
+    localeOverride?: string;
+  }
+): string {
+  const totalMins = Math.max(0, Math.round(Number(mins) || 0));
+  const variant = options?.variant ?? 'short';
+  const tr =
+    options?.t ??
+    ((key: string, params?: Record<string, string | number>) =>
+      translate(key, params, options?.localeOverride));
+
+  if (totalMins >= 60) {
+    const hours = Math.floor(totalMins / 60);
+    const rem = totalMins % 60;
+    const formatted =
+      rem === 0
+        ? tr('wallet.duration_hours', { hours })
+        : tr('wallet.duration_hours_minutes', { hours, minutes: rem });
+    return variant === 'upper' || variant === 'upper_singular'
+      ? formatted.toUpperCase()
+      : formatted;
+  }
+
+  if (variant === 'upper') {
+    return tr('transit.mins_upper', { count: totalMins });
+  }
+  if (variant === 'upper_singular') {
+    return tr('transit.min_upper', { count: totalMins });
+  }
+  if (variant === 'long') {
+    return tr('workspace.duration_minutes', { duration: totalMins });
+  }
+  return tr('collections.duration_short', { mins: totalMins });
+}

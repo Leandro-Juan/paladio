@@ -36,7 +36,11 @@ from app.engine.retrieval.query_rewriter import QueryRewriter
 from app.infrastructure.providers.onnx_embedding_provider import (
     OnnxEmbeddingProvider,
 )
-from app.services.wikimedia_photo_resolver import WikimediaPhotoResolver
+from app.services.wikimedia_photo_resolver import (
+    WikimediaPhotoResolver,
+    effective_poi_cache_key,
+    is_generic_placeholder_poi,
+)
 from app.utils.opening_hours_parser import parse_osm_opening_hours
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
@@ -2063,10 +2067,20 @@ async def batch_resolve_photos(
         key = item.id or item.name
         if not key:
             continue
-        cached = (
-            await WikimediaPhotoResolver.get_cached_photos(item.id) if item.id else None
+        if is_generic_placeholder_poi(item.name, item.id):
+            resolved[key] = None
+            continue
+        cache_id = (
+            effective_poi_cache_key(item.id, item.name or "", item.city or "")
+            if item.id
+            else None
         )
-        if not cached and item.name:
+        cached = (
+            await WikimediaPhotoResolver.get_cached_photos(cache_id)
+            if cache_id
+            else None
+        )
+        if not cached and item.name and cache_id == item.id:
             cached = await WikimediaPhotoResolver.get_cached_photos(item.name.lower())
         if cached and len(cached) > 0:
             resolved[key] = PoiPhotoItem(**cached[0])
@@ -2767,12 +2781,15 @@ async def get_poi_details(
             )
         ).strip()
         if resolved_name and (name or len(resolved_name) > 3):
-            photos_data, lead_extract = await WikimediaPhotoResolver.resolve_photos(
-                poi_id=poi_id,
-                name=resolved_name,
-                city=city or "",
-                target_lang=effective_lang,
-            )
+            if is_generic_placeholder_poi(resolved_name, poi_id):
+                photos_data, lead_extract = [], None
+            else:
+                photos_data, lead_extract = await WikimediaPhotoResolver.resolve_photos(
+                    poi_id=poi_id,
+                    name=resolved_name,
+                    city=city or "",
+                    target_lang=effective_lang,
+                )
             cat_lower = (category or "").lower().strip()
             name_lower = resolved_name.lower().strip()
             if (

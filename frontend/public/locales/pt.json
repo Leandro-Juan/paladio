@@ -2653,11 +2653,11 @@
     "stop_of_total": "Parada {current} de {total}",
     "target_waypoint_fallback": "Ponto de Destino",
     "transfer_station": "Estação de Baldeação",
-    "transit_approx_mins": "Transporte (~{mins}m)",
     "transit_fallback": "Transporte",
     "transit_line_fallback": "linha de transporte",
     "transit_maneuver": "Baldeação de transporte",
-    "walk_approx_mins": "Caminhada (~{mins}m)"
+    "transit_approx_duration": "Transporte (~{duration})",
+    "walk_approx_duration": "Caminhada (~{duration})"
   },
   "monitoring": {
     "accommodation": "Hospedagem",
@@ -3458,8 +3458,8 @@
     "conflict_exit_before_entry": "A saída ({end}) é anterior à entrada ({start})",
     "conflict_overlaps_next": "Sobrepõe a próxima parada (inicia às {start})",
     "conflict_overlaps_prev": "Sobrepõe a parada anterior (termina às {end})",
-    "conflict_transit_next": "Deixa < {mins}m de deslocamento antes da próxima parada ({start})",
-    "conflict_transit_prev": "Conflita com {mins}m de deslocamento da parada anterior (termina às {end})",
+    "conflict_transit_next": "Deixa < {duration} de deslocamento antes da próxima parada ({start})",
+    "conflict_transit_prev": "Conflita com {duration} de deslocamento da parada anterior (termina às {end})",
     "custom_only_btn": "Apenas Personalizados",
     "custom_only_tooltip_off": "Mostrar apenas locais personalizados",
     "custom_only_tooltip_on": "Exibindo apenas locais personalizados (clique para mostrar todos)",

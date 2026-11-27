@@ -8,10 +8,10 @@ Paladio runs locally on Linux, macOS, or Windows with Docker Engine and Docker C
 
 | Resource | Minimum | Recommended | Why it matters |
 | :--- | :--- | :--- | :--- |
-| **RAM** | 8 GB | 12 GB to 16 GB | `valhalla` reserves up to 3,072 MB (`mem_limit: 3072m`), `api` and `worker` allow up to 2,048 MB each, and `beat` allows 512 MB |
+| **RAM** | 4 GB | 8 GB | Steady-state footprint is ~1.5–2.5 GB across all 7 containers (`mem_reservation`s reserve 1,024 MB for `valhalla`, 512 MB each for `api` and `worker`, and 128 MB for `beat`); `mem_limit` ceilings allow bursts up to 3,072 MB each on `valhalla` and `worker`, 2,048 MB on `api`, and 512 MB on `beat` during regional OSM/GTFS builds. Add 4+ GB extra (12–16 GB total) only if running a local Ollama LLM alongside Paladio |
 | **CPU** | 4 cores | 6+ cores | In-process CPU ONNX inference (`FASTEMBED_THREADS=2`), C++20 `paladio_core` routing, and Valhalla routing tiles (`cpus: 2.0`) |
 | **Disk** | 20 GB free | 50 GB+ free | Prebuilt images, `/opt/models/fastembed` ONNX weights, `pgdata`, `valhalladata` OSM extracts, and `gtfsdata` transit feeds |
-| **Software** | Docker + Compose v2 | Docker Engine 24+ | `scripts/install/install.sh` and `scripts/install/install.ps1` verify `docker`, daemon connectivity, and `docker compose version`, and warn if RAM is below 7.5 GB |
+| **Software** | Docker + Compose v2 | Docker Engine 24+ | `scripts/install/install.sh` and `scripts/install/install.ps1` verify `docker`, daemon connectivity, and `docker compose version`, and warn if host RAM is below 7.5 GB (below the 8 GB recommended tier) |
 
 ## Services and persistent volumes
 
@@ -90,6 +90,6 @@ docker compose logs -f --tail=100 migrate api worker db valhalla
 
 - **Port 3000 or 8000 already in use**: Both `scripts/install/install.sh` and `scripts/install/install.ps1` automatically detect occupied host ports during installation, select the next available `API_PORT` / `FRONTEND_PORT`, and save the resolved ports into `.env` (while leaving ports already bound by Paladio's own Compose containers untouched). If you run `docker compose up -d` manually or want a specific port on an existing install, set `API_PORT` or `FRONTEND_PORT` in `.env` and restart with `docker compose up -d` (the frontend reads `API_PORT` at runtime—no image rebuild needed). You can also pre-select preferred ports on a one-liner install—for example `curl -fsSL https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.sh | API_PORT=8080 FRONTEND_PORT=3001 bash` on Linux/macOS, or `$env:API_PORT="8080"; $env:FRONTEND_PORT="3001"; irm https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.ps1 | iex` on PowerShell.
 - **Missing pgvector or timescaledb extension**: Verify the `db` service uses `timescale/timescaledb:2.30.2-pg16` and run `docker compose exec db psql -U postgres -d paladio -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS timescaledb;"`.
-- **Out-of-memory kills**: Ensure Docker Desktop or your Linux VM has at least 8 GB of RAM assigned, and keep `API_WORKERS=1` for personal/homelab installs so ONNX embedding weights are only loaded once in the API container.
+- **Out-of-memory kills**: Ensure Docker Desktop or your Linux VM has at least 4 GB of RAM assigned (6–8 GB recommended when compiling large regional OSM extracts), enable swap on 4 GB hosts, keep `API_WORKERS=1` for personal/homelab installs so ONNX embedding weights are only loaded once in the API container, and optionally set `FASTEMBED_IDLE_TIMEOUT_SECONDS=300` to reclaim ~300 MB of ONNX memory when idle.
 
 Next, complete your initial taste profile and generate your first deterministic itinerary in [Quickstart: plan your first trip](quickstart.md).
