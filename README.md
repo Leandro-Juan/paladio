@@ -179,7 +179,7 @@ Planning a great trip usually means juggling messy spreadsheets, cloud travel ap
 
 ## Quick Start
 
-All you need is [Docker and Docker Compose](https://docs.docker.com/engine/install/) (8 GB RAM minimum, 12–16 GB recommended).
+All you need is [Docker and Docker Compose](https://docs.docker.com/engine/install/) (4 GB RAM minimum, 8 GB recommended).
 
 **Linux / macOS:**
 
@@ -200,7 +200,7 @@ Open **[`http://localhost:3000`](http://localhost:3000)**, create your account, 
 <details>
 <summary><strong>System requirements, manual setup & local development</strong></summary>
 
-- **Recommended hardware**: 8 GB RAM / 4 CPU cores / 20 GB disk minimum; 12–16 GB RAM / 6+ cores / 50 GB+ disk recommended for local maps, transit schedules, and search models.
+- **Recommended hardware**: 4 GB RAM / 4 CPU cores / 20 GB disk minimum (Linux with swap and single-city extracts; keep `API_WORKERS=1`); 8 GB RAM / 6+ cores / 50 GB+ disk recommended for comfortable local map builds, transit schedules, and ONNX embeddings (12–16 GB+ only needed if also running a local Ollama LLM).
 - **Manual setup (no installer script)**: Download `docker-compose.yml` and `.env.example` (rename to `.env`), replace the placeholder `POSTGRES_PASSWORD` and `JWT_SECRET_KEY` (and optionally set `WALLET_ENCRYPTION_KEY`, which otherwise auto-generates into `/data/.wallet_key`), and run `docker compose pull && docker compose up -d`. The `migrate` container automatically applies Alembic migrations and seeds the verified transit fare catalog before `api` starts.
 - **What runs inside Docker**: Web app (`:3000`), API server (`:8000`), PostgreSQL + TimescaleDB/pgvector, Redis, local Valhalla map router, one-shot `migrate`, and Celery `worker`/`beat` containers.
 - **Developing locally**: Clone the repository and run `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build` (backend hot reload + local port bindings; rebuild with `--build` or run `npm run dev` on the host for frontend edits). See [Install with Docker](./docs/getting-started/installation.md) and [Local Development](./docs/getting-started/local-development.md).

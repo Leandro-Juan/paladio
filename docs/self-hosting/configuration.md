@@ -33,7 +33,7 @@ Set these variables in `.env` (or container environment overrides) before runnin
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` | No | JWT token lifetime in minutes (`1440` = 24 hours) |
 | `WALLET_ENCRYPTION_KEY` | Persisted `.local/data/.wallet_key` (local) / `/data/.wallet_key` (Docker) | Yes (or writable `/data`) | Fernet symmetric key protecting Bookings Wallet secrets (`access_code`, Wi-Fi keys) |
 | `WALLET_ENCRYPTION_KEY_PATH` | `.local/data/.wallet_key` (local) / `/data/.wallet_key` (Docker) | No | Fallback Fernet key file path (`0600`) when `WALLET_ENCRYPTION_KEY` is unset |
-| `API_WORKERS` | `1` | No | Uvicorn worker count for the prebuilt `api` image (keep `1` on 8 GB hosts to avoid duplicating ONNX memory) |
+| `API_WORKERS` | `1` | No | Uvicorn worker count for the prebuilt `api` image (keep `1` on 4–8 GB hosts to avoid duplicating ONNX memory) |
 | `ALLOWED_ORIGINS` | Dynamic localhost + RFC-1918 LAN / `.local` regex | Yes (custom public domain) | Comma-separated CORS allowlist overriding the default local/LAN origin rules |
 | `ALLOW_PUBLIC_REGISTRATION` | `false` | No | Enables public signup via `POST /api/auth/register` after the initial admin exists |
 | `PALADIO_API_TOKEN` | Unset | For MCP `stdio` | Bearer secret used when running `python -m app.mcp` over `stdio` |
