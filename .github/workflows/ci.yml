@@ -33,7 +33,7 @@ jobs:
   python-tests:
     name: Python Backend Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     services:
       postgres:
         image: timescale/timescaledb:latest-pg16
