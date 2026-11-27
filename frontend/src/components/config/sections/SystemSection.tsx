@@ -492,7 +492,7 @@ export function SystemSection({
                   border: '1px solid var(--color-border-subtle)',
                 }}
               >
-                v{updaterStatus?.current_version || '2.0.0'}
+                v{updaterStatus?.current_version || '3.0.0'} {/* x-release-please-version */}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -508,7 +508,7 @@ export function SystemSection({
                   color: updaterStatus?.update_available ? 'var(--color-gold, #E2B33C)' : 'var(--color-success)',
                 }}
               >
-                v{updaterStatus?.latest_version || updaterStatus?.current_version || '2.0.0'}
+                v{updaterStatus?.latest_version || updaterStatus?.current_version || '3.0.0'} {/* x-release-please-version */}
               </span>
             </div>
             <p className="font-mono text-muted" style={{ fontSize: '10px', marginTop: '12px', marginBottom: 0 }}>

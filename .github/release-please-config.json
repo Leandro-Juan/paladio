@@ -5,6 +5,7 @@
       "release-type": "simple",
       "package-name": "paladio",
       "include-v-in-tag": true,
+      "include-component-in-tag": false,
       "changelog-path": "CHANGELOG.md",
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
@@ -33,8 +34,12 @@
           "jsonpath": "$.packages[\"\"].version"
         },
         "backend/pyproject.toml",
+        "backend/app/services/updater_service.py",
+        "cpp_core/CMakeLists.txt",
+        "cpp_core/pyproject.toml",
         "frontend/src/components/UserMenu.tsx",
-        "cpp_core/CMakeLists.txt"
+        "frontend/src/components/help/HelpSidebar.tsx",
+        "frontend/src/components/config/sections/SystemSection.tsx"
       ]
     }
   }

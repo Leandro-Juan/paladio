@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -13,6 +17,7 @@ jobs:
   cpp-tests:
     name: C++ Core Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - name: Install dependencies
@@ -28,6 +33,7 @@ jobs:
   python-tests:
     name: Python Backend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: timescale/timescaledb:latest-pg16
@@ -99,6 +105,7 @@ jobs:
   frontend-tests:
     name: Frontend Playwright Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - name: Set up Node.js

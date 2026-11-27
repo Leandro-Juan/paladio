@@ -8,8 +8,13 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
       - 'README.md'
+      - 'scripts/sync_wiki.py'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -17,6 +22,7 @@ permissions:
 jobs:
   deploy-docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -26,13 +32,26 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install documentation dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install mkdocs-material pymdown-extensions
+          pip install mkdocs-material pymdown-extensions pyyaml
 
       - name: Deploy to GitHub Pages
         run: |
           mkdocs gh-deploy --force
+
+      - name: Sync GitHub Wiki
+        if: github.repository == 'Leandro-Juan/paladio'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.wiki.git" /tmp/paladio_wiki_sync; then
+            python scripts/sync_wiki.py --wiki-dir /tmp/paladio_wiki_sync --push
+          else
+            echo "::warning::Wiki repository could not be cloned or pushed with GITHUB_TOKEN; skipping automated wiki sync."
+          fi
