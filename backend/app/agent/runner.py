@@ -9,6 +9,7 @@ import uuid
 from typing import Any, AsyncGenerator, Optional, Set
 
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.models.ollama import OllamaModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.mcp import MCPToolset
@@ -331,8 +332,9 @@ class TripAgentRunner:
             max_tokens = int(os.getenv("TRIP_AGENT_MAX_TOKENS", "1024"))
             model_settings_kwargs: dict[str, Any] = {
                 "max_tokens": max_tokens,
-                "parallel_tool_calls": False,
             }
+            if not isinstance(active_model, GoogleModel):
+                model_settings_kwargs["parallel_tool_calls"] = False
             if (
                 isinstance(active_model, OllamaModel)
                 or type(active_model).__name__ == "OllamaModel"

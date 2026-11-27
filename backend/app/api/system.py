@@ -147,6 +147,29 @@ class TestLLMConnectionPayload(BaseModel):
     base_url: str | None = Field(None, description="Custom base URL to test")
 
 
+class ListLLMModelsPayload(BaseModel):
+    provider: str = Field(..., description="LLM provider key")
+    api_key: str | None = Field(None, description="Optional API key to authenticate")
+    base_url: str | None = Field(None, description="Optional custom base URL")
+
+
+def _build_llm_config_payload(
+    config: Any,
+    configured_providers: dict[str, dict[str, Any]],
+    hardware: Any,
+) -> dict[str, Any]:
+    return {
+        "provider": config.provider,
+        "model": config.model,
+        "base_url": config.base_url,
+        "has_api_key": bool(config.api_key),
+        "masked_api_key": mask_api_key(config.api_key),
+        "supported_providers": SUPPORTED_PROVIDERS,
+        "configured_providers": configured_providers,
+        "hardware_profile": hardware.to_dict(),
+    }
+
+
 @router.get("/llm/config")
 async def get_llm_configuration(
     session: AsyncSession = Depends(get_db),
@@ -157,16 +180,7 @@ async def get_llm_configuration(
         config = await LLMService.get_config_from_db(session)
         configured_providers = await LLMService.get_configured_providers(session)
         hardware = LLMService.get_hardware_profile()
-        return {
-            "provider": config.provider,
-            "model": config.model,
-            "base_url": config.base_url,
-            "has_api_key": bool(config.api_key),
-            "masked_api_key": mask_api_key(config.api_key),
-            "supported_providers": SUPPORTED_PROVIDERS,
-            "configured_providers": configured_providers,
-            "hardware_profile": hardware.to_dict(),
-        }
+        return _build_llm_config_payload(config, configured_providers, hardware)
     except Exception as e:
         logger.exception(f"Failed to retrieve LLM configuration: {e}")
         raise HTTPException(
@@ -194,16 +208,7 @@ async def update_llm_configuration(
         hardware = LLMService.get_hardware_profile()
         return {
             "status": "success",
-            "config": {
-                "provider": saved.provider,
-                "model": saved.model,
-                "base_url": saved.base_url,
-                "has_api_key": bool(saved.api_key),
-                "masked_api_key": mask_api_key(saved.api_key),
-                "supported_providers": SUPPORTED_PROVIDERS,
-                "configured_providers": configured_providers,
-                "hardware_profile": hardware.to_dict(),
-            },
+            "config": _build_llm_config_payload(saved, configured_providers, hardware),
         }
     except Exception as e:
         logger.exception(f"Failed to update LLM configuration: {e}")
@@ -237,6 +242,56 @@ async def test_llm_connection(
             "provider": payload.provider,
             "model": payload.model,
         }
+
+
+@router.post("/llm/models")
+async def list_llm_provider_models(
+    payload: ListLLMModelsPayload,
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Fetch live model IDs from the designated LLM provider API."""
+    try:
+        return await LLMService.list_provider_models(
+            provider=payload.provider,
+            api_key=payload.api_key,
+            base_url=payload.base_url,
+            session=session,
+        )
+    except Exception as e:
+        logger.exception(f"Failed to list LLM models for '{payload.provider}': {e}")
+        return {
+            "success": False,
+            "provider": payload.provider,
+            "models": [],
+            "error": str(e),
+        }
+
+
+@router.delete("/llm/provider/{provider}")
+async def delete_llm_provider_credentials(
+    provider: str,
+    session: AsyncSession = Depends(get_db),
+    _user: UserModel | None = Depends(get_optional_user),
+) -> dict[str, Any]:
+    """Delete stored API credentials, base URL, and saved model for a provider."""
+    try:
+        active = await LLMService.delete_provider_credentials(
+            session=session,
+            provider=provider,
+        )
+        configured_providers = await LLMService.get_configured_providers(session)
+        hardware = LLMService.get_hardware_profile()
+        return {
+            "status": "success",
+            "config": _build_llm_config_payload(active, configured_providers, hardware),
+        }
+    except Exception as e:
+        logger.exception(f"Failed to delete credentials for '{provider}': {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to remove provider credentials: {e}",
+        )
 
 
 class UnloadModelPayload(BaseModel):
