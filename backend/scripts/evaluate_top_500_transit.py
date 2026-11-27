@@ -562,10 +562,9 @@ def generate_markdown_report(records: list[CityAuditRecord], filepath: str) -> N
 
 async def main():
     records = await run_evaluation()
-    csv_path = (
-        "/home/leandro/Code/Projects/Paladio/docs/reports/top_500_transit_coverage.csv"
-    )
-    md_path = "/home/leandro/Code/Projects/Paladio/docs/reports/top_500_transit_ingestion_report.md"
+    reports_dir = Path(__file__).resolve().parents[2] / "docs" / "reports"
+    csv_path = str(reports_dir / "top_500_transit_coverage.csv")
+    md_path = str(reports_dir / "top_500_transit_ingestion_report.md")
     export_csv(records, csv_path)
     generate_markdown_report(records, md_path)
 

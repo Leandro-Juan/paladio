@@ -30,7 +30,7 @@ body:
         - "Backend Semantic Gateway (FastAPI / LangGraph Swarm / Pydantic)"
         - "Frontend UI & Visualizations (Next.js / Leaflet / React Virtuoso)"
         - "Routing & Map Infrastructure (OSM / Valhalla / GTFS Transit)"
-        - "Local LLM Integration (Ollama / vLLM local pipelines)"
+        - "AI Chat Assistant & LLM Providers (13 Providers / Ollama / vLLM)"
         - "Developer Experience & Tooling"
     validations:
       required: true
@@ -44,7 +44,7 @@ body:
     attributes:
       label: Architectural Compliance
       options:
-        - label: This proposal adheres to the 100% self-hosted and air-gappable architecture (strictly NO cloud LLM APIs).
+        - label: This proposal keeps trip generation deterministic without requiring an LLM (optional LLM usage stays scoped to the chat assistant / NLP).
           required: true
-        - label: NP-hard combinatorial logic is targeted for the deterministic C++ layer, while LLMs remain strictly for semantic NLP.
+        - label: NP-hard combinatorial logic is targeted for the deterministic C++ layer, while LLMs remain strictly for optional conversational assistance.
           required: false

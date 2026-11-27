@@ -19,7 +19,7 @@ include(FetchContent)
 FetchContent_Declare(
     paladio_core
     GIT_REPOSITORY https://github.com/Leandro-Juan/paladio-core.git
-    GIT_TAG        v1.0.0
+    GIT_TAG        main
 )
 
 # Optional: Disable Python bindings and GoogleTests to keep your build ultra-lean

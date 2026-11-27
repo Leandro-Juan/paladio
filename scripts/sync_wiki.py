@@ -323,12 +323,10 @@ flowchart LR
 
 ## Quickstart with Docker Compose
 
-Clone the repository, generate `.env` secrets, and launch the 7-container cluster (`api`, `frontend`, `db`, `redis`, `valhalla`, `worker`, `beat`):
+Launch the 8-service stack (`api`, `frontend`, `db`, `redis`, `valhalla`, `worker`, `beat`, plus one-shot `migrate`) with a single command (generates `.env` secrets and downloads prebuilt multi-arch GHCR images):
 
 ```bash
-git clone https://github.com/Leandro-Juan/paladio.git
-cd paladio
-./scripts/install/install.sh
+curl -fsSL https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.sh | bash
 ```
 
 Read [[Install with Docker|Install-with-Docker]] for hardware sizing, Windows PowerShell instructions, database migrations, and `/setup` provisioning.
@@ -336,8 +334,8 @@ Read [[Install with Docker|Install-with-Docker]] for hardware sizing, Windows Po
 ## Portals and links
 
 - **Documentation Portal**: [https://leandro-juan.github.io/paladio/](https://leandro-juan.github.io/paladio/)
-- **Source Code Repository**: [https://github.com/Leandro-Juan/Paladio](https://github.com/Leandro-Juan/Paladio)
-- **Issue Tracker**: [https://github.com/Leandro-Juan/Paladio/issues](https://github.com/Leandro-Juan/Paladio/issues)
+- **Source Code Repository**: [https://github.com/Leandro-Juan/paladio](https://github.com/Leandro-Juan/paladio)
+- **Issue Tracker**: [https://github.com/Leandro-Juan/paladio/issues](https://github.com/Leandro-Juan/paladio/issues)
 """
 
 
@@ -354,8 +352,8 @@ def build_sidebar(
         [
             "### External Links",
             "- [Documentation Portal](https://leandro-juan.github.io/paladio/)",
-            "- [Source Repository](https://github.com/Leandro-Juan/Paladio)",
-            "- [Issue Tracker](https://github.com/Leandro-Juan/Paladio/issues)",
+            "- [Source Repository](https://github.com/Leandro-Juan/paladio)",
+            "- [Issue Tracker](https://github.com/Leandro-Juan/paladio/issues)",
         ]
     )
     return "\n".join(parts).strip() + "\n"
@@ -366,7 +364,7 @@ def build_footer() -> str:
         '<div align="center">\n'
         "  <sub>Paladio &copy; 2026 Leandro Juan &bull; GNU AGPLv3 &bull; "
         '<a href="https://leandro-juan.github.io/paladio/">Documentation Portal</a> &bull; '
-        '<a href="https://github.com/Leandro-Juan/Paladio">Source Code</a></sub>\n'
+        '<a href="https://github.com/Leandro-Juan/paladio">Source Code</a></sub>\n'
         "</div>\n"
     )
 
@@ -448,7 +446,7 @@ def main() -> None:
                     "git",
                     "commit",
                     "-m",
-                    "docs(wiki): rebuild complete v2.0 documentation and prune legacy pages",
+                    "docs(wiki): synchronize MkDocs documentation portal into GitHub Wiki",
                 ],
                 cwd=wiki_path,
                 check=True,

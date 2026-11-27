@@ -52,7 +52,7 @@ Planning a great trip usually means juggling messy spreadsheets, cloud travel ap
 ### <img src="docs/assets/readme/icon-discovery.svg" width="18" height="18" alt=""> Discovery
 
 - **Your 8-axis Taste Star**: Answer a quick visual calibration when you start, then let Paladio adapt naturally from your trips, bookmarks, and preferences (you can reset your taste profile anytime).
-  - **Places you'll actually enjoy**: Smart search with natural language across sights, museums, food spots, and hidden gems ranked by how well they match your style.
+- **Places you'll actually enjoy**: Smart search with natural language across sights, museums, food spots, and hidden gems ranked by how well they match your style.
 - **Group taste blending**: Traveling with friends or family? Paladio blends everyone's preferences so the trip works for the whole group.
 - **Saved collections & imports**: Keep reusable place wishlists, drop custom pins on the map, or import your existing Google Maps, GPX, KML, and KMZ lists.
 
@@ -65,15 +65,15 @@ Planning a great trip usually means juggling messy spreadsheets, cloud travel ap
 
 ### <img src="docs/assets/readme/icon-maps.svg" width="18" height="18" alt=""> Maps
 
-    - **Neighborhood exploration**: Drop a pin and radius circle anywhere on the map to browse nearby sights, restaurants, and transit stops.
-    - **One-tap navigation**: Send any stop straight to Google Maps, Apple Maps, Organic Maps / CoMaps, OsmAnd, Waze, or Citymapper, with photos and optional on-demand place translation.
+- **Neighborhood exploration**: Drop a pin and radius circle anywhere on the map to browse nearby sights, restaurants, and transit stops.
+- **One-tap navigation**: Send any stop straight to Google Maps, Apple Maps, Organic Maps / CoMaps, OsmAnd, Waze, or Citymapper, with photos and optional on-demand place translation.
 
 - **Clean architectural maps**: Switch between clutter-free vector maps, standard street maps, dark mode, and satellite imagery.
 - **Weather & climate**: Check daily forecasts and air quality for upcoming trips, or typical seasonal weather when planning months ahead.
 
 ### <img src="docs/assets/readme/icon-transit.svg" width="18" height="18" alt=""> Transit
 
-    - **Public transit & departures**: Step-by-step metro, rail, tram, and bus directions, interactive transit line overlays, and nearby station departure boards.
+- **Public transit & departures**: Step-by-step metro, rail, tram, and bus directions, interactive transit line overlays, and nearby station departure boards.
 
 - **Local walking & road routing**: Realistic door-to-door walking calculated privately on your own server.
 - **Fare & pass advice**: Estimates trip transit costs and tells you when a daily pass beats buying single tickets.
@@ -198,7 +198,7 @@ Then ask things like _"Check my Kyoto trip for tight transfers or missing meals"
   - [Installation](./docs/getting-started/installation.md) · [Quickstart](./docs/getting-started/quickstart.md) · [User Guide](./docs/user-guide/trip-workspace.md) · [Self-Hosting](./docs/self-hosting/configuration.md) · [Architecture](./docs/architecture/system-overview.md) · [REST API](./docs/reference/rest-api.md) · [MCP Server (82 Tools)](./docs/reference/mcp-server.md)
 - **GitHub Wiki:** [github.com/Leandro-Juan/paladio/wiki](https://github.com/Leandro-Juan/paladio/wiki)
 - **In-App Help Center:** Available at `/help` inside any running instance (22 guides across 10 languages)
-- **Standalone Route Solver:** [`Leandro-Juan/paladio-core`](https://github.com/Leandro-Juan/paladio-core) (mirrored from [`cpp_core/`](./cpp_core/))
+- **Standalone Route Solver:** [`Leandro-Juan/paladio-core`](https://github.com/Leandro-Juan/paladio-core) (Apache-2.0, mirrored from [`cpp_core/`](./cpp_core/))
 
 ## Contributing, License & Contact
 

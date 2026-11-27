@@ -19,7 +19,7 @@ include(FetchContent)
 FetchContent_Declare(
     paladio_core
     GIT_REPOSITORY https://github.com/Leandro-Juan/paladio-core.git
-    GIT_TAG        v1.0.0
+    GIT_TAG        main
 )
 FetchContent_MakeAvailable(paladio_core)
 
@@ -28,7 +28,7 @@ target_link_libraries(my_routing_app PRIVATE paladio::engine)
 ```
 
 > [!TIP]
-> You can point `GIT_TAG` to a specific release tag such as `v1.0.0` or track the latest development branch using `GIT_TAG main`.
+> You can point `GIT_TAG` to `main` to track the latest C++ core or pin a specific release commit/tag once published.
 
 ---
 

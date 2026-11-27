@@ -1,6 +1,6 @@
 # Security Policy
 
-Paladio takes the security, privacy, and integrity of our sovereign travel intelligence platform seriously. As a system designed for 100% self-hosted, air-gappable operation, we prioritize local data isolation, secure inter-service communication, and robust memory safety across our C++ and Python engines.
+Paladio takes the security, privacy, and integrity of our self-hosted travel intelligence platform seriously. We prioritize local data isolation, secure inter-service communication, and robust memory safety across our C++ and Python engines.
 
 ---
 
@@ -10,8 +10,8 @@ Only the latest active major/minor release stream receives security updates. We 
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+| 3.0.x   | :white_check_mark: |
+| < 3.0   | :x:                |
 
 ---
 
@@ -49,4 +49,4 @@ To help us triage and resolve the issue quickly, please provide as much context 
 1. **Acknowledgement:** We will acknowledge receipt of your report within **48 hours**.
 2. **Assessment & Triage:** Within **5 business days**, we will confirm or clarify the vulnerability and provide an estimated timeline for remediation.
 3. **Fix & Validation:** A fix will be developed in a private branch and thoroughly validated against our test suites and sanitizers (AddressSanitizer, UBSan).
-4. **Coordinated Disclosure:** A security advisory and patched release (e.g., `v1.0.x`) will be published. With your permission, we will publicly credit your contribution in the release notes.
+4. **Coordinated Disclosure:** A security advisory and patched release (e.g., `v3.0.x`) will be published. With your permission, we will publicly credit your contribution in the release notes.

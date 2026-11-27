@@ -2,7 +2,7 @@ site_name: "Paladio"
 site_description: "Self-hosted travel intelligence: deterministic C++20 routing, LangGraph swarm, CPU ONNX semantic RAG, Deal Engine, and optional 13-provider AI assistant."
 site_author: "Leandro Juan"
 site_url: "https://leandro-juan.github.io/paladio/"
-repo_name: "Leandro-Juan/Paladio"
+repo_name: "Leandro-Juan/paladio"
 repo_url: "https://github.com/Leandro-Juan/Paladio"
 edit_uri: "edit/main/docs/"
 
