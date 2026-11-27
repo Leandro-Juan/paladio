@@ -1,6 +1,7 @@
 import logging
+import re
 import uuid
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -25,10 +26,24 @@ def _make_aware(dt: datetime, tz: ZoneInfo) -> datetime:
 
 
 def _safe_parse_aware_datetime(
-    dt_str: str | None, iata_or_city: str | None
+    dt_str: str | None,
+    iata_or_city: str | None,
+    default_date: Any = None,
 ) -> tuple[datetime | None, str | None]:
     if not dt_str:
         return None, None
+
+    raw = dt_str.strip()
+    if default_date is not None and re.fullmatch(r"\d{1,2}:\d{2}(:\d{2})?", raw):
+        date_prefix: str | None = None
+        if isinstance(default_date, (datetime, date)):
+            date_prefix = default_date.strftime("%Y-%m-%d")
+        elif isinstance(default_date, str):
+            m = re.match(r"(\d{4}-\d{2}-\d{2})", default_date.strip())
+            if m:
+                date_prefix = m.group(1)
+        if date_prefix:
+            raw = f"{date_prefix} {raw}"
 
     tz_info: ZoneInfo | None = None
     tz_str: str | None = None
@@ -53,7 +68,7 @@ def _safe_parse_aware_datetime(
         tz_str = None
 
     try:
-        dt, _ = parse_flexible_datetime(dt_str)
+        dt, _ = parse_flexible_datetime(raw)
         return _make_aware(dt, tz_info), tz_str
     except Exception as e:
         logger.debug(f"Could not parse datetime string '{dt_str}': {e}")
@@ -114,12 +129,22 @@ def extract_itinerary_seeds(
     if itin.get("outbound_flight"):
         f = itin["outbound_flight"]
         flight_records.append(
-            {"flight": f, "ref": "flight:outbound", "default_direction": "arrival"}
+            {
+                "flight": f,
+                "ref": "flight:outbound",
+                "default_direction": "arrival",
+                "default_date": trip.start_date,
+            }
         )
     if itin.get("inbound_flight") or itin.get("return_flight"):
         f = itin.get("inbound_flight") or itin.get("return_flight")
         flight_records.append(
-            {"flight": f, "ref": "flight:return", "default_direction": "departure"}
+            {
+                "flight": f,
+                "ref": "flight:return",
+                "default_direction": "departure",
+                "default_date": trip.end_date or trip.start_date,
+            }
         )
 
     # Days flight_info
@@ -134,7 +159,17 @@ def extract_itinerary_seeds(
                 "arrival" if d_idx == 0 else "departure"
             )
             flight_records.append(
-                {"flight": day_f, "ref": ref, "default_direction": direction}
+                {
+                    "flight": day_f,
+                    "ref": ref,
+                    "default_direction": direction,
+                    "default_date": day.get("date")
+                    or (
+                        trip.start_date
+                        if d_idx == 0
+                        else trip.end_date or trip.start_date
+                    ),
+                }
             )
 
     # Deduplicate flights by (origin_iata, destination_iata, departure_time)
@@ -163,8 +198,15 @@ def extract_itinerary_seeds(
             continue
         seen_flights.add(key)
 
-        start_dt, start_tz = _safe_parse_aware_datetime(dep_str, orig)
-        end_dt, end_tz = _safe_parse_aware_datetime(arr_str, dest)
+        default_dt = fr.get("default_date")
+        start_dt, start_tz = _safe_parse_aware_datetime(
+            dep_str, orig, default_date=default_dt
+        )
+        end_dt, end_tz = _safe_parse_aware_datetime(
+            arr_str, dest, default_date=default_dt
+        )
+        if start_dt and end_dt and end_dt < start_dt:
+            end_dt = end_dt + timedelta(days=1)
 
         title = f"{orig} → {dest} Flight"
         if flight_num:
@@ -243,6 +285,8 @@ def extract_itinerary_seeds(
         end_dt, end_tz = _safe_parse_aware_datetime(
             f"{cout_date} {cout_time}:00", dest_city
         )
+        if start_dt and end_dt and end_dt < start_dt:
+            end_dt = end_dt + timedelta(days=1)
 
         seeds.append(
             {
@@ -395,6 +439,54 @@ def extract_itinerary_seeds(
     return seeds, suggestions
 
 
+def _find_matching_existing_ticket(
+    seed: dict[str, Any],
+    existing_tickets: list[TripTicketModel],
+    matched_ids: set[str],
+) -> TripTicketModel | None:
+    """Fallback matcher reconciling itinerary seeds with pre-seeded fixture tickets."""
+    seed_type = seed.get("ticket_type")
+    meta = seed.get("metadata") or {}
+    if seed_type == "flight":
+        fnum = str(meta.get("flight_number") or "").strip().upper()
+        orig = str(meta.get("origin_iata") or "").strip().upper()
+        dest = str(meta.get("destination_iata") or "").strip().upper()
+        pnr = str(seed.get("reference_code") or "").strip().upper()
+        for t in existing_tickets:
+            if t.id in matched_ids or t.ticket_type != "flight":
+                continue
+            tmeta = t.ticket_metadata or {}
+            t_fnum = str(tmeta.get("flight_number") or "").strip().upper()
+            if fnum and (t_fnum == fnum or fnum in (t.title or "").upper()):
+                return t
+            t_orig = str(tmeta.get("origin_iata") or "").strip().upper()
+            t_dest = str(tmeta.get("destination_iata") or "").strip().upper()
+            t_pnr = str(t.reference_code or "").strip().upper()
+            if (
+                orig
+                and dest
+                and t_orig == orig
+                and t_dest == dest
+                and (not pnr or not t_pnr or pnr == t_pnr)
+            ):
+                return t
+    elif seed_type == "hotel":
+        provider_name = str(seed.get("provider") or "").strip().lower()
+        if provider_name:
+            for t in existing_tickets:
+                if t.id in matched_ids or t.ticket_type != "hotel":
+                    continue
+                t_title = (t.title or "").strip().lower()
+                t_prov = (t.provider or "").strip().lower()
+                if (
+                    provider_name in t_title
+                    or t_title in provider_name
+                    or provider_name == t_prov
+                ):
+                    return t
+    return None
+
+
 async def sync_trip_tickets(trip: TripModel, session: AsyncSession) -> dict[str, Any]:
     """
     Idempotent synchronization between itinerary_data and trip_tickets.
@@ -406,20 +498,26 @@ async def sync_trip_tickets(trip: TripModel, session: AsyncSession) -> dict[str,
         TripTicketModel.trip_id == trip.id,
         TripTicketModel.source.in_(["itinerary", "scan"]),
     )
-    existing_tickets = (await session.execute(stmt)).scalars().all()
+    existing_tickets = list((await session.execute(stmt)).scalars().all())
     existing_by_ref = {t.source_ref: t for t in existing_tickets if t.source_ref}
 
     created_count = 0
     updated_count = 0
     drift_detected = False
 
-    active_refs = set()
+    active_refs: set[str] = set()
+    matched_ids: set[str] = set()
 
     for s in seeds:
         ref = s["source_ref"]
         active_refs.add(ref)
-        if ref in existing_by_ref:
-            existing = existing_by_ref[ref]
+        existing = existing_by_ref.get(ref)
+        if existing is None:
+            existing = _find_matching_existing_ticket(s, existing_tickets, matched_ids)
+        if existing is not None:
+            matched_ids.add(existing.id)
+            if existing.source_ref:
+                active_refs.add(existing.source_ref)
             if existing.user_modified:
                 # Check for drift (e.g. times or provider differed)
                 if (
@@ -430,9 +528,14 @@ async def sync_trip_tickets(trip: TripModel, session: AsyncSession) -> dict[str,
                     drift_detected = True
                 continue
 
-            # Update from fresh itinerary
-            existing.title = s["title"]
-            existing.provider = s["provider"]
+            is_fixture_seed = bool(
+                existing.source_ref and f"{trip.id}-tkt-" in existing.source_ref
+            )
+            # Update from fresh itinerary without clobbering richer pre-seeded fixture metadata
+            if not is_fixture_seed or not existing.title:
+                existing.title = s["title"]
+            if not is_fixture_seed or not existing.provider:
+                existing.provider = s["provider"]
             existing.reference_code = s.get("reference_code") or existing.reference_code
             existing.holder_name = s.get("holder_name") or existing.holder_name
             existing.start_time = s["start_time"]
@@ -443,7 +546,10 @@ async def sync_trip_tickets(trip: TripModel, session: AsyncSession) -> dict[str,
             existing.location_or_venue = s["location_or_venue"]
             existing.barcode_value = s.get("barcode_value") or existing.barcode_value
             existing.barcode_format = s.get("barcode_format") or existing.barcode_format
-            existing.ticket_metadata = s["metadata"]
+            existing.ticket_metadata = {
+                **(existing.ticket_metadata or {}),
+                **(s["metadata"] or {}),
+            }
             updated_count += 1
         else:
             # Insert new seed ticket
@@ -475,10 +581,15 @@ async def sync_trip_tickets(trip: TripModel, session: AsyncSession) -> dict[str,
             session.add(new_ticket)
             created_count += 1
 
-    # Cleanup removed seeds only if not user-modified and has no attachments
+    # Cleanup removed generated seeds only if not user-modified and has no attachments
     for ref, existing in existing_by_ref.items():
+        is_generated_seed_ref = ref.startswith(
+            ("day_", "flight:", "hotel:", "scanned:")
+        )
         if (
-            ref not in active_refs
+            is_generated_seed_ref
+            and existing.id not in matched_ids
+            and ref not in active_refs
             and (
                 existing.source == "itinerary"
                 or (existing.source_ref or "").startswith("scanned:")
