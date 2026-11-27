@@ -15,7 +15,7 @@ class GTFSTranslationHelper:
     """
 
     def __init__(self, gtfs_dir: str, default_lang: str = "en"):
-        self.gtfs_dir = gtfs_dir
+        self.gtfs_dir = os.path.realpath(gtfs_dir)
         self.default_lang = default_lang.lower().strip()
         # Key: (table_name, lookup_type, lookup_key, lang) -> translated text
         self.translations: dict[tuple[str, str, str, str], str] = {}
@@ -28,8 +28,11 @@ class GTFSTranslationHelper:
         return self.field_translations
 
     def load(self) -> None:
-        trans_file = os.path.join(self.gtfs_dir, "translations.txt")
-        if not os.path.exists(trans_file):
+        base_dir = os.path.realpath(self.gtfs_dir)
+        trans_file = os.path.realpath(os.path.join(base_dir, "translations.txt"))
+        if not trans_file.startswith(base_dir + os.sep) or not os.path.exists(
+            trans_file
+        ):
             return
 
         try:

@@ -36,13 +36,22 @@ function isShellRequest(url) {
   );
 }
 
+const CACHEABLE_TILE_DOMAINS = [
+  'tile.openstreetmap.org',
+  'openfreemap.org',
+  'basemaps.cartocdn.com',
+];
+
+function hostnameMatchesDomain(hostname, domain) {
+  return hostname === domain || hostname.endsWith('.' + domain);
+}
+
 function isCacheableDataRequest(url) {
+  const hostname = (url.hostname || '').toLowerCase();
   return (
     url.pathname.startsWith('/api/trips') ||
     url.pathname.includes('/tiles/') ||
-    url.hostname.includes('tile.openstreetmap.org') ||
-    url.hostname.includes('openfreemap.org') ||
-    url.hostname.includes('basemaps.cartocdn.com')
+    CACHEABLE_TILE_DOMAINS.some((domain) => hostnameMatchesDomain(hostname, domain))
   );
 }
 

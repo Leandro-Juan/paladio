@@ -1,4 +1,7 @@
+import ipaddress
 import logging
+import socket
+import urllib.parse
 from datetime import datetime, timezone
 from typing import Any
 import httpx
@@ -8,6 +11,69 @@ from app.db.session import async_session
 from app.services.settings_service import SettingsService
 
 logger = logging.getLogger(__name__)
+
+_BLOCKED_METADATA_HOSTS = frozenset(
+    {
+        "localhost",
+        "localhost.localdomain",
+        "metadata.google.internal",
+        "metadata",
+    }
+)
+
+
+def _is_disallowed_ip(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return (
+        addr.is_loopback
+        or addr.is_link_local
+        or addr.is_multicast
+        or addr.is_unspecified
+        or addr.is_reserved
+    )
+
+
+def _validate_relay_url(raw_url: str, label: str = "Endpoint URL") -> str:
+    """Validate an admin-configured notification relay URL against SSRF targets."""
+    cleaned = (raw_url or "").strip()
+    if not cleaned:
+        raise ValueError(f"{label} is required")
+    if any(ch in cleaned for ch in ("\r", "\n", "\x00")):
+        raise ValueError(f"{label} contains invalid control characters")
+
+    parsed = urllib.parse.urlsplit(cleaned)
+    scheme = parsed.scheme.lower()
+    if scheme not in ("http", "https"):
+        raise ValueError(f"{label} must use http:// or https://")
+    if parsed.username or parsed.password:
+        raise ValueError(f"{label} must not embed credentials")
+
+    host = (parsed.hostname or "").strip().lower().rstrip(".")
+    if not host or host in _BLOCKED_METADATA_HOSTS:
+        raise ValueError(f"{label} host is not permitted")
+
+    try:
+        ip_obj = ipaddress.ip_address(host)
+    except ValueError:
+        ip_obj = None
+
+    if ip_obj is not None:
+        if _is_disallowed_ip(ip_obj):
+            raise ValueError(f"{label} points to a disallowed IP range")
+    else:
+        try:
+            addr_infos = socket.getaddrinfo(
+                host, parsed.port or (443 if scheme == "https" else 80)
+            )
+            for info in addr_infos:
+                resolved = ipaddress.ip_address(info[4][0].split("%", 1)[0])
+                if _is_disallowed_ip(resolved):
+                    raise ValueError(f"{label} resolves to a disallowed IP range")
+        except socket.gaierror:
+            pass
+
+    return urllib.parse.urlunsplit(
+        (scheme, parsed.netloc, parsed.path, parsed.query, "")
+    )
 
 
 class NotificationRelayService:
@@ -31,6 +97,7 @@ class NotificationRelayService:
             raise ValueError("Pushify endpoint URL is required")
         if not api_key:
             raise ValueError("Pushify API key is required")
+        safe_endpoint = _validate_relay_url(endpoint_url, "Pushify endpoint URL")
 
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -48,8 +115,8 @@ class NotificationRelayService:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            resp = await client.post(endpoint_url, headers=headers, json=payload)
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+            resp = await client.post(safe_endpoint, headers=headers, json=payload)
             if resp.status_code not in (200, 201, 202, 204):
                 raise RuntimeError(
                     f"Pushify returned HTTP {resp.status_code}: {resp.text[:200]}"
@@ -108,8 +175,11 @@ class NotificationRelayService:
         if not topic:
             raise ValueError("Ntfy topic is required")
 
-        clean_server = (server_url or "https://ntfy.sh").rstrip("/")
-        publish_url = f"{clean_server}/{topic}"
+        safe_server = _validate_relay_url(
+            server_url or "https://ntfy.sh", "Ntfy server URL"
+        ).rstrip("/")
+        safe_topic = urllib.parse.quote(topic.strip("/"), safe="-_")
+        publish_url = f"{safe_server}/{safe_topic}"
 
         tag_map = {
             "info": "information_source",
@@ -128,7 +198,7 @@ class NotificationRelayService:
         if auth_token:
             headers["Authorization"] = f"Bearer {auth_token}"
 
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
             resp = await client.post(
                 publish_url, headers=headers, content=message.encode("utf-8")
             )
@@ -149,8 +219,7 @@ class NotificationRelayService:
         action_url: str | None,
         event_type: str,
     ) -> dict[str, Any]:
-        if not url:
-            raise ValueError("Webhook URL is required")
+        safe_url = _validate_relay_url(url, "Webhook URL")
 
         headers = {
             "Content-Type": "application/json",
@@ -168,8 +237,8 @@ class NotificationRelayService:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            resp = await client.post(url, headers=headers, json=payload)
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+            resp = await client.post(safe_url, headers=headers, json=payload)
             if resp.status_code not in (200, 201, 202, 204):
                 raise RuntimeError(
                     f"Webhook returned HTTP {resp.status_code}: {resp.text[:200]}"

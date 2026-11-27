@@ -10,6 +10,7 @@ import asyncio
 import calendar
 import json
 import logging
+import urllib.parse
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
@@ -315,7 +316,17 @@ def parse_google_flights_html(
     script = parser.css_first(r"script.ds\:1")
     if script is None:
         lower_html = html.lower()
-        if "consent.google.com" in lower_html or "consentui" in lower_html:
+        has_consent_host = any(
+            (
+                urllib.parse.urlparse(
+                    el.attributes.get("href") or el.attributes.get("action") or ""
+                ).hostname
+                or ""
+            ).lower()
+            == "consent.google.com"
+            for el in parser.css("base[href], a[href], form[action]")
+        )
+        if has_consent_host or "consentui" in lower_html:
             raise ProviderBlockedError(
                 "Google Flights redirected to consent wall (check MARKET_GOOGLE_FLIGHTS_SOCS_COOKIE)"
             )

@@ -887,7 +887,7 @@ def classify_text_document(
 
     ref_code = None
     for pnr_match in re.finditer(
-        r"\b(?:PNR|Booking\s*Reference|Booking\s*Ref|Reservation(?:\s*Reference|\s*Ref)?|Localizador|Confirmation(?:\s*Number|\s*Code|\s*Ref)?|Reference|Ref)(?:[\s/]+(?:PNR|Ref|Código|Code))*(?:[ \t#:\(\)\-]+)+([A-Z0-9\-]{5,14})\b",
+        r"\b(?:PNR|Booking[ \t]*Reference|Booking[ \t]*Ref|Reservation(?:[ \t]*Reference|[ \t]*Ref)?|Localizador|Confirmation(?:[ \t]*Number|[ \t]*Code|[ \t]*Ref)?|Reference|Ref)(?:[ \t/]+(?:PNR|Ref|Código|Code))?[ \t#:\(\)\-]+([A-Z0-9\-]{5,14})\b",
         text,
         re.IGNORECASE,
     ):
@@ -1287,7 +1287,7 @@ def classify_text_document(
         hotel_addr = addr_m.group(1).strip() if addr_m else None
 
         price_m = re.search(
-            r"\b(?:Total\s*Price|Total|Price|Precio)[:\s#]*(?:EUR|USD|GBP|€|\$|£)?\s*(\d+(?:[.,]\d{2})?)",
+            r"\b(?:Total\s*Price|Total|Price|Precio)[:\s#]*(?:(?:EUR|USD|GBP|€|\$|£)\s*)?(\d+(?:[.,]\d{2})?)",
             text,
             re.IGNORECASE,
         )

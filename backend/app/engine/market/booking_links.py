@@ -58,6 +58,19 @@ def _normalize_ryanair_select_url(
     )
 
 
+def _host_matches(host: str, domain: str) -> bool:
+    return host == domain or host.endswith("." + domain)
+
+
+def _is_google_host(host: str) -> bool:
+    parts = host.split(".")
+    return len(parts) >= 2 and ("google" in parts[:-1])
+
+
+def _normalize_host(parsed: urllib.parse.ParseResult) -> str:
+    return (parsed.hostname or "").lower()
+
+
 def build_flight_booking_url(
     origin: str,
     destination: str,
@@ -79,14 +92,14 @@ def build_flight_booking_url(
 
         if raw.startswith("http://") or raw.startswith("https://"):
             parsed = urllib.parse.urlparse(raw)
-            host = (parsed.netloc or "").lower()
+            host = _normalize_host(parsed)
             path = (parsed.path or "").rstrip("/")
 
             # Bare Google Flights URL with no query string -> build a pre-filled search
-            if "google." in host and path == "/travel/flights" and not parsed.query:
+            if _is_google_host(host) and path == "/travel/flights" and not parsed.query:
                 raw = ""
             # Ryanair /trip/flights/select requires full query params for the SPA
-            elif "ryanair.com" in host and "/trip/flights/select" in path:
+            elif _host_matches(host, "ryanair.com") and "/trip/flights/select" in path:
                 normalized = _normalize_ryanair_select_url(
                     raw, orig, dest, dep_str, travelers
                 )
@@ -130,26 +143,28 @@ def build_hotel_booking_url(
 
         if raw.startswith("http://") or raw.startswith("https://"):
             parsed = urllib.parse.urlparse(raw)
-            host = (parsed.netloc or "").lower()
+            host = _normalize_host(parsed)
             path = (parsed.path or "").lower()
             qs = urllib.parse.parse_qs(parsed.query, keep_blank_values=False)
 
             # Bare or broken search URLs without an actual search target
             is_bare_booking_search = (
-                "booking.com" in host and "searchresults" in path and not qs.get("ss")
+                _host_matches(host, "booking.com")
+                and "searchresults" in path
+                and not qs.get("ss")
             )
             is_bare_google_search = (
-                "google." in host and "/travel/search" in path and not qs.get("q")
+                _is_google_host(host) and "/travel/search" in path and not qs.get("q")
             )
             is_broken_agoda = (
-                "agoda.com" in host
+                _host_matches(host, "agoda.com")
                 and "/search" in path
                 and qs.get("city")
                 and not qs["city"][0].isdigit()
             )
 
             if not (is_bare_booking_search or is_bare_google_search or is_broken_agoda):
-                if "booking.com" in host:
+                if _host_matches(host, "booking.com"):
                     flat_qs = {k: v[0] for k, v in qs.items() if v}
                     if cin_str and "checkin" not in flat_qs:
                         flat_qs["checkin"] = cin_str

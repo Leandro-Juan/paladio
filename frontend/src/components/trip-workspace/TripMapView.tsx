@@ -14,7 +14,7 @@ import { InfoIcon, CrosshairIcon, CloseIcon, RadarIcon } from '@/components/icon
 import { createRouteCardDragImage, startCustomDragPreview, cleanupCustomDragPreview, MainTabType } from './TripUnifiedSidebar';
 import { usePoiPhotos } from '@/hooks/usePoiPhotos';
 import { ActiveTransitLineData } from '@/utils/transitColors';
-import { apiFetch, getApiBaseUrl } from '@/utils/api';
+import { apiFetch, getApiBaseUrl, sanitizeImageUrl } from '@/utils/api';
 import { useTranslation } from '@/hooks/useTranslation';
 import { translate } from '@/stores/localeStore';
 
@@ -769,7 +769,15 @@ function renderTeardropPinHtml({
 }: TeardropPinConfig): string {
   const meta = classifyPoiCategory(categoryType, name);
   const svg = getCategorySvg(meta.type);
-  const nameSafe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const escapeHtmlAttr = (val: string): string =>
+    val
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  const nameSafe = escapeHtmlAttr(name);
+  const safePhotoUrl = escapeHtmlAttr(sanitizeImageUrl(photoUrl));
   const hullColor = typeof dayNumber === 'number' && dayNumber > 0 ? getDayColor(dayNumber) : null;
   const pinColor = hullColor || (isFocused ? '#1E293B' : (meta.color || '#475569'));
   const pinBorderColor = isFocused
@@ -778,8 +786,8 @@ function renderTeardropPinHtml({
     ? 'rgba(255, 255, 255, 0.75)'
     : 'rgba(255, 255, 255, 0.45)';
 
-  const innerContent = photoUrl
-    ? `<img draggable="false" src="${photoUrl}" alt="${nameSafe}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`
+  const innerContent = safePhotoUrl
+    ? `<img draggable="false" src="${safePhotoUrl}" alt="${nameSafe}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" /><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`
     : `<div style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;color:#FFFFFF;background:#1E293B;border-radius:50%;">${svg}</div>`;
 
   const stopBadge = typeof stopNumber === 'number'

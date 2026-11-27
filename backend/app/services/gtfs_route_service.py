@@ -33,7 +33,7 @@ class GTFSRouteFinder:
     """
 
     def __init__(self, gtfs_dir: str):
-        self.gtfs_dir = gtfs_dir
+        self.gtfs_dir = os.path.realpath(gtfs_dir)
         self.stops: dict[str, dict[str, Any]] = {}
         self.translations: dict[tuple[str, str], str] = {}
         self.routes: dict[str, dict[str, Any]] = {}
@@ -43,18 +43,26 @@ class GTFSRouteFinder:
         self.transfer_hubs: dict[str, list[tuple[str, float]]] = defaultdict(list)
         self.load()
 
+    def _resolve_feed_file(self, filename: str) -> str | None:
+        base_dir = os.path.realpath(self.gtfs_dir)
+        candidate = os.path.realpath(os.path.join(base_dir, filename))
+        if not candidate.startswith(base_dir + os.sep):
+            return None
+        return candidate
+
     def load(self) -> None:
-        if not os.path.isdir(self.gtfs_dir):
+        base_dir = os.path.realpath(self.gtfs_dir)
+        if not os.path.isdir(base_dir):
             return
 
         # 1. Translations
-        helper = GTFSTranslationHelper(self.gtfs_dir)
+        helper = GTFSTranslationHelper(base_dir)
         self.translation_helper = helper
         self.translations = {**helper.field_translations, **helper.translations}
 
         # 2. Stops
-        stops_file = os.path.join(self.gtfs_dir, "stops.txt")
-        if os.path.exists(stops_file):
+        stops_file = self._resolve_feed_file("stops.txt")
+        if stops_file and os.path.exists(stops_file):
             try:
                 with open(stops_file, "r", encoding="utf-8", errors="replace") as f:
                     for row in csv.DictReader(f):
@@ -87,11 +95,11 @@ class GTFSRouteFinder:
                             "lon": s_lon,
                         }
             except Exception as e:
-                logger.debug(f"Could not load stops.txt from {self.gtfs_dir}: {e}")
+                logger.debug(f"Could not load stops.txt from {base_dir}: {e}")
 
         # 3. Routes
-        routes_file = os.path.join(self.gtfs_dir, "routes.txt")
-        if os.path.exists(routes_file):
+        routes_file = self._resolve_feed_file("routes.txt")
+        if routes_file and os.path.exists(routes_file):
             type_names = {"0": "Tram", "1": "Metro", "2": "Rail", "3": "Bus"}
             try:
                 with open(routes_file, "r", encoding="utf-8", errors="replace") as f:
@@ -121,12 +129,12 @@ class GTFSRouteFinder:
                             "type": r_type,
                         }
             except Exception as e:
-                logger.debug(f"Could not load routes.txt from {self.gtfs_dir}: {e}")
+                logger.debug(f"Could not load routes.txt from {base_dir}: {e}")
 
         # 4. Trips & Stop Times
-        trips_file = os.path.join(self.gtfs_dir, "trips.txt")
+        trips_file = self._resolve_feed_file("trips.txt")
         trip_routes: dict[str, str] = {}
-        if os.path.exists(trips_file):
+        if trips_file and os.path.exists(trips_file):
             try:
                 with open(trips_file, "r", encoding="utf-8", errors="replace") as f:
                     for row in csv.DictReader(f):
@@ -135,10 +143,10 @@ class GTFSRouteFinder:
                         if t_id and r_id:
                             trip_routes[t_id] = r_id
             except Exception as e:
-                logger.debug(f"Could not load trips.txt from {self.gtfs_dir}: {e}")
+                logger.debug(f"Could not load trips.txt from {base_dir}: {e}")
 
-        stop_times_file = os.path.join(self.gtfs_dir, "stop_times.txt")
-        if os.path.exists(stop_times_file) and trip_routes:
+        stop_times_file = self._resolve_feed_file("stop_times.txt")
+        if stop_times_file and os.path.exists(stop_times_file) and trip_routes:
             seen_route_stops: dict[str, set[str]] = defaultdict(set)
             try:
                 with open(
@@ -451,12 +459,19 @@ def get_gtfs_route_finder(city_name: str) -> GTFSRouteFinder | None:
     if not city_name:
         return None
     city_clean = re.sub(r"[^a-z0-9_-]", "", city_name.strip().lower())
+    if not city_clean:
+        return None
     if city_clean in _FINDERS:
         return _FINDERS[city_clean]
 
-    city_gtfs_dir = os.path.join(GTFS_BASE_DIR, city_clean)
-    if not os.path.isdir(city_gtfs_dir) or not os.path.exists(
-        os.path.join(city_gtfs_dir, "stops.txt")
+    base_dir = os.path.realpath(GTFS_BASE_DIR)
+    city_gtfs_dir = os.path.realpath(os.path.join(base_dir, city_clean))
+    stops_path = os.path.realpath(os.path.join(city_gtfs_dir, "stops.txt"))
+    if (
+        not city_gtfs_dir.startswith(base_dir + os.sep)
+        or not stops_path.startswith(city_gtfs_dir + os.sep)
+        or not os.path.isdir(city_gtfs_dir)
+        or not os.path.exists(stops_path)
     ):
         _FINDERS[city_clean] = None
         return None

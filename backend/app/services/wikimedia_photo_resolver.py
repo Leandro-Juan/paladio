@@ -36,10 +36,130 @@ class ResolvedPhoto:
         return asdict(self)
 
 
+_WIKI_HOST_MAP: dict[str, str] = {
+    **{
+        f"{chr(a)}{chr(b)}": f"{chr(a)}{chr(b)}.wikipedia.org"
+        for a in range(ord("a"), ord("z") + 1)
+        for b in range(ord("a"), ord("z") + 1)
+    },
+    **{
+        code: f"{code}.wikipedia.org"
+        for code in (
+            "simple",
+            "ceb",
+            "war",
+            "ast",
+            "arz",
+            "azb",
+            "bcl",
+            "bpy",
+            "bxr",
+            "cdo",
+            "chr",
+            "ckb",
+            "diq",
+            "dsb",
+            "dty",
+            "ext",
+            "frp",
+            "frr",
+            "fur",
+            "gag",
+            "gan",
+            "glk",
+            "gom",
+            "gor",
+            "got",
+            "hak",
+            "haw",
+            "hif",
+            "hsb",
+            "ilo",
+            "jam",
+            "jbo",
+            "kaa",
+            "kab",
+            "kbd",
+            "kbp",
+            "koi",
+            "krc",
+            "ksh",
+            "lad",
+            "lbe",
+            "lez",
+            "lij",
+            "lmo",
+            "ltg",
+            "mai",
+            "mdf",
+            "mhr",
+            "min",
+            "mrj",
+            "mwl",
+            "myv",
+            "mzn",
+            "nah",
+            "nap",
+            "nds",
+            "new",
+            "nov",
+            "nrm",
+            "nso",
+            "olo",
+            "pag",
+            "pam",
+            "pap",
+            "pcd",
+            "pdc",
+            "pfl",
+            "pih",
+            "pms",
+            "pnb",
+            "pnt",
+            "rmy",
+            "rue",
+            "sah",
+            "scn",
+            "sco",
+            "sgs",
+            "shn",
+            "srn",
+            "stq",
+            "szl",
+            "tet",
+            "tpi",
+            "tum",
+            "tyv",
+            "udm",
+            "vec",
+            "vep",
+            "vls",
+            "vro",
+            "wuu",
+            "xal",
+            "xmf",
+            "zea",
+            "zh-classical",
+            "zh-min-nan",
+            "zh-yue",
+            "be-tarask",
+            "bat-smg",
+            "nds-nl",
+            "roa-tara",
+            "fiu-vro",
+        )
+    },
+}
+
+
+def _host_matches(host: str, domain: str) -> bool:
+    return host == domain or host.endswith("." + domain)
+
+
 def _strip_html(text: str | None) -> str | None:
     if not text:
         return None
-    cleaned = re.sub(r"<[^>]+>", "", text).strip()
+    cleaned = re.sub(r"<[^<>]+>", "", text).strip()
     return cleaned if cleaned else None
 
 
@@ -51,7 +171,7 @@ def _is_direct_image_url(url: str | None) -> bool:
     if not url.startswith(("http://", "https://")):
         return False
     parsed = urllib.parse.urlparse(url)
-    netloc = parsed.netloc.lower()
+    host = (parsed.hostname or "").lower()
     path = parsed.path.lower()
 
     # Reject known web page / sharing / album domains
@@ -59,23 +179,21 @@ def _is_direct_image_url(url: str | None) -> bool:
         "photos.app.goo.gl",
         "photos.google.com",
         "flickr.com",
-        "www.flickr.com",
         "instagram.com",
-        "www.instagram.com",
         "facebook.com",
-        "www.facebook.com",
         "tripadvisor.com",
-        "www.tripadvisor.com",
     )
-    if any(netloc == b or netloc.endswith("." + b) for b in blocked_domains):
+    if any(_host_matches(host, b) for b in blocked_domains):
         return False
 
     # Reject wiki article / file view pages (e.g. https://commons.wikimedia.org/wiki/File:...)
-    if "commons.wikimedia.org" in netloc and "/wiki/" in path:
+    if _host_matches(host, "commons.wikimedia.org") and "/wiki/" in path:
         return False
 
     # Direct Wikimedia uploads
-    if "upload.wikimedia.org" in netloc or "thumb.wikimedia.org" in netloc:
+    if _host_matches(host, "upload.wikimedia.org") or _host_matches(
+        host, "thumb.wikimedia.org"
+    ):
         return True
 
     # Standard direct image file extensions
@@ -129,7 +247,7 @@ def _is_title_relevant(
         return False
 
     # Check candidate title without parenthetical annotations, e.g. "Prado Museum (Madrid)" -> "Prado Museum"
-    cand_base = re.sub(r"\s*\([^)]*\)", "", candidate_title).strip()
+    cand_base = re.sub(r"\([^()]*\)", "", candidate_title).strip()
     norm_cand = _normalize_text(cand_base)
     cand_tokens = set(norm_cand.split())
 
@@ -594,9 +712,20 @@ class WikimediaPhotoResolver:
                 titles_to_try.append(("en", clean_name))
 
             for lang, title in titles_to_try:
+                wiki_host = _WIKI_HOST_MAP.get(str(lang).strip().lower())
+                if not wiki_host or not title:
+                    continue
                 try:
                     enc_title = urllib.parse.quote(title)
-                    url = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{enc_title}"
+                    url = urllib.parse.urlunsplit(
+                        (
+                            "https",
+                            wiki_host,
+                            f"/api/rest_v1/page/summary/{enc_title}",
+                            "",
+                            "",
+                        )
+                    )
                     resp = await client.get(url)
                     if resp.status_code == 200:
                         data = resp.json()
