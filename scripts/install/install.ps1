@@ -1,6 +1,6 @@
 # ==============================================================================
 # Paladio - Sovereign Travel Optimization Engine
-# Single-Command One-Line Installer for Windows (PowerShell 5.1+ / 7+)
+# Single-Command Consumer Installer for Windows (PowerShell 5.1+ / 7+)
 # ==============================================================================
 # Usage (PowerShell):
 #   irm https://raw.githubusercontent.com/Leandro-Juan/paladio/main/scripts/install/install.ps1 | iex
@@ -43,7 +43,7 @@ function Install-Paladio {
         Write-Host ""
     }
 
-    function New-HexSecret([int]$ByteCount) {
+    function New-RandomBytes([int]$ByteCount) {
         $bytes = New-Object byte[] $ByteCount
         $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
         try {
@@ -51,12 +51,52 @@ function Install-Paladio {
         } finally {
             $rng.Dispose()
         }
+        return $bytes
+    }
+
+    function New-HexSecret([int]$ByteCount) {
+        $bytes = New-RandomBytes $ByteCount
         return ([BitConverter]::ToString($bytes) -replace "-", "").ToLowerInvariant()
+    }
+
+    function New-FernetKey {
+        $bytes = New-RandomBytes 32
+        return [Convert]::ToBase64String($bytes).Replace("+", "-").Replace("/", "_")
+    }
+
+    function Read-EnvValue([string]$Path, [string]$Key) {
+        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+            return $null
+        }
+        $pattern = "^\s*" + [Regex]::Escape($Key) + "=(.*)$"
+        $matchLine = Get-Content -LiteralPath $Path | Where-Object { $_ -match $pattern } | Select-Object -Last 1
+        if (-not $matchLine) {
+            return $null
+        }
+        if ($matchLine -match $pattern) {
+            $val = $Matches[1].Trim()
+            if (($val.StartsWith('"') -and $val.EndsWith('"')) -or ($val.StartsWith("'") -and $val.EndsWith("'"))) {
+                if ($val.Length -ge 2) {
+                    $val = $val.Substring(1, $val.Length - 2)
+                }
+            }
+            return $val
+        }
+        return $null
+    }
+
+    function Test-HttpOk([string]$Url) {
+        try {
+            $resp = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 3
+            return ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 300)
+        } catch {
+            return $false
+        }
     }
 
     Show-Banner
 
-    # --- Step 1: Preflight Dependency Checks ---
+    # --- Step 1: Preflight Dependency & Hardware Checks ---
     Write-Info "Running preflight environment checks..."
 
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -88,6 +128,18 @@ function Install-Paladio {
         return
     }
 
+    try {
+        $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
+        if ($cs -and $cs.TotalPhysicalMemory) {
+            $ramMb = [int][Math]::Floor($cs.TotalPhysicalMemory / 1MB)
+            if ($ramMb -lt 7500) {
+                Write-Warn "Detected $ramMb MB RAM. Paladio recommends at least 8 GB (8192 MB) RAM for Postgres, Valhalla routing, and ONNX embeddings."
+            }
+        }
+    } catch {
+        # Ignore WMI/CIM failures on non-Windows PowerShell hosts
+    }
+
     Write-Success "Docker Engine and Compose v2 verified."
 
     # --- Step 2: Determine Installation Directory ---
@@ -116,11 +168,24 @@ function Install-Paladio {
         # --- Step 3: Fetch docker-compose.yml if not present ---
         $composePath = Join-Path $installDir "docker-compose.yml"
         if (-not (Test-Path -LiteralPath $composePath -PathType Leaf)) {
-            Write-Info "Downloading docker-compose.yml from repository..."
-            $composeUrl = "https://raw.githubusercontent.com/Leandro-Juan/paladio/main/docker-compose.yml"
+            $composeUrl = if (-not [string]::IsNullOrWhiteSpace($env:PALADIO_COMPOSE_URL)) {
+                $env:PALADIO_COMPOSE_URL
+            } else {
+                "https://raw.githubusercontent.com/Leandro-Juan/paladio/main/docker-compose.yml"
+            }
+            Write-Info "Downloading docker-compose.yml from $composeUrl..."
+            $tmpComposePath = "$composePath.tmp"
             try {
-                Invoke-WebRequest -Uri $composeUrl -OutFile $composePath -UseBasicParsing
+                Invoke-WebRequest -Uri $composeUrl -OutFile $tmpComposePath -UseBasicParsing
+                $composeContent = Get-Content -LiteralPath $tmpComposePath -Raw
+                if ($composeContent -notmatch "(?m)^\s*services:") {
+                    Remove-Item -LiteralPath $tmpComposePath -Force -ErrorAction SilentlyContinue
+                    Write-Err "Downloaded file is not a valid Docker Compose manifest."
+                    return
+                }
+                Move-Item -LiteralPath $tmpComposePath -Destination $composePath -Force
             } catch {
+                Remove-Item -LiteralPath $tmpComposePath -Force -ErrorAction SilentlyContinue
                 Write-Err "Failed to download docker-compose.yml: $($_.Exception.Message)"
                 return
             }
@@ -134,6 +199,7 @@ function Install-Paladio {
 
             $pgPass = New-HexSecret 20
             $jwtKey = New-HexSecret 32
+            $walletKey = New-FernetKey
 
             $envLines = @(
                 "# ==============================================================================",
@@ -144,10 +210,30 @@ function Install-Paladio {
                 "POSTGRES_DB=paladio",
                 "",
                 "JWT_SECRET_KEY=$jwtKey",
+                "WALLET_ENCRYPTION_KEY=$walletKey",
                 "ENVIRONMENT=production",
                 "ACCESS_TOKEN_EXPIRE_MINUTES=1440",
-                ""
+                "API_WORKERS=1"
             )
+
+            $optionalVars = @(
+                "API_PORT",
+                "FRONTEND_PORT",
+                "PALADIO_VERSION",
+                "PALADIO_API_IMAGE",
+                "PALADIO_FRONTEND_IMAGE",
+                "PALADIO_PUBLIC_API_URL",
+                "VALHALLA_TILE_URLS",
+                "ALLOWED_ORIGINS"
+            )
+            foreach ($optVar in $optionalVars) {
+                $optVal = [Environment]::GetEnvironmentVariable($optVar)
+                if (-not [string]::IsNullOrWhiteSpace($optVal)) {
+                    $envLines += "${optVar}=${optVal}"
+                }
+            }
+            $envLines += ""
+
             # Use LF line endings and UTF-8 without BOM for Docker Compose compatibility
             $envContent = $envLines -join "`n"
             $utf8NoBom = New-Object System.Text.UTF8Encoding $false
@@ -166,7 +252,25 @@ function Install-Paladio {
             Write-Info "Existing .env detected; preserving current secrets."
         }
 
-        # --- Step 5: Launch Containers ---
+        $apiPort = if (-not [string]::IsNullOrWhiteSpace($env:API_PORT)) { $env:API_PORT } else { Read-EnvValue $envPath "API_PORT" }
+        if ([string]::IsNullOrWhiteSpace($apiPort)) { $apiPort = "8000" }
+
+        $frontendPort = if (-not [string]::IsNullOrWhiteSpace($env:FRONTEND_PORT)) { $env:FRONTEND_PORT } else { Read-EnvValue $envPath "FRONTEND_PORT" }
+        if ([string]::IsNullOrWhiteSpace($frontendPort)) { $frontendPort = "3000" }
+
+        # --- Step 5: Pull & Launch Containers ---
+        if ($env:PALADIO_NO_PULL -ne "1") {
+            Write-Info "Pulling Paladio container images..."
+            $ErrorActionPreference = "Continue"
+            docker compose pull
+            $pullExit = $LASTEXITCODE
+            $ErrorActionPreference = $prevPref
+            if ($pullExit -ne 0) {
+                Write-Err "docker compose pull failed with exit code $pullExit."
+                return
+            }
+        }
+
         Write-Info "Launching Paladio services with Docker Compose..."
         $ErrorActionPreference = "Continue"
         docker compose up -d
@@ -179,24 +283,16 @@ function Install-Paladio {
         }
 
         # --- Step 6: Healthcheck Verification ---
-        $apiPort = if ($env:API_PORT) { $env:API_PORT } else { "8000" }
-        $frontendPort = if ($env:FRONTEND_PORT) { $env:FRONTEND_PORT } else { "3000" }
+        Write-Info "Waiting for backend API and web UI to initialize (migrations + startup, up to 180s)..."
 
-        Write-Info "Waiting for backend services to initialize (this may take a few seconds)..."
-
-        $maxRetries = 30
+        $maxRetries = 90
         $retryCount = 0
         $healthy = $false
 
         while ($retryCount -lt $maxRetries) {
-            try {
-                $resp = Invoke-WebRequest -Uri "http://127.0.0.1:${apiPort}/health" -UseBasicParsing -TimeoutSec 2
-                if ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 300) {
-                    $healthy = $true
-                    break
-                }
-            } catch {
-                # Service still starting
+            if ((Test-HttpOk "http://127.0.0.1:${apiPort}/health") -and (Test-HttpOk "http://127.0.0.1:${frontendPort}/")) {
+                $healthy = $true
+                break
             }
             Start-Sleep -Seconds 2
             $retryCount++
@@ -205,46 +301,28 @@ function Install-Paladio {
         Write-Host ""
 
         if ($healthy) {
-            Write-Success "Backend API is online and healthy!"
-
-            # --- Step 7: Initialize Database & Transit Fare Catalog ---
-            Write-Info "Ensuring database migrations and transit fare catalog are up to date..."
-            $ErrorActionPreference = "Continue"
-            docker compose exec -T api alembic upgrade head
-            $migrateExit = $LASTEXITCODE
-            $seedExit = 1
-            if ($migrateExit -eq 0) {
-                docker compose exec -T api python scripts/migrate_verified_fares_to_quotes.py
-                $seedExit = $LASTEXITCODE
-            }
-            $ErrorActionPreference = $prevPref
-
-            if ($migrateExit -eq 0 -and $seedExit -eq 0) {
-                Write-Success "Database schema and transit fare catalog initialized."
-            } else {
-                Write-Warn "Database initialization returned a non-zero exit code. Once services are ready, run:"
-                Write-Warn "  docker compose exec api alembic upgrade head"
-                Write-Warn "  docker compose exec api python scripts/migrate_verified_fares_to_quotes.py"
-            }
+            Write-Success "Paladio Web UI and Backend API are online and healthy!"
         } else {
-            Write-Warn "Backend is still initializing. Check logs with: docker compose logs -f"
-            Write-Warn "Once healthy, initialize the database and transit fare catalog with:"
-            Write-Warn "  docker compose exec api alembic upgrade head"
-            Write-Warn "  docker compose exec api python scripts/migrate_verified_fares_to_quotes.py"
+            Write-Warn "Services are still initializing after 180s. Check progress with:"
+            Write-Warn "  cd `"$installDir`"; docker compose ps; docker compose logs -f"
         }
 
-        # --- Step 8: Final Instruction Banner ---
+        # --- Step 7: Final Instruction Banner ---
         Write-Host ""
-        Write-Host "+-------------------------------------------------------------+" -ForegroundColor Cyan
-        Write-Host "|  Paladio is successfully installed and running!             |" -ForegroundColor Cyan
-        Write-Host "|                                                             |" -ForegroundColor Cyan
-        Write-Host ("|  Web App:       http://localhost:{0,-26} |" -f $frontendPort) -ForegroundColor Cyan
-        Write-Host ("|  API Docs:      http://localhost:{0}/docs{1} |" -f $apiPort, (" " * [Math]::Max(0, 21 - $apiPort.Length))) -ForegroundColor Cyan
-        Write-Host "|                                                             |" -ForegroundColor Cyan
-        Write-Host ("|  First-Run: Open http://localhost:{0} to complete{1} |" -f $frontendPort, (" " * [Math]::Max(0, 12 - $frontendPort.Length))) -ForegroundColor Cyan
-        Write-Host "|  admin onboarding. The first registered account is auto-    |" -ForegroundColor Cyan
-        Write-Host "|  promoted to Administrator.                                 |" -ForegroundColor Cyan
-        Write-Host "+-------------------------------------------------------------+" -ForegroundColor Cyan
+        Write-Host "-------------------------------------------------------------" -ForegroundColor Cyan
+        Write-Host "  Paladio is installed!" -ForegroundColor White
+        Write-Host ""
+        Write-Host ("  Web App:       http://localhost:{0}" -f $frontendPort) -ForegroundColor Cyan
+        Write-Host ("  API Docs:      http://localhost:{0}/docs" -f $apiPort) -ForegroundColor Cyan
+        Write-Host ("  Install Dir:   {0}" -f $installDir)
+        Write-Host ""
+        Write-Host "  First-Run: Open the Web App URL above to complete /setup." -ForegroundColor Yellow
+        Write-Host "  The first registered account is promoted to Administrator."
+        Write-Host ""
+        Write-Host "  Logs:    docker compose logs -f"
+        Write-Host "  Update:  docker compose pull; docker compose up -d"
+        Write-Host "  Stop:    docker compose down"
+        Write-Host "-------------------------------------------------------------" -ForegroundColor Cyan
         Write-Host ""
     } finally {
         Pop-Location
