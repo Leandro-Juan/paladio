@@ -24,7 +24,7 @@ function readJwtFromAuthState() {
   throw new Error('paladio_token not found in auth_state.json');
 }
 
-async function prepareTasteAndFetchPoiId(token) {
+async function resetTasteProfile(token) {
   const headers = {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
@@ -46,56 +46,11 @@ async function prepareTasteAndFetchPoiId(token) {
   if (!resetRes.ok) {
     throw new Error(`Failed POST /api/users/me/taste/reset: ${resetRes.status} ${await resetRes.text()}`);
   }
-
-  // Search Tokyo POIs (note backend query param is `query`, also check `q` fallback)
-  const searchUrl = `${API_URL}/api/pois/search?city=Tokyo&query=Senso&limit=10`;
-  const searchRes = await fetch(searchUrl, { headers });
-  if (!searchRes.ok) {
-    throw new Error(`Failed GET ${searchUrl}: ${searchRes.status}`);
-  }
-  const data = await searchRes.json();
-  const candidates = [
-    ...(data.exact_match ? [data.exact_match] : []),
-    ...(Array.isArray(data.results) ? data.results : []),
-  ];
-
-  // Prefer a candidate with photo + opening hours / multiple photos
-  let chosenId = null;
-  for (const cand of candidates) {
-    if (!cand?.id) continue;
-    const hasThumb = Boolean(cand.photo_url || cand.thumbnail_url);
-    if (!hasThumb && candidates.some((c) => c?.photo_url || c?.thumbnail_url)) {
-      continue;
-    }
-    try {
-      const detailRes = await fetch(`${API_URL}/api/pois/${encodeURIComponent(cand.id)}`, { headers });
-      if (detailRes.ok) {
-        const detail = await detailRes.json();
-        if (Array.isArray(detail.photos) && detail.photos.length > 0) {
-          chosenId = cand.id;
-          if (detail.photos.length > 1 && Array.isArray(detail.daily_windows) && detail.daily_windows.length > 0) {
-            break;
-          }
-        }
-      }
-    } catch {
-      // ignore and fall back to candidate id
-    }
-    if (!chosenId) chosenId = cand.id;
-  }
-
-  if (!chosenId) {
-    chosenId = candidates[0]?.id;
-  }
-  if (!chosenId) {
-    throw new Error('Could not find a Tokyo POI id for Senso-ji');
-  }
-  return chosenId;
 }
 
 async function main() {
   const token = readJwtFromAuthState();
-  const poiId = await prepareTasteAndFetchPoiId(token);
+  await resetTasteProfile(token);
 
   const { browser, context, page, logs, cursorState, markContentStart } = await createRecorderContext({
     name: '10_taste_calibration_and_pois',
@@ -113,7 +68,7 @@ async function main() {
     },
   });
 
-  stepLog(cursorState, `prepared taste reset and Tokyo POI id=${poiId}`);
+  stepLog(cursorState, 'prepared taste profile reset');
 
   // 1. Dashboard -> Showcase SeedTasteCard -> /taste-calibration
   await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'domcontentloaded' });
@@ -198,59 +153,10 @@ async function main() {
   stepLog(cursorState, 'showcasing calibrated HarmonicRadarWidget on dashboard');
   const radarCard = page.locator('text=Taste Star').first();
   if (await radarCard.isVisible().catch(() => false)) {
-    await humanHover(page, cursorState, radarCard, { pauseMs: 1200 });
+    await humanHover(page, cursorState, radarCard, { pauseMs: 1400 });
   } else {
     await page.waitForTimeout(1000);
   }
-
-  // 3. Standalone PoiDetailView (/pois/<poi_id>)
-  stepLog(cursorState, `navigating to standalone PoiDetailView /pois/${poiId}`);
-  await page.goto(`${BASE_URL}/pois/${encodeURIComponent(poiId)}`, { waitUntil: 'domcontentloaded' });
-  await waitForAppReady(page);
-
-  const poiScroller = page.locator('div.no-scrollbar').first();
-  await poiScroller.waitFor({ state: 'visible', timeout: 12000 });
-
-  // Photo carousel next/prev
-  const nextPhotoBtn = page.locator('button[aria-label="Next photo"]').first();
-  if (await nextPhotoBtn.isVisible().catch(() => false)) {
-    await safeHumanClick(page, cursorState, nextPhotoBtn, { pauseAfter: 650 });
-    await safeHumanClick(page, cursorState, nextPhotoBtn, { pauseAfter: 650 });
-  }
-  const prevPhotoBtn = page.locator('button[aria-label="Previous photo"]').first();
-  if (await prevPhotoBtn.isVisible().catch(() => false)) {
-    await safeHumanClick(page, cursorState, prevPhotoBtn, { pauseAfter: 650 });
-  }
-
-  // Scroll down inside PoiDetailView to show description, hours, export
-  await humanScroll(page, cursorState, poiScroller, 340, 10);
-
-  // Opening hours expand ("All Days")
-  const allDaysBtn = page.getByRole('button', { name: /All Days/i }).first();
-  if (await allDaysBtn.isVisible().catch(() => false)) {
-    await safeHumanClick(page, cursorState, allDaysBtn, { pauseAfter: 900 });
-  }
-
-  await humanScroll(page, cursorState, poiScroller, 220, 8);
-
-  // Export menu open/close
-  const exportMenuBtn = page.getByTestId('poi-export-menu-btn');
-  if (await exportMenuBtn.isVisible().catch(() => false)) {
-    await safeHumanClick(page, cursorState, exportMenuBtn, { pauseAfter: 900 });
-    const closeExportBtn = page.locator('button[aria-label="Close export menu"]').first();
-    if (await closeExportBtn.isVisible().catch(() => false)) {
-      await safeHumanClick(page, cursorState, closeExportBtn, { pauseAfter: 550 });
-    } else {
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(400);
-    }
-  }
-
-  // Back button at top of standalone POI page
-  stepLog(cursorState, 'clicking standalone POI back button');
-  const backBtn = page.getByRole('button', { name: /Return to Search/i }).first();
-  await safeHumanClick(page, cursorState, backBtn, { pauseAfter: 900 });
-  await waitForAppReady(page);
 
   await finalizeChapter({
     page,

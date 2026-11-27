@@ -96,10 +96,7 @@ async function main() {
   if (await routeSearchInput.isVisible().catch(() => false)) {
     await humanType(page, cursorState, routeSearchInput, 'TYO', { clear: true, pauseAfter: 850 });
     await humanType(page, cursorState, routeSearchInput, 'LIS', { clear: true, pauseAfter: 850 });
-    await safeHumanClick(page, cursorState, routeSearchInput, { pauseAfter: 150 });
-    await page.keyboard.press('Control+a');
-    await page.keyboard.press('Backspace');
-    await page.waitForTimeout(600);
+    await humanType(page, cursorState, routeSearchInput, '', { clear: true, pauseAfter: 600 });
   }
 
   // 5. Open NewRouteModal (STRICTLY READ-ONLY — DO NOT SUBMIT!)
@@ -137,7 +134,7 @@ async function main() {
       }
 
       // Open CurrencyWheelPicker briefly & close cleanly
-      const currencyBtn = modal.locator('button[title*="Change currency" i]').first();
+      const currencyBtn = modal.locator('button[data-testid="engine-currency-dial-btn"], button[data-tooltip*="Change currency" i], button[title*="Change currency" i]').first();
       if (await currencyBtn.isVisible().catch(() => false)) {
         await safeHumanClick(page, cursorState, currencyBtn, { pauseAfter: 850 });
         const wheelDialog = page.locator('div[role="dialog"][aria-label*="Select Currency" i]').last();

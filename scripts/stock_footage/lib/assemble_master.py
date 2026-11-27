@@ -58,8 +58,8 @@ CANONICAL_CHAPTERS: list[tuple[str, str, str]] = [
     ),
     (
         "10_taste_calibration_and_pois",
-        "Taste Calibration & Discovery POIs",
-        "Interactive taste preference swipe/rating deck, category weight tuning, semantic RAG affinity preview, and recommended POIs inspection.",
+        "Taste Calibration & Harmonic Radar",
+        "Interactive taste preference swipe/rating deck, category weight tuning, semantic RAG affinity preview, and calibrated Harmonic Radar showcase.",
     ),
     (
         "11_config_all_10_sections",
@@ -122,7 +122,9 @@ def probe_chapter(mp4_path: Path) -> dict[str, float | int]:
 
 def parse_args() -> argparse.Namespace:
     default_repo = Path(__file__).resolve().parents[3]
-    default_out = Path(os.environ.get("STOCK_OUT_DIR", default_repo / "stock-footage"))
+    default_out = Path(
+        os.environ.get("STOCK_OUT_DIR", default_repo / ".local" / "stock-footage")
+    )
     default_work = Path(os.environ.get("STOCK_WORK_DIR", default_out / ".work"))
 
     parser = argparse.ArgumentParser(

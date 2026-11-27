@@ -258,9 +258,9 @@ async function main() {
     await humanType(page, cursorState, page.getByTestId('add-poi-name-input'), 'Bar Trench Ebisu', { pauseAfter: 300 });
     await humanType(page, cursorState, page.getByTestId('add-poi-description-input'), 'Craft cocktail salon in Ebisu known for vintage Japanese bitters and intimate counter seating.', { delay: 20, pauseAfter: 300 });
 
-    // Category select
+    // Category select -> Bar & Cocktail Lounge
     await safeHumanClick(page, cursorState, page.getByTestId('add-poi-category-select'), { pauseAfter: 400 });
-    const catOpt = page.locator('[data-testid^="add-poi-category-option-"]').nth(2);
+    const catOpt = page.getByTestId('add-poi-category-option-bar');
     if (await catOpt.isVisible().catch(() => false)) {
       await safeHumanClick(page, cursorState, catOpt, { pauseAfter: 400 });
     }
@@ -290,10 +290,10 @@ async function main() {
       }
     }
 
-    // Attach real Tokyo photo via hidden input inside AddPoiModal
+    // Attach authentic cocktail bar photo via hidden input inside AddPoiModal
     const fileInput = addModal.locator('input[type="file"]').first();
     await fileInput.setInputFiles(
-      path.join(REPO_ROOT, 'backend', 'data', 'trip_photos', 'demo-trip-tokyo-active', 'tokyo-photo-1.jpg'),
+      path.join(REPO_ROOT, 'scripts', 'stock_footage', 'fixtures', 'bar_trench.jpg'),
     ).catch(() => {});
     await page.waitForTimeout(600);
 

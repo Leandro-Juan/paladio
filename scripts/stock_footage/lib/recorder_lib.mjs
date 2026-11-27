@@ -16,7 +16,7 @@ export const API_URL = process.env.PALADIO_API_URL || 'http://localhost:8000';
 export const RECORD_USER = process.env.PALADIO_RECORD_USER || 'admin';
 export const RECORD_PASSWORD = process.env.PALADIO_RECORD_PASSWORD || 'PaladioRecord2026!';
 export const WORK_DIR = path.resolve(
-  process.env.STOCK_WORK_DIR || path.join(REPO_ROOT, 'stock-footage', '.work'),
+  process.env.STOCK_WORK_DIR || path.join(REPO_ROOT, '.local', 'stock-footage', '.work'),
 );
 export const SCRATCH = WORK_DIR;
 export const AUTH_STATE_PATH = path.resolve(
@@ -140,10 +140,48 @@ export const CURSOR_INIT_SCRIPT = () => {
   attachObserver();
 };
 
-export async function createRecorderContext({ name, useAuthState = true, extraInitScript = null } = {}) {
-  ensureWorkDirs();
-  const browser = await chromium.launch({
-    headless: true,
+function hasHardwareRenderNode() {
+  if (process.platform !== 'linux') return false;
+  try {
+    const driDir = '/dev/dri';
+    if (!fs.existsSync(driDir)) return false;
+    const nodes = fs.readdirSync(driDir).filter((n) => n.startsWith('renderD'));
+    return nodes.some((node) => {
+      try {
+        fs.accessSync(path.join(driDir, node), fs.constants.R_OK | fs.constants.W_OK);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return false;
+  }
+}
+
+function resolveChromiumLaunchConfig() {
+  const requested = (process.env.PALADIO_RECORDER_GL || 'auto').toLowerCase();
+  const useHardware =
+    requested === 'gl' ||
+    requested === 'hardware' ||
+    (requested === 'auto' && hasHardwareRenderNode());
+
+  if (useHardware) {
+    return {
+      backend: 'hardware (angle/gl)',
+      args: [
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        '--use-gl=angle',
+        '--use-angle=gl',
+        '--enable-webgl',
+        '--ignore-gpu-blocklist',
+        '--disable-gpu-shader-disk-cache',
+      ],
+    };
+  }
+  return {
+    backend: 'software (swiftshader)',
     args: [
       '--no-sandbox',
       '--disable-dev-shm-usage',
@@ -152,6 +190,16 @@ export async function createRecorderContext({ name, useAuthState = true, extraIn
       '--enable-unsafe-swiftshader',
       '--enable-webgl',
     ],
+  };
+}
+
+export async function createRecorderContext({ name, useAuthState = true, extraInitScript = null } = {}) {
+  ensureWorkDirs();
+  const { backend, args } = resolveChromiumLaunchConfig();
+  console.log(`[${name || 'chapter'}] Chromium GL backend: ${backend}`);
+  const browser = await chromium.launch({
+    headless: true,
+    args,
   });
 
   const contextOpts = {
@@ -183,6 +231,7 @@ export async function createRecorderContext({ name, useAuthState = true, extraIn
   const logs = [];
 
   page.on('pageerror', (err) => logs.push(`[PAGEERROR] ${err.message}`));
+  page.on('crash', () => logs.push('[PAGE_CRASH] Renderer process crashed'));
   page.on('console', (msg) => {
     if (msg.type() === 'error') logs.push(`[CONSOLE_ERROR] ${msg.text()}`);
   });
@@ -294,13 +343,15 @@ export async function safeHumanClick(page, cursorState, locator, opts = {}) {
     }
     await humanMove(page, cursorState, clickX, clickY);
     if (opts.pauseBefore ?? 150) await page.waitForTimeout(opts.pauseBefore ?? 150);
-    if (!shouldScroll) {
+    if (opts.useLocatorClick) {
+      await locator.click({ timeout: 8000, force: Boolean(opts.force) });
+    } else {
       await page.mouse.down();
       await page.waitForTimeout(75);
       await page.mouse.up();
-      await resetWorkspaceHorizontalScroll(page);
-    } else {
-      await locator.click({ timeout: 8000, force: Boolean(opts.force) });
+      if (!shouldScroll) {
+        await resetWorkspaceHorizontalScroll(page);
+      }
     }
     if (opts.pauseAfter ?? 600) await page.waitForTimeout(opts.pauseAfter ?? 600);
     return true;
@@ -310,18 +361,38 @@ export async function safeHumanClick(page, cursorState, locator, opts = {}) {
 }
 
 export async function humanType(page, cursorState, locator, text, { delay = 38, clear = true, pressEnter = false, pauseAfter = 450 } = {}) {
-  await safeHumanClick(page, cursorState, locator, { pauseAfter: 180 });
+  const clicked = await safeHumanClick(page, cursorState, locator, { pauseAfter: 180 });
+  if (!clicked) {
+    return false;
+  }
+  const hasEditableFocus = async () =>
+    page.evaluate(() => {
+      const el = document.activeElement;
+      if (!el) return false;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true;
+    }).catch(() => false);
+
+  if (!(await hasEditableFocus())) {
+    await locator.focus().catch(() => {});
+    if (!(await hasEditableFocus())) {
+      return false;
+    }
+  }
   if (clear) {
     await page.keyboard.press('Control+a');
     await page.keyboard.press('Backspace');
     await page.waitForTimeout(100);
   }
-  await page.keyboard.type(text, { delay });
+  if (text) {
+    await page.keyboard.type(text, { delay });
+  }
   if (pressEnter) {
     await page.waitForTimeout(150);
     await page.keyboard.press('Enter');
   }
   if (pauseAfter > 0) await page.waitForTimeout(pauseAfter);
+  return true;
 }
 
 export async function humanScroll(page, cursorState, locatorOrNull, totalDeltaY, steps = 8) {

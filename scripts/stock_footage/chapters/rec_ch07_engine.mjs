@@ -106,38 +106,47 @@ async function main() {
     { pauseAfter: 400 }
   );
 
-  // 4. RouteIntakeBar: Origin "Madrid", Destination "Barcelona", departure & arrival CustomHourPickerModal dials
+  // 4. RouteIntakeBar: Origin "Madrid" (MAD), Destination "Barcelona" (BCN), departure & arrival CustomHourPickerModal dials
   stepLog(cursorState, 'configuring Origin, Destination, and flight time dials');
-  const locationInputs = page.locator('input[placeholder="Search city / airport..."]');
-  const originInput = locationInputs.nth(0);
-  await humanType(page, cursorState, originInput, 'Madrid', { pauseAfter: 900 });
-  const originOption = page.locator('div[style*="z-index: 60"] div[style*="cursor: pointer"]').first();
+  const originInput = page.getByTestId('origin-location-input').first();
+  await humanType(page, cursorState, originInput, 'Madrid', { pauseAfter: 400 });
+  const originOption = page.getByTestId('origin-location-option').first();
+  await originOption.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
   if (await originOption.isVisible().catch(() => false)) {
     await safeHumanClick(page, cursorState, originOption, { pauseAfter: 500 });
   } else {
     await page.keyboard.press('Enter');
     await page.waitForTimeout(350);
   }
+  const originIataVal = await page.getByTestId('origin-iata-input').inputValue().catch(() => '');
+  if (!originIataVal) {
+    await humanType(page, cursorState, page.getByTestId('origin-iata-input'), 'MAD', { pauseAfter: 350 });
+  }
 
-  const destInput = locationInputs.nth(1);
-  await humanType(page, cursorState, destInput, 'Barcelona', { pauseAfter: 950 });
-  const destOption = page.locator('div[style*="z-index: 60"] div[style*="cursor: pointer"]').first();
+  const destInput = page.getByTestId('dest-location-input').first();
+  await humanType(page, cursorState, destInput, 'Barcelona', { pauseAfter: 400 });
+  const destOption = page.getByTestId('dest-location-option').first();
+  await destOption.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
   if (await destOption.isVisible().catch(() => false)) {
     await safeHumanClick(page, cursorState, destOption, { pauseAfter: 550 });
   } else {
     await page.keyboard.press('Enter');
     await page.waitForTimeout(350);
   }
+  const destIataVal = await page.getByTestId('dest-iata-input').inputValue().catch(() => '');
+  if (!destIataVal) {
+    await humanType(page, cursorState, page.getByTestId('dest-iata-input'), 'BCN', { pauseAfter: 350 });
+  }
   await page.keyboard.press('Escape');
   await page.waitForTimeout(250);
 
-  const depHourBtn = page.locator('button[title="Click to customize arrival time at destination"]').first();
+  const depHourBtn = page.getByTestId('route-dep-hour-btn').first();
   if (await depHourBtn.isVisible().catch(() => false)) {
     await safeHumanClick(page, cursorState, depHourBtn, { pauseAfter: 550 });
     await adjustAndConfirmHourModal(page, cursorState, '09:30', depHourBtn);
   }
 
-  const retHourBtn = page.locator('button[title="Click to customize return / departure time"]').first();
+  const retHourBtn = page.getByTestId('route-ret-hour-btn').first();
   if (await retHourBtn.isVisible().catch(() => false)) {
     await safeHumanClick(page, cursorState, retHourBtn, { pauseAfter: 550 });
     await adjustAndConfirmHourModal(page, cursorState, '20:15', retHourBtn);
@@ -145,26 +154,19 @@ async function main() {
 
   // 5. PaladioDateRangePicker: navigate forward to April 2027 and click 2027-04-16 to 2027-04-18
   stepLog(cursorState, 'selecting April 2027 dates in PaladioDateRangePicker');
-  const nextMonthBtn = page.locator('button[aria-label="Next month"]').first();
+  const nextMonthBtn = page.getByTestId('date-picker-next-month').first();
   await nextMonthBtn.scrollIntoViewIfNeeded().catch(() => {});
-  for (let i = 0; i < 12; i++) {
-    const aprilVisible = await page.getByText('April 2027', { exact: false }).first().isVisible().catch(() => false);
+  for (let i = 0; i < 14; i++) {
+    const aprilVisible = await page.locator('button[data-date="2027-04-16"]').first().isVisible().catch(() => false);
     if (aprilVisible) break;
     await safeHumanClick(page, cursorState, nextMonthBtn, { pauseAfter: 250 });
   }
 
-  const startDayBtn = page.locator('button[aria-label*="2027-04-16"]').first();
-  const endDayBtn = page.locator('button[aria-label*="2027-04-18"]').first();
+  const startDayBtn = page.locator('button[data-date="2027-04-16"]').first();
+  const endDayBtn = page.locator('button[data-date="2027-04-18"]').first();
   if ((await startDayBtn.isVisible().catch(() => false)) && (await endDayBtn.isVisible().catch(() => false))) {
     await safeHumanClick(page, cursorState, startDayBtn, { pauseAfter: 450 });
     await safeHumanClick(page, cursorState, endDayBtn, { pauseAfter: 600 });
-  } else {
-    const openAprilBtns = page.locator('button[aria-label^="2027-04-"]');
-    const count = await openAprilBtns.count();
-    if (count >= 3) {
-      await safeHumanClick(page, cursorState, openAprilBtns.nth(Math.min(14, count - 3)), { pauseAfter: 450 });
-      await safeHumanClick(page, cursorState, openAprilBtns.nth(Math.min(16, count - 1)), { pauseAfter: 600 });
-    }
   }
 
   const pickerOverlapProceed = page.getByRole('button', { name: /PROCEED ANYWAY/i }).first();
@@ -182,10 +184,10 @@ async function main() {
     await safeHumanClick(page, cursorState, hotelDropdownRow, { pauseAfter: 500 });
   }
 
-  const locateMapBtn = page.locator('button[title="Locate hotel or stay on map"]').first();
+  const locateMapBtn = page.getByTestId('locate-hotel-map-btn').first();
   if (await locateMapBtn.isVisible().catch(() => false)) {
     await safeHumanClick(page, cursorState, locateMapBtn, { pauseAfter: 700 });
-    const modalMap = page.locator('.leaflet-container').first();
+    const modalMap = page.locator('[role="dialog"] .leaflet-container, .leaflet-container').last();
     await modalMap.waitFor({ state: 'visible', timeout: 12000 }).catch(() => {});
     await page.waitForFunction(
       () => document.querySelectorAll('.leaflet-tile-loaded').length > 0,
@@ -230,7 +232,7 @@ async function main() {
   const budgetInput = page.locator('input[type="number"][placeholder="1500"]').first();
   await humanType(page, cursorState, budgetInput, '1400', { pauseAfter: 400 });
 
-  const currencyDialBtn = page.locator('button[title="Change currency with dynamic spin dial"]').first();
+  const currencyDialBtn = page.getByTestId('engine-currency-dial-btn').first();
   if (await currencyDialBtn.isVisible().catch(() => false)) {
     await safeHumanClick(page, cursorState, currencyDialBtn, { pauseAfter: 600 });
     const wheelDialog = page.getByRole('dialog', { name: /Select Currency/i }).first();

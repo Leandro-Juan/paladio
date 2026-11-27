@@ -6,7 +6,7 @@ SLUG="${1:?Usage: process_chapter.sh <chapter_slug>}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUITE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="${PALADIO_REPO_ROOT:-$(cd "${SUITE_DIR}/../.." && pwd)}"
-STOCK_OUT_DIR="${STOCK_OUT_DIR:-${REPO_ROOT}/stock-footage}"
+STOCK_OUT_DIR="${STOCK_OUT_DIR:-${REPO_ROOT}/.local/stock-footage}"
 STOCK_WORK_DIR="${STOCK_WORK_DIR:-${STOCK_OUT_DIR}/.work}"
 
 FFMPEG_PRESET="${FFMPEG_PRESET:-fast}"

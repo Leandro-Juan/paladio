@@ -42,7 +42,7 @@ async function main() {
   await scrollConfigBy(480, 12);
 
   // Open & close CurrencyWheelPicker near Target Budget / Base Currency
-  const changeCurrencyBtn = page.locator('button[title*="currency" i]').first();
+  const changeCurrencyBtn = page.getByTestId('engine-currency-dial-btn').first();
   if (await changeCurrencyBtn.isVisible().catch(() => false)) {
     await safeHumanClick(page, cursorState, changeCurrencyBtn, { pauseAfter: 700 });
     const wheelDialog = page.locator('[role="dialog"]').filter({ has: page.locator('input[placeholder*="currency" i]') }).last();
@@ -215,17 +215,19 @@ async function main() {
     if (await modelDialog.isVisible().catch(() => false)) {
       const modelSearch = modelDialog.locator('input[placeholder="Search models..."]').first();
       if (await modelSearch.isVisible().catch(() => false)) {
-        await humanType(page, cursorState, modelSearch, 'llama', { pauseAfter: 550 });
-        const clearModelBtn = modelDialog.locator('button[aria-label="Clear search"]').first();
-        if (await clearModelBtn.isVisible().catch(() => false)) {
-          await safeHumanClick(page, cursorState, clearModelBtn, { pauseAfter: 450 });
+        await humanType(page, cursorState, modelSearch, 'gemini', { pauseAfter: 650 });
+        const geminiOpt = modelDialog.locator('button').filter({ hasText: /gemini-3\.1-flash-lite/i }).first();
+        if (await geminiOpt.isVisible().catch(() => false)) {
+          await safeHumanClick(page, cursorState, geminiOpt, { pauseAfter: 450, scroll: false });
+        } else {
+          const clearModelBtn = modelDialog.locator('button[aria-label="Clear search"]').first();
+          if (await clearModelBtn.isVisible().catch(() => false)) {
+            await safeHumanClick(page, cursorState, clearModelBtn, { pauseAfter: 450, scroll: false });
+          }
         }
       }
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(350);
       if (await modelDialog.isVisible().catch(() => false)) {
-        await humanMove(page, cursorState, 960, 300);
-        await page.mouse.click(960, 300);
+        await page.keyboard.press('Escape');
         await page.waitForTimeout(350);
       }
     }

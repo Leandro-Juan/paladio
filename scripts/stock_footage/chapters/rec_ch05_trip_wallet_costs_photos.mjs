@@ -86,7 +86,7 @@ async function main() {
   // Hover WalletSummaryBar counters & WalletUpNext card
   stepLog(cursorState, 'hovering WalletSummaryBar counters & WalletUpNext');
   for (const titleAttr of ['Flights', 'Stays & Access Codes', 'Attraction Passes', 'Transit Passes']) {
-    const counter = page.locator(`span[title="${titleAttr}"]`).first();
+    const counter = page.locator(`span[data-tooltip="${titleAttr}"], span[title="${titleAttr}"]`).first();
     if (await counter.isVisible().catch(() => false)) {
       await humanHover(page, cursorState, counter, { pauseMs: 240 });
     }
@@ -221,6 +221,7 @@ async function main() {
   const syncBtn = page.locator('button[aria-label="Sync tickets from itinerary"]').first();
   if (await syncBtn.isVisible().catch(() => false)) {
     await safeHumanClick(page, cursorState, syncBtn, { pauseAfter: 1100 });
+    await page.waitForTimeout(400);
   }
 
   // === 2. COSTS TAB ===
@@ -234,9 +235,9 @@ async function main() {
   }
 
   stepLog(cursorState, 'switching CostsSummaryCards to Live FX Converter & CurrencyWheelPicker');
-  const fxToggleBtn = page.locator('button[title*="FX" i], button[title*="currency converter" i]').first();
+  const fxToggleBtn = page.getByTestId('costs-fx-toggle-btn').first();
   if (await safeHumanClick(page, cursorState, fxToggleBtn, { pauseAfter: 700 })) {
-    const dialBtn = page.locator('button[title*="dial" i]').first();
+    const dialBtn = page.getByTestId('costs-currency-dial-btn').first();
     if (await safeHumanClick(page, cursorState, dialBtn, { pauseAfter: 600 })) {
       await selectCurrencyFromWheel(page, cursorState, 'JPY');
     }
@@ -375,9 +376,9 @@ async function main() {
   // Click a photo tile to open Fullscreen Lightbox -> Next twice -> Prev once -> close
   const photoTile = page.locator('.photo-mosaic-card').first();
   if (await safeHumanClick(page, cursorState, photoTile, { pauseAfter: 900 })) {
-    const nextBtn = page.locator('button[title="Next (Arrow Right)"]').first();
-    const prevBtn = page.locator('button[title="Previous (Arrow Left)"]').first();
-    const closeLightboxBtn = page.locator('button[title="Close (Esc)"]').first();
+    const nextBtn = page.locator('button[data-tooltip*="Next" i], button[title*="Next" i], button[aria-label*="Next" i]').first();
+    const prevBtn = page.locator('button[data-tooltip*="Previous" i], button[title*="Previous" i], button[aria-label*="Previous" i]').first();
+    const closeLightboxBtn = page.locator('button[data-tooltip*="Close" i], button[title*="Close" i], button[aria-label*="Close" i]').last();
 
     if (await nextBtn.isVisible().catch(() => false)) {
       await safeHumanClick(page, cursorState, nextBtn, { pauseAfter: 700 });

@@ -6,6 +6,8 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 STOCK_OUT_DIR="${STOCK_OUT_DIR:-${REPO_ROOT}/.local/stock-footage}"
 CHAPTERS_FILTER=""
+ENV_USER_SET=0
+[[ -n "${PALADIO_RECORD_USER:-}" ]] && ENV_USER_SET=1
 RECORD_USER="${PALADIO_RECORD_USER:-admin}"
 RECORD_PASSWORD="${PALADIO_RECORD_PASSWORD:-PaladioRecord2026!}"
 PASSWORD_EXPLICIT=0
@@ -20,6 +22,7 @@ SKIP_ASSEMBLE=0
 BASE_URL="${PALADIO_BASE_URL:-http://localhost:3000}"
 API_URL="${PALADIO_API_URL:-http://localhost:8000}"
 DB_CONTAINER="${PALADIO_DB_CONTAINER:-paladio-db-1}"
+API_CONTAINER="${PALADIO_API_CONTAINER:-paladio-api-1}"
 PGUSER="${PALADIO_PGUSER:-postgres}"
 PGDB="${PALADIO_PGDB:-paladio}"
 
@@ -34,7 +37,7 @@ and concatenates the complete master reel with FOOTAGE_INDEX.md.
 Options:
   --chapters <list>   Comma-separated chapter numbers (e.g. 01,02,07) or full slugs.
                       Default: all 13 chapters.
-  --out <dir>         Output directory (default: <repo_root>/stock-footage).
+  --out <dir>         Output directory (default: <repo_root>/.local/stock-footage).
   --user <username>   Login identifier/username for recording (default: admin).
   --password <pass>   Login password (default: PALADIO_RECORD_PASSWORD or temp override).
   --no-db-reset       Do not snapshot/restore Postgres or Tokyo photos, and do not
@@ -135,6 +138,7 @@ export FFMPEG_PRESET
 export FFMPEG_CRF
 export KEEP_RAW
 export PALADIO_DB_CONTAINER="${DB_CONTAINER}"
+export PALADIO_API_CONTAINER="${API_CONTAINER}"
 export PALADIO_PGUSER="${PGUSER}"
 export PALADIO_PGDB="${PGDB}"
 
@@ -239,6 +243,8 @@ TOKYO_PHOTOS_DIR="${REPO_ROOT}/backend/data/trip_photos/demo-trip-tokyo-active"
 PHOTOS_BACKUP_DIR="${STOCK_WORK_DIR}/tokyo_photos_backup"
 DB_BACKUP_DUMP="${STOCK_WORK_DIR}/paladio_pre_shoot.dump"
 TEMP_PWD_APPLIED=0
+DB_MUTATED=0
+PHOTOS_MUTATED=0
 CLEANUP_DONE=0
 
 test_api_login() {
@@ -269,8 +275,28 @@ PY
 	[[ "${code}" == "200" ]]
 }
 
+list_available_users() {
+	local users
+	users=$(docker exec "${DB_CONTAINER}" psql -U "${PGUSER}" -d "${PGDB}" -Atqc \
+		"SELECT username || COALESCE(' (' || email || ')', '') FROM users WHERE username IS NOT NULL ORDER BY username;" 2>/dev/null || true)
+	if [[ -n "${users}" ]]; then
+		echo "[shoot_all] Available users in DB:"
+		echo "${users}" | sed 's/^/  - /'
+	fi
+}
+
+user_exists_in_db() {
+	local found
+	found=$(
+		docker exec -i "${DB_CONTAINER}" psql -U "${PGUSER}" -d "${PGDB}" -v uname="${RECORD_USER}" -Atq <<'SQL'
+SELECT 1 FROM users WHERE username = :'uname' OR email = :'uname' LIMIT 1;
+SQL
+	)
+	[[ "${found}" == "1" ]]
+}
+
 apply_temp_recording_password() {
-	local hashed
+	local hashed updated_user
 	hashed=$(
 		python3 - "${RECORD_PASSWORD}" <<'PY'
 import hashlib, secrets, sys
@@ -280,17 +306,28 @@ dk = hashlib.pbkdf2_hmac("sha256", pwd, salt, 100000)
 print(f"{salt.hex()}${dk.hex()}")
 PY
 	)
-	docker exec "${DB_CONTAINER}" psql -U "${PGUSER}" -d "${PGDB}" -v ON_ERROR_STOP=1 \
-		-v uname="${RECORD_USER}" -v hpass="${hashed}" \
-		-c "UPDATE users SET hashed_password = :'hpass' WHERE username = :'uname' OR email = :'uname';" >/dev/null
+	updated_user=$(
+		docker exec -i "${DB_CONTAINER}" psql -U "${PGUSER}" -d "${PGDB}" -v ON_ERROR_STOP=1 \
+			-v uname="${RECORD_USER}" -v hpass="${hashed}" -Atq <<'SQL'
+UPDATE users
+SET hashed_password = :'hpass'
+WHERE username = :'uname' OR email = :'uname'
+RETURNING username;
+SQL
+	)
+	if [[ -z "${updated_user}" ]]; then
+		echo "[shoot_all] ERROR: No user matching '${RECORD_USER}' exists in Postgres 'users' table." >&2
+		list_available_users >&2
+		return 1
+	fi
 }
 
 restore_photos_backup() {
-	if [[ -d "${PHOTOS_BACKUP_DIR}" ]]; then
-		mkdir -p "${TOKYO_PHOTOS_DIR}"
-		find "${TOKYO_PHOTOS_DIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-		cp -a "${PHOTOS_BACKUP_DIR}/." "${TOKYO_PHOTOS_DIR}/"
+	if [[ ! -d "${PHOTOS_BACKUP_DIR}" ]] || [[ -z "$(ls -A "${PHOTOS_BACKUP_DIR}" 2>/dev/null)" ]]; then
+		return 0
 	fi
+	tar -C "${PHOTOS_BACKUP_DIR}" -cf - . | docker exec -i "${API_CONTAINER}" sh -lc \
+		'mkdir -p /data/trip_photos/demo-trip-tokyo-active && find /data/trip_photos/demo-trip-tokyo-active -mindepth 1 -maxdepth 1 -exec rm -rf {} + && tar -C /data/trip_photos/demo-trip-tokyo-active -xf - && chmod -R a+rwX /data/trip_photos/demo-trip-tokyo-active'
 }
 
 cleanup() {
@@ -299,19 +336,36 @@ cleanup() {
 		return
 	fi
 	CLEANUP_DONE=1
-	trap - EXIT INT TERM
+	trap '' EXIT INT TERM
 
+	local restore_ok=1
 	if [[ "${NO_DB_RESET}" -eq 0 ]]; then
-		echo "[shoot_all] Restoring original sample photos & Postgres backup..."
-		restore_photos_backup || true
-		if [[ -f "${DB_BACKUP_DUMP}" ]]; then
-			"${SCRIPT_DIR}/lib/restore_db.sh" "${DB_BACKUP_DUMP}" || true
-			rm -f "${DB_BACKUP_DUMP}"
+		if [[ "${DB_MUTATED}" -eq 1 && -f "${DB_BACKUP_DUMP}" ]]; then
+			echo "[shoot_all] Restoring original Postgres backup (please wait; do not interrupt)..."
+			if "${SCRIPT_DIR}/lib/restore_db.sh" "${DB_BACKUP_DUMP}"; then
+				rm -f "${DB_BACKUP_DUMP}"
+			else
+				restore_ok=0
+				echo "[shoot_all] ERROR: DB restore failed — backup preserved at ${DB_BACKUP_DUMP}" >&2
+			fi
+		else
+			rm -f "${DB_BACKUP_DUMP}" "${DB_BACKUP_DUMP}.tmp"
 		fi
-		rm -rf "${PHOTOS_BACKUP_DIR}"
+
+		if [[ "${PHOTOS_MUTATED}" -eq 1 ]]; then
+			echo "[shoot_all] Restoring original sample photos..."
+			if ! restore_photos_backup; then
+				restore_ok=0
+				echo "[shoot_all] ERROR: Photo restore failed — backup preserved at ${PHOTOS_BACKUP_DIR}" >&2
+			fi
+		fi
+
+		if [[ "${restore_ok}" -eq 1 ]]; then
+			rm -rf "${PHOTOS_BACKUP_DIR}"
+		fi
 	fi
 
-	if [[ "${KEEP_WORK}" -eq 0 && "${KEEP_RAW}" -eq 0 ]]; then
+	if [[ "${KEEP_WORK}" -eq 0 && "${KEEP_RAW}" -eq 0 && "${restore_ok}" -eq 1 ]]; then
 		rm -rf "${STOCK_WORK_DIR}"
 	fi
 	exit "${exit_code}"
@@ -327,27 +381,54 @@ if [[ "${NO_DB_RESET}" -eq 0 ]]; then
 		exit 1
 	}
 
-	echo "[shoot_all] Creating pre-shoot Postgres dump -> ${DB_BACKUP_DUMP}"
-	docker exec "${DB_CONTAINER}" pg_dump -Fc -U "${PGUSER}" "${PGDB}" >"${DB_BACKUP_DUMP}"
-	if [[ ! -s "${DB_BACKUP_DUMP}" ]]; then
-		echo "[shoot_all] ERROR: Failed to create non-empty pre-shoot DB dump." >&2
-		exit 1
+	if [[ "${USER_EXPLICIT}" -eq 0 && "${ENV_USER_SET}" -eq 0 ]] && ! user_exists_in_db; then
+		detected_admin=$(
+			docker exec "${DB_CONTAINER}" psql -U "${PGUSER}" -d "${PGDB}" -Atqc \
+				"SELECT username FROM users WHERE role = 'admin' AND username IS NOT NULL ORDER BY created_at ASC NULLS LAST LIMIT 1;" 2>/dev/null || true
+		)
+		if [[ -n "${detected_admin}" ]]; then
+			RECORD_USER="${detected_admin}"
+			export PALADIO_RECORD_USER="${RECORD_USER}"
+			echo "[shoot_all] Auto-selected admin user '${RECORD_USER}'."
+		fi
 	fi
 
-	if [[ -d "${TOKYO_PHOTOS_DIR}" ]]; then
-		rm -rf "${PHOTOS_BACKUP_DIR}"
-		mkdir -p "${PHOTOS_BACKUP_DIR}"
-		cp -a "${TOKYO_PHOTOS_DIR}/." "${PHOTOS_BACKUP_DIR}/"
+	if [[ "${PASSWORD_EXPLICIT}" -eq 1 ]]; then
+		if ! test_api_login; then
+			echo "[shoot_all] ERROR: Login failed for user '${RECORD_USER}' with provided --password." >&2
+			list_available_users >&2
+			exit 1
+		fi
+	else
+		if ! test_api_login && ! user_exists_in_db; then
+			echo "[shoot_all] ERROR: User '${RECORD_USER}' not found in Postgres 'users' table." >&2
+			list_available_users >&2
+			exit 1
+		fi
+	fi
+
+	echo "[shoot_all] Creating pre-shoot Postgres dump -> ${DB_BACKUP_DUMP}"
+	docker exec "${DB_CONTAINER}" pg_dump -Fc -U "${PGUSER}" "${PGDB}" >"${DB_BACKUP_DUMP}.tmp"
+	if [[ ! -s "${DB_BACKUP_DUMP}.tmp" ]] || ! docker exec -i "${DB_CONTAINER}" pg_restore -l < "${DB_BACKUP_DUMP}.tmp" >/dev/null 2>&1; then
+		rm -f "${DB_BACKUP_DUMP}.tmp"
+		echo "[shoot_all] ERROR: Failed to create a valid pre-shoot DB dump." >&2
+		exit 1
+	fi
+	mv "${DB_BACKUP_DUMP}.tmp" "${DB_BACKUP_DUMP}"
+
+	rm -rf "${PHOTOS_BACKUP_DIR}"
+	mkdir -p "${PHOTOS_BACKUP_DIR}"
+	if docker exec "${API_CONTAINER}" sh -lc 'test -d /data/trip_photos/demo-trip-tokyo-active'; then
+		docker exec "${API_CONTAINER}" tar -C /data/trip_photos/demo-trip-tokyo-active -cf - . | tar -C "${PHOTOS_BACKUP_DIR}" -xf -
+	elif [[ -d "${TOKYO_PHOTOS_DIR}" ]]; then
+		cp -r "${TOKYO_PHOTOS_DIR}/." "${PHOTOS_BACKUP_DIR}/"
 	fi
 
 	trap cleanup EXIT INT TERM
 
 	if ! test_api_login; then
-		if [[ "${PASSWORD_EXPLICIT}" -eq 1 ]]; then
-			echo "[shoot_all] ERROR: Login failed for user '${RECORD_USER}' with provided --password." >&2
-			exit 1
-		fi
 		echo "[shoot_all] Temporarily setting recording password for '${RECORD_USER}' (will be restored from dump on exit)..."
+		DB_MUTATED=1
 		apply_temp_recording_password
 		TEMP_PWD_APPLIED=1
 		if ! test_api_login; then
@@ -369,6 +450,8 @@ run_chapter() {
 	echo "============================================================"
 	echo "[shoot_all] Recording ${slug} (${script})"
 	echo "============================================================"
+	DB_MUTATED=1
+	PHOTOS_MUTATED=1
 	node "${SCRIPT_DIR}/chapters/${script}"
 	"${SCRIPT_DIR}/lib/process_chapter.sh" "${slug}"
 }
@@ -409,8 +492,8 @@ done
 # Checkpoint restore between Phase B and Phase C
 if [[ "${NO_DB_RESET}" -eq 0 && "${RAN_PHASE_B}" -eq 1 && "${SEL_C}" -gt 0 ]]; then
 	echo "[shoot_all] Checkpoint restore before Phase C chapters..."
-	restore_photos_backup
 	"${SCRIPT_DIR}/lib/restore_db.sh" "${DB_BACKUP_DUMP}"
+	restore_photos_backup
 	if [[ "${TEMP_PWD_APPLIED}" -eq 1 ]]; then
 		apply_temp_recording_password
 	fi

@@ -247,17 +247,17 @@ async function main() {
   const testConnBtn = mainCanvas.getByRole('button', { name: /TEST CONNECTION/i }).first();
   await testConnBtn.waitFor({ state: 'visible', timeout: 12000 }).catch(() => {});
 
-  // Hover providers & open model dropdown to show providers, keep Groq, then Test Connection
+  // Hover providers & select Google Gemini (active engine), open model dropdown, then Test Connection
   for (const prov of ['Gemini', 'Claude', 'OpenAI', 'Groq']) {
     const provCard = mainCanvas.locator('div[role="button"]').filter({ hasText: prov }).first();
     if (await provCard.isVisible().catch(() => false)) {
       await humanHover(page, cursorState, provCard, { pauseMs: 280 });
     }
   }
-  const groqCard = mainCanvas.locator('div[role="button"]').filter({ hasText: /Groq/i }).first();
-  if (await groqCard.isVisible().catch(() => false)) {
-    await safeHumanClick(page, cursorState, groqCard, { pauseAfter: 450 });
-    const modelsChevron = groqCard.locator('button[data-llm-dropdown]').first();
+  const geminiCard = mainCanvas.locator('div[role="button"]').filter({ hasText: /Google Gemini/i }).first();
+  if (await geminiCard.isVisible().catch(() => false)) {
+    await safeHumanClick(page, cursorState, geminiCard, { pauseAfter: 450 });
+    const modelsChevron = geminiCard.locator('button[data-llm-dropdown]').first();
     if (await modelsChevron.isVisible().catch(() => false)) {
       await safeHumanClick(page, cursorState, modelsChevron, { pauseAfter: 650 });
       await safeHumanClick(page, cursorState, modelsChevron, { pauseAfter: 350 });

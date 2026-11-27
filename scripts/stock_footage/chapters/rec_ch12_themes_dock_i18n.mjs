@@ -80,7 +80,7 @@ async function main() {
   await page.waitForTimeout(550);
 
   const dock = page.locator('nav').filter({ has: page.locator('a[href="/dashboard"]') }).first();
-  for (const href of ['/dashboard', '/engine', '/vault', '/config']) {
+  for (const href of ['/dashboard', '/engine', '/monitoring', '/vault']) {
     const dockLink = dock.locator(`a[href="${href}"]`).first();
     if (await dockLink.isVisible().catch(() => false)) {
       await humanHover(page, cursorState, dockLink, { pauseMs: 280, scroll: false });

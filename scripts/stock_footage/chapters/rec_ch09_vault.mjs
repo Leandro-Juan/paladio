@@ -16,7 +16,7 @@ async function openVaultTripByIdOrMarker(page, cursorState, targetTripId, countr
   if (await expandBtn.isVisible().catch(() => false)) {
     await safeHumanClick(page, cursorState, expandBtn, { pauseAfter: 550 });
   }
-  const countryBtn = page.locator(`button[title*="Focus map on ${countryHint}" i], button[title*="${countryHint}" i]`).first();
+  const countryBtn = page.locator(`button[data-tooltip*="Focus map on ${countryHint}" i], button[data-tooltip*="${countryHint}" i], button[title*="Focus map on ${countryHint}" i], button[title*="${countryHint}" i], button[aria-label*="${countryHint}" i]`).first();
   if (await countryBtn.isVisible().catch(() => false)) {
     await safeHumanClick(page, cursorState, countryBtn, { pauseAfter: 1400 });
   }
@@ -111,11 +111,11 @@ async function sweepDayDotsAndTabs(page, cursorState, { includePhotosLightbox = 
       const firstPhoto = page.locator('.photo-mosaic-card').first();
       if (await firstPhoto.isVisible().catch(() => false)) {
         await safeHumanClick(page, cursorState, firstPhoto, { pauseAfter: 850 });
-        const nextBtn = page.locator('button[title*="Next" i]').first();
+        const nextBtn = page.locator('button[data-tooltip*="Next" i], button[title*="Next" i], button[aria-label*="Next" i]').first();
         if (await nextBtn.isVisible().catch(() => false)) {
           await safeHumanClick(page, cursorState, nextBtn, { pauseAfter: 800 });
         }
-        const closeBtn = page.locator('button[title*="Close" i]').first();
+        const closeBtn = page.locator('button[data-tooltip*="Close" i], button[title*="Close" i], button[aria-label*="Close" i]').first();
         if (await closeBtn.isVisible().catch(() => false)) {
           await safeHumanClick(page, cursorState, closeBtn, { pauseAfter: 500 });
         } else {
@@ -164,7 +164,7 @@ async function main() {
     await humanHover(page, cursorState, earthGauge, { pauseMs: 650 });
   }
 
-  const countryButtons = page.locator('button[title*="Focus map on" i]');
+  const countryButtons = page.locator('button[data-tooltip*="Focus map on" i], button[title*="Focus map on" i]');
   const cBtnCount = await countryButtons.count();
   for (let i = 0; i < Math.min(cBtnCount, 3); i++) {
     await safeHumanClick(page, cursorState, countryButtons.nth(i), { pauseAfter: 1350 });

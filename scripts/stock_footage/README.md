@@ -10,15 +10,15 @@ Run from the repository root with the Paladio stack up (`frontend` at `http://lo
 ./scripts/stock_footage/shoot_all.sh
 ```
 
-By default, artifacts are written to `stock-footage/` at the repository root (already ignored or self-contained outside git source trees).
+By default, artifacts are written to `.local/stock-footage/` at the repository root (gitignored and self-contained outside source trees).
 
 ## CLI Options
 
 | Flag | Default | Description |
 | ---- | ------- | ----------- |
 | `--chapters <list>` | all 13 | Comma-separated chapter numbers (e.g. `01,02,07`) or full slugs |
-| `--out <dir>` | `<repo>/stock-footage` | Output root for `chapters/`, `paladio_complete_stock_footage.mp4`, `master_sheet.jpg`, and `FOOTAGE_INDEX.md` |
-| `--user <username>` | `admin` | Login username or email used during recording |
+| `--out <dir>` | `<repo>/.local/stock-footage` | Output root for `chapters/`, `paladio_complete_stock_footage.mp4`, `master_sheet.jpg`, and `FOOTAGE_INDEX.md` |
+| `--user <username>` | `admin` | Login username or email used during recording (`admin` by default) |
 | `--password <pass>` | `PaladioRecord2026!` | Login password (or temporary recording password when DB snapshot mode is active) |
 | `--no-db-reset` | off | Skip `pg_dump` snapshot/restore, temp password override, and Tokyo photo restore |
 | `--keep-raw` | off | Keep raw `.webm` Playwright recordings under `<out>/.work/raw/` |
@@ -66,7 +66,7 @@ When run without `--no-db-reset`:
 ## Directory Layout
 
 - `shoot_all.sh` — Top-level phased CLI orchestrator
-- `lib/recorder_lib.mjs` — Portable Playwright Chromium + SwiftShader recorder, human cursor overlay, horizontal scroll reset helper (`resetWorkspaceHorizontalScroll`), and range-slider drag helper
+- `lib/recorder_lib.mjs` — Portable Playwright Chromium recorder (hardware ANGLE GL with automatic SwiftShader fallback), human cursor overlay, horizontal scroll reset helper (`resetWorkspaceHorizontalScroll`), and range-slider drag helper
 - `lib/auth_bootstrap.mjs` — Headless login bootstrap writing `storageState` (`auth_state.json`)
 - `lib/process_chapter.sh` — Bottom-right grey-frame auto-trimmer, `1920x1080` `30fps` H.264 encoder, and 4x3 contact sheet generator
 - `lib/restore_db.sh` — TimescaleDB-aware `pg_restore` and HNSW index rebuild script

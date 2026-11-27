@@ -22,9 +22,20 @@ fi
 
 TSDB_VERSION=$(
   docker exec "${DB_CONTAINER}" psql -U "${PGUSER}" -d postgres -Atqc \
-    "SELECT default_version FROM pg_available_extensions WHERE name = 'timescaledb';" 2>/dev/null | head -n1 || true
+    "SELECT COALESCE(installed_version, default_version) FROM pg_available_extensions WHERE name = 'timescaledb';" 2>/dev/null | head -n1 || true
 )
 TSDB_VERSION="${TSDB_VERSION:-2.29.1}"
+
+if ! docker exec -i "${DB_CONTAINER}" pg_restore -l < "${DUMP_FILE}" >/dev/null 2>&1; then
+  echo "[restore_db] ERROR: dump '${DUMP_FILE}' failed pg_restore -l validation — aborting before DROP DATABASE." >&2
+  exit 1
+fi
+
+RESTORE_ERR="$(mktemp)"
+cleanup_restore() {
+  rm -f "${RESTORE_ERR}"
+}
+trap cleanup_restore EXIT
 
 echo "[restore_db] Restoring '${DUMP_FILE}' into ${DB_CONTAINER}/${PGDB} (timescaledb ${TSDB_VERSION})..."
 docker stop "${API_CONTAINER}" "${WORKER_CONTAINER}" "${BEAT_CONTAINER}" >/dev/null 2>&1 || true
@@ -40,7 +51,55 @@ docker exec "${DB_CONTAINER}" psql -U "${PGUSER}" -d "${PGDB}" -v ON_ERROR_STOP=
   -c "CREATE EXTENSION IF NOT EXISTS unaccent;" \
   -c "SELECT timescaledb_pre_restore();"
 
-docker exec -i "${DB_CONTAINER}" pg_restore --no-owner --no-privileges -U "${PGUSER}" -d "${PGDB}" < "${DUMP_FILE}" || true
+RESTORE_RC=0
+docker exec -i "${DB_CONTAINER}" pg_restore --no-owner --no-privileges -U "${PGUSER}" -d "${PGDB}" < "${DUMP_FILE}" 2>"${RESTORE_ERR}" || RESTORE_RC=$?
+
+if ! python3 - "${RESTORE_ERR}" "${RESTORE_RC}" <<'PY'
+import sys
+
+err_path = sys.argv[1]
+rc = int(sys.argv[2])
+text = open(err_path, encoding="utf-8", errors="replace").read()
+if rc == 0 and "pg_restore: error:" not in text:
+    sys.exit(0)
+
+blocks = []
+cur = None
+for line in text.splitlines():
+    if line.startswith("pg_restore: error:"):
+        if cur is not None:
+            blocks.append("\n".join(cur))
+        cur = [line]
+    elif line.startswith("pg_restore: "):
+        if cur is not None:
+            blocks.append("\n".join(cur))
+            cur = None
+    elif cur is not None:
+        cur.append(line)
+if cur is not None:
+    blocks.append("\n".join(cur))
+
+unexpected = []
+for blk in blocks:
+    is_hnsw_shm = (
+        "could not resize shared memory segment" in blk
+        and ("idx_attractions_embedding_hnsw" in blk or "ix_attractions_embedding_hnsw" in blk)
+    )
+    is_already_exists = "already exists" in blk
+    if not (is_hnsw_shm or is_already_exists):
+        unexpected.append(blk)
+
+if unexpected or (rc != 0 and not blocks):
+    sys.stderr.write(text)
+    if not text.endswith("\n"):
+        sys.stderr.write("\n")
+    sys.exit(1)
+PY
+then
+  echo "[restore_db] ERROR: pg_restore encountered fatal errors (exit=${RESTORE_RC}); restarting containers and aborting." >&2
+  docker start "${API_CONTAINER}" "${WORKER_CONTAINER}" "${BEAT_CONTAINER}" >/dev/null 2>&1 || true
+  exit 1
+fi
 
 docker exec "${DB_CONTAINER}" psql -U "${PGUSER}" -d "${PGDB}" -v ON_ERROR_STOP=1 \
   -c "SET maintenance_work_mem = '64MB'; SET max_parallel_maintenance_workers = 0; CREATE INDEX IF NOT EXISTS idx_attractions_embedding_hnsw ON public.attractions USING hnsw (embedding public.vector_cosine_ops) WITH (m='16', ef_construction='64'); CREATE INDEX IF NOT EXISTS ix_attractions_embedding_hnsw ON public.attractions USING hnsw (embedding public.vector_cosine_ops) WITH (m='16', ef_construction='128');" \
