@@ -96,29 +96,29 @@ def generate_all():
 
     # Load typography lockups
     text_title = Image.open(assets_dir / "text_title.png")
-    text_title_dark = Image.open(assets_dir / "text_title_dark.png")
+    text_title_white = Image.open(assets_dir / "text_title_white.png")
     text_caps = Image.open(assets_dir / "text_caps.png")
-    text_caps_dark = Image.open(assets_dir / "text_caps_dark.png")
+    text_caps_white = Image.open(assets_dir / "text_caps_white.png")
 
-    # logo-horizontal (Title Case light)
+    # logo-horizontal (Title Case navy)
     h_title = Image.new("RGBA", (2709, 900), (0, 0, 0, 0))
     h_title.paste(mark_horiz_color, mark_pos, mark_horiz_color)
     h_title.paste(text_title, (813, 0), text_title)
 
-    # logo-horizontal-dark (Title Case dark)
-    h_title_dark = Image.new("RGBA", (2709, 900), (0, 0, 0, 0))
-    h_title_dark.paste(mark_horiz_white, mark_pos, mark_horiz_white)
-    h_title_dark.paste(text_title_dark, (813, 0), text_title_dark)
+    # logo-horizontal-white (Title Case white)
+    h_title_white = Image.new("RGBA", (2709, 900), (0, 0, 0, 0))
+    h_title_white.paste(mark_horiz_white, mark_pos, mark_horiz_white)
+    h_title_white.paste(text_title_white, (813, 0), text_title_white)
 
-    # logo-horizontal-caps (All Caps light)
+    # logo-horizontal-caps (All Caps navy)
     h_caps = Image.new("RGBA", (3126, 900), (0, 0, 0, 0))
     h_caps.paste(mark_horiz_color, mark_pos, mark_horiz_color)
     h_caps.paste(text_caps, (813, 0), text_caps)
 
-    # logo-horizontal-caps-dark (All Caps dark)
-    h_caps_dark = Image.new("RGBA", (3126, 900), (0, 0, 0, 0))
-    h_caps_dark.paste(mark_horiz_white, mark_pos, mark_horiz_white)
-    h_caps_dark.paste(text_caps_dark, (813, 0), text_caps_dark)
+    # logo-horizontal-caps-white (All Caps white)
+    h_caps_white = Image.new("RGBA", (3126, 900), (0, 0, 0, 0))
+    h_caps_white.paste(mark_horiz_white, mark_pos, mark_horiz_white)
+    h_caps_white.paste(text_caps_white, (813, 0), text_caps_white)
 
     # 5. Favicon 48x48 (White)
     arr_white = np.array(logo_white)
@@ -141,9 +141,9 @@ def generate_all():
         logo_jpeg.save(target / "logo.jpeg", quality=95)
         logo_white.save(target / "logo-white.png")
         h_title.save(target / "logo-horizontal.png")
-        h_title_dark.save(target / "logo-horizontal-dark.png")
+        h_title_white.save(target / "logo-horizontal-white.png")
         h_caps.save(target / "logo-horizontal-caps.png")
-        h_caps_dark.save(target / "logo-horizontal-caps-dark.png")
+        h_caps_white.save(target / "logo-horizontal-caps-white.png")
 
     # Favicons (White)
     fav_targets = [

@@ -99,7 +99,7 @@ export default function LoginPage() {
       >
         <div style={{ padding: '3.5rem 3rem 0' }}>
           <img
-            src="/logo-horizontal-dark.png"
+            src="/logo-horizontal-white.png"
             alt="Paladio"
             style={{ height: '60px', width: 'auto', objectFit: 'contain' }}
           />

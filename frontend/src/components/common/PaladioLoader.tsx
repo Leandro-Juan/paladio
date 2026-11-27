@@ -76,7 +76,7 @@ export function PaladioLoader({
             className={`${styles.logoImage} brand-logo-light`}
           />
           <img
-            src="/logo-horizontal-dark.png"
+            src="/logo-horizontal-white.png"
             alt={t('common.paladio_logo')}
             className={`${styles.logoImage} brand-logo-dark`}
             style={{ display: 'none' }}

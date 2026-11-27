@@ -1,7 +1,7 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-horizontal-dark.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-horizontal-white.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-horizontal.png">
   <img alt="Paladio" src="docs/assets/logo-horizontal.png" width="300">
 </picture>
@@ -17,7 +17,13 @@ Plan realistic trips tailored to your tastes, catch genuine flight and hotel dea
 
 </div>
 
-<!-- Demo visual (GIF / video) will be added here -->
+<div align="center">
+  <a href="./docs/assets/paladio-promo.mp4">
+    <img alt="Paladio Product Tour — Watch Full Video" src="docs/assets/paladio-promo-preview.webp" width="860">
+  </a>
+  <br/>
+  <sub><b>▶ <a href="./docs/assets/paladio-promo.mp4">Watch the full product tour (720p MP4)</a></b></sub>
+</div>
 
 ## Your Private Travel Agency
 

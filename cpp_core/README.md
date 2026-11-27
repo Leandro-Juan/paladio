@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo-horizontal-dark.png" width="380" alt="Paladio Core">
+<img src="assets/logo-horizontal-white.png" width="380" alt="Paladio Core">
 
 # Paladio Core (`paladio-core`)
 
