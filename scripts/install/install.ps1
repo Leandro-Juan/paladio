@@ -85,6 +85,185 @@ function Install-Paladio {
         return $null
     }
 
+    function Set-EnvValue([string]$Path, [string]$Key, [string]$Value) {
+        $lines = @()
+        if (Test-Path -LiteralPath $Path -PathType Leaf) {
+            $lines = @(Get-Content -LiteralPath $Path)
+        }
+        $pattern = "^\s*" + [Regex]::Escape($Key) + "=.*$"
+        $updated = New-Object System.Collections.Generic.List[string]
+        $found = $false
+        foreach ($line in $lines) {
+            if ($line -match $pattern) {
+                if (-not $found) {
+                    $updated.Add("${Key}=${Value}")
+                    $found = $true
+                }
+            } else {
+                $updated.Add($line)
+            }
+        }
+        if (-not $found) {
+            $updated.Add("${Key}=${Value}")
+        }
+        $envContent = ($updated -join "`n") + "`n"
+        $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllText($Path, $envContent, $utf8NoBom)
+
+        if ($env:OS -eq "Windows_NT") {
+            $localPrevPref = $ErrorActionPreference
+            $ErrorActionPreference = "Continue"
+            icacls $Path /inheritance:r /grant:r "$($env:USERNAME):(R,W)" *> $null
+            $ErrorActionPreference = $localPrevPref
+        } else {
+            chmod 600 $Path
+        }
+    }
+
+    function ConvertTo-ValidPort([string]$RawPort) {
+        if ([string]::IsNullOrWhiteSpace($RawPort)) {
+            return $null
+        }
+        $trimmed = $RawPort.Trim()
+        if ($trimmed -notmatch '^[1-9][0-9]{0,4}$') {
+            return $null
+        }
+        $parsed = [int]$trimmed
+        if ($parsed -lt 1 -or $parsed -gt 65535) {
+            return $null
+        }
+        return $parsed
+    }
+
+    function Test-ComposeServicePort([string]$Service, [int]$ContainerPort, [int]$TargetHostPort) {
+        $localPrevPref = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        $mapped = docker compose port $Service $ContainerPort 2>$null
+        $exitCode = $LASTEXITCODE
+        $ErrorActionPreference = $localPrevPref
+        if ($exitCode -ne 0 -or -not $mapped) {
+            return $false
+        }
+        foreach ($line in @($mapped)) {
+            $trimmed = ([string]$line).Trim()
+            if (-not $trimmed) { continue }
+            $lastColon = $trimmed.LastIndexOf(":")
+            if ($lastColon -ge 0) {
+                $boundPort = $trimmed.Substring($lastColon + 1)
+                if ($boundPort -eq [string]$TargetHostPort) {
+                    return $true
+                }
+            }
+        }
+        return $false
+    }
+
+    function Get-DockerPublishedPortSet {
+        $portSet = New-Object 'System.Collections.Generic.HashSet[int]'
+        $localPrevPref = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        $lines = docker ps --format "{{.Ports}}" 2>$null
+        $exitCode = $LASTEXITCODE
+        $ErrorActionPreference = $localPrevPref
+        if ($exitCode -ne 0 -or -not $lines) {
+            return $portSet
+        }
+        foreach ($line in @($lines)) {
+            $portMatches = [Regex]::Matches([string]$line, ':(\d+)(?:-(\d+))?->')
+            foreach ($m in $portMatches) {
+                $startPort = [int]$m.Groups[1].Value
+                $endPort = if ($m.Groups[2].Success) { [int]$m.Groups[2].Value } else { $startPort }
+                if ($endPort -lt $startPort) { continue }
+                $cappedEnd = [Math]::Min($endPort, $startPort + 1000)
+                for ($p = $startPort; $p -le $cappedEnd; $p++) {
+                    [void]$portSet.Add($p)
+                }
+            }
+        }
+        return $portSet
+    }
+
+    function Get-ActiveTcpListenerPortSet {
+        $portSet = New-Object 'System.Collections.Generic.HashSet[int]'
+        try {
+            $ipProps = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
+            foreach ($ep in $ipProps.GetActiveTcpListeners()) {
+                [void]$portSet.Add([int]$ep.Port)
+            }
+        } catch {
+            # Fallback to socket bind probe in Test-PortInUse
+        }
+        return $portSet
+    }
+
+    function Test-PortInUse([int]$Port, $DockerPortSet, $ListenerPortSet) {
+        if ($null -ne $DockerPortSet -and $DockerPortSet.Contains($Port)) {
+            return $true
+        }
+        if ($null -ne $ListenerPortSet -and $ListenerPortSet.Contains($Port)) {
+            return $true
+        }
+
+        $addrs = @(
+            [System.Net.IPAddress]::Any,
+            [System.Net.IPAddress]::Loopback
+        )
+        if ([System.Net.Sockets.Socket]::OSSupportsIPv6) {
+            $addrs += @(
+                [System.Net.IPAddress]::IPv6Any,
+                [System.Net.IPAddress]::IPv6Loopback
+            )
+        }
+
+        foreach ($addr in $addrs) {
+            $listener = $null
+            try {
+                $listener = New-Object System.Net.Sockets.TcpListener($addr, $Port)
+                if ($addr.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) {
+                    try { $listener.Server.DualMode = $false } catch {}
+                }
+                $listener.Start()
+            } catch [System.Net.Sockets.SocketException] {
+                $errCode = $_.Exception.SocketErrorCode
+                if ($errCode -eq [System.Net.Sockets.SocketError]::AddressAlreadyInUse) {
+                    return $true
+                }
+                if (($env:OS -eq "Windows_NT") -and ($Port -ge 1024) -and ($errCode -eq [System.Net.Sockets.SocketError]::AccessDenied)) {
+                    return $true
+                }
+            } catch {
+                # Ignore unsupported protocol or permission errors on privileged ports
+            } finally {
+                if ($null -ne $listener) {
+                    try { $listener.Stop() } catch {}
+                }
+            }
+        }
+
+        return $false
+    }
+
+    function Resolve-AvailablePort([string]$Service, [int]$ContainerPort, [int]$DesiredPort, [int]$ReservedPort, $DockerPortSet, $ListenerPortSet) {
+        if (($DesiredPort -ne $ReservedPort) -and (Test-ComposeServicePort $Service $ContainerPort $DesiredPort)) {
+            return $DesiredPort
+        }
+
+        $candidate = $DesiredPort
+        $maxAttempts = 1000
+        for ($attempt = 0; $attempt -lt $maxAttempts; $attempt++) {
+            if (($candidate -ne $ReservedPort) -and (-not (Test-PortInUse $candidate $DockerPortSet $ListenerPortSet))) {
+                return $candidate
+            }
+            if ($candidate -lt 1024 -or $candidate -ge 65535) {
+                $candidate = 1024
+            } else {
+                $candidate++
+            }
+        }
+
+        return $null
+    }
+
     function Test-HttpOk([string]$Url) {
         try {
             $resp = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 3
@@ -160,6 +339,11 @@ function Install-Paladio {
         Write-Info "Creating installation directory at $installDir..."
         New-Item -ItemType Directory -Path $installDir -Force | Out-Null
     }
+
+    $hadApiPortEnv = Test-Path Env:API_PORT
+    $origApiPortEnv = $env:API_PORT
+    $hadFrontendPortEnv = Test-Path Env:FRONTEND_PORT
+    $origFrontendPortEnv = $env:FRONTEND_PORT
 
     Push-Location -LiteralPath $installDir
     try {
@@ -252,11 +436,50 @@ function Install-Paladio {
             Write-Info "Existing .env detected; preserving current secrets."
         }
 
-        $apiPort = if (-not [string]::IsNullOrWhiteSpace($env:API_PORT)) { $env:API_PORT } else { Read-EnvValue $envPath "API_PORT" }
-        if ([string]::IsNullOrWhiteSpace($apiPort)) { $apiPort = "8000" }
+        $rawApiPort = if (-not [string]::IsNullOrWhiteSpace($env:API_PORT)) { $env:API_PORT } else { Read-EnvValue $envPath "API_PORT" }
+        if ([string]::IsNullOrWhiteSpace($rawApiPort)) { $rawApiPort = "8000" }
+        $reqApiPort = ConvertTo-ValidPort $rawApiPort
+        if ($null -eq $reqApiPort) {
+            Write-Err "Invalid API_PORT '$rawApiPort'. Expected an integer between 1 and 65535."
+            return
+        }
 
-        $frontendPort = if (-not [string]::IsNullOrWhiteSpace($env:FRONTEND_PORT)) { $env:FRONTEND_PORT } else { Read-EnvValue $envPath "FRONTEND_PORT" }
-        if ([string]::IsNullOrWhiteSpace($frontendPort)) { $frontendPort = "3000" }
+        $rawFrontendPort = if (-not [string]::IsNullOrWhiteSpace($env:FRONTEND_PORT)) { $env:FRONTEND_PORT } else { Read-EnvValue $envPath "FRONTEND_PORT" }
+        if ([string]::IsNullOrWhiteSpace($rawFrontendPort)) { $rawFrontendPort = "3000" }
+        $reqFrontendPort = ConvertTo-ValidPort $rawFrontendPort
+        if ($null -eq $reqFrontendPort) {
+            Write-Err "Invalid FRONTEND_PORT '$rawFrontendPort'. Expected an integer between 1 and 65535."
+            return
+        }
+
+        Write-Info "Checking host port availability (API: $reqApiPort, Frontend: $reqFrontendPort)..."
+        $dockerPortSet = Get-DockerPublishedPortSet
+        $listenerPortSet = Get-ActiveTcpListenerPortSet
+
+        $apiPortInt = Resolve-AvailablePort "api" 8000 $reqApiPort 0 $dockerPortSet $listenerPortSet
+        if ($null -eq $apiPortInt) {
+            Write-Err "Could not find an available host port starting from API_PORT=$reqApiPort."
+            return
+        }
+        if ($apiPortInt -ne $reqApiPort) {
+            Write-Warn "Port $reqApiPort is already in use; automatically selected API_PORT=$apiPortInt."
+            Set-EnvValue $envPath "API_PORT" ([string]$apiPortInt)
+        }
+
+        $frontendPortInt = Resolve-AvailablePort "frontend" 3000 $reqFrontendPort $apiPortInt $dockerPortSet $listenerPortSet
+        if ($null -eq $frontendPortInt) {
+            Write-Err "Could not find an available host port starting from FRONTEND_PORT=$reqFrontendPort."
+            return
+        }
+        if ($frontendPortInt -ne $reqFrontendPort) {
+            Write-Warn "Port $reqFrontendPort is already in use; automatically selected FRONTEND_PORT=$frontendPortInt."
+            Set-EnvValue $envPath "FRONTEND_PORT" ([string]$frontendPortInt)
+        }
+
+        $apiPort = [string]$apiPortInt
+        $frontendPort = [string]$frontendPortInt
+        $env:API_PORT = $apiPort
+        $env:FRONTEND_PORT = $frontendPort
 
         # --- Step 5: Pull & Launch Containers ---
         if ($env:PALADIO_NO_PULL -ne "1") {
@@ -325,6 +548,16 @@ function Install-Paladio {
         Write-Host "-------------------------------------------------------------" -ForegroundColor Cyan
         Write-Host ""
     } finally {
+        if ($hadApiPortEnv) {
+            $env:API_PORT = $origApiPortEnv
+        } else {
+            Remove-Item Env:API_PORT -ErrorAction SilentlyContinue
+        }
+        if ($hadFrontendPortEnv) {
+            $env:FRONTEND_PORT = $origFrontendPortEnv
+        } else {
+            Remove-Item Env:FRONTEND_PORT -ErrorAction SilentlyContinue
+        }
         Pop-Location
     }
 }
