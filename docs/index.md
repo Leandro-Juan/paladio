@@ -2,6 +2,12 @@
 
 Paladio is a self-hosted travel planning, route optimization, and fare telemetry platform built with FastAPI, Next.js 16, PostgreSQL 16 (with TimescaleDB and pgvector), Redis, Celery, Valhalla, and a C++20 combinatorial core (`paladio_core`). Trip generation, booking parsing, and 768-dimensional semantic search run deterministically on local infrastructure without external generative Large Language Model (LLM) APIs, while an optional interactive assistant supports 13 LLM providers and an 82-tool Model Context Protocol (MCP) server.
 
+## Product tour
+
+<video controls playsinline preload="metadata" poster="assets/paladio-promo-preview.webp" style="width: 100%; border-radius: 12px;">
+  <source src="assets/paladio-promo.mp4" type="video/mp4">
+</video>
+
 <div class="grid cards" markdown>
 
 -   :material-rocket-launch:{ .lg .middle } **Getting started**

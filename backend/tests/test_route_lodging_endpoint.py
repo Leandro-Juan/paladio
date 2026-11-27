@@ -3,6 +3,7 @@
 import uuid
 from datetime import date, datetime, timezone
 from unittest.mock import AsyncMock, patch
+from urllib.parse import urlparse
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import delete
@@ -105,7 +106,9 @@ async def test_route_lodging_cached_hit(
     assert data["stars"] == 4
     assert data["review_score"] == 8.6
     assert data["review_count"] == 1420
-    assert "booking.com" in data["booking_url"]
+    parsed_booking = urlparse(data["booking_url"])
+    assert parsed_booking.scheme == "https"
+    assert parsed_booking.hostname == "www.booking.com"
     assert data["source"] == "booking"
 
 
