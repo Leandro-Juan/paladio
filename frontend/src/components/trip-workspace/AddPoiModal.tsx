@@ -16,7 +16,7 @@ import {
 import { PoiCategoryIcon } from '@/components/PoiCategoryBadge';
 import { CustomHourPickerModal } from '@/components/trip-creation/CustomHourPickerModal';
 import { PoiLocationPickerModal } from './PoiLocationPickerModal';
-import { getApiBaseUrl } from '@/utils/api';
+import { getApiBaseUrl, sanitizeImageUrl } from '@/utils/api';
 import { notify } from '@/utils/notify';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAnimatedMount } from '@/hooks/useAnimatedMount';
@@ -1583,7 +1583,9 @@ export function AddPoiModal({
 
             {photos.length > 0 && (
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {photos.map((ph) => (
+                {photos.map((ph) => {
+                  const safePhotoUrl = sanitizeImageUrl(ph.url);
+                  return (
                   <div
                     key={ph.id}
                     style={{
@@ -1595,11 +1597,13 @@ export function AddPoiModal({
                       border: '1px solid var(--color-border)',
                     }}
                   >
-                    <img
-                      src={ph.url}
-                      alt={ph.caption || t('add_poi.place_photo_alt')}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    />
+                    {safePhotoUrl ? (
+                      <img
+                        src={safePhotoUrl}
+                        alt={ph.caption || t('add_poi.place_photo_alt')}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      />
+                    ) : null}
                     <button
                       type="button"
                       aria-label={t('add_poi.remove_photo_aria')}
@@ -1624,7 +1628,8 @@ export function AddPoiModal({
                       <CloseIcon size={10} color="#FFFFFF" />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

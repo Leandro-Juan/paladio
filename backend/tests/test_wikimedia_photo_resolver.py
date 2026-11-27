@@ -176,10 +176,12 @@ async def test_resolve_photos_filters_broken_osm_share_links():
     )
     # First photo must NOT be the google photos share link!
     assert len(photos) > 0
-    assert not photos[0]["url"].startswith("https://photos.app.goo.gl")
     import urllib.parse
 
-    p_path = urllib.parse.urlparse(photos[0]["url"]).path.lower()
+    parsed_first = urllib.parse.urlparse(photos[0]["url"])
+    assert (parsed_first.hostname or "").lower() != "photos.app.goo.gl"
+
+    p_path = parsed_first.path.lower()
     assert any(p_path.endswith(ext) for ext in (".jpg", ".jpeg", ".png", ".webp"))
     if extract:
         assert "Kōtoku-in" in extract or "temple" in extract or "大仏" in extract

@@ -189,12 +189,15 @@ async def search_hotels(
                 candidates.append(clean_q)
 
             # Strip marketing noise, OTA suffixes, and partner labels
-            cleaned = re.sub(r"(?i)\s*-\s*ALQUILER\s+TEMPORAL.*", "", clean_q)
-            cleaned = re.sub(r"(?i)\s+anteriormente\s+.*", "", cleaned)
-            cleaned = re.sub(r"(?i)\s+by\s+[A-Za-z0-9\s]+", "", cleaned)
+            cleaned = " ".join(clean_q.split())
+            cleaned = re.sub(r"(?i) ?- ?ALQUILER TEMPORAL.*", "", cleaned)
+            cleaned = re.sub(r"(?i)(?:^| )anteriormente\b.*", "", cleaned)
+            cleaned = re.sub(
+                r"(?i)(?:^| )by [A-Za-z0-9]+(?: [A-Za-z0-9]+)*", "", cleaned
+            )
             cleaned = re.sub(r"(?i)\b(ALQUILER TEMPORAL)\b", "", cleaned)
             cleaned = re.sub(r"(?i)\b(Collection|Hotel Life)\b", "", cleaned)
-            cleaned = re.sub(r"\s+", " ", cleaned).strip()
+            cleaned = " ".join(cleaned.split()).strip()
 
             if cleaned and cleaned.lower() != clean_q.lower():
                 if clean_city and clean_city.lower() in cleaned.lower():
@@ -205,7 +208,7 @@ async def search_hotels(
                     candidates.append(cleaned)
 
             # Spaced alphanumeric query (e.g. Hotel101 -> Hotel 101)
-            spaced_num = re.sub(r"([a-zA-Z]+)(\d+)", r"\1 \2", cleaned).strip()
+            spaced_num = re.sub(r"(?<=[a-zA-Z])(?=\d)", " ", cleaned).strip()
             if spaced_num != cleaned:
                 if clean_city and clean_city.lower() in spaced_num.lower():
                     candidates.append(spaced_num)

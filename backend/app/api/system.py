@@ -248,7 +248,7 @@ async def test_llm_connection(
         logger.exception(f"Failed during LLM connection test: {e}")
         return {
             "success": False,
-            "error": str(e),
+            "error": "LLM connection test failed. Check server logs for details.",
             "provider": payload.provider,
             "model": payload.model,
         }
@@ -268,13 +268,26 @@ async def list_llm_provider_models(
             base_url=payload.base_url,
             session=session,
         )
+    except ValueError as ve:
+        logger.warning(f"Invalid LLM models request for '{payload.provider}': {ve}")
+        err_msg = (
+            "Explicit API key is required when querying a custom base URL."
+            if "explicit api key" in str(ve).lower()
+            else "Invalid LLM provider configuration."
+        )
+        return {
+            "success": False,
+            "provider": payload.provider,
+            "models": [],
+            "error": err_msg,
+        }
     except Exception as e:
         logger.exception(f"Failed to list LLM models for '{payload.provider}': {e}")
         return {
             "success": False,
             "provider": payload.provider,
             "models": [],
-            "error": str(e),
+            "error": "Failed to fetch provider models. Check server logs for details.",
         }
 
 
@@ -858,9 +871,10 @@ async def test_system_secret(
                     "message": f"LibreTranslate responded with HTTP {resp.status_code}.",
                 }
         except Exception as err:
+            logger.warning(f"LibreTranslate connection failed: {err}")
             return {
                 "success": False,
-                "message": f"LibreTranslate connection failed: {err}",
+                "message": "LibreTranslate connection failed. Check server logs for details.",
             }
 
     test_token = payload.token.strip() if payload and payload.token else None
@@ -896,7 +910,7 @@ async def test_system_secret(
         logger.warning(f"Aviasales connection test failed: {e}")
         return {
             "success": False,
-            "message": f"Connection test failed: {e}",
+            "message": "Aviasales connection test failed. Check server logs for details.",
         }
 
 

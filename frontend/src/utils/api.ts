@@ -39,14 +39,44 @@ export const getWsBaseUrl = (): string => {
   return `ws://localhost:${serverPort}`;
 };
 
+const SAFE_DATA_IMAGE_RE = /^data:image\/(?:png|jpeg|jpg|webp|gif|avif);base64,[A-Za-z0-9+/=]+$/i;
+
+export const sanitizeImageUrl = (raw: string | null | undefined): string => {
+  if (!raw || typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  if (SAFE_DATA_IMAGE_RE.test(trimmed)) return trimmed;
+  try {
+    const parsed = new URL(trimmed, 'https://paladio.invalid');
+    if (trimmed.startsWith('/')) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+    if (
+      parsed.protocol === 'http:' ||
+      parsed.protocol === 'https:' ||
+      parsed.protocol === 'blob:'
+    ) {
+      return parsed.href;
+    }
+  } catch {
+    return '';
+  }
+  return '';
+};
+
 export const resolveApiMediaUrl = (url: string): string => {
   if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-    return url;
+  if (
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('data:') ||
+    url.startsWith('blob:')
+  ) {
+    return sanitizeImageUrl(url);
   }
   const base = getApiBaseUrl().replace(/\/api\/?$/, '');
   const cleanPath = url.startsWith('/') ? url : `/${url}`;
-  return `${base}${cleanPath}`;
+  return sanitizeImageUrl(`${base}${cleanPath}`);
 };
 
 const TOKEN_KEY = 'paladio_token';

@@ -109,24 +109,38 @@ export function startCustomDragPreview(
   const cat = poi.category || 'Waypoint';
   const dur = poi.duration_mins ? `${poi.duration_mins}m` : '60m';
 
-  el.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-      <div style="width: 24px; height: 24px; border-radius: 6px; background: rgba(15, 76, 92, 0.14); color: #0F4C5C; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; font-family: monospace;">
-        +
-      </div>
-      <div style="min-width: 0;">
-        <div style="font-size: 13px; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 175px;">
-          ${name}
-        </div>
-        <div style="font-size: 11px; color: #64748b; text-transform: capitalize;">
-          ${cat} · ${dur}
-        </div>
-      </div>
-    </div>
-    <div style="font-size: 10px; font-weight: 700; font-family: monospace; color: #0F4C5C; background: rgba(15, 76, 92, 0.1); padding: 3px 8px; border-radius: 9999px; white-space: nowrap;">
-      ROUTE STOP
-    </div>
-  `;
+  const leftWrap = document.createElement('div');
+  leftWrap.style.cssText = 'display: flex; align-items: center; gap: 10px; min-width: 0;';
+
+  const iconBox = document.createElement('div');
+  iconBox.style.cssText =
+    'width: 24px; height: 24px; border-radius: 6px; background: rgba(15, 76, 92, 0.14); color: #0F4C5C; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; font-family: monospace;';
+  iconBox.textContent = '+';
+
+  const textCol = document.createElement('div');
+  textCol.style.minWidth = '0';
+
+  const titleEl = document.createElement('div');
+  titleEl.style.cssText =
+    'font-size: 13px; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 175px;';
+  titleEl.textContent = name;
+
+  const metaEl = document.createElement('div');
+  metaEl.style.cssText = 'font-size: 11px; color: #64748b; text-transform: capitalize;';
+  metaEl.textContent = `${cat} · ${dur}`;
+
+  textCol.appendChild(titleEl);
+  textCol.appendChild(metaEl);
+  leftWrap.appendChild(iconBox);
+  leftWrap.appendChild(textCol);
+
+  const badgeEl = document.createElement('div');
+  badgeEl.style.cssText =
+    'font-size: 10px; font-weight: 700; font-family: monospace; color: #0F4C5C; background: rgba(15, 76, 92, 0.1); padding: 3px 8px; border-radius: 9999px; white-space: nowrap;';
+  badgeEl.textContent = 'ROUTE STOP';
+
+  el.appendChild(leftWrap);
+  el.appendChild(badgeEl);
 
   document.body.appendChild(el);
 
