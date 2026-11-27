@@ -39,29 +39,43 @@ export const getWsBaseUrl = (): string => {
   return `ws://localhost:${serverPort}`;
 };
 
-const SAFE_DATA_IMAGE_RE = /^data:image\/(?:png|jpeg|jpg|webp|gif|avif);base64,[A-Za-z0-9+/=]+$/i;
+const SAFE_DATA_IMAGE_RE = /^data:image\/(png|jpeg|jpg|webp|gif|avif);base64,([A-Za-z0-9+/=]+)$/i;
 
 export const sanitizeImageUrl = (raw: string | null | undefined): string => {
   if (!raw || typeof raw !== 'string') return '';
   const trimmed = raw.trim();
   if (!trimmed) return '';
-  if (SAFE_DATA_IMAGE_RE.test(trimmed)) return trimmed;
+  const dataMatch = SAFE_DATA_IMAGE_RE.exec(trimmed);
+  if (dataMatch) {
+    const cleanPayload = dataMatch[2].replace(/[^A-Za-z0-9+/=]/g, '');
+    return `data:image/${dataMatch[1].toLowerCase()};base64,${encodeURI(cleanPayload)}`;
+  }
   try {
     const parsed = new URL(trimmed, 'https://paladio.invalid');
+    let candidate = '';
     if (trimmed.startsWith('/')) {
-      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-    }
-    if (
+      candidate = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } else if (
       parsed.protocol === 'http:' ||
       parsed.protocol === 'https:' ||
       parsed.protocol === 'blob:'
     ) {
-      return parsed.href;
+      candidate = parsed.href;
+    } else {
+      return '';
+    }
+    const sanitizedChars = candidate.replace(
+      /[<>"'`\\]/g,
+      (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`,
+    );
+    try {
+      return encodeURI(decodeURI(sanitizedChars));
+    } catch {
+      return encodeURI(sanitizedChars);
     }
   } catch {
     return '';
   }
-  return '';
 };
 
 export const resolveApiMediaUrl = (url: string): string => {
