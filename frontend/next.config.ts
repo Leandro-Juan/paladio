@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  outputFileTracingIncludes: {
+    '/api/[...path]': ['./src/server/demo-locations.json.gz'],
+  },
   skipTrailingSlashRedirect: true,
   productionBrowserSourceMaps: false,
   devIndicators: false,

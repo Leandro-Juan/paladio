@@ -1,6 +1,7 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { addDaysIso, addHoursIso, DemoSnapshotRaw } from '../demoSnapshotLoader';
+import { resolveDemoAirportForCity, searchDemoLocations } from '../demoAirportService';
 import {
   DemoSessionState,
   resetDemoSession,
@@ -1021,22 +1022,46 @@ export async function handleMarketAndSystemRoutes(
   }
 
   if (root === 'locations') {
-    const cities = [
-      { city: 'Madrid', country: 'ES', country_name: 'Spain', display_name: 'Madrid, Spain', airport_iata: 'MAD', airport_name: 'Adolfo Suárez Madrid-Barajas', latitude: 40.4168, longitude: -3.7038 },
-      { city: 'Tokyo', country: 'JP', country_name: 'Japan', display_name: 'Tokyo, Japan', airport_iata: 'HND', airport_name: 'Tokyo Haneda International', latitude: 35.6762, longitude: 139.6503 },
-      { city: 'London', country: 'GB', country_name: 'United Kingdom', display_name: 'London, United Kingdom', airport_iata: 'LHR', airport_name: 'London Heathrow', latitude: 51.5074, longitude: -0.1278 },
-      { city: 'Zurich', country: 'CH', country_name: 'Switzerland', display_name: 'Zurich, Switzerland', airport_iata: 'ZRH', airport_name: 'Zurich Airport', latitude: 47.3769, longitude: 8.5417 },
-      { city: 'Paris', country: 'FR', country_name: 'France', display_name: 'Paris, France', airport_iata: 'CDG', airport_name: 'Paris Charles de Gaulle', latitude: 48.8566, longitude: 2.3522 },
-      { city: 'Lisbon', country: 'PT', country_name: 'Portugal', display_name: 'Lisbon, Portugal', airport_iata: 'LIS', airport_name: 'Lisbon Humberto Delgado', latitude: 38.7223, longitude: -9.1393 },
-    ];
     if (sub[0] === 'resolve-airport') {
-      const q = (url.searchParams.get('city') || '').toLowerCase();
-      const match = cities.find((c) => c.city.toLowerCase().includes(q) || c.airport_iata.toLowerCase() === q) || cities[0];
-      return jsonRes({ city: match.city, iata: match.airport_iata, airport_name: match.airport_name });
+      const city = (url.searchParams.get('city') || '').trim();
+      const countryCode = url.searchParams.get('country_code') || null;
+      if (!city) {
+        return jsonRes({ iata: null, name: null, city: '' });
+      }
+      const ap = resolveDemoAirportForCity(city, countryCode);
+      if (ap) {
+        return jsonRes({
+          iata: ap.iata,
+          icao: ap.icao,
+          name: ap.name,
+          city: ap.city,
+          country: ap.country,
+          latitude: ap.latitude,
+          longitude: ap.longitude,
+          distance_km: ap.distance_km,
+        });
+      }
+      const matches = searchDemoLocations(city, 1);
+      if (matches.length > 0) {
+        const first = matches[0];
+        return jsonRes({
+          iata: first.airport_iata,
+          icao: first.airport_icao,
+          name: first.airport_name,
+          city: first.city,
+          country: first.country,
+          latitude: first.latitude,
+          longitude: first.longitude,
+          distance_km: first.distance_km,
+        });
+      }
+      return jsonRes({ iata: null, name: null, city });
     }
-    const q = (url.searchParams.get('q') || url.searchParams.get('city') || '').toLowerCase();
-    const filtered = q ? cities.filter((c) => c.city.toLowerCase().includes(q) || c.airport_iata.toLowerCase().includes(q)) : cities;
-    return jsonRes(filtered);
+
+    const q = (url.searchParams.get('q') || url.searchParams.get('city') || '').trim();
+    const rawLimit = Number(url.searchParams.get('limit') || '8');
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(20, Math.floor(rawLimit))) : 8;
+    return jsonRes(searchDemoLocations(q, limit));
   }
 
   // --- System Admin (Read-Only for rendering behind DemoFeatureGate, all writes 403) ---
